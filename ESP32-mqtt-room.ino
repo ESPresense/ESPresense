@@ -152,7 +152,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             float distance = calculateDistance(rssi, oBeacon.getSignalPower());
             Serial.print("RSSI: ");
             Serial.print(rssi);
-            Serial.print("\txPower: ");
+            Serial.print("\ttxPower: ");
             Serial.print(oBeacon.getSignalPower());
             Serial.print("\tDistance: ");
             Serial.println(distance);
@@ -207,8 +207,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         String publishTopic = String(channel) + "/" + room;
         
         if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
+          
+          vTaskDelay(10); // watchdog timer
+          
       //    Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
+      
         } else {
           Serial.print("Error sending message: "); Serial.println(publishTopic);
           Serial.print("Message: "); Serial.println(JSONmessageBuffer);
@@ -218,15 +222,19 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 void setup() {
   Serial.begin(115200);
-
+  
   WiFi.begin(ssid, password);
-
+  WiFi.setHostname(hostname);
+  
+  Serial.print("Connecting to WiFi..");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.println("Connecting to WiFi..");
+    Serial.print(".");
   }
 
-  Serial.println("Connected to the WiFi network");
+  Serial.println();
+  Serial.print("Connected to the WiFi network as ");
+  Serial.println(hostname);
 
   client.setServer(mqttServer, mqttPort);
   reconnect();
@@ -237,6 +245,7 @@ void setup() {
   } else {
     Serial.println("Error sending message");
   }
+  
   
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
@@ -251,14 +260,14 @@ void loop() {
     reconnect();
   }
   client.loop();
-
+  
   if (millis() - last > (waitTime * 1000)) {
     Serial.println("Scanning...");
     BLEScanResults foundDevices = pBLEScan->start(scanTime);
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
-  delay(5);
+  
 }
 
 char *uint64_to_string(uint64_t input)
