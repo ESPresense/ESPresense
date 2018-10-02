@@ -21,3 +21,6 @@
 
 //Replace with the room name where the node will be placed; example: #define room "living-room"
 #define room "$ROOM_NAME$"
+
+//Define the base topic for room detection. Usually "room_presence"
+#define channel "room_presence"

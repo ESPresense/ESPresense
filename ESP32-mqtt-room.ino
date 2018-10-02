@@ -21,7 +21,6 @@ int waitTime = 15; //In seconds
 
 uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
-#define base_topic "esp32" // No trailing slash
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -70,8 +69,10 @@ float calculateDistance(int rssi, int txPower) {
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    if (client.connect("ESP32Client", mqttUser, mqttPassword )) {
-      Serial.println("connected");
+    
+    if (client.connect(uint64_to_string(ESP.getEfuseMac()), mqttUser, mqttPassword )) {
+      Serial.print("connected with client id ");
+      Serial.println(uint64_to_string(ESP.getEfuseMac()));
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
@@ -89,17 +90,20 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       StaticJsonBuffer<500> JSONbuffer;
       JsonObject& JSONencoder = JSONbuffer.createObject();
 
-      String mac_adress = advertisedDevice.getAddress().toString().c_str();
-      mac_adress.replace(":","");
-      mac_adress.toLowerCase();
+      String mac_address = advertisedDevice.getAddress().toString().c_str();
+      mac_address.replace(":","");
+      mac_address.toLowerCase();
       int rssi = advertisedDevice.getRSSI();
       
-      JSONencoder["id"] = mac_adress;
+      JSONencoder["id"] = mac_address;
+      JSONencoder["uuid"] = mac_address;
       JSONencoder["rssi"] = rssi;
 
       if (advertisedDevice.haveName()){
-        String nameBLE = advertisedDevice.getName().c_str();
+        String nameBLE = String(advertisedDevice.getName().c_str());
         JSONencoder["name"] = nameBLE;
+      } else {
+        JSONencoder["name"] = "unknown";  
       }
       
       Serial.printf("\n\n");
@@ -143,7 +147,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             String proximityUUID = getProximityUUIDString(oBeacon);
             
             Serial.printf("iBeacon Frame\n");
-            Serial.printf("ID: %04X Major: %d Minor: %d UUID: %s Power: %d\n",oBeacon.getManufacturerId(),ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
+            Serial.printf("Major: %d Minor: %d UUID: %s Power: %d\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
 
             float distance = calculateDistance(rssi, oBeacon.getSignalPower());
             Serial.print("RSSI: ");
@@ -168,6 +172,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
             if (advertisedDevice.haveTXPower()) {
               float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+              JSONencoder["txPower"] = advertisedDevice.getTXPower();
               JSONencoder["distance"] = distance;
             } else {
               float distance = calculateDistance(rssi, -59);
@@ -185,6 +190,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
           if (advertisedDevice.haveTXPower()) {
             float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+            JSONencoder["txPower"] = advertisedDevice.getTXPower();
             JSONencoder["distance"] = distance;
           } else {
             float distance = calculateDistance(rssi, -59);
@@ -198,9 +204,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         char JSONmessageBuffer[500];
         JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
       
-        String publishTopic = String(base_topic) + "/" + room;
+        String publishTopic = String(channel) + "/" + room;
         
-        if (client.publish(publishTopic.c_str(), JSONmessageBuffer) == true) {
+        if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
       //    Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
         } else {
@@ -223,23 +229,10 @@ void setup() {
   Serial.println("Connected to the WiFi network");
 
   client.setServer(mqttServer, mqttPort);
-
-  while (!client.connected()) {
-    Serial.println("Connecting to MQTT...");
-
-    if (client.connect("ESP32Client", mqttUser, mqttPassword )) {
-
-      Serial.println("connected");
-
-    } else {
-
-      Serial.print("failed with state ");
-      Serial.print(client.state());
-      delay(2000);
-    }
-  }
-
-  if (client.publish(base_topic, "Hello from ESP32") == true) { //TODO base_topic + mac_address
+  reconnect();
+  
+  String publishTopic = String(channel) + "/" + room;
+  if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
     Serial.println("Success sending message to topic");
   } else {
     Serial.println("Error sending message");
@@ -265,5 +258,27 @@ void loop() {
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
-  delay(1);
+  delay(5);
+}
+
+char *uint64_to_string(uint64_t input)
+{
+    static char result[21] = "";
+    // Clear result from any leftover digits from previous function call.
+    memset(&result[0], 0, sizeof(result));
+    // temp is used as a temporary result storage to prevent sprintf bugs.
+    char temp[21] = "";
+    char c;
+    uint8_t base = 10;
+
+    while (input) 
+    {
+        int num = input % base;
+        input /= base;
+        c = '0' + num;
+
+        sprintf(temp, "%c%s", c, result);
+        strcpy(result, temp);
+    } 
+    return result;
 }
