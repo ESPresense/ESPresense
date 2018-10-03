@@ -24,3 +24,6 @@
 
 //Define the base topic for room detection. Usually "room_presence"
 #define channel "room_presence"
+
+//Define the interval in seconds between scans
+#define scanInterval 15

@@ -6,13 +6,17 @@ This depends heavily on the hard work done by [pcbreflux](https://github.com/pcb
 ## Getting Started
 1. You can get started by cloning this repository to your local machine using git. Alternatively, you can [download the zip](https://github.com/jptrsn/ESP32-mqtt-room/archive/master.zip).
 2. Make a copy of the `Settings.h` file, and rename it `Settings_local.h`. Fill in the required information in your local settings file (the local file is ignored by GitHub, so you won't upload your sensitive information).
-3. Set the board variant to ESP32 in the Arduino IDE.
 
+### Configuration
+3. Settings are defined in `Settings_local.h` which is not included in the repo by default. Make a copy of `Settings.h` and rename it `Settings_local.h` in the same folder. Fill in your required settings.
 
-## Configuration
-Settings are defined in `Settings_local.h` which is not included in the repo by default. You can make a copy of `Settings.h` and rename it `Settings_local.h` in the same folder.
+### Build and Upload
+4. Open the `ESP32-mqtt-room.ino` file in the Arduino IDE, and set the board variant to ESP32. You'll need to use the large partition scheme to get it to fit your board.
+5. Compile and upload. Ensure that you've got all required libraries installed (and do not use the beta version of any of them).
 
-#### Development Tasks
+_**TBC**_
+
+#### Future Development Tasks
 - [x] Implement basic BLE packet discovery
 - [x] Implement iBeacon data packet parsing
 - [ ] Setup instructions in README.md

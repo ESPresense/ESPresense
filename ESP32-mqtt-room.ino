@@ -17,13 +17,23 @@
 
 BLEScan* pBLEScan;
 int scanTime = 5; //In seconds
-int waitTime = 15; //In seconds
+int waitTime = scanInterval; //In seconds
 
 uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+
+TaskHandle_t CoreZeroTask;
+
+void handleWatchdog( void * parameter ) {
+  for (;;) {
+    vTaskDelay(10); // watchdog timer
+ }
+}
+
+char *uint64_to_string(uint64_t input);
 
 String getProximityUUIDString(BLEBeacon beacon) {
   std::string serviceData = beacon.getProximityUUID().toString().c_str();
@@ -39,10 +49,10 @@ String getProximityUUIDString(BLEBeacon beacon) {
     char b = serviceData[i-2];
     returnedString += b;
     returnedString += a;
-    
+
     i -= 2;
   }
-  
+
   return returnedString;
 }
 
@@ -69,7 +79,7 @@ float calculateDistance(int rssi, int txPower) {
 void reconnect() {
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    
+
     if (client.connect(uint64_to_string(ESP.getEfuseMac()), mqttUser, mqttPassword )) {
       Serial.print("connected with client id ");
       Serial.println(uint64_to_string(ESP.getEfuseMac()));
@@ -84,7 +94,7 @@ void reconnect() {
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-  
+
     void onResult(BLEAdvertisedDevice advertisedDevice) {
 
       StaticJsonBuffer<500> JSONbuffer;
@@ -94,7 +104,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       mac_address.replace(":","");
       mac_address.toLowerCase();
       int rssi = advertisedDevice.getRSSI();
-      
+
       JSONencoder["id"] = mac_address;
       JSONencoder["uuid"] = mac_address;
       JSONencoder["rssi"] = rssi;
@@ -103,9 +113,9 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         String nameBLE = String(advertisedDevice.getName().c_str());
         JSONencoder["name"] = nameBLE;
       } else {
-        JSONencoder["name"] = "unknown";  
+        JSONencoder["name"] = "unknown";
       }
-      
+
       Serial.printf("\n\n");
       Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
       std::string strServiceData = advertisedDevice.getServiceData();
@@ -120,7 +130,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
            Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
            Serial.printf(oBeacon.getDecodedURL().c_str());
            JSONencoder["url"] = oBeacon.getDecodedURL().c_str();
-           
+
         } else if (cServiceData[0]==0x20) {
            BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
            oBeacon.setData(strServiceData);
@@ -136,16 +146,16 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
        } else {
         if (advertisedDevice.haveManufacturerData()==true) {
           std::string strManufacturerData = advertisedDevice.getManufacturerData();
-          
+
           uint8_t cManufacturerData[100];
           strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
-          
+
           if (strManufacturerData.length()==25 && cManufacturerData[0] == 0x4C  && cManufacturerData[1] == 0x00 ) {
             BLEBeacon oBeacon = BLEBeacon();
             oBeacon.setData(strManufacturerData);
-            
+
             String proximityUUID = getProximityUUIDString(oBeacon);
-            
+
             Serial.printf("iBeacon Frame\n");
             Serial.printf("Major: %d Minor: %d UUID: %s Power: %d\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
 
@@ -167,7 +177,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             JSONencoder["id"] = proximityUUID + "-" + String(major) + "-0";
             JSONencoder["txPower"] = oBeacon.getSignalPower();
             JSONencoder["distance"] = distance;
-            
+
           } else {
 
             if (advertisedDevice.haveTXPower()) {
@@ -196,23 +206,29 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
             float distance = calculateDistance(rssi, -59);
             JSONencoder["distance"] = distance;
           }
-                    
+
           Serial.printf("no Beacon Advertised ServiceDataUUID: %d %s \n", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str());
          }
         }
 
+        Serial.println("wdt");
+        vTaskDelay(500); // watchdog timer
+
+        unsigned long started = millis();
+
         char JSONmessageBuffer[500];
         JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
-      
+
         String publishTopic = String(channel) + "/" + room;
-        
+
         if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
-          
-          vTaskDelay(10); // watchdog timer
-          
-      //    Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+
+          Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+          unsigned long duration = millis() - started;
+          Serial.print("duration ");
+          Serial.println(duration);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
-      
+
         } else {
           Serial.print("Error sending message: "); Serial.println(publishTopic);
           Serial.print("Message: "); Serial.println(JSONmessageBuffer);
@@ -220,12 +236,24 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     }
 };
 
+void createTaskOnCoreZero() {
+  xTaskCreatePinnedToCore(
+    handleWatchdog,            /* Task function. */
+    "CoreZeroTask",                 /* name of task. */
+    1000,                    /* Stack size of task */
+    NULL,                     /* parameter of the task */
+    1,                        /* priority of the task */
+    &Task1,                   /* Task handle to keep track of created task */
+    0);                       /* Core */
+}
+
+
 void setup() {
   Serial.begin(115200);
-  
+  createTaskOnCoreZero();
   WiFi.begin(ssid, password);
   WiFi.setHostname(hostname);
-  
+
   Serial.print("Connecting to WiFi..");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -238,15 +266,15 @@ void setup() {
 
   client.setServer(mqttServer, mqttPort);
   reconnect();
-  
+
   String publishTopic = String(channel) + "/" + room;
   if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
     Serial.println("Success sending message to topic");
   } else {
     Serial.println("Error sending message");
   }
-  
-  
+
+
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -260,34 +288,34 @@ void loop() {
     reconnect();
   }
   client.loop();
-  
+
   if (millis() - last > (waitTime * 1000)) {
     Serial.println("Scanning...");
     BLEScanResults foundDevices = pBLEScan->start(scanTime);
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
-  
+
+  vTaskDelay(10); // watchdog timer
+
 }
 
-char *uint64_to_string(uint64_t input)
-{
-    static char result[21] = "";
-    // Clear result from any leftover digits from previous function call.
-    memset(&result[0], 0, sizeof(result));
-    // temp is used as a temporary result storage to prevent sprintf bugs.
-    char temp[21] = "";
-    char c;
-    uint8_t base = 10;
+char *uint64_to_string(uint64_t input) {
+  static char result[21] = "";
+  // Clear result from any leftover digits from previous function call.
+  memset(&result[0], 0, sizeof(result));
+  // temp is used as a temporary result storage to prevent sprintf bugs.
+  char temp[21] = "";
+  char c;
+  uint8_t base = 10;
 
-    while (input) 
-    {
-        int num = input % base;
-        input /= base;
-        c = '0' + num;
+  while (input) {
+      int num = input % base;
+      input /= base;
+      c = '0' + num;
 
-        sprintf(temp, "%c%s", c, result);
-        strcpy(result, temp);
-    } 
-    return result;
+      sprintf(temp, "%c%s", c, result);
+      strcpy(result, temp);
+  }
+  return result;
 }
