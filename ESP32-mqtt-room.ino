@@ -1,4 +1,11 @@
 /*
+   
+   Major thank you to the following contributors for their efforts:
+
+   pcbreflux for the original version of this code, as well as the eddystone handlers.
+
+   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot
+   
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
 */
@@ -243,7 +250,7 @@ void createTaskOnCoreZero() {
     1000,                    /* Stack size of task */
     NULL,                     /* parameter of the task */
     1,                        /* priority of the task */
-    &Task1,                   /* Task handle to keep track of created task */
+    &CoreZeroTask,                   /* Task handle to keep track of created task */
     0);                       /* Core */
 }
 
