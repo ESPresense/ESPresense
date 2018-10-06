@@ -1,0 +1,26 @@
+language: python
+python:
+    - "2.7"
+
+# Cache PlatformIO packages using Travis CI container-based infrastructure
+sudo: false
+
+git:
+    submodules: true
+
+cache:
+    directories:
+        - "~/.platformio"
+
+env:
+    - PLATFORMIO_CI_SRC=ESP32-mqtt-room.ino.ino
+
+install:
+    - pip install -U platformio
+
+before_script:
+    - cp Settings_CI.h Settings_local.h
+
+script:
+    - platformio lib update
+    - platformio run
