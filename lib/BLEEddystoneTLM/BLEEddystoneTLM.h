@@ -3,6 +3,7 @@
  *
  *  Created on: Mar 12, 2018
  *      Author: pcbreflux
+ *      See original repository at https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan
  */
 
 #ifndef _BLEEddystoneTLM_H_
