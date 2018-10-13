@@ -11,7 +11,7 @@
 */
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include <AsyncTCP.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
@@ -29,7 +29,9 @@ uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
-PubSubClient client(espClient);
+AsyncMqttClient mqttClient;
+TimerHandle_t mqttReconnectTimer;
+TimerHandle_t wifiReconnectTimer;
 
 TaskHandle_t CoreZeroTask;
 
@@ -80,6 +82,64 @@ float calculateDistance(int rssi, int txPower) {
       return (0.89976) * pow(ratio, 7.7095) + 0.111;
   }
 
+}
+
+void connectToWifi() {
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  WiFi.setHostname(hostname);
+}
+
+void connectToMqtt() {
+  Serial.println("Connecting to MQTT");
+  mqttClient.setClientId(uint64_to_string(ESP.getEfuseMac()));
+  mqttClient.setCredentials(mqttUser, mqttPassword);
+  mqttClient.connect();
+}
+
+void WiFiEvent(WiFiEvent_t event) {
+    Serial.printf("[WiFi-event] event: %d\n", event);
+    switch(event) {
+    case SYSTEM_EVENT_STA_GOT_IP:
+        Serial.println("WiFi connected");
+        Serial.println("IP address: ");
+        Serial.println(WiFi.localIP());
+        connectToMqtt();
+        break;
+    case SYSTEM_EVENT_STA_DISCONNECTED:
+        Serial.println("WiFi lost connection");
+        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+        xTimerStart(wifiReconnectTimer, 0);
+        break;
+    }
+}
+
+void onMqttConnect(bool sessionPresent) {
+  Serial.println("Connected to MQTT.");
+  Serial.print("Session present: ");
+  Serial.println(sessionPresent);
+
+  String publishTopic = String(channel) + "/" + room;
+  if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
+    Serial.println("Success sending message to topic");
+  } else {
+    Serial.println("Error sending message");
+  }
+
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+  Serial.println("Disconnected from MQTT.");
+
+  if (WiFi.isConnected()) {
+    xTimerStart(mqttReconnectTimer, 0);
+  }
+}
+
+void onMqttPublish(uint16_t packetId) {
+  Serial.println("Publish acknowledged.");
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
 }
 
 void reconnect() {
@@ -256,36 +316,28 @@ void createTaskOnCoreZero() {
 
 
 void setup() {
+
   Serial.begin(115200);
+
+  mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+  wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+
+  WiFi.onEvent(WiFiEvent);
+
+  mqttClient.onConnect(onMqttConnect);
+  mqttClient.onDisconnect(onMqttDisconnect);
+
+  mqttClient.onPublish(onMqttPublish);
+
+  connectToWifi();
+
   createTaskOnCoreZero();
-  WiFi.begin(ssid, password);
-  WiFi.setHostname(hostname);
-
-  Serial.print("Connecting to WiFi..");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println();
-  Serial.print("Connected to the WiFi network as ");
-  Serial.println(hostname);
-
-  client.setServer(mqttServer, mqttPort);
-  reconnect();
-
-  String publishTopic = String(channel) + "/" + room;
-  if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
-    Serial.println("Success sending message to topic");
-  } else {
-    Serial.println("Error sending message");
-  }
-
 
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+
 }
 
 unsigned long last = 0;
