@@ -1,18 +1,17 @@
 /*
-   
+
    Major thank you to the following contributors for their efforts:
 
    pcbreflux for the original version of this code, as well as the eddystone handlers.
 
    Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot
-   
+
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
 */
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
-
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
@@ -23,7 +22,7 @@
 #include "Settings_local.h"
 
 BLEScan* pBLEScan;
-int scanTime = 5; //In seconds
+int scanTime = 10; //In seconds
 int waitTime = scanInterval; //In seconds
 
 uint16_t beconUUID = 0xFEAA;
@@ -104,6 +103,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     void onResult(BLEAdvertisedDevice advertisedDevice) {
 
+      unsigned long started = millis();
+      Serial.printf("\n\n");
+      Serial.println("onResult started");
+
       StaticJsonBuffer<500> JSONbuffer;
       JsonObject& JSONencoder = JSONbuffer.createObject();
 
@@ -116,14 +119,18 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       JSONencoder["uuid"] = mac_address;
       JSONencoder["rssi"] = rssi;
 
+      Serial.println("Parsed id");
+
       if (advertisedDevice.haveName()){
         String nameBLE = String(advertisedDevice.getName().c_str());
+        Serial.print("Name: ");
+        Serial.println(nameBLE);
         JSONencoder["name"] = nameBLE;
       } else {
         JSONencoder["name"] = "unknown";
       }
 
-      Serial.printf("\n\n");
+      // Serial.printf("\n\n");
       Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
       std::string strServiceData = advertisedDevice.getServiceData();
        uint8_t cServiceData[100];
@@ -153,7 +160,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
        } else {
         if (advertisedDevice.haveManufacturerData()==true) {
           std::string strManufacturerData = advertisedDevice.getManufacturerData();
-
+          Serial.println("Got manufacturer data");
           uint8_t cManufacturerData[100];
           strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
 
@@ -198,10 +205,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
             Serial.printf("strManufacturerData: %d \n",strManufacturerData.length());
             // TODO: parse manufacturer data
-//            for (int i=0;i<strManufacturerData.length();i++) {
-//              Serial.printf("[%X]",cManufacturerData[i]);
-//            }
-//            Serial.printf("\n");
+
           }
          } else {
 
@@ -218,12 +222,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
          }
         }
 
-        Serial.println("wdt");
-        vTaskDelay(500); // watchdog timer
-
-        unsigned long started = millis();
-
-        char JSONmessageBuffer[500];
+        char JSONmessageBuffer[512];
         JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
 
         String publishTopic = String(channel) + "/" + room;
@@ -231,15 +230,16 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
         if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
 
           Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
-          unsigned long duration = millis() - started;
-          Serial.print("duration ");
-          Serial.println(duration);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
 
         } else {
           Serial.print("Error sending message: "); Serial.println(publishTopic);
           Serial.print("Message: "); Serial.println(JSONmessageBuffer);
         }
+
+        unsigned long duration = millis() - started;
+        Serial.print("duration ");
+        Serial.println(duration);
     }
 };
 
@@ -294,16 +294,17 @@ void loop() {
   if (!client.connected()) {
     reconnect();
   }
-  client.loop();
 
-  if (millis() - last > (waitTime * 1000)) {
+  // vTaskDelay(10); // watchdog timer
+
+  if (millis() - last > (waitTime * 1000) || last == 0) {
     Serial.println("Scanning...");
     BLEScanResults foundDevices = pBLEScan->start(scanTime);
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
 
-  vTaskDelay(10); // watchdog timer
+
 
 }
 

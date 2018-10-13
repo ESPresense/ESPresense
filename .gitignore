@@ -1,4 +1,5 @@
 Settings_local.h
 .pioenvs
 .piolibdeps
-lib
+.clang_complete
+.gcc-flags.json
