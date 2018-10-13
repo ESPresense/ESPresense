@@ -7,8 +7,8 @@
 //Replace with a human-friendly host name.
 #define hostname "esp32_room_presence"
 
-//Replace with your MQTT Broker address; example: #define mqttServer "192.168.0.112"
-#define mqttServer "$MQTT_BROKER_ADDRESS$"
+//Replace with your MQTT Broker address; example: #define mqttHost IPAddress(192, 168, 1, 195)
+#define mqttHost IPAddress(192, 168, 1, 195)
 
 //Replace with your MQTT Broker port; example: #define mqttPort 1883
 #define mqttPort $MQTT_PORT$

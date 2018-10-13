@@ -4,7 +4,10 @@ An ESP32 based presence detection node for use with the Home Assistant mqtt_room
 This depends heavily on the hard work done by [pcbreflux](https://github.com/pcbreflux) and [nkolban](https://github.com/nkolban) both on GitHub and on their YouTube Channels. Specifically, it is a modified version of pcbreflux's [ESP32_BLE_beaconscan](https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan).
 
 ## Getting Started
-1. You can get started by cloning this repository to your local machine using git. Alternatively, you can [download the zip](https://github.com/jptrsn/ESP32-mqtt-room/archive/master.zip).
+
+You can get started by cloning this repository to your local machine using git. Alternatively, you can [download the zip](https://github.com/jptrsn/ESP32-mqtt-room/archive/master.zip). To get the code onto your device, you can load it via the Arduino IDE or, thanks to some great work by [kylegordon](https://github.com/kylegordon), you can now build and upload using PlatformIO.
+
+
 2. Make a copy of the `Settings.h` file, and rename it `Settings_local.h`. Fill in the required information in your local settings file (the local file is ignored by GitHub, so you won't upload your sensitive information).
 
 ### Configuration

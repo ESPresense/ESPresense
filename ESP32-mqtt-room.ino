@@ -1,36 +1,42 @@
 /*
-   
+
    Major thank you to the following contributors for their efforts:
 
    pcbreflux for the original version of this code, as well as the eddystone handlers.
 
    Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot
-   
+
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
 */
 #include <WiFi.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
-
+extern "C" {
+	#include "freertos/FreeRTOS.h"
+	#include "freertos/timers.h"
+}
+#include <AsyncTCP.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <AsyncMqttClient.h>
+#include <ArduinoJSON.h>
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
 #include "Settings_local.h"
 
 BLEScan* pBLEScan;
-int scanTime = 5; //In seconds
+int scanTime = 10; //In seconds
 int waitTime = scanInterval; //In seconds
 
 uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
-PubSubClient client(espClient);
+AsyncMqttClient mqttClient;
+TimerHandle_t mqttReconnectTimer;
+TimerHandle_t wifiReconnectTimer;
 
 TaskHandle_t CoreZeroTask;
 
@@ -83,26 +89,70 @@ float calculateDistance(int rssi, int txPower) {
 
 }
 
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
+void connectToWifi() {
+  Serial.println("Connecting to WiFi...");
+  WiFi.begin(ssid, password);
+  WiFi.setHostname(hostname);
+}
 
-    if (client.connect(uint64_to_string(ESP.getEfuseMac()), mqttUser, mqttPassword )) {
-      Serial.print("connected with client id ");
-      Serial.println(uint64_to_string(ESP.getEfuseMac()));
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+void connectToMqtt() {
+  Serial.println("Connecting to MQTT");
+  mqttClient.setCredentials(mqttUser, mqttPassword);
+  mqttClient.connect();
+}
+
+void WiFiEvent(WiFiEvent_t event) {
+    Serial.printf("[WiFi-event] event: %d\n", event);
+    switch(event) {
+    case SYSTEM_EVENT_STA_GOT_IP:
+        Serial.println("WiFi connected");
+        Serial.println("IP address: ");
+        Serial.println(WiFi.localIP());
+        connectToMqtt();
+        break;
+    case SYSTEM_EVENT_STA_DISCONNECTED:
+        Serial.println("WiFi lost connection");
+        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+        xTimerStart(wifiReconnectTimer, 0);
+        break;
     }
+}
+
+void onMqttConnect(bool sessionPresent) {
+  Serial.println("Connected to MQTT.");
+  Serial.print("Session present: ");
+  Serial.println(sessionPresent);
+
+  String publishTopic = String(channel) + "/" + room;
+  if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, "Hello from ESP32") == true) {
+    Serial.println("Success sending message to topic");
+  } else {
+    Serial.println("Error sending message");
   }
+
+}
+
+void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+  Serial.println("Disconnected from MQTT.");
+
+  if (WiFi.isConnected()) {
+    xTimerStart(mqttReconnectTimer, 0);
+  }
+}
+
+void onMqttPublish(uint16_t packetId) {
+  Serial.println("Publish acknowledged.");
+  Serial.print("  packetId: ");
+  Serial.println(packetId);
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
     void onResult(BLEAdvertisedDevice advertisedDevice) {
+
+      unsigned long started = millis();
+      Serial.printf("\n\n");
+      Serial.println("onResult started");
 
       StaticJsonBuffer<500> JSONbuffer;
       JsonObject& JSONencoder = JSONbuffer.createObject();
@@ -116,14 +166,18 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
       JSONencoder["uuid"] = mac_address;
       JSONencoder["rssi"] = rssi;
 
+      Serial.println("Parsed id");
+
       if (advertisedDevice.haveName()){
         String nameBLE = String(advertisedDevice.getName().c_str());
+        Serial.print("Name: ");
+        Serial.println(nameBLE);
         JSONencoder["name"] = nameBLE;
       } else {
         JSONencoder["name"] = "unknown";
       }
 
-      Serial.printf("\n\n");
+      // Serial.printf("\n\n");
       Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
       std::string strServiceData = advertisedDevice.getServiceData();
        uint8_t cServiceData[100];
@@ -153,7 +207,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
        } else {
         if (advertisedDevice.haveManufacturerData()==true) {
           std::string strManufacturerData = advertisedDevice.getManufacturerData();
-
+          Serial.println("Got manufacturer data");
           uint8_t cManufacturerData[100];
           strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
 
@@ -198,10 +252,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
             Serial.printf("strManufacturerData: %d \n",strManufacturerData.length());
             // TODO: parse manufacturer data
-//            for (int i=0;i<strManufacturerData.length();i++) {
-//              Serial.printf("[%X]",cManufacturerData[i]);
-//            }
-//            Serial.printf("\n");
+
           }
          } else {
 
@@ -218,28 +269,24 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
          }
         }
 
-        Serial.println("wdt");
-        vTaskDelay(500); // watchdog timer
-
-        unsigned long started = millis();
-
-        char JSONmessageBuffer[500];
+        char JSONmessageBuffer[512];
         JSONencoder.printTo(JSONmessageBuffer, sizeof(JSONmessageBuffer));
 
         String publishTopic = String(channel) + "/" + room;
 
-        if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
+        if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
           Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
-          unsigned long duration = millis() - started;
-          Serial.print("duration ");
-          Serial.println(duration);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
 
         } else {
           Serial.print("Error sending message: "); Serial.println(publishTopic);
           Serial.print("Message: "); Serial.println(JSONmessageBuffer);
         }
+
+        unsigned long duration = millis() - started;
+        Serial.print("duration ");
+        Serial.println(duration);
     }
 };
 
@@ -256,54 +303,43 @@ void createTaskOnCoreZero() {
 
 
 void setup() {
+
   Serial.begin(115200);
+
+  mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+  wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+
+  WiFi.onEvent(WiFiEvent);
+
+  mqttClient.onConnect(onMqttConnect);
+  mqttClient.onDisconnect(onMqttDisconnect);
+
+  mqttClient.onPublish(onMqttPublish);
+  mqttClient.setServer(mqttHost, mqttPort);
+
+  connectToWifi();
+
   createTaskOnCoreZero();
-  WiFi.begin(ssid, password);
-  WiFi.setHostname(hostname);
-
-  Serial.print("Connecting to WiFi..");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-
-  Serial.println();
-  Serial.print("Connected to the WiFi network as ");
-  Serial.println(hostname);
-
-  client.setServer(mqttServer, mqttPort);
-  reconnect();
-
-  String publishTopic = String(channel) + "/" + room;
-  if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
-    Serial.println("Success sending message to topic");
-  } else {
-    Serial.println("Error sending message");
-  }
-
 
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
+
 }
 
 unsigned long last = 0;
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
 
-  if (millis() - last > (waitTime * 1000)) {
+  vTaskDelay(10); // watchdog timer
+
+  if (millis() - last > (waitTime * 1000) || last == 0) {
     Serial.println("Scanning...");
     BLEScanResults foundDevices = pBLEScan->start(scanTime);
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
-
-  vTaskDelay(10); // watchdog timer
 
 }
 
