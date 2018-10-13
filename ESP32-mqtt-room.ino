@@ -10,12 +10,17 @@
    Ported to Arduino ESP32 by Evandro Copercini
 */
 #include <WiFi.h>
-#include <PubSubClient.h>
+extern "C" {
+	#include "freertos/FreeRTOS.h"
+	#include "freertos/timers.h"
+}
 #include <AsyncTCP.h>
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
+#include <AsyncMqttClient.h>
+#include <ArduinoJSON.h>
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
@@ -92,7 +97,6 @@ void connectToWifi() {
 
 void connectToMqtt() {
   Serial.println("Connecting to MQTT");
-  mqttClient.setClientId(uint64_to_string(ESP.getEfuseMac()));
   mqttClient.setCredentials(mqttUser, mqttPassword);
   mqttClient.connect();
 }
@@ -120,7 +124,7 @@ void onMqttConnect(bool sessionPresent) {
   Serial.println(sessionPresent);
 
   String publishTopic = String(channel) + "/" + room;
-  if (client.publish((char *)publishTopic.c_str(), "Hello from ESP32") == true) {
+  if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, "Hello from ESP32") == true) {
     Serial.println("Success sending message to topic");
   } else {
     Serial.println("Error sending message");
@@ -140,23 +144,6 @@ void onMqttPublish(uint16_t packetId) {
   Serial.println("Publish acknowledged.");
   Serial.print("  packetId: ");
   Serial.println(packetId);
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-
-    if (client.connect(uint64_to_string(ESP.getEfuseMac()), mqttUser, mqttPassword )) {
-      Serial.print("connected with client id ");
-      Serial.println(uint64_to_string(ESP.getEfuseMac()));
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
-  }
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -287,7 +274,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
         String publishTopic = String(channel) + "/" + room;
 
-        if (client.publish((char *)publishTopic.c_str(), JSONmessageBuffer) == true) {
+        if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
           Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
       //    Serial.print("Message: "); Serial.println(JSONmessageBuffer);
@@ -343,11 +330,8 @@ void setup() {
 unsigned long last = 0;
 
 void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
 
-  // vTaskDelay(10); // watchdog timer
+  vTaskDelay(10); // watchdog timer
 
   if (millis() - last > (waitTime * 1000) || last == 0) {
     Serial.println("Scanning...");
@@ -355,8 +339,6 @@ void loop() {
     Serial.printf("\nScan done! Devices found: %d\n",foundDevices.getCount());
     last = millis();
   }
-
-
 
 }
 
