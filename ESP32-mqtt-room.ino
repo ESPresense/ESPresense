@@ -315,6 +315,7 @@ void setup() {
   mqttClient.onDisconnect(onMqttDisconnect);
 
   mqttClient.onPublish(onMqttPublish);
+  mqttClient.setServer(mqttHost, mqttPort);
 
   connectToWifi();
 
