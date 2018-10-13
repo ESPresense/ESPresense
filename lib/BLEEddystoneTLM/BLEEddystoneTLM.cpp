@@ -3,6 +3,7 @@
  *
  *  Created on: Mar 12, 2018
  *      Author: pcbreflux
+ *      See original repository at https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan
  */
 #include "Arduino.h"
 #include "sdkconfig.h"
@@ -57,27 +58,27 @@ std::string BLEEddystoneTLM::toString() {
   std::string out = "";
   String buff;
   uint32_t rawsec;
-  
+
   out += "Version ";
   buff = String(m_eddystoneData.version, DEC);
   out += buff.c_str();
   out += "\n";
-  
+
   out += "Battery Voltage ";
   buff = String(ENDIAN_CHANGE_U16(m_eddystoneData.volt), DEC);
   out += buff.c_str();
   out += " mV\n";
-  
+
   out += "Temperature ";
   buff = String((float)m_eddystoneData.temp, 1);
   out += buff.c_str();
   out += " °C\n";
-  
+
   out += "Adv. Count ";
   buff = String(ENDIAN_CHANGE_U32(m_eddystoneData.advCount), DEC);
   out += buff.c_str();
   out += "\n";
-  
+
   out += "Time ";
   rawsec = ENDIAN_CHANGE_U32(m_eddystoneData.tmil);
   buff = "0000"+String(rawsec/864000, DEC);
