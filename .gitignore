@@ -4,3 +4,4 @@ Settings_local.h
 .clang_complete
 .gcc-flags.json
 .idea
+.dblite
