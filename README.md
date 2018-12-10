@@ -6,6 +6,8 @@ This depends heavily on the hard work done by [pcbreflux](https://github.com/pcb
 ## Getting Started
 You can get started by cloning this repository to your local machine using git. Alternatively, you can [download the zip](https://github.com/jptrsn/ESP32-mqtt-room/archive/master.zip). To get the code onto your device, you can load it via the Arduino IDE or, thanks to some great work by [kylegordon](https://github.com/kylegordon), you can now build and upload using PlatformIO.
 
+Create a copy of the `Settings.h` file, and rename it to `Settings_local.h`. This will allow you to set your own configuration without the risk of any commits to the repository of sensitive information.
+
 Open the folder in Atom, using the `open project` option in the PlatformIO Home screen. Modify the settings in the `Settings_local.h` file to match your environment. Set the correct port in the `platformio.ini` file (or remove the line to use auto-detection), and upload to the board. Open the serial monitor after successful upload to check for success.
 
 ## Home Assistant Configuration
