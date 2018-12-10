@@ -25,5 +25,8 @@
 //Define the base topic for room detection. Usually "room_presence"
 #define channel "room_presence"
 
-//Define the interval in seconds between scans
-#define scanInterval 15
+//Define the topic for publishing availability
+#define availabilityTopic "presence_nodes/esp32"
+
+// Define bluetooth scan parameters
+#define scanInterval 15 // Define the interval in seconds between scans
