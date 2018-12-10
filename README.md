@@ -17,17 +17,29 @@ Once the device is running, it is important to configure Home Assistant to use t
 Here is an example of how an entry into your `configuration.yaml` file should look:
 ```
 sensor:
+
+# One entry for each BLE beacon you want to track
   - platform: mqtt_room
     device_id: "fda50693a4e24fb1afcfc6eb07647825-5-0" # Note that major version must match, but any minor version will be ignored
     name: 'iBeacon Room Presence'
     state_topic: 'room_presence'
     timeout: 60
     away_timeout: 120
+
+binary_sensor:
+
+# One entry per sensor node to understand when the device is online/offline
+  - platform: mqtt
+    name: ESP32 Room Presence
+    state_topic: "presence_nodes/esp32"
+    payload_on: "CONNECTED"
+    payload_off: "DISCONNECTED"
+    device_class: connectivity
 ```
 
 ## Trackable Devices
 ### iBeacon Hardware
-Generic beacon hardware should be compatible, provided it meets a beacon standard (such as iBeacon or Eddystone). There are plenty of models based on the Nordic Semiconductor NRF51822 chip available from sellers such as [eBay](https://www.ebay.com/sch/i.html?_nkw=nrf51822+ibeacon) or [Ali Express](https://www.aliexpress.com/wholesale?SearchText=nrf51822+ibeacon).
+Generic beacon hardware should be compatible, provided it meets a beacon standard (such as iBeacon or Eddystone). There are plenty of models based on the Nordic Semiconductor NRF51822 chip available from sellers such as [eBay](https://www.ebay.com/sch/i.html?_nkw=nrf51822+ibeacon) or [Ali Express](https://www.aliexpress.com/wholesale?SearchText=nrf51822+ibeacon). Some other devices that advertise as BLE (such as the Mi Flora plant sensors or the Mi Band fitness tracker) can also be tracked, as long as you can scan the device and see its hardware ID.
 
 ### Tracking Android Phone
 In order to track your Android phone as a BLE Beacon, you will need to emulate Beacon adertisement packets from your phone. This is the opposite to what most beacon apps do (i.e. scanning for beacons instead of emulating one). I have had success using the [Beacon Scope](https://play.google.com/store/apps/details?id=com.davidgyoungtech.beaconscanner) app. Configure a transmitter, and specify the device ID in your Home Assistant configuration files.
