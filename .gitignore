@@ -5,3 +5,4 @@ Settings_local.h
 .gcc-flags.json
 .idea
 .dblite
+include/
