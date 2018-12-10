@@ -10,6 +10,9 @@ Create a copy of the `Settings.h` file, and rename it to `Settings_local.h`. Thi
 
 Open the folder in Atom, using the `open project` option in the PlatformIO Home screen. Modify the settings in the `Settings_local.h` file to match your environment. Set the correct port in the `platformio.ini` file (or remove the line to use auto-detection), and upload to the board. Open the serial monitor after successful upload to check for success.
 
+### OTA Support
+It is possible to update the device using "Over the Air" (OTA) updates from the command line interface of PlatformIO. You will need to know the IP address of the device itself (check your router). From the command line, enter the command `platformio run -t upload --upload-port {{Device IP Address}}`
+
 ## Home Assistant Configuration
 Once the device is running, it is important to configure Home Assistant to use the information from the MQTT topic to determine what devices to track. You can read the full documentation [on the Home Assistant website](https://www.home-assistant.io/components/sensor.mqtt_room/). It is critical that you configure your device IDs to include the Major version, but ignore Minor version (i.e. set it to 0). This is to match the configuration used on the ESP32.
 
@@ -60,5 +63,5 @@ Unfortunately, Apple does not allow devices to advertise iBeacon data in the bac
 - [x] Scan interval Settings
 - [ ] Configuration via Web UI
 - [ ] Wifi Manager for managing access point credentials
-- [ ] Implement Over-The-Air (OTA) updates
+- [x] Implement Over-The-Air (OTA) updates
 - [x] Build and upload via [PlatformIO](platformio.org)
