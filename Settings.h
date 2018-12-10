@@ -4,7 +4,7 @@
 //Replace with your Wifi password; example: #define password "12345678"
 #define password "$WIFI_PASSWORD$"
 
-//Replace with a human-friendly host name.
+//Replace with a human-friendly host name. Must not contain spaces or special characters
 #define hostname "esp32_room_presence"
 
 //Replace with your MQTT Broker address; example: #define mqttHost IPAddress(192, 168, 1, 195)
@@ -14,7 +14,7 @@
 #define mqttPort $MQTT_PORT$
 
 //Replace with your MQTT Broker user; example: #define mqttUser "homeassistant"
-#define mqttUser "§MQTT_USER$"
+#define mqttUser "$MQTT_USER$"
 
 //Replace with your MQTT Broker password; example: #define mqttPassword "12345678"
 #define mqttPassword "$MQTT_PASSWORD"
