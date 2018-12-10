@@ -24,6 +24,7 @@ extern "C" {
 #include <BLEAdvertisedDevice.h>
 #include <AsyncMqttClient.h>
 #include <ArduinoJSON.h>
+#include <ArduinoOTA.h>
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
@@ -32,9 +33,11 @@ extern "C" {
 BLEScan* pBLEScan;
 int scanTime = 5; //In seconds
 int waitTime = scanInterval; //In seconds
+bool updateInProgress = false;
 
 uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
+#define LED_BUILTIN 2
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -99,12 +102,14 @@ void WiFiEvent(WiFiEvent_t event) {
 		Serial.println(event);
     switch(event) {
     case SYSTEM_EVENT_STA_GOT_IP:
+				digitalWrite(LED_BUILTIN, 0);
         Serial.println("WiFi connected");
         Serial.println("IP address: ");
         Serial.println(WiFi.localIP());
         connectToMqtt();
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
+				digitalWrite(LED_BUILTIN, 1);
         Serial.println("WiFi lost connection");
         xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
         xTimerStart(wifiReconnectTimer, 0);
@@ -278,7 +283,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 	void onResult(BLEAdvertisedDevice advertisedDevice) {
 
-		Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+		digitalWrite(LED_BUILTIN, 1);
+		// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+		digitalWrite(LED_BUILTIN, 0);
 
 	}
 
@@ -290,15 +298,12 @@ TaskHandle_t BLEScan;
 
 void scanForDevices(void * parameter) {
 	while(1) {
-		if (WiFi.isConnected() && mqttClient.connected() && (millis() - last > (waitTime * 1000) || last == 0)) {
+		if (!updateInProgress && WiFi.isConnected() && mqttClient.connected() && (millis() - last > (waitTime * 1000) || last == 0)) {
 	    Serial.print("Scanning...\t");
-	    BLEScanResults foundDevices = pBLEScan->start(scanTime);
+			BLEScanResults foundDevices = pBLEScan->start(scanTime);
 	    Serial.printf("Scan done! Devices found: %d\t",foundDevices.getCount());
 			for (uint32_t i = 0; i < foundDevices.getCount(); i++) {
-				// Serial.printf("Getting device %d",i);
-
 				reportDevice(foundDevices.getDevice(i));
-
 			}
 	    last = millis();
 			Serial.println("Reports sent");
@@ -306,9 +311,47 @@ void scanForDevices(void * parameter) {
 	}
 }
 
+void configureOTA() {
+	ArduinoOTA
+    .onStart([]() {
+			updateInProgress = true;
+      String type;
+      if (ArduinoOTA.getCommand() == U_FLASH)
+        type = "sketch";
+      else // U_SPIFFS
+        type = "filesystem";
+
+      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+      Serial.println("Start updating " + type);
+    })
+    .onEnd([]() {
+			updateInProgress = false;
+			digitalWrite(LED_BUILTIN, 0);
+      Serial.println("\nEnd");
+    })
+    .onProgress([](unsigned int progress, unsigned int total) {
+			byte percent = (progress / (total / 100));
+      Serial.printf("Progress: %u%%\n", percent);
+			digitalWrite(LED_BUILTIN, percent % 2);
+    })
+    .onError([](ota_error_t error) {
+      Serial.printf("Error[%u]: ", error);
+      if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+      else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+      else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+      else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+      else if (error == OTA_END_ERROR) Serial.println("End Failed");
+			ESP.restart();
+    });
+
+  ArduinoOTA.begin();
+}
+
 void setup() {
 
   Serial.begin(115200);
+
+	pinMode(LED_BUILTIN, OUTPUT);
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
@@ -323,9 +366,11 @@ void setup() {
 
   connectToWifi();
 
+	configureOTA();
+
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
-  // pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+  pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
 	// pBLEScan->setInterval(100);
 	// pBLEScan->setWindow(200);
@@ -345,4 +390,5 @@ void loop() {
 	TIMERG0.wdt_wprotect=TIMG_WDT_WKEY_VALUE;
 	TIMERG0.wdt_feed=1;
 	TIMERG0.wdt_wprotect=0;
+	ArduinoOTA.handle();
 }
