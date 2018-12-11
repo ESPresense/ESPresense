@@ -30,3 +30,4 @@
 
 // Define bluetooth scan parameters
 #define scanInterval 15 // Define the interval in seconds between scans
+#define scanDuration 10 // Define the length of time in seconds for which the device will actively scan

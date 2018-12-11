@@ -31,7 +31,7 @@ extern "C" {
 #include "Settings_local.h"
 
 BLEScan* pBLEScan;
-int scanTime = 5; //In seconds
+int scanTime = scanDuration; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
 
@@ -352,6 +352,7 @@ void setup() {
   Serial.begin(115200);
 
 	pinMode(LED_BUILTIN, OUTPUT);
+	digitalWrite(LED_BUILTIN, 1);
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
