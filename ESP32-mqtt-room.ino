@@ -122,9 +122,9 @@ void onMqttConnect(bool sessionPresent) {
   Serial.print("Session present: ");
   Serial.println(sessionPresent);
 
-  if (mqttClient.publish(healthTopic, 0, 0, "CONNECTED") == true) {
+  if (mqttClient.publish(availabilityTopic, 0, 0, "CONNECTED") == true) {
     Serial.print("Success sending message to topic:\t");
-		Serial.println(healthTopic);
+		Serial.println(availabilityTopic);
   } else {
     Serial.println("Error sending message");
   }
@@ -293,7 +293,6 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 };
 
 unsigned long last = 0;
-const char* healthTopic = (String(availabilityTopic) + "/" + String(room)).toCharArray();
 TaskHandle_t BLEScan;
 
 void scanForDevices(void * parameter) {
@@ -365,7 +364,7 @@ void setup() {
   mqttClient.onDisconnect(onMqttDisconnect);
 
   mqttClient.setServer(mqttHost, mqttPort);
-	mqttClient.setWill(healthTopic, 0, 0, "DISCONNECTED");
+	mqttClient.setWill(availabilityTopic, 0, 0, "DISCONNECTED");
 
   connectToWifi();
 
