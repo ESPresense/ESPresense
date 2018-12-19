@@ -28,16 +28,15 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_module.h"
 
 BLEScan* pBLEScan;
-int scanTime = scanDuration; //In seconds
+int scanTime = 3; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
 
 uint16_t beconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
-#define LED_BUILTIN 2
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -87,8 +86,8 @@ float calculateDistance(int rssi, int txPower) {
 
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
-  WiFi.begin(ssid, password);
-  WiFi.setHostname(hostname);
+	WiFi.setHostname(hostname);
+	WiFi.begin(ssid, password);
 }
 
 void connectToMqtt() {
@@ -101,19 +100,29 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.print("[WiFi-event] event:");
 		Serial.println(event);
     switch(event) {
-    case SYSTEM_EVENT_STA_GOT_IP:
-				digitalWrite(LED_BUILTIN, 0);
-        Serial.println("WiFi connected");
-        Serial.println("IP address: ");
-        Serial.println(WiFi.localIP());
-        connectToMqtt();
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-				digitalWrite(LED_BUILTIN, 1);
-        Serial.println("WiFi lost connection");
-        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-        xTimerStart(wifiReconnectTimer, 0);
-        break;
+	    case SYSTEM_EVENT_STA_GOT_IP:
+					digitalWrite(LED_BUILTIN, 0);
+	        Serial.println("IP address: ");
+	        Serial.println(WiFi.localIP());
+	        connectToMqtt();
+	        break;
+	    case SYSTEM_EVENT_STA_DISCONNECTED:
+					digitalWrite(LED_BUILTIN, 1);
+	        Serial.println("WiFi lost connection");
+					mqttClient.disconnect();
+	        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+	        xTimerStart(wifiReconnectTimer, 0);
+	        break;
+			case SYSTEM_EVENT_WIFI_READY:
+					Serial.println("Wifi Ready");
+					break;
+			case SYSTEM_EVENT_STA_START:
+					// Serial.println("STA Start");
+					break;
+			case SYSTEM_EVENT_STA_STOP:
+					Serial.println("STA Stop");
+					break;
+
     }
 }
 
@@ -133,17 +142,12 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("Disconnected from MQTT.");
-
-  if (WiFi.isConnected()) {
+  if (WiFi.isConnected() && !updateInProgress) {
+		Serial.println("Starting reconnect timer");
     xTimerStart(mqttReconnectTimer, 0);
   }
 }
 
-void onMqttPublish(uint16_t packetId) {
-  Serial.println("Publish acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
-}
 
 void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
@@ -166,8 +170,8 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		// Serial.print("Name: ");
 		// Serial.println(nameBLE);
 		JSONencoder["name"] = nameBLE;
-	} else {
-		JSONencoder["name"] = "unknown";
+	// } else {
+		// JSONencoder["name"] = "unknown";
 	}
 
 	// Serial.printf("\n\n");
@@ -267,16 +271,23 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 		String publishTopic = String(channel) + "/" + room;
 
-	  if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
+		if (mqttClient.connected()) {
+			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
-	    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
 
-	  } else {
-	    Serial.print("Error sending message: ");
-			Serial.println(publishTopic);
-	    Serial.print("Message: ");
-			Serial.println(JSONmessageBuffer);
-	  }
+		  } else {
+		    Serial.print("Error sending message: ");
+				Serial.println(publishTopic);
+		    Serial.print("Message: ");
+				Serial.println(JSONmessageBuffer);
+		  }
+		} else {
+
+			Serial.println("MQTT disconnected.");
+
+		}
+
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -285,7 +296,7 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 		digitalWrite(LED_BUILTIN, 1);
 		// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
-		vTaskDelay(100 / portTICK_PERIOD_MS);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
 		digitalWrite(LED_BUILTIN, 0);
 
 	}
@@ -315,15 +326,11 @@ void scanForDevices(void * parameter) {
 void configureOTA() {
 	ArduinoOTA
     .onStart([]() {
+			Serial.println("OTA Start");
+			pBLEScan->stop();
 			updateInProgress = true;
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-      else // U_SPIFFS
-        type = "filesystem";
-
-      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type);
+			mqttClient.disconnect(true);
+			xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     })
     .onEnd([]() {
 			updateInProgress = false;
@@ -332,7 +339,7 @@ void configureOTA() {
     })
     .onProgress([](unsigned int progress, unsigned int total) {
 			byte percent = (progress / (total / 100));
-      Serial.printf("Progress: %u%%\n", percent);
+      Serial.printf("Progress: %u% \n", percent);
 			digitalWrite(LED_BUILTIN, percent % 2);
     })
     .onError([](ota_error_t error) {
@@ -365,6 +372,7 @@ void setup() {
 
   mqttClient.setServer(mqttHost, mqttPort);
 	mqttClient.setWill(availabilityTopic, 0, 0, "DISCONNECTED");
+	mqttClient.setKeepAlive(60);
 
   connectToWifi();
 
@@ -374,8 +382,8 @@ void setup() {
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-	// pBLEScan->setInterval(100);
-	// pBLEScan->setWindow(200);
+	pBLEScan->setInterval(0x80);
+	pBLEScan->setWindow(0x10);
 
 	xTaskCreatePinnedToCore(
 		scanForDevices,

@@ -26,8 +26,7 @@
 #define channel "room_presence"
 
 //Define the topic for publishing availability
-#define availabilityTopic "presence_nodes/esp32"
+#define availabilityTopic "presence_nodes/" room
 
 // Define bluetooth scan parameters
 #define scanInterval 15 // Define the interval in seconds between scans
-#define scanDuration 10 // Define the length of time in seconds for which the device will actively scan
