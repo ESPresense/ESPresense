@@ -22,6 +22,12 @@
 //Replace with the room name where the node will be placed; example: #define room "living-room"
 #define room "$ROOM_NAME$"
 
+//Specify the LED pin. For most dev boards, this is GPIO2
+#define LED_BUILTIN 2
+
+// Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
+#define LED_ON 0
+
 //Define the base topic for room detection. Usually "room_presence"
 #define channel "room_presence"
 

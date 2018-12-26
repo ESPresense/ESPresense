@@ -28,14 +28,14 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_module.h"
+#include "Settings_local.h"
 
 BLEScan* pBLEScan;
 int scanTime = 3; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
 
-uint16_t beconUUID = 0xFEAA;
+uint16_t beaconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
@@ -86,8 +86,10 @@ float calculateDistance(int rssi, int txPower) {
 
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
-	WiFi.setHostname(hostname);
+	Serial.print("Setting hostname to ");
+	Serial.println(hostname);
 	WiFi.begin(ssid, password);
+	WiFi.setHostname(hostname);
 }
 
 void connectToMqtt() {
@@ -101,13 +103,13 @@ void WiFiEvent(WiFiEvent_t event) {
 		Serial.println(event);
     switch(event) {
 	    case SYSTEM_EVENT_STA_GOT_IP:
-					digitalWrite(LED_BUILTIN, 0);
+					digitalWrite(LED_BUILTIN, !LED_ON);
 	        Serial.println("IP address: ");
 	        Serial.println(WiFi.localIP());
 	        connectToMqtt();
 	        break;
 	    case SYSTEM_EVENT_STA_DISCONNECTED:
-					digitalWrite(LED_BUILTIN, 1);
+					digitalWrite(LED_BUILTIN, LED_ON);
 	        Serial.println("WiFi lost connection");
 					mqttClient.disconnect();
 	        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
@@ -180,7 +182,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	 uint8_t cServiceData[100];
 	 strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
 
-	 if (advertisedDevice.getServiceDataUUID().equals(BLEUUID(beconUUID))==true) {  // found Eddystone UUID
+	 if (advertisedDevice.getServiceDataUUID().equals(BLEUUID(beaconUUID))==true) {  // found Eddystone UUID
 		// Serial.printf("is Eddystone: %d %s length %d\n", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str(),strServiceData.length());
 		if (cServiceData[0]==0x10) {
 			 BLEEddystoneURL oBeacon = BLEEddystoneURL();
@@ -294,10 +296,10 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 	void onResult(BLEAdvertisedDevice advertisedDevice) {
 
-		digitalWrite(LED_BUILTIN, 1);
+		digitalWrite(LED_BUILTIN, LED_ON);
 		// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
 		vTaskDelay(10 / portTICK_PERIOD_MS);
-		digitalWrite(LED_BUILTIN, 0);
+		digitalWrite(LED_BUILTIN, !LED_ON);
 
 	}
 
@@ -308,10 +310,17 @@ TaskHandle_t BLEScan;
 
 void scanForDevices(void * parameter) {
 	while(1) {
-		if (!updateInProgress && WiFi.isConnected() && mqttClient.connected() && (millis() - last > (waitTime * 1000) || last == 0)) {
+		if (!updateInProgress && WiFi.isConnected() && (millis() - last > (waitTime * 1000) || last == 0)) {
+			// mqttClient.disconnect(true);
+			// xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 	    Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
 	    Serial.printf("Scan done! Devices found: %d\t",foundDevices.getCount());
+			// mqttClient.connect();
+			// while (!mqttClient.connected()) {
+			// 	Serial.print(".");
+			// 	vTaskDelay(10 / portTICK_PERIOD_MS);
+			// }
 			for (uint32_t i = 0; i < foundDevices.getCount(); i++) {
 				if (mqttClient.connected()) {
 					reportDevice(foundDevices.getDevice(i));
@@ -334,7 +343,7 @@ void configureOTA() {
     })
     .onEnd([]() {
 			updateInProgress = false;
-			digitalWrite(LED_BUILTIN, 0);
+			digitalWrite(LED_BUILTIN, !LED_ON);
       Serial.println("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
@@ -360,7 +369,7 @@ void setup() {
   Serial.begin(115200);
 
 	pinMode(LED_BUILTIN, OUTPUT);
-	digitalWrite(LED_BUILTIN, 1);
+	digitalWrite(LED_BUILTIN, LED_ON);
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
