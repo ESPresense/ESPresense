@@ -28,7 +28,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_bedroom.h"
 
 BLEScan* pBLEScan;
 int scanTime = 3; //In seconds
@@ -86,8 +86,6 @@ float calculateDistance(int rssi, int txPower) {
 
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
-	Serial.print("Setting hostname to ");
-	Serial.println(hostname);
 	WiFi.begin(ssid, password);
 	WiFi.setHostname(hostname);
 }
@@ -95,6 +93,7 @@ void connectToWifi() {
 void connectToMqtt() {
   Serial.println("Connecting to MQTT");
   mqttClient.setCredentials(mqttUser, mqttPassword);
+	mqttClient.setClientId(hostname);
   mqttClient.connect();
 }
 
@@ -220,6 +219,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				// Serial.printf("Major: %d Minor: %d UUID: %s Power: %d\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
 
 				float distance = calculateDistance(rssi, oBeacon.getSignalPower());
+
 				// Serial.print("RSSI: ");
 				// Serial.print(rssi);
 				// Serial.print("\ttxPower: ");
@@ -240,14 +240,16 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 			} else {
 
+				float distance;
+
 				if (advertisedDevice.haveTXPower()) {
-					float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+					distance = calculateDistance(rssi, advertisedDevice.getTXPower());
 					JSONencoder["txPower"] = advertisedDevice.getTXPower();
-					JSONencoder["distance"] = distance;
 				} else {
-					float distance = calculateDistance(rssi, -59);
-					JSONencoder["distance"] = distance;
+					distance = calculateDistance(rssi, -59);
 				}
+
+				JSONencoder["distance"] = distance;
 
 				// Serial.printf("strManufacturerData: %d \n",strManufacturerData.length());
 				// TODO: parse manufacturer data
@@ -273,7 +275,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 		String publishTopic = String(channel) + "/" + room;
 
-		if (mqttClient.connected()) {
+		if (mqttClient.connected() && JSONencoder["distance"] < maxDistance) {
 			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
 		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
@@ -284,6 +286,10 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		    Serial.print("Message: ");
 				Serial.println(JSONmessageBuffer);
 		  }
+		} else if (mqttClient.connected() && JSONencoder["distance"] >= maxDistance) {
+
+			Serial.printf("%d exceeded distance threshold\n", JSONencoder["distance"]);
+
 		} else {
 
 			Serial.println("MQTT disconnected.");
@@ -360,7 +366,7 @@ void configureOTA() {
       else if (error == OTA_END_ERROR) Serial.println("End Failed");
 			ESP.restart();
     });
-
+	ArduinoOTA.setHostname(hostname);
   ArduinoOTA.begin();
 }
 
