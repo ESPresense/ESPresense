@@ -28,7 +28,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_bedroom.h"
+#include "Settings_kitchen.h"
 
 BLEScan* pBLEScan;
 int scanTime = 3; //In seconds
@@ -73,7 +73,9 @@ float calculateDistance(int rssi, int txPower) {
   if (!txPower) {
       // somewhat reasonable default value
       txPower = -59;
-  }
+  } else if (txPower > 0) {
+		txPower = txPower * -1;
+	}
 
   const float ratio = rssi * 1.0 / txPower;
   if (ratio < 1.0) {
@@ -161,6 +163,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	mac_address.replace(":","");
 	mac_address.toLowerCase();
 	int rssi = advertisedDevice.getRSSI();
+	float distance;
 
 	JSONencoder["id"] = mac_address;
 	JSONencoder["uuid"] = mac_address;
@@ -215,10 +218,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 				String proximityUUID = getProximityUUIDString(oBeacon);
 
-				// Serial.printf("iBeacon Frame\n");
-				// Serial.printf("Major: %d Minor: %d UUID: %s Power: %d\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
-
-				float distance = calculateDistance(rssi, oBeacon.getSignalPower());
+				distance = calculateDistance(rssi, oBeacon.getSignalPower());
 
 				// Serial.print("RSSI: ");
 				// Serial.print(rssi);
@@ -238,9 +238,11 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				JSONencoder["txPower"] = oBeacon.getSignalPower();
 				JSONencoder["distance"] = distance;
 
-			} else {
+				Serial.printf("iBeacon Frame\n");
+				Serial.printf("Major: %d Minor: %d UUID: %s Power: %d Rssi: %d Distance: %f\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower(), rssi, distance);
 
-				float distance;
+
+			} else {
 
 				if (advertisedDevice.haveTXPower()) {
 					distance = calculateDistance(rssi, advertisedDevice.getTXPower());
@@ -258,11 +260,11 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		 } else {
 
 			if (advertisedDevice.haveTXPower()) {
-				float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+				distance = calculateDistance(rssi, advertisedDevice.getTXPower());
 				JSONencoder["txPower"] = advertisedDevice.getTXPower();
 				JSONencoder["distance"] = distance;
 			} else {
-				float distance = calculateDistance(rssi, -59);
+				distance = calculateDistance(rssi, -59);
 				JSONencoder["distance"] = distance;
 			}
 
@@ -286,9 +288,9 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		    Serial.print("Message: ");
 				Serial.println(JSONmessageBuffer);
 		  }
-		} else if (mqttClient.connected() && JSONencoder["distance"] >= maxDistance) {
+		} else if (mqttClient.connected() && distance >= maxDistance) {
 
-			Serial.printf("%d exceeded distance threshold\n", JSONencoder["distance"]);
+			// Serial.printf("%f exceeded distance threshold\n", distance);
 
 		} else {
 
