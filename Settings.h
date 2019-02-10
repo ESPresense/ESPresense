@@ -22,11 +22,21 @@
 //Replace with the room name where the node will be placed; example: #define room "living-room"
 #define room "$ROOM_NAME$"
 
+//Specify the LED pin. For most dev boards, this is GPIO2
+#define LED_BUILTIN 2
+
+// Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
+#define LED_ON 0
+
 //Define the base topic for room detection. Usually "room_presence"
 #define channel "room_presence"
 
 //Define the topic for publishing availability
-#define availabilityTopic "presence_nodes/esp32"
+#define availabilityTopic "presence_nodes/" room
 
 // Define bluetooth scan parameters
-#define scanInterval 15 // Define the interval in seconds between scans
+#define scanInterval 2 // Define the interval in seconds between scans
+#define advertisementDuration 3 // Define the duration in seconds that the device should advertise as a beacon to other sensors
+
+// Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
+#define maxDistance 5

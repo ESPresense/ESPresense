@@ -28,16 +28,15 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_kitchen.h"
 
 BLEScan* pBLEScan;
-int scanTime = 5; //In seconds
+int scanTime = 3; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
 
-uint16_t beconUUID = 0xFEAA;
+uint16_t beaconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
-#define LED_BUILTIN 2
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -74,7 +73,9 @@ float calculateDistance(int rssi, int txPower) {
   if (!txPower) {
       // somewhat reasonable default value
       txPower = -59;
-  }
+  } else if (txPower > 0) {
+		txPower = txPower * -1;
+	}
 
   const float ratio = rssi * 1.0 / txPower;
   if (ratio < 1.0) {
@@ -87,13 +88,14 @@ float calculateDistance(int rssi, int txPower) {
 
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
-  WiFi.begin(ssid, password);
-  WiFi.setHostname(hostname);
+	WiFi.begin(ssid, password);
+	WiFi.setHostname(hostname);
 }
 
 void connectToMqtt() {
   Serial.println("Connecting to MQTT");
   mqttClient.setCredentials(mqttUser, mqttPassword);
+	mqttClient.setClientId(hostname);
   mqttClient.connect();
 }
 
@@ -101,19 +103,29 @@ void WiFiEvent(WiFiEvent_t event) {
     Serial.print("[WiFi-event] event:");
 		Serial.println(event);
     switch(event) {
-    case SYSTEM_EVENT_STA_GOT_IP:
-				digitalWrite(LED_BUILTIN, 0);
-        Serial.println("WiFi connected");
-        Serial.println("IP address: ");
-        Serial.println(WiFi.localIP());
-        connectToMqtt();
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-				digitalWrite(LED_BUILTIN, 1);
-        Serial.println("WiFi lost connection");
-        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-        xTimerStart(wifiReconnectTimer, 0);
-        break;
+	    case SYSTEM_EVENT_STA_GOT_IP:
+					digitalWrite(LED_BUILTIN, !LED_ON);
+	        Serial.println("IP address: ");
+	        Serial.println(WiFi.localIP());
+	        connectToMqtt();
+	        break;
+	    case SYSTEM_EVENT_STA_DISCONNECTED:
+					digitalWrite(LED_BUILTIN, LED_ON);
+	        Serial.println("WiFi lost connection");
+					mqttClient.disconnect();
+	        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+	        xTimerStart(wifiReconnectTimer, 0);
+	        break;
+			case SYSTEM_EVENT_WIFI_READY:
+					Serial.println("Wifi Ready");
+					break;
+			case SYSTEM_EVENT_STA_START:
+					// Serial.println("STA Start");
+					break;
+			case SYSTEM_EVENT_STA_STOP:
+					Serial.println("STA Stop");
+					break;
+
     }
 }
 
@@ -133,17 +145,12 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("Disconnected from MQTT.");
-
-  if (WiFi.isConnected()) {
+  if (WiFi.isConnected() && !updateInProgress) {
+		Serial.println("Starting reconnect timer");
     xTimerStart(mqttReconnectTimer, 0);
   }
 }
 
-void onMqttPublish(uint16_t packetId) {
-  Serial.println("Publish acknowledged.");
-  Serial.print("  packetId: ");
-  Serial.println(packetId);
-}
 
 void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
@@ -156,6 +163,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	mac_address.replace(":","");
 	mac_address.toLowerCase();
 	int rssi = advertisedDevice.getRSSI();
+	float distance;
 
 	JSONencoder["id"] = mac_address;
 	JSONencoder["uuid"] = mac_address;
@@ -166,8 +174,8 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		// Serial.print("Name: ");
 		// Serial.println(nameBLE);
 		JSONencoder["name"] = nameBLE;
-	} else {
-		JSONencoder["name"] = "unknown";
+	// } else {
+		// JSONencoder["name"] = "unknown";
 	}
 
 	// Serial.printf("\n\n");
@@ -176,7 +184,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	 uint8_t cServiceData[100];
 	 strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
 
-	 if (advertisedDevice.getServiceDataUUID().equals(BLEUUID(beconUUID))==true) {  // found Eddystone UUID
+	 if (advertisedDevice.getServiceDataUUID().equals(BLEUUID(beaconUUID))==true) {  // found Eddystone UUID
 		// Serial.printf("is Eddystone: %d %s length %d\n", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str(),strServiceData.length());
 		if (cServiceData[0]==0x10) {
 			 BLEEddystoneURL oBeacon = BLEEddystoneURL();
@@ -210,10 +218,8 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 				String proximityUUID = getProximityUUIDString(oBeacon);
 
-				// Serial.printf("iBeacon Frame\n");
-				// Serial.printf("Major: %d Minor: %d UUID: %s Power: %d\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower());
+				distance = calculateDistance(rssi, oBeacon.getSignalPower());
 
-				float distance = calculateDistance(rssi, oBeacon.getSignalPower());
 				// Serial.print("RSSI: ");
 				// Serial.print(rssi);
 				// Serial.print("\ttxPower: ");
@@ -232,16 +238,20 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				JSONencoder["txPower"] = oBeacon.getSignalPower();
 				JSONencoder["distance"] = distance;
 
+				Serial.printf("iBeacon Frame\n");
+				Serial.printf("Major: %d Minor: %d UUID: %s Power: %d Rssi: %d Distance: %f\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower(), rssi, distance);
+
+
 			} else {
 
 				if (advertisedDevice.haveTXPower()) {
-					float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+					distance = calculateDistance(rssi, advertisedDevice.getTXPower());
 					JSONencoder["txPower"] = advertisedDevice.getTXPower();
-					JSONencoder["distance"] = distance;
 				} else {
-					float distance = calculateDistance(rssi, -59);
-					JSONencoder["distance"] = distance;
+					distance = calculateDistance(rssi, -59);
 				}
+
+				JSONencoder["distance"] = distance;
 
 				// Serial.printf("strManufacturerData: %d \n",strManufacturerData.length());
 				// TODO: parse manufacturer data
@@ -250,11 +260,11 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		 } else {
 
 			if (advertisedDevice.haveTXPower()) {
-				float distance = calculateDistance(rssi, advertisedDevice.getTXPower());
+				distance = calculateDistance(rssi, advertisedDevice.getTXPower());
 				JSONencoder["txPower"] = advertisedDevice.getTXPower();
 				JSONencoder["distance"] = distance;
 			} else {
-				float distance = calculateDistance(rssi, -59);
+				distance = calculateDistance(rssi, -59);
 				JSONencoder["distance"] = distance;
 			}
 
@@ -267,43 +277,62 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 		String publishTopic = String(channel) + "/" + room;
 
-	  if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
+		if (mqttClient.connected() && JSONencoder["distance"] < maxDistance) {
+			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
-	    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
 
-	  } else {
-	    Serial.print("Error sending message: ");
-			Serial.println(publishTopic);
-	    Serial.print("Message: ");
-			Serial.println(JSONmessageBuffer);
-	  }
+		  } else {
+		    Serial.print("Error sending message: ");
+				Serial.println(publishTopic);
+		    Serial.print("Message: ");
+				Serial.println(JSONmessageBuffer);
+		  }
+		} else if (mqttClient.connected() && distance >= maxDistance) {
+
+			// Serial.printf("%f exceeded distance threshold\n", distance);
+
+		} else {
+
+			Serial.println("MQTT disconnected.");
+
+		}
+
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 	void onResult(BLEAdvertisedDevice advertisedDevice) {
 
-		digitalWrite(LED_BUILTIN, 1);
+		digitalWrite(LED_BUILTIN, LED_ON);
 		// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
-		vTaskDelay(100 / portTICK_PERIOD_MS);
-		digitalWrite(LED_BUILTIN, 0);
+		vTaskDelay(10 / portTICK_PERIOD_MS);
+		digitalWrite(LED_BUILTIN, !LED_ON);
 
 	}
 
 };
 
 unsigned long last = 0;
-
 TaskHandle_t BLEScan;
 
 void scanForDevices(void * parameter) {
 	while(1) {
-		if (!updateInProgress && WiFi.isConnected() && mqttClient.connected() && (millis() - last > (waitTime * 1000) || last == 0)) {
+		if (!updateInProgress && WiFi.isConnected() && (millis() - last > (waitTime * 1000) || last == 0)) {
+			// mqttClient.disconnect(true);
+			// xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 	    Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
 	    Serial.printf("Scan done! Devices found: %d\t",foundDevices.getCount());
+			// mqttClient.connect();
+			// while (!mqttClient.connected()) {
+			// 	Serial.print(".");
+			// 	vTaskDelay(10 / portTICK_PERIOD_MS);
+			// }
 			for (uint32_t i = 0; i < foundDevices.getCount(); i++) {
-				reportDevice(foundDevices.getDevice(i));
+				if (mqttClient.connected()) {
+					reportDevice(foundDevices.getDevice(i));
+				}
 			}
 	    last = millis();
 			Serial.println("Reports sent");
@@ -314,24 +343,20 @@ void scanForDevices(void * parameter) {
 void configureOTA() {
 	ArduinoOTA
     .onStart([]() {
+			Serial.println("OTA Start");
+			pBLEScan->stop();
 			updateInProgress = true;
-      String type;
-      if (ArduinoOTA.getCommand() == U_FLASH)
-        type = "sketch";
-      else // U_SPIFFS
-        type = "filesystem";
-
-      // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
-      Serial.println("Start updating " + type);
+			mqttClient.disconnect(true);
+			xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     })
     .onEnd([]() {
 			updateInProgress = false;
-			digitalWrite(LED_BUILTIN, 0);
+			digitalWrite(LED_BUILTIN, !LED_ON);
       Serial.println("\nEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
 			byte percent = (progress / (total / 100));
-      Serial.printf("Progress: %u%%\n", percent);
+      Serial.printf("Progress: %u% \n", percent);
 			digitalWrite(LED_BUILTIN, percent % 2);
     })
     .onError([](ota_error_t error) {
@@ -343,7 +368,7 @@ void configureOTA() {
       else if (error == OTA_END_ERROR) Serial.println("End Failed");
 			ESP.restart();
     });
-
+	ArduinoOTA.setHostname(hostname);
   ArduinoOTA.begin();
 }
 
@@ -352,6 +377,7 @@ void setup() {
   Serial.begin(115200);
 
 	pinMode(LED_BUILTIN, OUTPUT);
+	digitalWrite(LED_BUILTIN, LED_ON);
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
@@ -363,6 +389,7 @@ void setup() {
 
   mqttClient.setServer(mqttHost, mqttPort);
 	mqttClient.setWill(availabilityTopic, 0, 0, "DISCONNECTED");
+	mqttClient.setKeepAlive(60);
 
   connectToWifi();
 
@@ -372,8 +399,8 @@ void setup() {
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
   pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-	// pBLEScan->setInterval(100);
-	// pBLEScan->setWindow(200);
+	pBLEScan->setInterval(0x80);
+	pBLEScan->setWindow(0x10);
 
 	xTaskCreatePinnedToCore(
 		scanForDevices,
