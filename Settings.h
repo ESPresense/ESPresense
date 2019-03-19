@@ -36,7 +36,6 @@
 
 // Define bluetooth scan parameters
 #define scanInterval 2 // Define the interval in seconds between scans
-#define advertisementDuration 3 // Define the duration in seconds that the device should advertise as a beacon to other sensors
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define maxDistance 5
