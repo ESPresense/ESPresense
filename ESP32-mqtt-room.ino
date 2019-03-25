@@ -240,7 +240,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				doc["minor"] = minor;
 
 				doc["uuid"] = proximityUUID;
-				doc["id"] = proximityUUID + "-" + String(major) + "-0";
+				doc["id"] = proximityUUID + "-" + String(major) + "-" + String(minor);
 				doc["txPower"] = oBeacon.getSignalPower();
 				doc["distance"] = distance;
 
