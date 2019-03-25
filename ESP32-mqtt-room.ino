@@ -34,7 +34,7 @@ extern "C" {
 #include "Settings_a.h"
 
 BLEScan* pBLEScan;
-int scanTime = 10; //In seconds
+int scanTime = singleScanTime; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
 
@@ -405,9 +405,9 @@ void setup() {
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-	pBLEScan->setInterval(0x80);
-	pBLEScan->setWindow(0x10);
+  pBLEScan->setActiveScan(activeScan);
+	pBLEScan->setInterval(bleScanInterval);
+	pBLEScan->setWindow(bleScanWindow);
 
 	xTaskCreatePinnedToCore(
 		scanForDevices,
