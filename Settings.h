@@ -38,8 +38,26 @@
 #define scanInterval 2 // Define the interval in seconds between scans
 #define singleScanTime 10 // Define the duration of a single scan in seconds
 #define activeScan true // Active scan uses more power, but get results faster
-#define bleScanInterval 0x80 // (milliseconds) The time interval from when the Controller started its last LE scan until it begins the subsequent LE scan
-#define bleScanWindow 0x10 // (milliseconds) The duration of the LE scan, shall be less than or equal to bleScanInterval; if interval and window are equal then perform continuous scan
+
+// The two following settings relate to bluetooth / WiFi coexistence and antenna usage. Do not modify unless you know what you're doing
+
+/*
+  Scan interval. This is defined as the time interval from
+  when the Controller started its last LE scan until it begins the subsequent LE scan.
+  Range: 0x0004 to 0x4000 Default: 0x0010 (10 ms)
+  Time = N * 0.625 msec
+  Time Range: 2.5 msec to 10.24 seconds
+*/
+#define bleScanInterval 0x80
+
+/*
+Scan window. The duration of the LE scan. LE_Scan_Window
+shall be less than or equal to LE_Scan_Interval
+Range: 0x0004 to 0x4000 Default: 0x0010 (10 ms)
+Time = N * 0.625 msec
+Time Range: 2.5 msec to 10240 msec
+*/
+#define bleScanWindow 0x10 // (milliseconds)
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define maxDistance 5
