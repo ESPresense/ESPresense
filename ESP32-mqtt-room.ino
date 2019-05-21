@@ -37,6 +37,7 @@ BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
+String localIp;
 
 uint16_t beaconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
@@ -89,12 +90,38 @@ float calculateDistance(int rssi, int txPower) {
 
 }
 
+bool sendTelemetry(int deviceCount) {
+	StaticJsonDocument<256> tele;
+	tele["room"] = room;
+	tele["ip"] = localIp;
+	tele["hostname"] = WiFi.getHostname();
+	tele["scan_duration"] = scanTime;
+	tele["wait_duration"] = waitTime;
+	tele["max_distance"] = maxDistance;
+
+	if (deviceCount > -1) {
+		Serial.printf("devices_reported: %d",deviceCount);
+    tele["devices_reported"] = deviceCount;
+	}
+
+	char teleMessageBuffer[258];
+	serializeJson(tele, teleMessageBuffer);
+
+	if (mqttClient.publish(telemetryTopic, 0, 1, teleMessageBuffer) == true) {
+		Serial.print("Success sending telemetry to topic: ");
+		Serial.println(telemetryTopic);
+		return true;
+	} else {
+		Serial.println("Error sending telemetry");
+		return false;
+	}
+
+}
+
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
 	WiFi.begin(ssid, password);
-	bool resp = WiFi.setHostname(hostname);
-	Serial.print("set host name result\t");
-	Serial.println(resp);
+	WiFi.setHostname(hostname);
 }
 
 void connectToMqtt() {
@@ -105,13 +132,14 @@ void connectToMqtt() {
 }
 
 void WiFiEvent(WiFiEvent_t event) {
-    Serial.print("[WiFi-event] event:");
-		Serial.println(event);
+    Serial.printf("[WiFi-event] event: %x", event);
+		// Serial.println(event);
     switch(event) {
 	    case SYSTEM_EVENT_STA_GOT_IP:
 					digitalWrite(LED_BUILTIN, !LED_ON);
 	        Serial.print("IP address: \t");
 	        Serial.println(WiFi.localIP());
+					localIp = WiFi.localIP().toString().c_str();
 					Serial.print("Hostname: \t");
 					Serial.println(WiFi.getHostname());
 	        connectToMqtt();
@@ -127,7 +155,8 @@ void WiFiEvent(WiFiEvent_t event) {
 					Serial.println("Wifi Ready");
 					break;
 			case SYSTEM_EVENT_STA_START:
-					// Serial.println("STA Start");
+					Serial.println("STA Start");
+					tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname);
 					break;
 			case SYSTEM_EVENT_STA_STOP:
 					Serial.println("STA Stop");
@@ -141,12 +170,14 @@ void onMqttConnect(bool sessionPresent) {
   Serial.print("Session present: ");
   Serial.println(sessionPresent);
 
-  if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
-    Serial.print("Success sending message to topic:\t");
+	if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
+		Serial.print("Success sending message to topic:\t");
 		Serial.println(availabilityTopic);
-  } else {
-    Serial.println("Error sending message");
-  }
+	} else {
+		Serial.println("Error sending message");
+	}
+
+	sendTelemetry(-1);
 
 }
 
@@ -159,7 +190,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
 }
 
 
-void reportDevice(BLEAdvertisedDevice advertisedDevice) {
+bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 	// Serial.printf("\n\n");
 
@@ -226,12 +257,12 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 				distance = calculateDistance(rssi, oBeacon.getSignalPower());
 
-				// Serial.print("RSSI: ");
-				// Serial.print(rssi);
-				// Serial.print("\ttxPower: ");
-				// Serial.print(oBeacon.getSignalPower());
-				// Serial.print("\tDistance: ");
-				// Serial.println(distance);
+				Serial.print("RSSI: ");
+				Serial.print(rssi);
+				Serial.print("\ttxPower: ");
+				Serial.print(oBeacon.getSignalPower());
+				Serial.print("\tDistance: ");
+				Serial.println(distance);
 
 				int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
 				int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
@@ -287,6 +318,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
 		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+				return true;
 
 		  } else {
 		    Serial.print("Error sending message: ");
@@ -303,7 +335,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			Serial.println("MQTT disconnected.");
 
 		}
-
+		return false;
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -329,16 +361,22 @@ void scanForDevices(void * parameter) {
 			// xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 	    Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
-	    Serial.printf("Scan done! Devices found: %d\n",foundDevices.getCount());
+			int devicesCount = foundDevices.getCount();
+	    Serial.printf("Scan done! Devices found: %d\n",devicesCount);
 			// mqttClient.connect();
 			// while (!mqttClient.connected()) {
 			// 	Serial.print(".");
 			// 	vTaskDelay(10 / portTICK_PERIOD_MS);
 			// }
+			int devicesReported = 0;
 			if (mqttClient.connected()) {
-			for (uint32_t i = 0; i < foundDevices.getCount(); i++) {
-					reportDevice(foundDevices.getDevice(i));
+			  for (uint32_t i = 0; i < devicesCount; i++) {
+					bool included = reportDevice(foundDevices.getDevice(i));
+					if (included) {
+						devicesReported++;
+					}
 				}
+				sendTelemetry(devicesReported);
 			} else {
 				Serial.println("Cannot report; mqtt disconnected");
 			}
