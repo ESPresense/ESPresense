@@ -7,7 +7,9 @@
 
    pcbreflux for the original version of this code, as well as the eddystone handlers.
 
-   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot
+   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot.
+
+	 Sidddy for the implementation of Mi Flora plant sensor support. https://github.com/sidddy/flora
 
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
@@ -70,6 +72,8 @@ String getProximityUUIDString(BLEBeacon beacon) {
 
 float calculateDistance(int rssi, int txPower) {
 
+	float distFl;
+
   if (rssi == 0) {
       return -1.0;
   }
@@ -83,10 +87,12 @@ float calculateDistance(int rssi, int txPower) {
 
   const float ratio = rssi * 1.0 / txPower;
   if (ratio < 1.0) {
-      return pow(ratio, 10);
+      distFl = pow(ratio, 10);
   } else {
-      return (0.89976) * pow(ratio, 7.7095) + 0.111;
+      distFl = (0.89976) * pow(ratio, 7.7095) + 0.111;
   }
+
+	return round(distFl * 100) / 100;
 
 }
 
@@ -108,8 +114,7 @@ bool sendTelemetry(int deviceCount) {
 	serializeJson(tele, teleMessageBuffer);
 
 	if (mqttClient.publish(telemetryTopic, 0, 1, teleMessageBuffer) == true) {
-		Serial.print("Success sending telemetry to topic: ");
-		Serial.println(telemetryTopic);
+		Serial.println("Telemetry sent");
 		return true;
 	} else {
 		Serial.println("Error sending telemetry");
@@ -188,7 +193,6 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     xTimerStart(mqttReconnectTimer, 0);
   }
 }
-
 
 bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
@@ -357,17 +361,12 @@ TaskHandle_t BLEScan;
 void scanForDevices(void * parameter) {
 	while(1) {
 		if (!updateInProgress && WiFi.isConnected() && (millis() - last > (waitTime * 1000) || last == 0)) {
-			// mqttClient.disconnect(true);
-			// xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-	    Serial.print("Scanning...\t");
+
+			Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
 			int devicesCount = foundDevices.getCount();
 	    Serial.printf("Scan done! Devices found: %d\n",devicesCount);
-			// mqttClient.connect();
-			// while (!mqttClient.connected()) {
-			// 	Serial.print(".");
-			// 	vTaskDelay(10 / portTICK_PERIOD_MS);
-			// }
+
 			int devicesReported = 0;
 			if (mqttClient.connected()) {
 			  for (uint32_t i = 0; i < devicesCount; i++) {
