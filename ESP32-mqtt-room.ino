@@ -106,7 +106,7 @@ bool sendTelemetry(int deviceCount) {
 	tele["max_distance"] = maxDistance;
 
 	if (deviceCount > -1) {
-		Serial.printf("devices_reported: %d",deviceCount);
+		Serial.printf("devices_reported: %d\n\r",deviceCount);
     tele["devices_reported"] = deviceCount;
 	}
 
@@ -261,12 +261,12 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 				distance = calculateDistance(rssi, oBeacon.getSignalPower());
 
-				Serial.print("RSSI: ");
-				Serial.print(rssi);
-				Serial.print("\ttxPower: ");
-				Serial.print(oBeacon.getSignalPower());
-				Serial.print("\tDistance: ");
-				Serial.println(distance);
+				// Serial.print("RSSI: ");
+				// Serial.print(rssi);
+				// Serial.print("\ttxPower: ");
+				// Serial.print(oBeacon.getSignalPower());
+				// Serial.print("\tDistance: ");
+				// Serial.println(distance);
 
 				int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
 				int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
@@ -365,7 +365,7 @@ void scanForDevices(void * parameter) {
 			Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
 			int devicesCount = foundDevices.getCount();
-	    Serial.printf("Scan done! Devices found: %d\n",devicesCount);
+	    Serial.printf("Scan done! Devices found: %d\n\r",devicesCount);
 
 			int devicesReported = 0;
 			if (mqttClient.connected()) {
@@ -396,11 +396,11 @@ void configureOTA() {
     .onEnd([]() {
 			updateInProgress = false;
 			digitalWrite(LED_BUILTIN, !LED_ON);
-      Serial.println("\nEnd");
+      Serial.println("\n\rEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
 			byte percent = (progress / (total / 100));
-      Serial.printf("Progress: %u% \n", percent);
+      Serial.printf("Progress: %u% \n\r", percent);
 			digitalWrite(LED_BUILTIN, percent % 2);
     })
     .onError([](ota_error_t error) {
