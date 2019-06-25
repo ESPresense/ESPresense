@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_a.h"
+#include "Settings_d.h"
 
 BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
@@ -96,18 +96,23 @@ float calculateDistance(int rssi, int txPower) {
 
 }
 
-bool sendTelemetry(int deviceCount) {
+bool sendTelemetry(int deviceCount = -1, int reportCount = -1) {
 	StaticJsonDocument<256> tele;
 	tele["room"] = room;
 	tele["ip"] = localIp;
 	tele["hostname"] = WiFi.getHostname();
-	tele["scan_duration"] = scanTime;
-	tele["wait_duration"] = waitTime;
-	tele["max_distance"] = maxDistance;
+	tele["scan_dur"] = scanTime;
+	tele["wait_dur"] = waitTime;
+	tele["max_dist"] = maxDistance;
 
 	if (deviceCount > -1) {
-		Serial.printf("devices_reported: %d\n\r",deviceCount);
-    tele["devices_reported"] = deviceCount;
+		Serial.printf("devices_discovered: %d\n\r",deviceCount);
+    tele["disc_ct"] = deviceCount;
+	}
+
+	if (reportCount > -1) {
+		Serial.printf("devices_reported: %d\n\r",reportCount);
+    tele["rept_ct"] = reportCount;
 	}
 
 	char teleMessageBuffer[258];
@@ -182,7 +187,7 @@ void onMqttConnect(bool sessionPresent) {
 		Serial.println("Error sending message");
 	}
 
-	sendTelemetry(-1);
+	sendTelemetry();
 
 }
 
@@ -240,8 +245,9 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			 // Serial.printf("Eddystone Frame Type (Unencrypted Eddystone-TLM) \n");
 			 // Serial.printf(oBeacon.toString().c_str());
 		} else {
+			Serial.println("service data");
 			for (int i=0;i<strServiceData.length();i++) {
-				// Serial.printf("[%X]",cServiceData[i]);
+				Serial.printf("[%X]",cServiceData[i]);
 			}
 		}
 		// Serial.printf("\n");
@@ -278,10 +284,6 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				doc["id"] = proximityUUID + "-" + String(major) + "-" + String(minor);
 				doc["txPower"] = oBeacon.getSignalPower();
 				doc["distance"] = distance;
-
-				// Serial.printf("iBeacon Frame\n");
-				// Serial.printf("Major: %d Minor: %d UUID: %s Power: %d Rssi: %d Distance: %f\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower(), rssi, distance);
-
 
 			} else {
 
@@ -375,7 +377,8 @@ void scanForDevices(void * parameter) {
 						devicesReported++;
 					}
 				}
-				sendTelemetry(devicesReported);
+				sendTelemetry(devicesCount, devicesReported);
+				pBLEScan->clearResults();
 			} else {
 				Serial.println("Cannot report; mqtt disconnected");
 			}

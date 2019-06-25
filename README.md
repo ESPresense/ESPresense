@@ -31,10 +31,11 @@ sensor:
 
 binary_sensor:
 
-# One entry per sensor node to understand when the device is online/offline
+# One entry per sensor node to understand when the device is online/offline and see device metadata such as IP address and settings values
   - platform: mqtt
     name: ESP32 Room Presence
     state_topic: "presence_nodes/esp32"
+    json_attributes_topic: "presence_nodes/esp32/tele"
     payload_on: "CONNECTED"
     payload_off: "DISCONNECTED"
     device_class: connectivity
@@ -48,20 +49,15 @@ Generic beacon hardware should be compatible, provided it meets a beacon standar
 In order to track your Android phone as a BLE Beacon, you will need to emulate Beacon adertisement packets from your phone. This is the opposite to what most beacon apps do (i.e. scanning for beacons instead of emulating one). I have had success using the [Beacon Scope](https://play.google.com/store/apps/details?id=com.davidgyoungtech.beaconscanner) app. Configure a transmitter, and specify the device ID in your Home Assistant configuration files.
 
 ### Tracking iPhone
-Unfortunately, Apple does not allow devices to advertise iBeacon data in the background.
+Unfortunately, Apple does not allow devices to advertise iBeacon data in the background. As I do not own an iPhone, I will not attempt to implement scanning and reporting by device name, but I welcome pull requests.
 
 #### Future Development Tasks
 - [x] Implement basic BLE packet discovery
 - [x] Implement iBeacon data packet parsing
 - [x] Setup instructions in README.md
-- [ ] Address watchdog issue
-- [ ] Match configuration options to Room Assistant
+- [x] Address watchdog issue
 - [ ] Implement Mi Flora data parsing and reporting
-- [ ] Whitelist functionality
-- [ ] Blacklist functionality
-- [ ] Maximum distance limit
+- [x] Maximum distance limit (rounded to two decimal places)
 - [x] Scan interval Settings
-- [ ] Configuration via Web UI
-- [ ] Wifi Manager for managing access point credentials
 - [x] Implement Over-The-Air (OTA) updates
 - [x] Build and upload via [PlatformIO](platformio.org)
