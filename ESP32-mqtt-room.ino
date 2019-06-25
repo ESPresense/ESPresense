@@ -7,7 +7,9 @@
 
    pcbreflux for the original version of this code, as well as the eddystone handlers.
 
-   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot
+   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot.
+
+	 Sidddy for the implementation of Mi Flora plant sensor support. https://github.com/sidddy/flora
 
    Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
    Ported to Arduino ESP32 by Evandro Copercini
@@ -31,12 +33,13 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_a.h"
+#include "Settings_d.h"
 
 BLEScan* pBLEScan;
-int scanTime = 10; //In seconds
+int scanTime = singleScanTime; //In seconds
 int waitTime = scanInterval; //In seconds
 bool updateInProgress = false;
+String localIp;
 
 uint16_t beaconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
@@ -69,6 +72,8 @@ String getProximityUUIDString(BLEBeacon beacon) {
 
 float calculateDistance(int rssi, int txPower) {
 
+	float distFl;
+
   if (rssi == 0) {
       return -1.0;
   }
@@ -82,19 +87,51 @@ float calculateDistance(int rssi, int txPower) {
 
   const float ratio = rssi * 1.0 / txPower;
   if (ratio < 1.0) {
-      return pow(ratio, 10);
+      distFl = pow(ratio, 10);
   } else {
-      return (0.89976) * pow(ratio, 7.7095) + 0.111;
+      distFl = (0.89976) * pow(ratio, 7.7095) + 0.111;
   }
+
+	return round(distFl * 100) / 100;
+
+}
+
+bool sendTelemetry(int deviceCount = -1, int reportCount = -1) {
+	StaticJsonDocument<256> tele;
+	tele["room"] = room;
+	tele["ip"] = localIp;
+	tele["hostname"] = WiFi.getHostname();
+	tele["scan_dur"] = scanTime;
+	tele["wait_dur"] = waitTime;
+	tele["max_dist"] = maxDistance;
+
+	if (deviceCount > -1) {
+		Serial.printf("devices_discovered: %d\n\r",deviceCount);
+    tele["disc_ct"] = deviceCount;
+	}
+
+	if (reportCount > -1) {
+		Serial.printf("devices_reported: %d\n\r",reportCount);
+    tele["rept_ct"] = reportCount;
+	}
+
+	char teleMessageBuffer[258];
+	serializeJson(tele, teleMessageBuffer);
+
+	if (mqttClient.publish(telemetryTopic, 0, 1, teleMessageBuffer) == true) {
+		Serial.println("Telemetry sent");
+		return true;
+	} else {
+		Serial.println("Error sending telemetry");
+		return false;
+	}
 
 }
 
 void connectToWifi() {
   Serial.println("Connecting to WiFi...");
 	WiFi.begin(ssid, password);
-	bool resp = WiFi.setHostname(hostname);
-	Serial.print("set host name result\t");
-	Serial.println(resp);
+	WiFi.setHostname(hostname);
 }
 
 void connectToMqtt() {
@@ -105,13 +142,14 @@ void connectToMqtt() {
 }
 
 void WiFiEvent(WiFiEvent_t event) {
-    Serial.print("[WiFi-event] event:");
-		Serial.println(event);
+    Serial.printf("[WiFi-event] event: %x", event);
+		// Serial.println(event);
     switch(event) {
 	    case SYSTEM_EVENT_STA_GOT_IP:
 					digitalWrite(LED_BUILTIN, !LED_ON);
 	        Serial.print("IP address: \t");
 	        Serial.println(WiFi.localIP());
+					localIp = WiFi.localIP().toString().c_str();
 					Serial.print("Hostname: \t");
 					Serial.println(WiFi.getHostname());
 	        connectToMqtt();
@@ -127,7 +165,8 @@ void WiFiEvent(WiFiEvent_t event) {
 					Serial.println("Wifi Ready");
 					break;
 			case SYSTEM_EVENT_STA_START:
-					// Serial.println("STA Start");
+					Serial.println("STA Start");
+					tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname);
 					break;
 			case SYSTEM_EVENT_STA_STOP:
 					Serial.println("STA Stop");
@@ -141,12 +180,14 @@ void onMqttConnect(bool sessionPresent) {
   Serial.print("Session present: ");
   Serial.println(sessionPresent);
 
-  if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
-    Serial.print("Success sending message to topic:\t");
+	if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
+		Serial.print("Success sending message to topic:\t");
 		Serial.println(availabilityTopic);
-  } else {
-    Serial.println("Error sending message");
-  }
+	} else {
+		Serial.println("Error sending message");
+	}
+
+	sendTelemetry();
 
 }
 
@@ -158,8 +199,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   }
 }
 
-
-void reportDevice(BLEAdvertisedDevice advertisedDevice) {
+bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 	// Serial.printf("\n\n");
 
@@ -205,8 +245,9 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			 // Serial.printf("Eddystone Frame Type (Unencrypted Eddystone-TLM) \n");
 			 // Serial.printf(oBeacon.toString().c_str());
 		} else {
+			Serial.println("service data");
 			for (int i=0;i<strServiceData.length();i++) {
-				// Serial.printf("[%X]",cServiceData[i]);
+				Serial.printf("[%X]",cServiceData[i]);
 			}
 		}
 		// Serial.printf("\n");
@@ -240,13 +281,9 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				doc["minor"] = minor;
 
 				doc["uuid"] = proximityUUID;
-				doc["id"] = proximityUUID + "-" + String(major) + "-0";
+				doc["id"] = proximityUUID + "-" + String(major) + "-" + String(minor);
 				doc["txPower"] = oBeacon.getSignalPower();
 				doc["distance"] = distance;
-
-				// Serial.printf("iBeacon Frame\n");
-				// Serial.printf("Major: %d Minor: %d UUID: %s Power: %d Rssi: %d Distance: %f\n",ENDIAN_CHANGE_U16(oBeacon.getMajor()),ENDIAN_CHANGE_U16(oBeacon.getMinor()),proximityUUID.c_str(),oBeacon.getSignalPower(), rssi, distance);
-
 
 			} else {
 
@@ -287,6 +324,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
 		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+				return true;
 
 		  } else {
 		    Serial.print("Error sending message: ");
@@ -303,7 +341,7 @@ void reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			Serial.println("MQTT disconnected.");
 
 		}
-
+		return false;
 }
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
@@ -325,20 +363,22 @@ TaskHandle_t BLEScan;
 void scanForDevices(void * parameter) {
 	while(1) {
 		if (!updateInProgress && WiFi.isConnected() && (millis() - last > (waitTime * 1000) || last == 0)) {
-			// mqttClient.disconnect(true);
-			// xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-	    Serial.print("Scanning...\t");
+
+			Serial.print("Scanning...\t");
 			BLEScanResults foundDevices = pBLEScan->start(scanTime);
-	    Serial.printf("Scan done! Devices found: %d\n",foundDevices.getCount());
-			// mqttClient.connect();
-			// while (!mqttClient.connected()) {
-			// 	Serial.print(".");
-			// 	vTaskDelay(10 / portTICK_PERIOD_MS);
-			// }
+			int devicesCount = foundDevices.getCount();
+	    Serial.printf("Scan done! Devices found: %d\n\r",devicesCount);
+
+			int devicesReported = 0;
 			if (mqttClient.connected()) {
-			for (uint32_t i = 0; i < foundDevices.getCount(); i++) {
-					reportDevice(foundDevices.getDevice(i));
+			  for (uint32_t i = 0; i < devicesCount; i++) {
+					bool included = reportDevice(foundDevices.getDevice(i));
+					if (included) {
+						devicesReported++;
+					}
 				}
+				sendTelemetry(devicesCount, devicesReported);
+				pBLEScan->clearResults();
 			} else {
 				Serial.println("Cannot report; mqtt disconnected");
 			}
@@ -359,11 +399,11 @@ void configureOTA() {
     .onEnd([]() {
 			updateInProgress = false;
 			digitalWrite(LED_BUILTIN, !LED_ON);
-      Serial.println("\nEnd");
+      Serial.println("\n\rEnd");
     })
     .onProgress([](unsigned int progress, unsigned int total) {
 			byte percent = (progress / (total / 100));
-      Serial.printf("Progress: %u% \n", percent);
+      Serial.printf("Progress: %u% \n\r", percent);
 			digitalWrite(LED_BUILTIN, percent % 2);
     })
     .onError([](ota_error_t error) {
@@ -405,9 +445,9 @@ void setup() {
   BLEDevice::init("");
   pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
-  pBLEScan->setActiveScan(true); //active scan uses more power, but get results faster
-	pBLEScan->setInterval(0x80);
-	pBLEScan->setWindow(0x10);
+  pBLEScan->setActiveScan(activeScan);
+	pBLEScan->setInterval(bleScanInterval);
+	pBLEScan->setWindow(bleScanWindow);
 
 	xTaskCreatePinnedToCore(
 		scanForDevices,

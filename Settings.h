@@ -4,7 +4,7 @@
 //Replace with your Wifi password; example: #define password "12345678"
 #define password "$WIFI_PASSWORD$"
 
-//Replace with a human-friendly host name. Must not contain spaces or special characters
+//Replace with a human-friendly host name. Must not contain spaces or special characters and be unique on your network
 #define hostname "esp32_room_presence"
 
 //Replace with your MQTT Broker address; example: #define mqttHost IPAddress(192, 168, 1, 195)
@@ -17,7 +17,7 @@
 #define mqttUser "$MQTT_USER$"
 
 //Replace with your MQTT Broker password; example: #define mqttPassword "12345678"
-#define mqttPassword "$MQTT_PASSWORD"
+#define mqttPassword "$MQTT_PASSWORD$"
 
 //Replace with the room name where the node will be placed; example: #define room "living-room"
 #define room "$ROOM_NAME$"
@@ -34,8 +34,15 @@
 //Define the topic for publishing availability
 #define availabilityTopic "presence_nodes/" room
 
+//Define the topic for publishing JSON attributes
+#define telemetryTopic "presence_nodes/" hostname "/tele"
+
 // Define bluetooth scan parameters
-#define scanInterval 2 // Define the interval in seconds between scans
+#define scanInterval 5 // Define the interval in seconds between scans
+#define singleScanTime 5 // Define the duration of a single scan in seconds
+#define activeScan true // Active scan uses more power, but get results faster
+#define bleScanInterval 0x80 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
+#define bleScanWindow 0x10 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
-#define maxDistance 5
+#define maxDistance 2

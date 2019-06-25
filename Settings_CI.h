@@ -8,3 +8,7 @@
 #define room "living-room"
 #define channel "room_presence"
 #define scanInterval 15
+#define singleScanTime 10
+#define activeScan true
+#define bleScanInterval 0x80
+#define bleScanWindow 0x10
