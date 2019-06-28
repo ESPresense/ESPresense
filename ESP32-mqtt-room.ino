@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_d.h"
+#include "Settings_local.h"
 
 BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
@@ -143,8 +143,8 @@ void connectToMqtt() {
 
 void WiFiEvent(WiFiEvent_t event) {
     Serial.printf("[WiFi-event] event: %x", event);
-		// Serial.println(event);
-    switch(event) {
+
+		switch(event) {
 	    case SYSTEM_EVENT_STA_GOT_IP:
 					digitalWrite(LED_BUILTIN, !LED_ON);
 	        Serial.print("IP address: \t");
@@ -177,8 +177,6 @@ void WiFiEvent(WiFiEvent_t event) {
 
 void onMqttConnect(bool sessionPresent) {
   Serial.println("Connected to MQTT.");
-  Serial.print("Session present: ");
-  Serial.println(sessionPresent);
 
 	if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
 		Serial.print("Success sending message to topic:\t");
@@ -208,6 +206,8 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	String mac_address = advertisedDevice.getAddress().toString().c_str();
 	mac_address.replace(":","");
 	mac_address.toLowerCase();
+	// Serial.print("mac:\t");
+	// Serial.println(mac_address);
 	int rssi = advertisedDevice.getRSSI();
 	float distance;
 
@@ -224,8 +224,8 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		// doc["name"] = "unknown";
 	}
 
-	// Serial.printf("\n\n");
-	// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
+	// Serial.printf("\n\r");
+	// Serial.printf("Advertised Device: %s \n\r", advertisedDevice.toString().c_str());
 	std::string strServiceData = advertisedDevice.getServiceData();
 	 uint8_t cServiceData[100];
 	 strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
@@ -245,9 +245,9 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			 // Serial.printf("Eddystone Frame Type (Unencrypted Eddystone-TLM) \n");
 			 // Serial.printf(oBeacon.toString().c_str());
 		} else {
-			Serial.println("service data");
+			// Serial.println("service data");
 			for (int i=0;i<strServiceData.length();i++) {
-				Serial.printf("[%X]",cServiceData[i]);
+				// Serial.printf("[%X]",cServiceData[i]);
 			}
 		}
 		// Serial.printf("\n");
@@ -296,7 +296,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 				doc["distance"] = distance;
 
-				// Serial.printf("strManufacturerData: %d \n",strManufacturerData.length());
+				// Serial.printf("strManufacturerData: %d \n\r",strManufacturerData.length());
 				// TODO: parse manufacturer data
 
 			}
@@ -311,7 +311,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				doc["distance"] = distance;
 			}
 
-			// Serial.printf("no Beacon Advertised ServiceDataUUID: %d %s \n", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str());
+			// Serial.printf("no Beacon Advertised ServiceDataUUID: %d %s \n\r", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str());
 		 }
 		}
 
@@ -435,7 +435,7 @@ void setup() {
   mqttClient.onDisconnect(onMqttDisconnect);
 
   mqttClient.setServer(mqttHost, mqttPort);
-	mqttClient.setWill(availabilityTopic, 0, 0, "DISCONNECTED");
+	mqttClient.setWill(availabilityTopic, 0, 1, "DISCONNECTED");
 	mqttClient.setKeepAlive(60);
 
   connectToWifi();
