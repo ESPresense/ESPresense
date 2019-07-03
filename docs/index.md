@@ -26,14 +26,14 @@ Open the project folder in Atom, using the `open project` option in the Platform
 It is possible to update the device using "Over the Air" (OTA) updates from the command line interface of PlatformIO. You will need to know the IP address of the device itself (check your router). From the command line, enter the command `platformio run -t upload --upload-port {{Device IP Address}}`. During the update process, you will see the on-board LED blinking slowly. Once the update has completed, you should see the device reconnect and update its telemetry.
 
 ## Home Assistant Configuration
-See the section on [configuring Home Assistant](./home_assistant.md).
+See the section on [configuring Home Assistant](./home_assistant.html).
 
 ## Trackable Devices
 ### Beacon Hardware
-See the section on [tracking beacon hardware](./beacons.md)
+See the section on [tracking beacon hardware](./beacons.html)
 
 ### Tracking Android Phone
-[Read more here](./android.md) about getting your Android phone configured and tracked.
+[Read more here](./android.html) about getting your Android phone configured and tracked.
 
 ### Tracking iPhone
 Unfortunately, Apple does not allow devices to advertise iBeacon data in the background. As I do not own an iPhone, I will not attempt to implement scanning and reporting by device name, but I welcome pull requests.
