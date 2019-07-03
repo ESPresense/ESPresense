@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_d.h"
 
 BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
