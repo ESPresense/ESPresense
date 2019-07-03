@@ -1,18 +1,9 @@
-<img src='./images/cover.jpg'>
+![Cover Image](./images/cover.jpg)
 
 # ESP32-mqtt-room
 An ESP32 based presence detection node for use with the [Home Assistant](https://www.home-assistant.io/) [`mqtt_room` component](https://www.home-assistant.io/components/sensor.mqtt_room/) for localized device presence detection.
 
-## Credits
-This depends heavily on the hard work done by a number of people.
-* pcbreflux [(GitHub)](https://github.com/pcbreflux) [(YouTube)](https://www.youtube.com/channel/UCvsMfEoIu_ZdBIgQVcY_AZA) - this code takes heavy inspiration from [ESP32_BLE_beaconscan](https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan)
-* Neil Kolban [(GitHub)](https://github.com/nkolban) [(YouTube)](https://www.youtube.com/channel/UChKn_BlaVrMrhEquPNI6HuQ) - provided the Bluetooth low enery libraries used
-* Marvin Roger [(GitHub)](https://github.com/marvinroger/async-mqtt-client) - provided the async MQTT library
-* Benoit Blanchon [(GitHub)](https://github.com/bblanchon/ArduinoJson) - provided the Arduino JSON library
-* Me No Dev [(GitHub)](https://github.com/me-no-dev/AsyncTCP) - provided the async TCP library
-* Kyle Gordon [(GitHub)](https://github.com/kylegordon) - PlatformIO support
-
-### Requirements
+## Requirements
 You're going to need the following items:
 * An [ESP32 development board](https://www.amazon.ca/gp/product/B07F1GWJ1N/ref=as_li_tl?ie=UTF8&camp=15121&creative=330641&creativeASIN=B07F1GWJ1N&linkCode=as2&tag=ptrsnja-20&linkId=7ccc8364c8a8961ac9053e03efa91268)
 * A running instance of [Home Assistant](https://www.homeassistant.io)
@@ -46,3 +37,12 @@ See the section on [tracking beacon hardware](./beacons.md)
 
 ### Tracking iPhone
 Unfortunately, Apple does not allow devices to advertise iBeacon data in the background. As I do not own an iPhone, I will not attempt to implement scanning and reporting by device name, but I welcome pull requests.
+
+## Credits
+This depends heavily on the hard work done by a number of people.
+* **pcbreflux** [(GitHub)](https://github.com/pcbreflux) [(YouTube)](https://www.youtube.com/channel/UCvsMfEoIu_ZdBIgQVcY_AZA) - this code takes heavy inspiration from [ESP32_BLE_beaconscan](https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan)
+* **Neil Kolban** [(GitHub)](https://github.com/nkolban) [(YouTube)](https://www.youtube.com/channel/UChKn_BlaVrMrhEquPNI6HuQ) - provided the Bluetooth low enery libraries used
+* **Marvin Roger** [(GitHub)](https://github.com/marvinroger/async-mqtt-client) - provided the async MQTT library
+* **Benoit Blanchon** [(GitHub)](https://github.com/bblanchon/ArduinoJson) - provided the Arduino JSON library
+* **Me No Dev** [(GitHub)](https://github.com/me-no-dev/AsyncTCP) - provided the async TCP library
+* **Kyle Gordon** [(GitHub)](https://github.com/kylegordon) - PlatformIO support
