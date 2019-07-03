@@ -4,19 +4,19 @@ See the full documentation at [https://jptrsn.github.io/ESP32-mqtt-room/](https:
 An ESP32 based presence detection node for use with the [Home Assistant](https://www.home-assistant.io/) [`mqtt_room` component](https://www.home-assistant.io/components/sensor.mqtt_room/) for localized device presence detection.
 
 ## Credits
-This project would not have been possible without the help of a variety of [folks on GitHub and YouTube.](https://jptrsn.github.io/ESP32-mqtt-room/index.md#credits)
+This project would not have been possible without the help of a variety of [folks on GitHub and YouTube.](https://jptrsn.github.io/ESP32-mqtt-room/index.html#credits)
 
 ## Getting Started
-A full list of instructions is available in the [documentation](https://jptrsn.github.io/ESP32-mqtt-room/index.md#getting-started).
+A full list of instructions is available in the [documentation](https://jptrsn.github.io/ESP32-mqtt-room/index.html#getting-started).
 
 ## Home Assistant Configuration
-See the [documentation for configuring Home Assistant.](https://jptrsn.github.io/ESP32-mqtt-room/home_assistant.md)
+See the [documentation for configuring Home Assistant.](https://jptrsn.github.io/ESP32-mqtt-room/home_assistant.html)
 
 ## Trackable Devices
-* [Beacon Hardware](https://jptrsn.github.io/ESP32-mqtt-room/beacons.md)
-* [Android devices](https://jptrsn.github.io/ESP32-mqtt-room/android.md)
-* [iOS devices](https://jptrsn.github.io/ESP32-mqtt-room/index.md#tracking-iphone)
-* [Other devices](https://jptrsn.github.io/ESP32-mqtt-room/beacons.md#non-beacon-hardware)
+* [Beacon Hardware](https://jptrsn.github.io/ESP32-mqtt-room/beacons.html)
+* [Android devices](https://jptrsn.github.io/ESP32-mqtt-room/android.html)
+* [iOS devices](https://jptrsn.github.io/ESP32-mqtt-room/index.html#tracking-iphone)
+* [Other devices](https://jptrsn.github.io/ESP32-mqtt-room/beacons.html#non-beacon-hardware)
 
 ## Development Tasks
 
