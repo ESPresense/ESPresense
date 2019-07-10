@@ -334,11 +334,12 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		  }
 		} else if (mqttClient.connected() && distance >= maxDistance) {
 
-			// Serial.printf("%f exceeded distance threshold\n", distance);
+			Serial.printf("%s exceeded distance threshold %f\n\r", mac_address.c_str(), distance);
 
 		} else {
 
 			Serial.println("MQTT disconnected.");
+			connectToMqtt();
 
 		}
 		return false;
