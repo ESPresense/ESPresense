@@ -9,9 +9,9 @@
    xmlns="http://www.w3.org/2000/svg"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="43.438667"
-   height="42.366489"
-   viewBox="0 0 11.493147 11.209467"
+   width="86.877335"
+   height="84.732979"
+   viewBox="0 0 22.986294 22.418934"
    version="1.1"
    id="svg8"
    inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"
@@ -35,8 +35,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.979899"
-     inkscape:cx="91.985265"
-     inkscape:cy="83.925196"
+     inkscape:cx="113.70459"
+     inkscape:cy="105.10844"
      inkscape:document-units="mm"
      inkscape:current-layer="g4518"
      showgrid="false"
@@ -66,7 +66,7 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-194.17103,-278.56633)">
+     transform="translate(-188.42446,-272.9616)">
     <g
        transform="matrix(0.35277777,0,0,-0.35277777,75.675598,316.02397)"
        inkscape:label="GitHub-Mark"
@@ -77,7 +77,7 @@
            clip-path="url(#clipPath4522)"
            id="g4518">
           <g
-             transform="translate(352.18058,106.17914)"
+             transform="matrix(2,0,0,2,352.17908,122.06657)"
              id="g4524">
             <path
                inkscape:connector-curvature="0"
