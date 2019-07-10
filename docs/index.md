@@ -30,8 +30,12 @@ It is possible to update the device using "Over the Air" (OTA) updates from the 
 See the section on [configuring Home Assistant](./home_assistant.html).
 
 ## Trackable Devices
-### Beacon Hardware
-See the section on [tracking beacon hardware](./beacons.html)
+### Beacons
+See the section on [tracking beacons](./beacons.html)
+
+### Generic Bluetooth Low-Energy (BLE) Devices
+Some other devices that advertise as BLE (such as the Mi Flora plant sensors or the Mi Band fitness tracker) can also be tracked, as long as you can scan the device and see its hardware ID. See the section on [tracking generic BLE devices](./generic_ble.html).
+
 
 ### Tracking Android Phone
 [Read more here](./android.html) about getting your Android phone configured and tracked.
