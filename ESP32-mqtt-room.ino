@@ -153,13 +153,17 @@ void WiFiEvent(WiFiEvent_t event) {
 					Serial.print("Hostname: \t");
 					Serial.println(WiFi.getHostname());
 	        connectToMqtt();
+					if (xTimerGetExpiryTime(wifiReconnectTimer)) {
+						Serial.println("Stopping wifi reconnect timer");
+						xTimerStop(wifiReconnectTimer, 0);
+					}
 	        break;
 	    case SYSTEM_EVENT_STA_DISCONNECTED:
 					digitalWrite(LED_BUILTIN, LED_ON);
 	        Serial.println("WiFi lost connection");
 					mqttClient.disconnect();
 	        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-	        xTimerStart(wifiReconnectTimer, 0);
+	        xTimerReset(wifiReconnectTimer, 0);
 	        break;
 			case SYSTEM_EVENT_WIFI_READY:
 					Serial.println("Wifi Ready");
@@ -193,8 +197,11 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("Disconnected from MQTT.");
   if (WiFi.isConnected() && !updateInProgress) {
 		Serial.println("Starting reconnect timer");
-    xTimerStart(mqttReconnectTimer, 0);
-  }
+    xTimerReset(mqttReconnectTimer, 0);
+  } else {
+		Serial.println("Disconnected from WiFi; starting reconnect timer");
+		xTimerReset(wifiReconnectTimer, 0);
+	}
 }
 
 bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
@@ -320,26 +327,34 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 		String publishTopic = String(channel) + "/" + room;
 
-		if (mqttClient.connected() && doc["distance"] < maxDistance) {
-			if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
+		if (mqttClient.connected()) {
+			if (maxDistance == 0 || doc["distance"] < maxDistance) {
+				if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true) {
 
-		    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
-				return true;
+			    // Serial.print("Success sending message to topic: "); Serial.println(publishTopic);
+					return true;
 
-		  } else {
-		    Serial.print("Error sending message: ");
-				Serial.println(publishTopic);
-		    Serial.print("Message: ");
-				Serial.println(JSONmessageBuffer);
-		  }
-		} else if (mqttClient.connected() && distance >= maxDistance) {
-
-			Serial.printf("%s exceeded distance threshold %f\n\r", mac_address.c_str(), distance);
+			  } else {
+			    Serial.print("Error sending message: ");
+					Serial.println(publishTopic);
+			    Serial.print("Message: ");
+					Serial.println(JSONmessageBuffer);
+					return false;
+			  }
+			} else {
+				Serial.printf("%s exceeded distance threshold %.2f\n\r", mac_address.c_str(), distance);
+				return false;
+			}
 
 		} else {
 
 			Serial.println("MQTT disconnected.");
-			connectToMqtt();
+			if (xTimerGetExpiryTime(mqttReconnectTimer)) {
+				TickType_t xRemainingTime = xTimerGetExpiryTime( mqttReconnectTimer ) - xTaskGetTickCount();
+				Serial.print("Time remaining: ");
+				Serial.println(xRemainingTime);
+			}
+			xTimerReset(mqttReconnectTimer, 0);
 
 		}
 		return false;
@@ -382,6 +397,14 @@ void scanForDevices(void * parameter) {
 				pBLEScan->clearResults();
 			} else {
 				Serial.println("Cannot report; mqtt disconnected");
+				if (xTimerGetExpiryTime(mqttReconnectTimer)) {
+					TickType_t xRemainingTime = xTimerGetExpiryTime( mqttReconnectTimer ) - xTaskGetTickCount();
+					Serial.print("Time remaining: ");
+					Serial.println(xRemainingTime);
+				} else {
+					Serial.println("Resetting reconnect timer");
+					xTimerReset(mqttReconnectTimer, 0);
+				}
 			}
 			last = millis();
 	  }
