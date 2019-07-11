@@ -1,12 +1,12 @@
 # Home Assistant Configuration
-Once the ESP32 is running, it is important to configure Home Assistant to use the information from the MQTT topic to determine what devices to track. You can read the full documentation [on the Home Assistant website](https://www.home-assistant.io/components/sensor.mqtt_room/). It is critical that you configure your device IDs to include the Major and Minor versions, in the format ``{{beacon uuid}}-{{major}}-{{minor}}``
+Once the ESP32 is running, it is important to configure Home Assistant to use the information from the MQTT topic to determine what devices to track. You can read the full documentation [on the Home Assistant website](https://www.home-assistant.io/components/sensor.mqtt_room/). It is critical that you configure your device IDs to include the Major and Minor versions, in the format `{{beacon uuid}}-{{major}}-{{minor}}`
 
 ### configuration.yaml
 Here is an example of how an entry into your `configuration.yaml` file should look:
 ```yaml
 sensor:
 
-# One entry for each BLE beacon you want to track
+# One entry for each beacon you want to track
   - platform: mqtt_room
     device_id: "fda50693a4e24fb1afcfc6eb07647825-5-0" # Note that major version must match, but any minor version will be ignored
     name: 'iBeacon Room Presence'
