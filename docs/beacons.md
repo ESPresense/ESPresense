@@ -6,8 +6,16 @@ Generic beacon hardware should be compatible, provided it meets a beacon standar
 * [eBay](https://www.ebay.com/sch/i.html?_nkw=nrf51822+ibeacon)
 * [Ali Express](https://www.aliexpress.com/wholesale?SearchText=nrf51822+ibeacon).
 
-## Non-beacon Hardware
-Some other devices that advertise as BLE (such as the Mi Flora plant sensors or the Mi Band fitness tracker) can also be tracked, as long as you can scan the device and see its hardware ID. Here is a list of devices known to be "trackable":
-* MiFlora plant sensor
-* MiBand 2 Fitness tracker
-* [Puck-JS](https://www.espruino.com/Puck.js), if programmed to [broadcast beacon packets](https://gist.github.com/jptrsn/d6cb9b9cdbcd41f3500708f8b694cad2 "An example project to broadcast iBeacon packets")
+## configuration.yaml
+Here is an example of how an entry into your `configuration.yaml` file should look:
+```yaml
+sensor:
+
+# One entry for each beacon you want to track
+  - platform: mqtt_room
+    device_id: "fda50693a4e24fb1afcfc6eb07647825-5-0" # Note that major version must match, but any minor version will be ignored
+    name: 'iBeacon Room Presence'
+    state_topic: 'room_presence'
+    timeout: 60
+    away_timeout: 120
+```
