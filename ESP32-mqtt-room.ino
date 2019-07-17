@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_d.h"
 
 BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
@@ -48,6 +48,7 @@ WiFiClient espClient;
 AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
+byte retryAttempts = 0;
 
 String getProximityUUIDString(BLEBeacon beacon) {
   std::string serviceData = beacon.getProximityUUID().toString().c_str();
@@ -136,9 +137,60 @@ void connectToWifi() {
 
 void connectToMqtt() {
   Serial.println("Connecting to MQTT");
-  mqttClient.setCredentials(mqttUser, mqttPassword);
-	mqttClient.setClientId(hostname);
-  mqttClient.connect();
+	if (WiFi.isConnected() && !updateInProgress) {
+		mqttClient.setCredentials(mqttUser, mqttPassword);
+		mqttClient.setClientId(hostname);
+	  mqttClient.connect();
+	} else {
+		Serial.println("Cannot reconnect MQTT - WiFi error");
+		handleWifiDisconnect();
+	}
+}
+
+bool handleMqttDisconnect() {
+	if (retryAttempts > 10) {
+		Serial.println("Too many retries. Restarting");
+		ESP.restart();
+	} else {
+		retryAttempts++;
+	}
+	if (WiFi.isConnected() && !updateInProgress) {
+		Serial.println("Starting MQTT reconnect timer");
+    if (xTimerReset(mqttReconnectTimer, 0) == pdFAIL) {
+			Serial.println("failed to restart");
+			xTimerStart(mqttReconnectTimer, 0);
+		} else {
+			Serial.println("restarted");
+		}
+  } else {
+		Serial.print("Disconnected from WiFi; starting WiFi reconnect timiler\t");
+		handleWifiDisconnect();
+	}
+}
+
+bool handleWifiDisconnect() {
+	if (retryAttempts > 10) {
+		Serial.println("Too many retries. Restarting");
+		ESP.restart();
+	} else {
+		retryAttempts++;
+	}
+	if (mqttClient.connected()) {
+		mqttClient.disconnect();
+	}
+	if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE) {
+		xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+	}
+
+	if (xTimerReset(wifiReconnectTimer, 0) == pdFAIL) {
+		Serial.println("failed to restart");
+		xTimerStart(wifiReconnectTimer, 0);
+		return false;
+	} else {
+		Serial.println("restarted");
+		return true;
+	}
+
 }
 
 void WiFiEvent(WiFiEvent_t event) {
@@ -153,27 +205,36 @@ void WiFiEvent(WiFiEvent_t event) {
 					Serial.print("Hostname: \t");
 					Serial.println(WiFi.getHostname());
 	        connectToMqtt();
-					if (xTimerGetExpiryTime(wifiReconnectTimer)) {
+					if (xTimerIsTimerActive(wifiReconnectTimer) != pdFALSE) {
 						Serial.println("Stopping wifi reconnect timer");
 						xTimerStop(wifiReconnectTimer, 0);
 					}
+					retryAttempts = 0;
 	        break;
 	    case SYSTEM_EVENT_STA_DISCONNECTED:
 					digitalWrite(LED_BUILTIN, LED_ON);
-	        Serial.println("WiFi lost connection");
-					mqttClient.disconnect();
-	        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-	        xTimerReset(wifiReconnectTimer, 0);
-	        break;
+	        Serial.println("WiFi lost connection, resetting timer\t");
+					handleWifiDisconnect();
+					break;
 			case SYSTEM_EVENT_WIFI_READY:
 					Serial.println("Wifi Ready");
+					handleWifiDisconnect();
 					break;
 			case SYSTEM_EVENT_STA_START:
 					Serial.println("STA Start");
 					tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname);
+					if (xTimerIsTimerActive(wifiReconnectTimer) != pdFALSE) {
+						TickType_t xRemainingTime = xTimerGetExpiryTime( wifiReconnectTimer ) - xTaskGetTickCount();
+						Serial.print("WiFi Time remaining: ");
+						Serial.println(xRemainingTime);
+					} else {
+						Serial.println("WiFi Timer is inactive; resetting\t");
+						handleWifiDisconnect();
+					}
 					break;
 			case SYSTEM_EVENT_STA_STOP:
 					Serial.println("STA Stop");
+					handleWifiDisconnect();
 					break;
 
     }
@@ -181,6 +242,7 @@ void WiFiEvent(WiFiEvent_t event) {
 
 void onMqttConnect(bool sessionPresent) {
   Serial.println("Connected to MQTT.");
+	retryAttempts = 0;
 
 	if (mqttClient.publish(availabilityTopic, 0, 1, "CONNECTED") == true) {
 		Serial.print("Success sending message to topic:\t");
@@ -195,13 +257,7 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
   Serial.println("Disconnected from MQTT.");
-  if (WiFi.isConnected() && !updateInProgress) {
-		Serial.println("Starting reconnect timer");
-    xTimerReset(mqttReconnectTimer, 0);
-  } else {
-		Serial.println("Disconnected from WiFi; starting reconnect timer");
-		xTimerReset(wifiReconnectTimer, 0);
-	}
+  handleMqttDisconnect();
 }
 
 bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
@@ -349,13 +405,13 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		} else {
 
 			Serial.println("MQTT disconnected.");
-			if (xTimerGetExpiryTime(mqttReconnectTimer)) {
+			if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE) {
 				TickType_t xRemainingTime = xTimerGetExpiryTime( mqttReconnectTimer ) - xTaskGetTickCount();
 				Serial.print("Time remaining: ");
 				Serial.println(xRemainingTime);
+			} else {
+				handleMqttDisconnect();
 			}
-			xTimerReset(mqttReconnectTimer, 0);
-
 		}
 		return false;
 }
@@ -397,13 +453,12 @@ void scanForDevices(void * parameter) {
 				pBLEScan->clearResults();
 			} else {
 				Serial.println("Cannot report; mqtt disconnected");
-				if (xTimerGetExpiryTime(mqttReconnectTimer)) {
+				if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE) {
 					TickType_t xRemainingTime = xTimerGetExpiryTime( mqttReconnectTimer ) - xTaskGetTickCount();
 					Serial.print("Time remaining: ");
 					Serial.println(xRemainingTime);
 				} else {
-					Serial.println("Resetting reconnect timer");
-					xTimerReset(mqttReconnectTimer, 0);
+					handleMqttDisconnect();
 				}
 			}
 			last = millis();
@@ -440,6 +495,7 @@ void configureOTA() {
 			ESP.restart();
     });
 	ArduinoOTA.setHostname(hostname);
+	ArduinoOTA.setPort(8266);
   ArduinoOTA.begin();
 }
 
