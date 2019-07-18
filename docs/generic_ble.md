@@ -10,7 +10,7 @@ If you have a different BLE-enabled piece of hardware that you have gotten to wo
 ## Device ID
 To track generic BLE advertisements, you will need to know the hardware MAC address of the device. You can use an app on your smart phone to scan for and identify the correct device - I recommend [NRF Connect](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) from [Nordic Semiconductor](https://play.google.com/store/apps/dev?id=7265678888812659353) for Android (and I believe there is an iOS version as well).
 
-Alternatively, you can subscribe to the `room_presence` topic and view what devices are being reported there. Note that modern smart phones will randomize their hardware MAC address when broadcasting advertisements, so you must use a beacon app to track your phone (see the [section on tracking phones](./android.html) for more information).
+Alternatively, you can subscribe to the `room_presence` topic and view what devices are being reported there. Note that modern smart phones will randomize their hardware MAC address when broadcasting advertisements, so you must use a beacon app to track your phone (see the [section on tracking phones](./android) for more information).
 
 To track the device, specify the `device_id` entry as the hardware MAC address, without the colons.
 

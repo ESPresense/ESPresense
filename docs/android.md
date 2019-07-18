@@ -1,7 +1,7 @@
 # Tracking an Android phone
-<img src="./images/beacon_scope_android.jpg" style="float:right;margin:24px;" width=200>
+<img src="./images/beacon_scope_android.jpg" style="float:right;margin:24px;width:200px">
 
-It is possible to track your Android phone by installing a simple beacon broadcasting app. I have used [Beacon Simulator](https://play.google.com/store/apps/details?id=net.alea.beaconsimulator) and [Beacon Scope](https://play.google.com/store/apps/details?id=com.davidgyoungtech.beaconscanner).
+It is possible to track your Android phone by installing a simple beacon broadcasting app. I have the best results from the [Beacon Scope](https://play.google.com/store/apps/details?id=com.davidgyoungtech.beaconscanner) app. You may also want to try [Beacon Simulator](https://play.google.com/store/apps/details?id=net.alea.beaconsimulator), although I've experienced some issues with it.
 
 ### Setup
 You can use any iBeacon UUID in the app. Whatever you choose, ensure that it matches exactly with your entry in the Home Assistant configuration, including both the `major` and `minor` version numbers. An example phone configuration could be:
@@ -25,3 +25,6 @@ Both Android and iPhone use a strategy of [Bluetooth MAC address randomization](
 
 ### Known Issues
 With the release of advanced battery management, Android now has a habit of killing background processes. This means that you may not be able to track your phone consistently. I have yet to find a solution for this problem - if you know of one, please open an issue.
+
+### Troubleshooting
+See the [troubleshooting page](./troubleshooting) for some strategies to help debug problems.
