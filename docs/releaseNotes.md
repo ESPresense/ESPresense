@@ -1,5 +1,12 @@
 # Release Notes
 
+### V0.0.6
+#### 2019-07-18
+
+- Updated platform `espressif32` to 1.9.0
+- Fix for issue #14 OTA updates
+- Updated `.pioenvs` folder
+
 ### V0.0.5
 #### 2019-03-19
 
