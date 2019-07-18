@@ -148,6 +148,10 @@ void connectToMqtt() {
 }
 
 bool handleMqttDisconnect() {
+	if (updateInProgress) {
+		Serial.println("Not retrying MQTT connection - OTA update in progress");
+		return true;
+	}
 	if (retryAttempts > 10) {
 		Serial.println("Too many retries. Restarting");
 		ESP.restart();
@@ -169,6 +173,10 @@ bool handleMqttDisconnect() {
 }
 
 bool handleWifiDisconnect() {
+	if (WiFi.isConnected()) {
+		Serial.println("WiFi appears to be connected. Not retrying.");
+		return true;
+	}
 	if (retryAttempts > 10) {
 		Serial.println("Too many retries. Restarting");
 		ESP.restart();
@@ -194,7 +202,7 @@ bool handleWifiDisconnect() {
 }
 
 void WiFiEvent(WiFiEvent_t event) {
-    Serial.printf("[WiFi-event] event: %x", event);
+    Serial.printf("[WiFi-event] event: %x\n\r", event);
 
 		switch(event) {
 	    case SYSTEM_EVENT_STA_GOT_IP:
