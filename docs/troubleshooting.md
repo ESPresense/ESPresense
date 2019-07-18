@@ -59,7 +59,7 @@ New client connected from 192.168.1.104 as esp32_d (c1, k60, u'my_mqtt_username'
 ```
 
 ### Home Assistant (purple arrow)
-In order to see devices, you will need to [configure Home Assistant correctly](./home_assistant.html). You can add a device as an iBeacon, or you can add [generic BLE hardware](./generic_ble.html) using its hardware MAC address.
+In order to see devices, you will need to [configure Home Assistant correctly](./home_assistant). You can add a device as an iBeacon, or you can add [generic BLE hardware](./generic_ble) using its hardware MAC address.
 
 To view what devices are being reported on the MQTT topic, you can use a tool such as [mosquitto_sub](https://mosquitto.org/man/mosquitto_sub-1.html) to connect to and view what is being reported. This will provide you with the data format you'll need to follow when writing the configuration:
 ```

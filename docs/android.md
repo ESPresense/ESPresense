@@ -27,4 +27,4 @@ Both Android and iPhone use a strategy of [Bluetooth MAC address randomization](
 With the release of advanced battery management, Android now has a habit of killing background processes. This means that you may not be able to track your phone consistently. I have yet to find a solution for this problem - if you know of one, please open an issue.
 
 ### Troubleshooting
-See the [troubleshooting page](./troubleshooting.html) for some strategies to help debug problems.
+See the [troubleshooting page](./troubleshooting) for some strategies to help debug problems.
