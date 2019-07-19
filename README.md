@@ -1,7 +1,10 @@
-See the full documentation at [https://jptrsn.github.io/ESP32-mqtt-room/](https://jptrsn.github.io/ESP32-mqtt-room/)
+See the pretty documentation at [https://jptrsn.github.io/ESP32-mqtt-room/](https://jptrsn.github.io/ESP32-mqtt-room/)
 
 # ESP32-mqtt-room
 An ESP32 based presence detection node for use with the [Home Assistant](https://www.home-assistant.io/) [`mqtt_room` component](https://www.home-assistant.io/components/sensor.mqtt_room/) for localized device presence detection.
+
+## Release Notes
+View the [release notes here](./releaseNotes).
 
 ## Credits
 This project would not have been possible without the help of a variety of [folks on GitHub and YouTube.](https://jptrsn.github.io/ESP32-mqtt-room/index.html#credits)

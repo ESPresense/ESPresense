@@ -18,6 +18,7 @@ An ESP32 based presence detection node for use with the [Home Assistant](https:/
     4. [iPhones](#tracking-iphone)
 5. [Credits](#credits)
 6. [Troubleshooting](#troubleshooting)
+7. [Release Notes](#release-notes)
 
 
 ## Requirements
@@ -69,3 +70,6 @@ This depends heavily on the hard work done by a number of people.
 
 ## Troubleshooting
 If you're having difficulty getting things set up and work properly, check out [the troubleshooting section](./troubleshooting) before you open an issue. It will help you determine what information you need to provide to identify and fix what's gone wrong.
+
+## Release Notes
+If you're having difficulty updating your device to the newest version, or you're just curious, [check out the release notes.](./releaseNotes)

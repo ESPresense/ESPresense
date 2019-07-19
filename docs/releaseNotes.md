@@ -1,6 +1,6 @@
 # Release Notes
 
-### V0.0.6
+### [V0.0.6](https://github.com/jptrsn/ESP32-mqtt-room/releases/tag/v0.0.6)
 #### 2019-07-18
 
 - Updated platform `espressif32` to 1.9.0
@@ -25,18 +25,18 @@ upload_flags =
 ```
 Save the file and run the upload command again. Once you've successfully uploaded `v0.0.6` to the device, you'll need to remove this modification, as `v0.0.6` listens on the default port `8266`
 
-### V0.0.5
+### [V0.0.5](https://github.com/jptrsn/ESP32-mqtt-room/releases/tag/v0.0.5)
 #### 2019-03-19
 
 - Updated ArduinoJSON dependency to version 6.
 
-### V0.0.4
+### [V0.0.4](https://github.com/jptrsn/ESP32-mqtt-room/releases/tag/v0.0.4)
 #### 2019-02-10
 
 - Added `maxDistance` setting to `config_local.h`. Unit is a non-zero integer in meters.
 - Fix for AsyncTCP update with breaking changes
 
-### V0.0.3
+### [V0.0.3](https://github.com/jptrsn/ESP32-mqtt-room/releases/tag/v0.0.3)
 #### 2018-12-10
 
 - Improved stability for the watchdog timer issue.
@@ -45,7 +45,7 @@ Save the file and run the upload command again. Once you've successfully uploade
 - Over-the-Air updates are now possible from the command line of PlatformIO.
 - On-board LED as status indicator
 
-### V0.0.2
+### [V0.0.1](https://github.com/jptrsn/ESP32-mqtt-room/releases/tag/v0.0.1)
 #### 2018-12-10
 - Improvements to prevent watchdog timeout as in #1.
 - PlatformIO build and upload support.
