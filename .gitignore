@@ -7,3 +7,5 @@ Settings_local.h
 .dblite
 include/
 Settings_*.h
+.pio/*
+.vscode/*
