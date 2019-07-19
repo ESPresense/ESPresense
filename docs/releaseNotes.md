@@ -7,6 +7,25 @@
 - Fix for issue #14 OTA updates
 - Updated `.pioenvs` folder
 
+**A quick note about the update:**
+
+If you want to update from a previous version to `v0.0.6`, you may have trouble connecting to the ESP32 over the air. If you see the error message in the console that looks like this:
+> 13:53:51 [DEBUG]: Options: {'timeout': 10, 'esp_ip': '192.168.1.209', 'host_port': 27562, 'image': '.pio\\build\\esp32\\firmware.bin', 'host_ip': '0.0.0.0', 'auth': '', 'esp
+_port': 3232, 'spiffs': False, 'debug': True, 'progress': True}
+13:53:51 [INFO]: Starting on 0.0.0.0:27562
+13:53:51 [INFO]: Upload size: 1568912
+Sending invitation to 192.168.1.209 ..........
+13:55:31 [ERROR]: No response from the ESP
+*** [upload] Error 1
+
+then you can add the following to your `platformio.ini` file:
+
+```
+upload_flags =
+  --port=3232
+```
+Save the file and run the upload command again. Once you've successfully uploaded `v0.0.6` to the device, you'll need to remove this modification, as `v0.0.6` listens on the default port `8266`
+
 ### V0.0.5
 #### 2019-03-19
 
