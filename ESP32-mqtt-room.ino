@@ -1,7 +1,7 @@
 /*
 	 ESP32 Bluetooth Low Energy presence detection, for use with MQTT.
 
-	 Version 0.0.5
+	 Version 0.0.6
 
    Major thank you to the following contributors for their efforts:
 
@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_d.h"
+#include "Settings_local.h"
 
 BLEScan* pBLEScan;
 int scanTime = singleScanTime; //In seconds
