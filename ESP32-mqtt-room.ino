@@ -5,9 +5,9 @@
 
    Some giants upon whose shoulders the project stands -- major thanks to:
 
-   pcbreflux for the original version of this code, as well as the eddystone handlers.
+   pcbreflux for the original version of this code, as well as the eddystone handlers https://github.com/pcbreflux
 
-   Andreis Speiss for his work on YouTube and his invaluable github at sensorsiot.
+   Andreis Speiss for his work on YouTube and his invaluable github at https://github.com/sensorsiot.
 
 	 Sidddy for the implementation of Mi Flora plant sensor support. https://github.com/sidddy/flora
 
