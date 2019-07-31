@@ -1,9 +1,9 @@
 /*
 	 ESP32 Bluetooth Low Energy presence detection, for use with MQTT.
 
-	 Version 0.0.6
+	 Project and documentation are available on GitHub at https://jptrsn.github.io/ESP32-mqtt-room/
 
-   Major thank you to the following contributors for their efforts:
+   Some giants upon whose shoulders the project stands -- major thanks to:
 
    pcbreflux for the original version of this code, as well as the eddystone handlers.
 
@@ -35,20 +35,21 @@ extern "C" {
 #include "BLEEddystoneURL.h"
 #include "Settings_local.h"
 
-BLEScan* pBLEScan;
-int scanTime = singleScanTime; //In seconds
-int waitTime = scanInterval; //In seconds
-bool updateInProgress = false;
-String localIp;
-
-uint16_t beaconUUID = 0xFEAA;
+const int scanTime = singleScanTime;
+const int waitTime = scanInterval;
+const uint16_t beaconUUID = 0xFEAA;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
 TimerHandle_t mqttReconnectTimer;
 TimerHandle_t wifiReconnectTimer;
+bool updateInProgress = false;
+String localIp;
 byte retryAttempts = 0;
+unsigned long last = 0;
+BLEScan* pBLEScan;
+TaskHandle_t BLEScan;
 
 String getProximityUUIDString(BLEBeacon beacon) {
   std::string serviceData = beacon.getProximityUUID().toString().c_str();
@@ -429,16 +430,12 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 	void onResult(BLEAdvertisedDevice advertisedDevice) {
 
 		digitalWrite(LED_BUILTIN, LED_ON);
-		// Serial.printf("Advertised Device: %s \n", advertisedDevice.toString().c_str());
 		vTaskDelay(10 / portTICK_PERIOD_MS);
 		digitalWrite(LED_BUILTIN, !LED_ON);
 
 	}
 
 };
-
-unsigned long last = 0;
-TaskHandle_t BLEScan;
 
 void scanForDevices(void * parameter) {
 	while(1) {
