@@ -24,9 +24,7 @@ See the [documentation for configuring Home Assistant.](https://jptrsn.github.io
 ## Development Tasks
 
 ### To do
-- [ ] Implement Mi Flora data parsing and reporting
-- [ ] Save config to SPIFFS
-- [ ] Update configuration via MQTT
+See the [list of open issues tagged as enhancement](https://github.com/jptrsn/ESP32-mqtt-room/labels/enhancement). You can also view the state of development tasks [by viewing the development tasks project board](https://github.com/jptrsn/ESP32-mqtt-room/projects/1).
 
 ### Completed
 - [x] Implement basic BLE packet discovery
