@@ -1,7 +1,10 @@
-See the full documentation at [https://jptrsn.github.io/ESP32-mqtt-room/](https://jptrsn.github.io/ESP32-mqtt-room/)
+See the pretty documentation at [https://jptrsn.github.io/ESP32-mqtt-room/](https://jptrsn.github.io/ESP32-mqtt-room/)
 
 # ESP32-mqtt-room
 An ESP32 based presence detection node for use with the [Home Assistant](https://www.home-assistant.io/) [`mqtt_room` component](https://www.home-assistant.io/components/sensor.mqtt_room/) for localized device presence detection.
+
+## Release Notes
+View the [release notes here](./releaseNotes).
 
 ## Credits
 This project would not have been possible without the help of a variety of [folks on GitHub and YouTube.](https://jptrsn.github.io/ESP32-mqtt-room/index.html#credits)
@@ -21,9 +24,7 @@ See the [documentation for configuring Home Assistant.](https://jptrsn.github.io
 ## Development Tasks
 
 ### To do
-- [ ] Implement Mi Flora data parsing and reporting
-- [ ] Save config to SPIFFS
-- [ ] Update configuration via MQTT
+See the [list of open issues tagged as enhancement](https://github.com/jptrsn/ESP32-mqtt-room/labels/enhancement). You can also view the state of development tasks [by viewing the development tasks project board](https://github.com/jptrsn/ESP32-mqtt-room/projects/1).
 
 ### Completed
 - [x] Implement basic BLE packet discovery

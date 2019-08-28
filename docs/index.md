@@ -1,6 +1,5 @@
 ![Cover Image](./images/cover.jpg)
 
-<a href="https://github.com/jptrsn/ESP32-mqtt-room" title="View the project on GitHub"><img src="./images/github.svg" style="position:fixed;top:16px;right:25%"></a>
 An ESP32 based presence detection node for use with the [Home Assistant](https://www.home-assistant.io/) [`mqtt_room` component](https://www.home-assistant.io/components/sensor.mqtt_room/) for localized device presence detection.
 
 # Contents
@@ -18,6 +17,7 @@ An ESP32 based presence detection node for use with the [Home Assistant](https:/
     4. [iPhones](#tracking-iphone)
 5. [Credits](#credits)
 6. [Troubleshooting](#troubleshooting)
+7. [Release Notes](#release-notes)
 
 
 ## Requirements
@@ -61,11 +61,14 @@ Unfortunately, Apple does not allow devices to advertise iBeacon data in the bac
 ## Credits
 This depends heavily on the hard work done by a number of people.
 * **pcbreflux** [(GitHub)](https://github.com/pcbreflux) [(YouTube)](https://www.youtube.com/channel/UCvsMfEoIu_ZdBIgQVcY_AZA) - this code takes heavy inspiration from [ESP32_BLE_beaconscan](https://github.com/pcbreflux/espressif/tree/master/esp32/arduino/sketchbook/ESP32_BLE_beaconscan)
-* **Neil Kolban** [(GitHub)](https://github.com/nkolban) [(YouTube)](https://www.youtube.com/channel/UChKn_BlaVrMrhEquPNI6HuQ) - provided the Bluetooth low enery libraries used
-* **Marvin Roger** [(GitHub)](https://github.com/marvinroger/async-mqtt-client) - provided the async MQTT library
-* **Benoit Blanchon** [(GitHub)](https://github.com/bblanchon/ArduinoJson) - provided the Arduino JSON library
-* **Me No Dev** [(GitHub)](https://github.com/me-no-dev/AsyncTCP) - provided the async TCP library
-* **Kyle Gordon** [(GitHub)](https://github.com/kylegordon) - PlatformIO support
+* **Neil Kolban** [(GitHub)](https://github.com/nkolban) [(YouTube)](https://www.youtube.com/channel/UChKn_BlaVrMrhEquPNI6HuQ) - provided the [Bluetooth low enery libraries](https://github.com/nkolban/esp32-snippets) used
+* **Marvin Roger** [(GitHub)](https://github.com/marvinroger) - provided the [Async MQTT library](http://marvinroger.viewdocs.io/async-mqtt-client/)
+* **Benoit Blanchon** [(GitHub)](https://github.com/bblanchon) [(YouTube)](https://www.youtube.com/channel/UC8HZRqN4wfytHfRGMLUQWkQ) - provided the [Arduino JSON library](https://arduinojson.org/)
+* **Me No Dev** [(GitHub)](https://github.com/me-no-dev) - provided the [Async TCP library](https://github.com/me-no-dev/AsyncTCP)
+* **Kyle Gordon** [(GitHub)](https://github.com/kylegordon) - wrote the necessary code for PlatformIO support
 
 ## Troubleshooting
 If you're having difficulty getting things set up and work properly, check out [the troubleshooting section](./troubleshooting) before you open an issue. It will help you determine what information you need to provide to identify and fix what's gone wrong.
+
+## Release Notes
+If you're having difficulty updating your device to the newest version, or you're just curious, [check out the release notes.](./releaseNotes)
