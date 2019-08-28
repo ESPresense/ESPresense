@@ -16,9 +16,9 @@ There are various logs that can help identify the step in the information flow t
 ### Broadcasting (green arrow)
 To view the advertisements coming from your beacon, you can use an App on a BLE-enabled device. I recommend using [NRF Connect](https://play.google.com/store/apps/details?id=no.nordicsemi.android.mcp) for Android to view all advertised devices in your area. Once you've found the device you're interested in, you can use [Beacon Scope](https://play.google.com/store/apps/details?id=com.davidgyoungtech.beaconscanner) to connect to and view information about your beacon, which can help in determining the correct setup.
 
-![NRF Scan](./images/nrf_connect_scan.jpg | width=200)
-![Beacon Scope Scan](./images/beacon_scope_scan.jpg | width=200)
-![Beacon Scope Info](./images/beacon_scope_device_info.jpg | width=200)
+![NRF Scan](./images/nrf_connect_scan.jpg)
+![Beacon Scope Scan](./images/beacon_scope_scan.jpg)
+![Beacon Scope Info](./images/beacon_scope_device_info.jpg)
 
 If you do not see your device advertising, then you know that the problem lies in your beacon device itself, rather than with this project.
 
