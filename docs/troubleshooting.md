@@ -10,6 +10,11 @@ It can be a challenge to troubleshoot problems with tracking a beacon, as the pr
 5. MQTT publishes data to `room_presence` topic (purple arrow)
 6. Home Assistant parses information and reports configured sensorsiot
 
+## Build/Upload
+Occasionally you may encounter errors when trying to build and upload the code for the first time, or after a new version has been released. This is usually caused by a change to the required values provided in your configuration file, which may have changed.
+
+It's a good idea to check out the [release notes](#release-notes) to see if anything has changed that requires action on your part to have the build succeed.
+
 ## Logging
 There are various logs that can help identify the step in the information flow that is the broken link in the chain. If you're submitting an issue, be sure to include the logs that show the problematic behaviour
 
