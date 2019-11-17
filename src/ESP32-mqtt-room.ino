@@ -33,11 +33,12 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_local.h"
+#include "Settings_e.h"
 
-const int scanTime = singleScanTime;
-const int waitTime = scanInterval;
-const uint16_t beaconUUID = 0xFEAA;
+static const int scanTime = singleScanTime;
+static const int waitTime = scanInterval;
+static const uint16_t beaconUUID = 0xFEAA;
+static const int defaultTxPower = -72;
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
@@ -82,8 +83,10 @@ float calculateDistance(int rssi, int txPower) {
 
   if (!txPower) {
       // somewhat reasonable default value
-      txPower = -59;
-  } else if (txPower > 0) {
+      txPower = defaultTxPower;
+  }
+
+	if (txPower > 0) {
 		txPower = txPower * -1;
 	}
 
@@ -292,8 +295,10 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 		// Serial.print("Name: ");
 		// Serial.println(nameBLE);
 		doc["name"] = nameBLE;
-	// } else {
+
+	} else {
 		// doc["name"] = "unknown";
+		// Serial.println("Device name unknown");
 	}
 
 	// Serial.printf("\n\r");
@@ -323,11 +328,11 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 			}
 		}
 		// Serial.printf("\n");
-
-	 } else {
+	} else {
 		if (advertisedDevice.haveManufacturerData()==true) {
 			std::string strManufacturerData = advertisedDevice.getManufacturerData();
-			// Serial.println("Got manufacturer data");
+
+
 			uint8_t cManufacturerData[100];
 			strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
 
@@ -363,7 +368,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 					distance = calculateDistance(rssi, advertisedDevice.getTXPower());
 					doc["txPower"] = advertisedDevice.getTXPower();
 				} else {
-					distance = calculateDistance(rssi, -59);
+					distance = calculateDistance(rssi, defaultTxPower);
 				}
 
 				doc["distance"] = distance;
@@ -379,7 +384,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 				doc["txPower"] = advertisedDevice.getTXPower();
 				doc["distance"] = distance;
 			} else {
-				distance = calculateDistance(rssi, -59);
+				distance = calculateDistance(rssi, defaultTxPower);
 				doc["distance"] = distance;
 			}
 
