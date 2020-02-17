@@ -28,17 +28,27 @@ extern "C" {
 #include <BLEScan.h>
 #include <BLEAdvertisedDevice.h>
 #include <AsyncMqttClient.h>
-#include <ArduinoJSON.h>
+#include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_e.h"
+#include "Settings_f.h"
+
+#ifdef htuSensorTopic
+	#define tempTopic htuSensorTopic "/temperature"
+	#define humidityTopic htuSensorTopic "/humidity"
+	#include "sensors/sensor_htu21d.h"
+#endif
 
 static const int scanTime = singleScanTime;
 static const int waitTime = scanInterval;
 static const uint16_t beaconUUID = 0xFEAA;
+#ifdef TxDefault
+static const int defaultTxPower = TxDefault;
+#else
 static const int defaultTxPower = -72;
+#endif
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00)>>8) + (((x)&0xFF)<<8))
 
 WiFiClient espClient;
@@ -101,6 +111,29 @@ float calculateDistance(int rssi, int txPower) {
 
 }
 
+#ifdef htuSensorTopic
+
+void reportSensorValues() {
+	if (htuSensorIsConnected()) {
+		char temp[8];
+		char humidity[8];
+
+		dtostrf(getTemp(), 0, 1, temp); 						// convert float to string with one decimal place precision
+		dtostrf(getHumidity(), 0, 1, humidity);			// convert float to string with one decimal place precision
+
+		if (mqttClient.publish(tempTopic, 0, 0, temp) == true) {
+			Serial.printf("Temperature %s sent\t", temp);
+		}
+
+		if (mqttClient.publish(humidityTopic, 0, 0, humidity) == true) {
+			Serial.printf("Humidity %s sent\n\r", humidity);
+		}
+	}
+}
+
+#endif
+
+
 bool sendTelemetry(int deviceCount = -1, int reportCount = -1) {
 	StaticJsonDocument<256> tele;
 	tele["room"] = room;
@@ -123,7 +156,11 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1) {
 	char teleMessageBuffer[258];
 	serializeJson(tele, teleMessageBuffer);
 
-	if (mqttClient.publish(telemetryTopic, 0, 1, teleMessageBuffer) == true) {
+	#ifdef htuSensorTopic
+    reportSensorValues();
+	#endif
+
+	if (mqttClient.publish(telemetryTopic, 0, 0, teleMessageBuffer) == true) {
 		Serial.println("Telemetry sent");
 		return true;
 	} else {
@@ -518,6 +555,10 @@ void setup() {
 
   mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
   wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+
+  #ifdef htuSensorTopic
+		sensor_setup();
+	#endif
 
   WiFi.onEvent(WiFiEvent);
 
