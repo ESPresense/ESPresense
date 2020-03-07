@@ -15,9 +15,10 @@ An ESP32 based presence detection node for use with the [Home Assistant](https:/
     2. [Generic BLE Devices](#generic-ble-devices)
     3. [Android Phones](#tracking-android-phone)
     4. [iPhones](#tracking-iphone)
-5. [Credits](#credits)
-6. [Troubleshooting](#troubleshooting)
-7. [Release Notes](#release-notes)
+5. [Sensors](#sensors)
+6. [Credits](#credits)
+7. [Troubleshooting](#troubleshooting)
+8. [Release Notes](#release-notes)
 
 
 ## Requirements
@@ -57,6 +58,9 @@ Some other devices that advertise as BLE (such as the Mi Flora plant sensors or 
 
 ### Tracking iPhone
 Unfortunately, Apple does not allow devices to advertise iBeacon data in the background. As I do not own an iPhone, I will not attempt to implement scanning and reporting by device name, but I welcome pull requests.
+
+## Sensors
+It is now possible to use the HTU21D i²c temperature and humidity sensor. By enabling and defining the `htuSensorTopic` property, the device will bring in the required file and connect to the sensor. Be sure to use the built-in hardware i2c bus pins, SDA  on GPIO21 and SCL on GPIO22. While pull-up resistors are recommended, if you have short wires connecting the sensor to the board, you should be fine. Values will be published to the topic you defined, with `/temperature` appended for temperature measurements, and `/humidity` appended for humidity measurements.
 
 ## Credits
 This depends heavily on the hard work done by a number of people.
