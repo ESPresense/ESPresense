@@ -46,3 +46,6 @@
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define maxDistance 2
+
+// MQTT topic for sensor values from HTU21D temperature and humidity sensor
+//#define htuSensorTopic "presence_nodes/" hostname "/sensor"
