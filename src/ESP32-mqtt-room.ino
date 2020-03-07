@@ -33,7 +33,7 @@ extern "C" {
 #include "BLEBeacon.h"
 #include "BLEEddystoneTLM.h"
 #include "BLEEddystoneURL.h"
-#include "Settings_f.h"
+#include "Settings.h"
 
 #ifdef htuSensorTopic
 	#define tempTopic htuSensorTopic "/temperature"
