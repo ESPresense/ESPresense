@@ -318,6 +318,25 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 	String mac_address = advertisedDevice.getAddress().toString().c_str();
 	mac_address.replace(":","");
 	mac_address.toLowerCase();
+
+
+	//Check scanned MAC Address against a list of allowed MAC Addresses
+
+	if (allowedListCheck) {
+		bool allowedListFound = false;
+		for (uint32_t x = 0; x < allowedListNumberOfItems; x++) {
+			if (mac_address == allowedList[x]) {
+				allowedListFound = true;
+			}
+		}
+
+		if (allowedListFound == false) {
+			return false;
+		}
+	}
+	// --------------
+
+
 	// Serial.print("mac:\t");
 	// Serial.println(mac_address);
 	int rssi = advertisedDevice.getRSSI();
