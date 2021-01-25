@@ -346,6 +346,12 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice) {
 
 	 if (advertisedDevice.getServiceDataUUID().equals(BLEUUID(beaconUUID))==true) {  // found Eddystone UUID
 		// Serial.printf("is Eddystone: %d %s length %d\n", advertisedDevice.getServiceDataUUID().bitSize(), advertisedDevice.getServiceDataUUID().toString().c_str(),strServiceData.length());
+	       // Update distance variable for Eddystone BLE devices
+	    BLEBeacon oBeacon = BLEBeacon();
+	    distance = calculateDistance(rssi, oBeacon.getSignalPower());
+	    doc["distance"] = distance;
+
+
 		if (cServiceData[0]==0x10) {
 			 BLEEddystoneURL oBeacon = BLEEddystoneURL();
 			 oBeacon.setData(strServiceData);
