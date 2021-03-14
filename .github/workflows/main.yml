@@ -1,0 +1,44 @@
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      PLATFORMIO_BUILD_FLAGS: -DmqttPort=1883
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+    - name: Run PlatformIO
+      run: pio run -e esp32 -e m5stickc -e m5stickc-plus -e verbose
+    - name: Rename firmware
+      run: |
+        cp .pio/build/esp32/firmware.bin esp32.bin
+        cp .pio/build/m5stickc/firmware.bin m5stickc.bin
+        cp .pio/build/m5stickc-plus/firmware.bin m5stickc-plus.bin
+        cp .pio/build/verbose/firmware.bin verbose.bin
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: "*.bin"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -28,6 +28,8 @@ extern "C"
 #include <AsyncMqttClient.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
+#include <HTTPUpdate.h>
+#include <WiFiClientSecure.h>
 
 #include <NimBLEDevice.h>
 #include <NimBLEAdvertisedDevice.h>
@@ -38,7 +40,14 @@ extern "C"
 #include "Settings.h"
 
 #include <TrivialKalmanFilter.h>
+
+#ifdef M5STICK
+#ifdef PLUS
+#include <M5StickCPlus.h>
+#else
 #include <M5StickC.h>
+#endif
+#endif
 
 #ifdef htuSensorTopic
 #define tempTopic htuSensorTopic "/temperature"
@@ -659,10 +668,12 @@ void scanForDevices(void *parameter)
             int devicesCount = foundDevices.getCount();
             Serial.printf("Scan done! Devices found: %d\n\r", devicesCount);
 
+#ifdef M5STICK
             M5.Lcd.fillScreen(TFT_BLACK);
             M5.Lcd.setTextDatum(MC_DATUM);
             M5.Lcd.drawNumber(devicesCount, 40, 80, 7);
             M5.Lcd.setTextDatum(MC_DATUM);
+#endif
 
             int devicesReported = 0;
             if (mqttClient.connected())
@@ -739,6 +750,7 @@ void configureOTA()
 void setup()
 {
     Serial.begin(115200);
+    Serial.setDebugOutput(true);
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LED_ON);
@@ -773,18 +785,22 @@ void setup()
     pBLEScan->setWindow(bleScanWindow);
 
     xTaskCreatePinnedToCore(
-            scanForDevices,
-            "BLE Scan",
-            4096,
-            pBLEScan,
-            1,
-            &BLEScan,
-            1);
+        scanForDevices,
+        "BLE Scan",
+        4096,
+        pBLEScan,
+        1,
+        &BLEScan,
+        1);
 
+#ifdef M5STICK
     M5.begin();
     //M5.Lcd.setRotation(1);
     M5.Lcd.fillScreen(TFT_BLACK);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+#endif
+
+    setClock();
 }
 
 void loop()
@@ -793,13 +809,57 @@ void loop()
     TIMERG0.wdt_feed = 1;
     TIMERG0.wdt_wprotect = 0;
     ArduinoOTA.handle();
+
+    firmwareUpdate();
 }
 
-typedef struct
+void setClock()
 {
-    uint8_t frameType; // UID
-    int8_t txpower;
-    uint8_t namespaceID[10];
-    uint8_t instanceID[6];
-    uint8_t reserved[2];
-} eddystoneUID_t;
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC
+
+    Serial.print(F("Waiting for NTP time sync: "));
+    time_t now = time(nullptr);
+    while (now < 8 * 3600 * 2)
+    {
+        yield();
+        delay(500);
+        now = time(nullptr);
+    }
+
+    Serial.println(F(""));
+    struct tm timeinfo;
+    gmtime_r(&now, &timeinfo);
+    Serial.print(F("Current time: "));
+    Serial.print(asctime(&timeinfo));
+}
+
+void firmwareUpdate(void)
+{
+    static long lastFirmwareCheck;
+    if (millis() - lastFirmwareCheck < 100000 || WiFi.status() != WL_CONNECTED)
+        return;
+
+    lastFirmwareCheck = millis();
+
+    WiFiClientSecure client;
+    client.setInsecure();
+    httpUpdate.setLedPin(LED_BUILTIN, LOW);
+    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
+    t_httpUpdate_return ret = httpUpdate.update(client, "https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/firmware.bin");
+
+    switch (ret)
+    {
+    case HTTP_UPDATE_FAILED:
+        Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        break;
+
+    case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        break;
+
+    case HTTP_UPDATE_OK:
+        Serial.println("HTTP_UPDATE_OK");
+        break;
+    }
+}

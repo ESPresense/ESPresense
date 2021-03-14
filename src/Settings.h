@@ -11,16 +11,16 @@
 #define mqttHost IPAddress(192, 168, 1, 195)
 
 //Replace with your MQTT Broker port; example: #define mqttPort 1883
-#define mqttPort $MQTT_PORT$
+#define mqttPort 1883
 
 //Replace with your MQTT Broker user; example: #define mqttUser "homeassistant"
-#define mqttUser "$MQTT_USER$"
+#define mqttUser ""
 
 //Replace with your MQTT Broker password; example: #define mqttPassword "12345678"
-#define mqttPassword "$MQTT_PASSWORD$"
+#define mqttPassword ""
 
 //Replace with the room name where the node will be placed; example: #define room "living-room"
-#define room "$ROOM_NAME$"
+#define room "living-room"
 
 //Specify the LED pin. For most dev boards, this is GPIO2
 #define LED_BUILTIN 2
