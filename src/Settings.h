@@ -45,7 +45,7 @@
 #define BLE_SCAN_WINDOW 0x79   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
-#define MAX_DISTANCE 2
+#define MAX_DISTANCE 8
 
 // MQTT topic for sensor values from HTU21D temperature and humidity sensor
 //#define htuSensorTopic "presence_nodes/" hostname "/sensor"

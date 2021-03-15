@@ -4,9 +4,6 @@ on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      PLATFORMIO_BUILD_FLAGS: -DmqttPort=1883
-
     steps:
     - uses: actions/checkout@v2
     - name: Cache pip
