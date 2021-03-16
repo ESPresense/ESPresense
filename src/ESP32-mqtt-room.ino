@@ -476,6 +476,10 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
     Serial.print(mac_address);
     int rssi = advertisedDevice.getRSSI();
 
+#ifdef M5STICK
+    M5.Lcd.println(mac_address);
+#endif
+
     if (advertisedDevice.haveName())
     {
         String nameBLE = String(advertisedDevice.getName().c_str());
@@ -677,10 +681,9 @@ void scanForDevices(void *parameter)
             Serial.printf("Scan done! Devices found: %d\n\r", devicesCount);
 
 #ifdef M5STICK
+            M5.Lcd.setCursor(0, 0);
             M5.Lcd.fillScreen(TFT_BLACK);
-            M5.Lcd.setTextDatum(MC_DATUM);
-            M5.Lcd.drawNumber(devicesCount, 40, 80, 7);
-            M5.Lcd.setTextDatum(MC_DATUM);
+
 #endif
 
             int devicesReported = 0;
@@ -803,8 +806,6 @@ void setup()
 
 #ifdef M5STICK
     M5.begin();
-    //M5.Lcd.setRotation(1);
-    M5.Lcd.fillScreen(TFT_BLACK);
     M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
 #endif
 
@@ -851,23 +852,34 @@ void firmwareUpdate(void)
 
     WiFiClientSecure client;
     client.setInsecure();
+
     httpUpdate.setLedPin(LED_BUILTIN, LOW);
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+#ifdef M5STICK
+#ifdef PLUS
+    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stickc-plus.bin");
+#else
+    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stickc.bin");
+#endif
+#else
+    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/esp32.bin");
+#endif
 
-    t_httpUpdate_return ret = httpUpdate.update(client, "https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/firmware.bin");
+    Serial.printf("Updating from %s\n", firmwareUrl.c_str());
+    t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
     switch (ret)
     {
-    case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-        break;
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            break;
 
-    case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("HTTP_UPDATE_NO_UPDATES");
-        break;
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.println("HTTP_UPDATE_NO_UPDATES");
+            break;
 
-    case HTTP_UPDATE_OK:
-        Serial.println("HTTP_UPDATE_OK");
-        break;
+        case HTTP_UPDATE_OK:
+            Serial.println("HTTP_UPDATE_OK");
+            break;
     }
 }

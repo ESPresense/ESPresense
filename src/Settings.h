@@ -23,7 +23,11 @@
 #define DEFAULT_ROOM "living-room"
 
 //Specify the LED pin. For most dev boards, this is GPIO2
+#ifdef M5STICK
+#define LED_BUILTIN 10
+#else
 #define LED_BUILTIN 2
+#endif
 
 // Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
 #define LED_ON 0
