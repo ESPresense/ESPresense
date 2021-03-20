@@ -24,6 +24,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
+        pio run -t clean
+    - name: Set env
+      run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
+      if: startsWith(github.ref, 'refs/tags/')
     - name: Run PlatformIO
       run: pio run -e esp32 -e m5stickc -e m5stickc-plus -e verbose
     - name: Rename firmware

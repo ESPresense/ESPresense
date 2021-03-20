@@ -29,6 +29,7 @@ extern "C"
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <HTTPUpdate.h>
+#include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
 #include <WebServer.h>
@@ -72,6 +73,7 @@ static const int defaultTxPower = -59;
 #define MAX_MAC_ADDRESSES 50
 #define DT_COVARIANCE_RK 2
 #define DT_COVARIANCE_QK 0.1
+#define CHECK_FOR_UPDATES_MILI 100000
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -82,7 +84,7 @@ String localIp;
 byte retryAttempts = 0;
 unsigned long last = 0;
 BLEScan *pBLEScan;
-TaskHandle_t BLEScan;
+TaskHandle_t thBLEScan;
 TrivialKalmanFilter<float> *filters[MAX_MAC_ADDRESSES];
 
 String mqttHost;
@@ -764,6 +766,8 @@ void setup()
     Serial.setDebugOutput(true);
     SPIFFS.begin(true);
 
+    //esp_log_level_set("*", ESP_LOG_DEBUG);
+
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LED_ON);
 
@@ -795,14 +799,7 @@ void setup()
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
 
-    xTaskCreatePinnedToCore(
-        scanForDevices,
-        "BLE Scan",
-        4096,
-        pBLEScan,
-        1,
-        &BLEScan,
-        1);
+    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, pBLEScan, 1, &thBLEScan, 1);
 
 #ifdef M5STICK
     M5.begin();
@@ -844,8 +841,9 @@ void setClock()
 
 void firmwareUpdate(void)
 {
+#ifdef VERSION
     static long lastFirmwareCheck;
-    if (millis() - lastFirmwareCheck < 100000 || WiFi.status() != WL_CONNECTED)
+    if (millis() - lastFirmwareCheck < CHECK_FOR_UPDATES_MILI || WiFi.status() != WL_CONNECTED)
         return;
 
     lastFirmwareCheck = millis();
@@ -865,6 +863,17 @@ void firmwareUpdate(void)
     String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/esp32.bin");
 #endif
 
+    HTTPClient http;
+    if (!http.begin(client, firmwareUrl))
+        return;
+
+    int httpCode = http.sendRequest("HEAD");
+    if (httpCode != 302 || http.getLocation().indexOf(String(VERSION)) > 0)
+    {
+        http.end();
+        return;
+    }
+
     Serial.printf("Updating from %s\n", firmwareUrl.c_str());
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
@@ -882,4 +891,5 @@ void firmwareUpdate(void)
             Serial.println("HTTP_UPDATE_OK");
             break;
     }
+#endif
 }
