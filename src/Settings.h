@@ -24,9 +24,9 @@
 
 //Specify the LED pin. For most dev boards, this is GPIO2
 #ifdef M5STICK
-#define LED_BUILTIN 10
+#define LED_BUILTIN 10 // M5StickC
 #else
-#define LED_BUILTIN 2
+#define LED_BUILTIN 13 // Feather
 #endif
 
 // Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
@@ -59,3 +59,4 @@
 //#define ALLOWED_LIST_CHECK
 String allowedList[] = {"11223344aabb", "11223344aabb"};
 uint32_t allowedListNumberOfItems = 2;
+

@@ -239,6 +239,7 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     tele["scan_dur"] = BLE_SCAN_DURATION;
     tele["max_dist"] = MAX_DISTANCE;
     tele["uptime"] = CalculateUptimeSeconds();
+    tele["firm"] = String(FIRMWARE);
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
@@ -863,7 +864,11 @@ void firmwareUpdate(void)
     String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stickc.bin");
 #endif
 #else
+#ifdef M5ATOM
+    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stack-atom.bin");
+#else
     String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/esp32.bin");
+#endif
 #endif
 
     HTTPClient http;
