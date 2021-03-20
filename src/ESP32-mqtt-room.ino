@@ -291,6 +291,10 @@ void connectToWifi()
         digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // Toggle LED
         return 500;                                           // Delay next function call by 500ms
     };
+    WiFiSettings.onPortalWaitLoop = []() {
+        if (CalculateUptimeSeconds() > 600)
+            ESP.restart();
+    };
 
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
@@ -308,6 +312,8 @@ void connectToWifi()
     Serial.println(WiFi.localIP());
     Serial.print("Hostname: \t");
     Serial.println(WiFi.getHostname());
+
+    localIp = WiFi.localIP().toString();
 }
 
 void connectToMqtt()
@@ -366,60 +372,6 @@ void handleWifiDisconnect()
     }
 
     xTimerReset(wifiReconnectTimer, 0);
-}
-
-void WiFiEvent(WiFiEvent_t event)
-{
-    Serial.printf("[WiFi-event] event: %x\n\r", event);
-
-    switch (event)
-    {
-    case SYSTEM_EVENT_STA_GOT_IP:
-        digitalWrite(LED_BUILTIN, !LED_ON);
-        Serial.print("IP address: \t");
-        Serial.println(WiFi.localIP());
-        localIp = WiFi.localIP().toString().c_str();
-        Serial.print("Hostname: \t");
-        Serial.println(WiFi.getHostname());
-        connectToMqtt();
-        if (xTimerIsTimerActive(wifiReconnectTimer) != pdFALSE)
-        {
-            Serial.println("Stopping wifi reconnect timer");
-            xTimerStop(wifiReconnectTimer, 0);
-        }
-        retryAttempts = 0;
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-        digitalWrite(LED_BUILTIN, LED_ON);
-        Serial.println("WiFi lost connection, resetting timer\t");
-        handleWifiDisconnect();
-        break;
-    case SYSTEM_EVENT_WIFI_READY:
-        Serial.println("Wifi Ready");
-        handleWifiDisconnect();
-        break;
-    case SYSTEM_EVENT_STA_START:
-        Serial.println("STA Start");
-        tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname.c_str());
-        if (xTimerIsTimerActive(wifiReconnectTimer) != pdFALSE)
-        {
-            TickType_t xRemainingTime = xTimerGetExpiryTime(wifiReconnectTimer) - xTaskGetTickCount();
-            Serial.print("WiFi Time remaining: ");
-            Serial.println(xRemainingTime);
-        }
-        else
-        {
-            Serial.println("WiFi Timer is inactive; resetting");
-            handleWifiDisconnect();
-        }
-        break;
-    case SYSTEM_EVENT_STA_STOP:
-        Serial.println("STA Stop");
-        handleWifiDisconnect();
-        break;
-    default:
-        break;
-    }
 }
 
 void onMqttConnect(bool sessionPresent)
@@ -780,7 +732,6 @@ void setup()
 #endif
 
     connectToWifi();
-    //WiFi.onEvent(WiFiEvent);
 
     mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
     wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
