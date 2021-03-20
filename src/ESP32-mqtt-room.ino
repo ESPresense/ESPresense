@@ -239,6 +239,9 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     tele["scan_dur"] = BLE_SCAN_DURATION;
     tele["max_dist"] = MAX_DISTANCE;
     tele["uptime"] = CalculateUptimeSeconds();
+#ifdef VERSION
+    tele["ver"] = String(VERSION);
+#endif
 
     if (deviceCount > -1)
     {
