@@ -70,7 +70,6 @@ TimerHandle_t wifiReconnectTimer;
 bool updateInProgress = false;
 String localIp;
 byte retryAttempts = 0;
-unsigned long last = 0;
 BLEScan *pBLEScan;
 TaskHandle_t thBLEScan;
 
@@ -175,32 +174,6 @@ unsigned long CalculateUptimeSeconds(void)
     return (0xFFFFFFFF / 1000) * _rolloverCount + (_lastMillis / 1000);
 }
 
-#ifdef htuSensorTopic
-
-void reportSensorValues()
-{
-    if (htuSensorIsConnected())
-    {
-        char temp[8];
-        char humidity[8];
-
-        dtostrf(getTemp(), 0, 1, temp);         // convert float to string with one decimal place precision
-        dtostrf(getHumidity(), 0, 1, humidity); // convert float to string with one decimal place precision
-
-        if (mqttClient.publish(tempTopic, 0, 0, temp) == true)
-        {
-            Serial.printf("Temperature %s sent\t", temp);
-        }
-
-        if (mqttClient.publish(humidityTopic, 0, 0, humidity) == true)
-        {
-            Serial.printf("Humidity %s sent\n\r", humidity);
-        }
-    }
-}
-
-#endif
-
 bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
 {
     StaticJsonDocument<256> tele;
@@ -216,16 +189,10 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
 #endif
 
     if (deviceCount > -1)
-    {
-        Serial.printf("devices_discovered: %d\n\r", deviceCount);
         tele["disc_ct"] = deviceCount;
-    }
 
     if (reportCount > -1)
-    {
-        Serial.printf("devices_reported: %d\n\r", reportCount);
         tele["rept_ct"] = reportCount;
-    }
 
     char teleMessageBuffer[258];
     serializeJson(tele, teleMessageBuffer);
@@ -236,19 +203,18 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
 
     if (mqttClient.publish((TELEMETRY_TOPIC).c_str(), 0, 0, teleMessageBuffer) == true)
     {
-        Serial.println("Telemetry sent");
         return true;
     }
     else
     {
-        Serial.println("Error sending telemetry");
+        log_e("Error sending telemetry");
         return false;
     }
 }
 
 void connectToWifi()
 {
-    Serial.println("Connecting to WiFi...");
+    log_i("Connecting to WiFi...");
     pinMode(LED_BUILTIN, OUTPUT);
 
     // Set custom callback functions
@@ -283,6 +249,9 @@ void connectToWifi()
     Serial.println(WiFi.localIP());
     Serial.print("Hostname: \t");
     Serial.println(WiFi.getHostname());
+    Serial.print("Room: \t");
+    Serial.println(room);
+
 
     localIp = WiFi.localIP().toString();
 }
@@ -291,7 +260,7 @@ void connectToMqtt()
 {
     if (WiFi.isConnected() && !updateInProgress)
     {
-        Serial.println("Connecting to MQTT");
+        log_i("Connecting to MQTT");
         mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
         mqttClient.setClientId(hostname.c_str());
         mqttClient.connect();
@@ -305,7 +274,7 @@ void handleMqttDisconnect()
 
     if (retryAttempts > 10)
     {
-        Serial.println("Too many mqtt retries. Restarting");
+        log_e("Too many mqtt retries. Restarting");
         WiFiSettings.portal();
     }
     else
@@ -315,7 +284,7 @@ void handleMqttDisconnect()
 
     if (WiFi.isConnected() && !updateInProgress)
     {
-        Serial.println("Starting MQTT reconnect timer");
+        log_i("Starting MQTT reconnect timer");
         xTimerReset(mqttReconnectTimer, 0);
     }
 }
@@ -324,12 +293,12 @@ void handleWifiDisconnect()
 {
     if (WiFi.isConnected())
     {
-        Serial.println("WiFi appears to be connected. Not retrying.");
+        log_i("WiFi appears to be connected. Not retrying.");
         return;
     }
     if (retryAttempts > 10)
     {
-        Serial.println("Too many retries. Restarting");
+        log_e("Too many retries. Restarting");
         ESP.restart();
     }
     else
@@ -347,17 +316,16 @@ void handleWifiDisconnect()
 
 void onMqttConnect(bool sessionPresent)
 {
-    Serial.println("Connected to MQTT");
+    log_i("Connected to MQTT");
     retryAttempts = 0;
 
     if (mqttClient.publish((AVAILABILITY_TOPIC).c_str(), 0, 1, "CONNECTED") == true)
     {
-        Serial.print("Success sending message to topic:\t");
-        Serial.println(AVAILABILITY_TOPIC);
+        log_d("Success sending message to topic: %s", AVAILABILITY_TOPIC);
     }
     else
     {
-        Serial.println("Error sending message");
+        log_e("Error sending message");
     }
 
     sendTelemetry();
@@ -443,14 +411,11 @@ void scanForDevices(void *parameter)
         i++;
         if (!updateInProgress)
         {
-            pBLEScan->setActiveScan(i % 4 == 0 ? BLE_ACTIVE_SCAN : false);
-            if (i % 4 == 0)
-                Serial.print("Scanning (ACTIVE)...\t");
-            else
-                Serial.print("Scanning...\t");
+            pBLEScan->setActiveScan(i % 10 == 0 ? BLE_ACTIVE_SCAN : false);
+            pBLEScan->clearResults();
+
             BLEScanResults foundDevices = pBLEScan->start(BLE_SCAN_DURATION);
             int devicesCount = foundDevices.getCount();
-            Serial.printf("Scan done! Devices found: %d\n\r", devicesCount);
 
 #ifdef M5STICK
             M5.Lcd.setCursor(0, 0);
@@ -470,11 +435,10 @@ void scanForDevices(void *parameter)
                     }
                 }
                 sendTelemetry(devicesCount, devicesReported);
-                pBLEScan->clearResults();
             }
             else
             {
-                Serial.println("Cannot report; mqtt disconnected");
+                log_e("Cannot report; mqtt disconnected");
                 if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE)
                 {
                     TickType_t xRemainingTime = xTimerGetExpiryTime(mqttReconnectTimer) - xTaskGetTickCount();
@@ -486,7 +450,6 @@ void scanForDevices(void *parameter)
                     handleMqttDisconnect();
                 }
             }
-            last = millis();
         }
     }
 }
@@ -534,7 +497,6 @@ void setClock()
 {
     configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC
 
-    Serial.print(F("Waiting for NTP time sync: "));
     time_t now = time(nullptr);
     while (now < 8 * 3600 * 2)
     {
@@ -543,11 +505,9 @@ void setClock()
         now = time(nullptr);
     }
 
-    Serial.println(F(""));
     struct tm timeinfo;
     gmtime_r(&now, &timeinfo);
-    Serial.print(F("Current time: "));
-    Serial.print(asctime(&timeinfo));
+    log_i(F("NTP synced, current time: %s"), asctime(&timeinfo));
 }
 
 void firmwareUpdate(void)

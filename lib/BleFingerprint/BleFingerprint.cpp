@@ -49,10 +49,12 @@ StaticJsonDocument<500> BleFingerprint::getJson()
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
-    kf.init();
-    kf.setProcessNoise(0.1, 0.01); // Position, velocity
-    kf.setMeasurementNoise(1);
-    kf.set(initalDistance);
+    compositeFilter.append(&wuFilter);
+    compositeFilter.append(&maFilter);
+    compositeFilter.append(&tsFilter);
+    compositeFilter.append(&oneEuro);
+    compositeFilter.append(&diffFilter);
+
     String mac_address = advertisedDevice->getAddress().toString().c_str();
     mac_address.replace(":", "");
     mac_address.toLowerCase();
@@ -191,28 +193,27 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     if (!calRssi)
         calRssi = defaultTxPower;
 
-    float dt = (millis() - lastReading) / 1000.f;
-    lastReading = millis();
-    kf.predict(dt);
-    float ratio = (calRssi - rssi) / 25.0f;
+    float ratio = (calRssi - rssi) / 35.0f;
     float distFl = pow(10, ratio);
-    kf.correct(distFl);
-    original = round(distFl * 10) / 10;
+
+    if (compositeFilter.push(&distFl, &output))
+    {
+        raw = distFl;
+        //        if (id == "2c96d71f47569faddd487c93cc9dac2e-0-0")
+        //            Serial.printf("%-36s %5.1f %5.1f %5.1f %5.1f\n", id.c_str(), distFl, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+    }
 }
 
 void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
 {
-    float filtered = kf.get();
-    float distance = round(filtered * 10) / 10;
-
-    Serial.printf("%s", id.c_str());
-    Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
-    Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
-    Serial.println();
+    //Serial.printf("%s", id.c_str());
+    //Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
+    //Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
+    //Serial.println();
 
     doc["id"] = id;
     doc["rssi@1m"] = calRssi;
     doc["rssi"] = rssi;
-    doc["distance"] = distance;
-    doc["original"] = original;
+    doc["raw"] = round(raw * 100.0f) / 100.0f;
+    doc["distance"] = round(output.value.position * 100.0f) / 100.0f;
 }
