@@ -44,7 +44,7 @@ extern "C"
 
 #include "Settings.h"
 
-#include <TrivialKalmanFilter.h>
+#include "BleFingerprint.h"
 
 #ifdef M5STICK
 #ifdef PLUS
@@ -60,19 +60,7 @@ extern "C"
 #include "sensors/sensor_htu21d.h"
 #endif
 
-static const uint16_t beaconUUID = 0xFEAA;
-static const uint16_t tileUUID = 0xFEED;
-static const uint16_t exposureUUID = 0xFD6F;
-#ifdef TX_DEFAULT
-static const int defaultTxPower = TX_DEFAULT;
-#else
-static const int defaultTxPower = -59;
-#endif
-#define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
-
 #define MAX_MAC_ADDRESSES 50
-#define DT_COVARIANCE_RK 2
-#define DT_COVARIANCE_QK 0.1
 #define CHECK_FOR_UPDATES_MILI 100000
 
 WiFiClient espClient;
@@ -85,7 +73,6 @@ byte retryAttempts = 0;
 unsigned long last = 0;
 BLEScan *pBLEScan;
 TaskHandle_t thBLEScan;
-TrivialKalmanFilter<float> *filters[MAX_MAC_ADDRESSES];
 
 String mqttHost;
 int mqttPort;
@@ -95,8 +82,29 @@ String mqttPass;
 String room;
 String hostname;
 
+static BleFingerprint *fingerprints[MAX_MAC_ADDRESSES];
+
 int mac_pos(const uint8_t mac[6])
 {
+#ifdef ALLOWED_LIST_CHECK
+    if (allowedListCheck)
+    {
+        bool allowedListFound = false;
+        for (uint32_t x = 0; x < allowedListNumberOfItems; x++)
+        {
+            if (mac_address == allowedList[x])
+            {
+                allowedListFound = true;
+            }
+        }
+
+        if (allowedListFound == false)
+        {
+            return false;
+        }
+    }
+#endif
+
     static uint8_t mac_lib[MAX_MAC_ADDRESSES][6];
     static unsigned int mac_count = 0;
 
@@ -119,6 +127,18 @@ int mac_pos(const uint8_t mac[6])
         mac_lib[dest][j] = mac[j];
     mac_count++;
     return dest;
+}
+
+BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
+{
+    int pos = mac_pos(advertisedDevice->getAddress().getNative());
+    //Serial.printf("%d\n", pos);
+
+    BleFingerprint *f = fingerprints[pos];
+    if (f)
+        return f;
+
+    return fingerprints[pos] = new BleFingerprint(advertisedDevice, MAX_DISTANCE);
 }
 
 /**
@@ -153,55 +173,6 @@ unsigned long CalculateUptimeSeconds(void)
     // Caution: Because we shorten millis to seconds we may miss one
     // second for every rollover (1 second every 50 days).
     return (0xFFFFFFFF / 1000) * _rolloverCount + (_lastMillis / 1000);
-}
-
-String getProximityUUIDString(BLEBeacon beacon)
-{
-    std::string serviceData = beacon.getProximityUUID().toString().c_str();
-    int serviceDataLength = serviceData.length();
-    String returnedString = "";
-    int i = serviceDataLength;
-    while (i > 0)
-    {
-        if (serviceData[i - 1] == '-')
-        {
-            i--;
-        }
-        char a = serviceData[i - 1];
-        char b = serviceData[i - 2];
-        returnedString += b;
-        returnedString += a;
-
-        i -= 2;
-    }
-
-    return returnedString;
-}
-
-void initFilters()
-{
-    for (int i = 0; i < MAX_MAC_ADDRESSES; i++)
-        filters[i] = new TrivialKalmanFilter<float>(DT_COVARIANCE_RK, DT_COVARIANCE_QK);
-}
-
-void calcDistance(int pos, int rssi, int calRssi, StaticJsonDocument<500> *doc)
-{
-    if (!calRssi)
-        calRssi = defaultTxPower;
-
-    float ratio = (calRssi - rssi) / 25.0f;
-    float distFl = pow(10, ratio);
-    float filtered = filters[pos]->update(distFl);
-    float distance = round(filtered * 10) / 10;
-    float original = round(distFl * 10) / 10;
-
-    Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
-    Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
-
-    (*doc)["rssi@1m"] = calRssi;
-    (*doc)["rssi"] = rssi;
-    (*doc)["distance"] = distance;
-    (*doc)["original"] = original;
 }
 
 #ifdef htuSensorTopic
@@ -305,7 +276,7 @@ void connectToWifi()
     room = WiFiSettings.string("room", DEFAULT_ROOM);
     hostname = room;
 
-    if (!WiFiSettings.connect(true, 30))
+    if (!WiFiSettings.connect(true, 60))
         ESP.restart();
 
     Serial.print("IP address: \t");
@@ -398,171 +369,25 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
     handleMqttDisconnect();
 }
 
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+{
+    void onResult(BLEAdvertisedDevice *advertisedDevice)
+    {
+        digitalWrite(LED_BUILTIN, LED_ON);
+        //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
+        BleFingerprint *f = getFingerprint(advertisedDevice);
+        f->seen(advertisedDevice);
+        vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
+        digitalWrite(LED_BUILTIN, !LED_ON);
+    }
+};
+
 bool reportDevice(BLEAdvertisedDevice advertisedDevice)
 {
-    StaticJsonDocument<500> doc;
+    BleFingerprint *f = getFingerprint(&advertisedDevice);
 
-    String mac_address = advertisedDevice.getAddress().toString().c_str();
-    mac_address.replace(":", "");
-    mac_address.toLowerCase();
-
-    //Check scanned MAC Address against a list of allowed MAC Addresses
-#ifdef ALLOWED_LIST_CHECK
-    if (allowedListCheck)
-    {
-        bool allowedListFound = false;
-        for (uint32_t x = 0; x < allowedListNumberOfItems; x++)
-        {
-            if (mac_address == allowedList[x])
-            {
-                allowedListFound = true;
-            }
-        }
-
-        if (allowedListFound == false)
-        {
-            return false;
-        }
-    }
-#endif
-    // --------------
-
-    int pos = mac_pos(advertisedDevice.getAddress().getNative());
-    //Serial.printf("%d ", pos);
-
-    Serial.print("MAC: ");
-    Serial.print(mac_address);
-    int rssi = advertisedDevice.getRSSI();
-
-#ifdef M5STICK
-    M5.Lcd.println(mac_address);
-#endif
-
-    if (advertisedDevice.haveName())
-    {
-        String nameBLE = String(advertisedDevice.getName().c_str());
-        Serial.print(", Name: ");
-        Serial.print(nameBLE);
-        doc["name"] = nameBLE;
-    }
-
-    doc["id"] = mac_address;
-    doc["mac"] = mac_address;
-
-    std::string strServiceData = advertisedDevice.getServiceData();
-    uint8_t cServiceData[100];
-    strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
-
-    if (advertisedDevice.haveServiceUUID())
-    {
-        for (int i = 0; i < advertisedDevice.getServiceUUIDCount(); i++)
-        {
-            std::string sid = advertisedDevice.getServiceUUID(i).toString();
-            Serial.printf(", sID: %s", sid.c_str());
-            doc["sid" + String(i)] = sid;
-        }
-    }
-
-    if (advertisedDevice.haveServiceUUID() && advertisedDevice.getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
-    {
-        Serial.print(", Tile");
-        doc["name"] = "Tile";
-        calcDistance(pos, rssi, advertisedDevice.haveTXPower() ? (-advertisedDevice.getTXPower()) - 41 : 0, &doc);
-    }
-    else if (advertisedDevice.haveServiceUUID() && advertisedDevice.getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
-    { // found covid exposure tracker
-        Serial.print(", Exposure");
-        doc["id"] = "exp:" + String(strServiceData.length());
-        calcDistance(pos, rssi, advertisedDevice.haveTXPower() ? (-advertisedDevice.getTXPower()) - 41 : 0, &doc);
-    }
-    else if (advertisedDevice.haveServiceUUID() && advertisedDevice.getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
-    { // found Eddystone UUID
-        Serial.print(", Eddystone");
-        // Update distance v ariable for Eddystone BLE devices
-        if (cServiceData[0] == 0x10)
-        {
-            BLEEddystoneURL oBeacon = BLEEddystoneURL();
-            oBeacon.setData(strServiceData);
-            // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
-            // Serial.printf(oBeacon.getDecodedURL().c_str());
-            doc["url"] = oBeacon.getDecodedURL().c_str();
-            Serial.print(" URL: ");
-            Serial.print(oBeacon.getDecodedURL().c_str());
-            calcDistance(pos, rssi, oBeacon.getPower(), &doc);
-        }
-        else if (cServiceData[0] == 0x20)
-        {
-            BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
-            oBeacon.setData(strServiceData);
-            Serial.printf(" TLM: ");
-            Serial.printf(oBeacon.toString().c_str());
-        }
-    }
-    else
-    {
-        if (advertisedDevice.haveManufacturerData() == true)
-        {
-            std::string strManufacturerData = advertisedDevice.getManufacturerData();
-
-            uint8_t cManufacturerData[100];
-            strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
-            char *mdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strManufacturerData.data(), strManufacturerData.length());
-
-            if (strManufacturerData.length() > 2 && cManufacturerData[0] == 0x4C && cManufacturerData[1] == 0x00) // Apple
-            {
-                if (strManufacturerData.length() == 25 && cManufacturerData[2] == 0x02 && cManufacturerData[3] == 0x15)
-                {
-                    BLEBeacon oBeacon = BLEBeacon();
-                    oBeacon.setData(strManufacturerData);
-
-                    String proximityUUID = getProximityUUIDString(oBeacon);
-
-                    int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
-                    int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
-
-                    Serial.print(", iBeacon: ");
-                    Serial.print(proximityUUID);
-                    Serial.printf("-%d-%d", major, minor);
-
-                    doc["major"] = major;
-                    doc["minor"] = minor;
-
-                    doc["id"] = proximityUUID + "-" + String(major) + "-" + String(minor);
-                    calcDistance(pos, rssi, oBeacon.getSignalPower(), &doc);
-                }
-                else
-                {
-                    String fingerprint = "apple:" + String(mdHex).substring(4, 8) + ":" + String(strManufacturerData.length());
-                    if (advertisedDevice.haveTXPower())
-                        fingerprint = fingerprint + String(-advertisedDevice.getTXPower());
-
-                    doc["id"] = fingerprint;
-
-                    Serial.printf(", Fingerprint: %s", fingerprint.c_str());
-                    calcDistance(pos, rssi, advertisedDevice.haveTXPower() ? (-advertisedDevice.getTXPower()) - 41 : 0, &doc);
-                }
-            }
-            else
-            {
-                if (advertisedDevice.haveTXPower())
-                    doc["txPower"] = -advertisedDevice.getTXPower();
-
-                Serial.print(", MD: ");
-                for (int x = 0; x < strManufacturerData.length(); x++)
-                    Serial.print(strManufacturerData[x], HEX);
-
-                calcDistance(pos, rssi, advertisedDevice.haveTXPower() ? (-advertisedDevice.getTXPower()) - 41 : 0, &doc);
-            }
-            free(mdHex);
-        }
-        else
-        {
-            calcDistance(pos, rssi, advertisedDevice.haveTXPower() ? (-advertisedDevice.getTXPower()) - 41 : 0, &doc);
-        }
-    }
-
-    Serial.println();
-
+    f->report(&advertisedDevice);
+    StaticJsonDocument<500> doc = f->getJson();
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
     String id = doc["id"];
@@ -609,17 +434,6 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
     }
     return false;
 }
-
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
-{
-    void onResult(BLEAdvertisedDevice *advertisedDevice)
-    {
-        digitalWrite(LED_BUILTIN, LED_ON);
-        //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
-        vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
-        digitalWrite(LED_BUILTIN, !LED_ON);
-    }
-};
 
 void scanForDevices(void *parameter)
 {
@@ -716,64 +530,6 @@ void configureOTA()
     ArduinoOTA.begin();
 }
 
-void setup()
-{
-    Serial.begin(115200);
-    Serial.setDebugOutput(true);
-    SPIFFS.begin(true);
-
-    //esp_log_level_set("*", ESP_LOG_DEBUG);
-
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LED_ON);
-
-#ifdef htuSensorTopic
-    sensor_setup();
-#endif
-
-    connectToWifi();
-
-    mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
-    wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
-
-    mqttClient.onConnect(onMqttConnect);
-    mqttClient.onDisconnect(onMqttDisconnect);
-
-    mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill((AVAILABILITY_TOPIC).c_str(), 0, 1, "DISCONNECTED");
-    mqttClient.setKeepAlive(60);
-
-    configureOTA();
-
-    initFilters();
-
-    BLEDevice::init("");
-    pBLEScan = BLEDevice::getScan(); //create new scan
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
-    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
-    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
-    pBLEScan->setWindow(BLE_SCAN_WINDOW);
-
-    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, pBLEScan, 1, &thBLEScan, 1);
-
-#ifdef M5STICK
-    M5.begin();
-    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-#endif
-
-    setClock();
-}
-
-void loop()
-{
-    TIMERG0.wdt_wprotect = TIMG_WDT_WKEY_VALUE;
-    TIMERG0.wdt_feed = 1;
-    TIMERG0.wdt_wprotect = 0;
-    ArduinoOTA.handle();
-
-    firmwareUpdate();
-}
-
 void setClock()
 {
     configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC
@@ -838,17 +594,73 @@ void firmwareUpdate(void)
 
     switch (ret)
     {
-        case HTTP_UPDATE_FAILED:
-            Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-            break;
+    case HTTP_UPDATE_FAILED:
+        Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        break;
 
-        case HTTP_UPDATE_NO_UPDATES:
-            Serial.println("HTTP_UPDATE_NO_UPDATES");
-            break;
+    case HTTP_UPDATE_NO_UPDATES:
+        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        break;
 
-        case HTTP_UPDATE_OK:
-            Serial.println("HTTP_UPDATE_OK");
-            break;
+    case HTTP_UPDATE_OK:
+        Serial.println("HTTP_UPDATE_OK");
+        break;
     }
 #endif
+}
+
+void setup()
+{
+    Serial.begin(115200);
+    Serial.setDebugOutput(true);
+    SPIFFS.begin(true);
+
+    //esp_log_level_set("*", ESP_LOG_DEBUG);
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LED_ON);
+
+#ifdef htuSensorTopic
+    sensor_setup();
+#endif
+
+    connectToWifi();
+
+    mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
+    wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
+
+    mqttClient.onConnect(onMqttConnect);
+    mqttClient.onDisconnect(onMqttDisconnect);
+
+    mqttClient.setServer(mqttHost.c_str(), mqttPort);
+    mqttClient.setWill((AVAILABILITY_TOPIC).c_str(), 0, 1, "DISCONNECTED");
+    mqttClient.setKeepAlive(60);
+
+    configureOTA();
+
+    BLEDevice::init("");
+    pBLEScan = BLEDevice::getScan(); //create new scan
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
+    pBLEScan->setWindow(BLE_SCAN_WINDOW);
+
+    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, pBLEScan, 1, &thBLEScan, 1);
+
+#ifdef M5STICK
+    M5.begin();
+    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
+#endif
+
+    setClock();
+}
+
+void loop()
+{
+    TIMERG0.wdt_wprotect = TIMG_WDT_WKEY_VALUE;
+    TIMERG0.wdt_feed = 1;
+    TIMERG0.wdt_wprotect = 0;
+    ArduinoOTA.handle();
+
+    firmwareUpdate();
 }
