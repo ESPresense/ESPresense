@@ -89,6 +89,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
 
     if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
     {
+        id = "tile:" + mac_address;
         Serial.print(", Tile");
         doc["name"] = "Tile";
         setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
