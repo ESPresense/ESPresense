@@ -76,6 +76,10 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
         id = "exp:" + String(strServiceData.length());
         Serial.printf(", ID: %s", id.c_str());
         setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+
+        char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
+        doc["tek"] = String(sdHex).substring(4, 20);
+        free(sdHex);
     }
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
     { // found Eddystone UUID
