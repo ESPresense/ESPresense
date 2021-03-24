@@ -28,11 +28,8 @@ private:
     float raw;
     Reading<Differential<float>> output;
 
-    FilterChain compositeFilter;
     TimestampFilter<float> tsFilter;
-    MovingAverageFilter<float, float> maFilter{MovingAverageFilter<float, float>(3)};
-    WeightedUpdateFilter<float, float> wuFilter{WeightedUpdateFilter<float, float>(0.1)};
-    OneEuroFilter<float, unsigned long> oneEuro{OneEuroFilter<float, unsigned long>(1, 1, 0.007, 1)};
+    one_euro_filter<double, unsigned long> oneEuro{one_euro_filter<double, unsigned long>(1, 0.01, 0.01, 1)};
     DifferentialFilter<float> diffFilter;
 
     StaticJsonDocument<500> doc;

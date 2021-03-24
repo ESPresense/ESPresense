@@ -49,11 +49,6 @@ StaticJsonDocument<500> BleFingerprint::getJson()
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
-    compositeFilter.append(&wuFilter);
-    compositeFilter.append(&maFilter);
-    compositeFilter.append(&tsFilter);
-    compositeFilter.append(&oneEuro);
-    compositeFilter.append(&diffFilter);
 
     String mac_address = advertisedDevice->getAddress().toString().c_str();
     mac_address.replace(":", "");
@@ -196,13 +191,20 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     float ratio = (calRssi - rssi) / 35.0f;
     float distFl = pow(10, ratio);
+    raw = distFl;
 
-    if (compositeFilter.push(&distFl, &output))
+    Reading<float> inter1, inter2;
+
+    if (tsFilter.push(&distFl, &inter1))
     {
-        raw = distFl;
-        //        if (id == "2c96d71f47569faddd487c93cc9dac2e-0-0")
-        //            Serial.printf("%-36s %5.1f %5.1f %5.1f %5.1f\n", id.c_str(), distFl, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+        inter2.timestamp = inter1.timestamp;
+        inter2.value = oneEuro(inter1.value);
+        if (diffFilter.push(&inter2, &output))
+            ;
     }
+
+    //if (id == "2c96d71f47569faddd487c93cc9dac2e-0-0")
+    //Serial.printf("%-36s %d %5.1f %5.1f %5.1f %5.1f\n", id.c_str(), inter2.timestamp, distFl, inter2.value, output.value.speed * 1e6, output.value.acceleration * 1e12);
 }
 
 void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
