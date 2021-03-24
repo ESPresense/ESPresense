@@ -49,7 +49,6 @@ StaticJsonDocument<500> BleFingerprint::getJson()
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
-
     String mac_address = advertisedDevice->getAddress().toString().c_str();
     mac_address.replace(":", "");
     mac_address.toLowerCase();
@@ -58,41 +57,24 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
     Serial.print(mac_address);
 
     if (advertisedDevice->haveName())
-    {
-        String nameBLE = String(advertisedDevice->getName().c_str());
-        Serial.print(", Name: ");
-        Serial.print(nameBLE);
-        doc["name"] = nameBLE;
-    }
+        name = String(advertisedDevice->getName().c_str());
 
-    id = mac_address;
     doc["mac"] = mac_address;
 
     std::string strServiceData = advertisedDevice->getServiceData();
     uint8_t cServiceData[100];
     strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
 
-    if (advertisedDevice->haveServiceUUID())
-    {
-        for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
-        {
-            std::string sid = advertisedDevice->getServiceUUID(i).toString();
-            Serial.printf(", sID: %s", sid.c_str());
-            doc["sid" + String(i)] = sid;
-        }
-    }
-
     if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
     {
         id = "tile:" + mac_address;
-        Serial.print(", Tile");
-        doc["name"] = "Tile";
+        Serial.printf(", ID: %s", id.c_str());
         setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
     }
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
     { // found covid exposure tracker
-        Serial.print(", Exposure");
         id = "exp:" + String(strServiceData.length());
+        Serial.printf(", ID: %s", id.c_str());
         setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
     }
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
@@ -120,6 +102,15 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
     }
     else
     {
+        if (advertisedDevice->haveServiceUUID())
+        {
+            for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
+            {
+                std::string sid = advertisedDevice->getServiceUUID(i).toString();
+                Serial.printf(", sID: %s", sid.c_str());
+                doc["sid" + String(i)] = sid;
+            }
+        }
         if (advertisedDevice->haveManufacturerData() == true)
         {
             std::string strManufacturerData = advertisedDevice->getManufacturerData();
@@ -127,6 +118,8 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
             uint8_t cManufacturerData[100];
             strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
             char *mdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strManufacturerData.data(), strManufacturerData.length());
+
+            doc["md"] = mdHex;
 
             if (strManufacturerData.length() > 2 && cManufacturerData[0] == 0x4C && cManufacturerData[1] == 0x00) // Apple
             {
@@ -140,14 +133,11 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
                     int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
                     int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
 
-                    Serial.print(", iBeacon: ");
-                    Serial.print(proximityUUID);
-                    Serial.printf("-%d-%d", major, minor);
-
                     doc["major"] = major;
                     doc["minor"] = minor;
 
-                    id = proximityUUID + "-" + String(major) + "-" + String(minor);
+                    id = "iBeacon:" + proximityUUID + "-" + String(major) + "-" + String(minor);
+                    Serial.printf(", ID: %s", id.c_str());
                     setCalRssi(oBeacon.getSignalPower());
                 }
                 else
@@ -157,19 +147,21 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
                         fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
 
                     id = fingerprint;
+                    Serial.printf(", ID: %s", id.c_str());
 
-                    Serial.printf(", Fingerprint: %s", fingerprint.c_str());
                     setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
                 }
             }
             else
             {
-                if (advertisedDevice->haveTXPower())
-                    doc["txPower"] = -advertisedDevice->getTXPower();
-
-                Serial.print(", MD: ");
-                for (int x = 0; x < strManufacturerData.length(); x++)
-                    Serial.print(strManufacturerData[x], HEX);
+                if (strManufacturerData.length() > 2)
+                {
+                    String fingerprint = "md:" + String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2) + ":" + String(strManufacturerData.length());
+                    if (advertisedDevice->haveTXPower())
+                        fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
+                    id = fingerprint;
+                    Serial.printf(", ID: %s", id.c_str());
+                }
 
                 setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
             }
@@ -213,8 +205,13 @@ void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
     //Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
     //Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
     //Serial.println();
+    if (id == nullptr && name == nullptr)
+        return;
 
-    doc["id"] = id;
+    if (id != nullptr)
+        doc["id"] = id;
+    if (name != nullptr)
+        doc["name"] = name;
     doc["rssi@1m"] = calRssi;
     doc["rssi"] = rssi;
     doc["raw"] = round(raw * 100.0f) / 100.0f;

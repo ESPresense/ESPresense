@@ -23,7 +23,7 @@ public:
     StaticJsonDocument<500> getJson();
 
 private:
-    String id;
+    String id, name;
     int rssi, calRssi;
     float raw;
     Reading<Differential<float>> output;
@@ -35,5 +35,4 @@ private:
     StaticJsonDocument<500> doc;
     unsigned long lastReading = 0;
 };
-
 #endif
