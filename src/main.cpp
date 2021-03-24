@@ -184,6 +184,11 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     tele["max_dist"] = MAX_DISTANCE;
     tele["uptime"] = CalculateUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
+
+    tele["free_heap"] = ESP.getFreeHeap();
+    tele["min_free_heap"] = ESP.getMinFreeHeap();
+    tele["heap_size"] = ESP.getHeapSize();
+    tele["max_alloc_heap"] = ESP.getMaxAllocHeap();
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
