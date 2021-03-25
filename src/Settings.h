@@ -29,6 +29,12 @@
 #define LED_BUILTIN 13 // Feather
 #endif
 
+#ifdef M5STICK
+#define BUTTON 39 // M5StickC
+#else
+#define BUTTON 39 // Feather
+#endif
+
 // Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
 #define LED_ON 0
 
@@ -50,9 +56,6 @@
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define MAX_DISTANCE 16
-
-// MQTT topic for sensor values from HTU21D temperature and humidity sensor
-//#define htuSensorTopic "presence_nodes/" hostname "/sensor"
 
 //List of allowed MAC Addresses for MQTT Publish. All others will be ignored.
 //Feature is disabled by default.

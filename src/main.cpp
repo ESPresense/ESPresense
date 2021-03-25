@@ -54,14 +54,11 @@ extern "C"
 #endif
 #endif
 
-#ifdef htuSensorTopic
-#define tempTopic htuSensorTopic "/temperature"
-#define humidityTopic htuSensorTopic "/humidity"
-#include "sensors/sensor_htu21d.h"
-#endif
-
 #define MAX_MAC_ADDRESSES 50
 #define CHECK_FOR_UPDATES_MILI 100000
+
+#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
+#define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -79,7 +76,6 @@ String mqttUser;
 String mqttPass;
 
 String room;
-String hostname;
 
 static BleFingerprint *fingerprints[MAX_MAC_ADDRESSES];
 
@@ -217,210 +213,208 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     }
 }
 
-void connectToWifi()
-{
-    log_i("Connecting to WiFi...");
-    pinMode(LED_BUILTIN, OUTPUT);
+    void connectToWifi()
+    {
+        Serial.printf("Connecting to WiFi (%s)...", WiFi.macAddress().c_str());
 
-    // Set custom callback functions
-    WiFiSettings.onSuccess = []() {
-        digitalWrite(LED_BUILTIN, LED_ON); // Turn LED on
-    };
-    WiFiSettings.onFailure = []() {
-        digitalWrite(LED_BUILTIN, !LED_ON); // Turn LED off
-    };
-    WiFiSettings.onWaitLoop = []() {
-        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // Toggle LED
-        return 500;                                           // Delay next function call by 500ms
-    };
-    WiFiSettings.onPortalWaitLoop = []() {
-        if (CalculateUptimeSeconds() > 600)
+        // Set custom callback functions
+        WiFiSettings.onSuccess = []() {
+            digitalWrite(LED_BUILTIN, LED_ON); // Turn LED on
+        };
+        WiFiSettings.onFailure = []() {
+            digitalWrite(LED_BUILTIN, !LED_ON); // Turn LED off
+        };
+        WiFiSettings.onWaitLoop = []() {
+            digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // Toggle LED
+            return 500;                                           // Delay next function call by 500ms
+        };
+        WiFiSettings.onPortalWaitLoop = []() {
+            if (CalculateUptimeSeconds() > 600)
+                ESP.restart();
+        };
+
+        // Define custom settings saved by WifiSettings
+        // These will return the default if nothing was set before
+        mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST);
+        mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT);
+        mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
+        mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
+        room = WiFiSettings.string("room", "mqtt-room-" + ESPMAC);
+        WiFiSettings.hostname = room;
+
+        if (!WiFiSettings.connect(true, 60))
             ESP.restart();
+
+        Serial.print("IP address: \t");
+        Serial.println(WiFi.localIP());
+        Serial.print("Hostname: \t");
+        Serial.println(WiFi.getHostname());
+        Serial.print("Room: \t");
+        Serial.println(room);
+
+        localIp = WiFi.localIP().toString();
+    }
+
+    void connectToMqtt()
+    {
+        if (WiFi.isConnected() && !updateInProgress)
+        {
+            log_i("Connecting to MQTT");
+            mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
+            mqttClient.setClientId(room.c_str());
+            mqttClient.connect();
+        }
+    }
+
+    void handleMqttDisconnect()
+    {
+        if (updateInProgress)
+            return;
+
+        if (retryAttempts > 10)
+        {
+            log_e("Too many mqtt retries. Restarting");
+            WiFiSettings.portal();
+        }
+        else
+        {
+            retryAttempts++;
+        }
+
+        if (WiFi.isConnected() && !updateInProgress)
+        {
+            log_i("Starting MQTT reconnect timer");
+            xTimerReset(mqttReconnectTimer, 0);
+        }
+    }
+
+    void handleWifiDisconnect()
+    {
+        if (WiFi.isConnected())
+        {
+            log_i("WiFi appears to be connected. Not retrying.");
+            return;
+        }
+        if (retryAttempts > 10)
+        {
+            log_e("Too many retries. Restarting");
+            ESP.restart();
+        }
+        else
+        {
+            retryAttempts++;
+        }
+
+        if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE)
+        {
+            xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
+        }
+
+        xTimerReset(wifiReconnectTimer, 0);
+    }
+
+    void onMqttConnect(bool sessionPresent)
+    {
+        log_i("Connected to MQTT");
+        retryAttempts = 0;
+
+        if (mqttClient.publish((AVAILABILITY_TOPIC).c_str(), 0, 1, "CONNECTED") == true)
+        {
+            log_d("Success sending message to topic: %s", AVAILABILITY_TOPIC);
+        }
+        else
+        {
+            log_e("Error sending message");
+        }
+
+        sendTelemetry();
+    }
+
+    void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
+    {
+        Serial.println("Disconnected from MQTT.");
+        handleMqttDisconnect();
+    }
+
+    class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+    {
+        void onResult(BLEAdvertisedDevice *advertisedDevice)
+        {
+            digitalWrite(LED_BUILTIN, LED_ON);
+            //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
+            BleFingerprint *f = getFingerprint(advertisedDevice);
+            f->seen(advertisedDevice);
+            vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
+            digitalWrite(LED_BUILTIN, !LED_ON);
+        }
     };
 
-    // Define custom settings saved by WifiSettings
-    // These will return the default if nothing was set before
-    mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST);
-    mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT);
-    mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
-    mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
-    room = WiFiSettings.string("room", DEFAULT_ROOM);
-    hostname = room;
-
-    if (!WiFiSettings.connect(true, 60))
-        ESP.restart();
-
-    Serial.print("IP address: \t");
-    Serial.println(WiFi.localIP());
-    Serial.print("Hostname: \t");
-    Serial.println(WiFi.getHostname());
-    Serial.print("Room: \t");
-    Serial.println(room);
-
-
-    localIp = WiFi.localIP().toString();
-}
-
-void connectToMqtt()
-{
-    if (WiFi.isConnected() && !updateInProgress)
+    bool reportDevice(BLEAdvertisedDevice advertisedDevice)
     {
-        log_i("Connecting to MQTT");
-        mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
-        mqttClient.setClientId(hostname.c_str());
-        mqttClient.connect();
-    }
-}
+        BleFingerprint *f = getFingerprint(&advertisedDevice);
 
-void handleMqttDisconnect()
-{
-    if (updateInProgress)
-        return;
+        f->report(&advertisedDevice);
+        StaticJsonDocument<500> doc = f->getJson();
+        char JSONmessageBuffer[512];
+        serializeJson(doc, JSONmessageBuffer);
+        String id = doc["id"];
+        String publishTopic = CHANNEL + "/" + room;
+        String publishTopic2 = CHANNEL + "/" + room + "/" + id;
 
-    if (retryAttempts > 10)
-    {
-        log_e("Too many mqtt retries. Restarting");
-        WiFiSettings.portal();
-    }
-    else
-    {
-        retryAttempts++;
-    }
-
-    if (WiFi.isConnected() && !updateInProgress)
-    {
-        log_i("Starting MQTT reconnect timer");
-        xTimerReset(mqttReconnectTimer, 0);
-    }
-}
-
-void handleWifiDisconnect()
-{
-    if (WiFi.isConnected())
-    {
-        log_i("WiFi appears to be connected. Not retrying.");
-        return;
-    }
-    if (retryAttempts > 10)
-    {
-        log_e("Too many retries. Restarting");
-        ESP.restart();
-    }
-    else
-    {
-        retryAttempts++;
-    }
-
-    if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE)
-    {
-        xTimerStop(mqttReconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
-    }
-
-    xTimerReset(wifiReconnectTimer, 0);
-}
-
-void onMqttConnect(bool sessionPresent)
-{
-    log_i("Connected to MQTT");
-    retryAttempts = 0;
-
-    if (mqttClient.publish((AVAILABILITY_TOPIC).c_str(), 0, 1, "CONNECTED") == true)
-    {
-        log_d("Success sending message to topic: %s", AVAILABILITY_TOPIC);
-    }
-    else
-    {
-        log_e("Error sending message");
-    }
-
-    sendTelemetry();
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
-{
-    Serial.println("Disconnected from MQTT.");
-    handleMqttDisconnect();
-}
-
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
-{
-    void onResult(BLEAdvertisedDevice *advertisedDevice)
-    {
-        digitalWrite(LED_BUILTIN, LED_ON);
-        //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
-        BleFingerprint *f = getFingerprint(advertisedDevice);
-        f->seen(advertisedDevice);
-        vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
-        digitalWrite(LED_BUILTIN, !LED_ON);
-    }
-};
-
-bool reportDevice(BLEAdvertisedDevice advertisedDevice)
-{
-    BleFingerprint *f = getFingerprint(&advertisedDevice);
-
-    f->report(&advertisedDevice);
-    StaticJsonDocument<500> doc = f->getJson();
-    char JSONmessageBuffer[512];
-    serializeJson(doc, JSONmessageBuffer);
-    String id = doc["id"];
-    String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = CHANNEL + "/" + room + "/" + id;
-
-    if (mqttClient.connected())
-    {
-        if (MAX_DISTANCE == 0 || doc["distance"] < MAX_DISTANCE)
+        if (mqttClient.connected())
         {
-            if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true)
+            if (MAX_DISTANCE == 0 || doc["distance"] < MAX_DISTANCE)
             {
-                return (mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer) == true);
+                if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true)
+                {
+                    return (mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer) == true);
+                }
+                else
+                {
+                    Serial.print("Error sending message: ");
+                    Serial.println(publishTopic);
+                    Serial.print("Message: ");
+                    Serial.println(JSONmessageBuffer);
+                    return false;
+                }
             }
             else
             {
-                Serial.print("Error sending message: ");
-                Serial.println(publishTopic);
-                Serial.print("Message: ");
-                Serial.println(JSONmessageBuffer);
+                //Serial.printf("%s exceeded distance threshold %.2f\n\r", mac_address.c_str(), distance);
                 return false;
             }
         }
         else
         {
-            //Serial.printf("%s exceeded distance threshold %.2f\n\r", mac_address.c_str(), distance);
-            return false;
+
+            Serial.println("MQTT disconnected.");
+            if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE)
+            {
+                TickType_t xRemainingTime = xTimerGetExpiryTime(mqttReconnectTimer) - xTaskGetTickCount();
+                Serial.print("Time remaining: ");
+                Serial.println(xRemainingTime);
+            }
+            else
+            {
+                handleMqttDisconnect();
+            }
         }
+        return false;
     }
-    else
+
+    void scanForDevices(void *parameter)
     {
-
-        Serial.println("MQTT disconnected.");
-        if (xTimerIsTimerActive(mqttReconnectTimer) != pdFALSE)
+        int i = 0;
+        while (1)
         {
-            TickType_t xRemainingTime = xTimerGetExpiryTime(mqttReconnectTimer) - xTaskGetTickCount();
-            Serial.print("Time remaining: ");
-            Serial.println(xRemainingTime);
-        }
-        else
-        {
-            handleMqttDisconnect();
-        }
-    }
-    return false;
-}
+            i++;
+            if (!updateInProgress)
+            {
+                pBLEScan->setActiveScan(i % 10 == 0 ? BLE_ACTIVE_SCAN : false);
+                pBLEScan->clearResults();
 
-void scanForDevices(void *parameter)
-{
-    int i = 0;
-    while (1)
-    {
-        i++;
-        if (!updateInProgress)
-        {
-            pBLEScan->setActiveScan(i % 10 == 0 ? BLE_ACTIVE_SCAN : false);
-            pBLEScan->clearResults();
-
-            BLEScanResults foundDevices = pBLEScan->start(BLE_SCAN_DURATION);
-            int devicesCount = foundDevices.getCount();
+                BLEScanResults foundDevices = pBLEScan->start(BLE_SCAN_DURATION);
+                int devicesCount = foundDevices.getCount();
 
 #ifdef M5STICK
             M5.Lcd.setCursor(0, 0);
@@ -493,7 +487,7 @@ void configureOTA()
                 Serial.println("End Failed");
             ESP.restart();
         });
-    ArduinoOTA.setHostname(hostname.c_str());
+    ArduinoOTA.setHostname(room.c_str());
     ArduinoOTA.setPort(3232);
     ArduinoOTA.begin();
 }
@@ -574,22 +568,52 @@ void firmwareUpdate(void)
 #endif
 }
 
+void spiffsInit()
+{
+    int ledState = HIGH;
+    int flashes = 0;
+
+    unsigned long debounceDelay = 250;
+
+    digitalWrite(LED_BUILTIN, ledState);
+
+    long lastDebounceTime = millis();
+    while (digitalRead(BUTTON) == 0)
+    {
+        if ((millis() - lastDebounceTime) > debounceDelay)
+        {
+            ledState = !ledState;
+            digitalWrite(LED_BUILTIN, ledState);
+            lastDebounceTime = millis();
+            flashes++;
+
+            if (flashes > 10)
+            {
+                digitalWrite(LED_BUILTIN, 1);
+                SPIFFS.format();
+                SPIFFS.begin(true);
+                digitalWrite(LED_BUILTIN, 0);
+
+                return;
+            }
+        }
+    }
+
+    SPIFFS.begin(true);
+}
+
 void setup()
 {
+    pinMode(BUTTON, INPUT);
+    pinMode(LED_BUILTIN, OUTPUT);
+
     Serial.begin(115200);
     Serial.setDebugOutput(true);
-    SPIFFS.begin(true);
-
     //esp_log_level_set("*", ESP_LOG_DEBUG);
 
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LED_ON);
-
-#ifdef htuSensorTopic
-    sensor_setup();
-#endif
-
+    spiffsInit();
     connectToWifi();
+    configureOTA();
 
     mqttReconnectTimer = xTimerCreate("mqttTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToMqtt));
     wifiReconnectTimer = xTimerCreate("wifiTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reinterpret_cast<TimerCallbackFunction_t>(connectToWifi));
@@ -600,8 +624,6 @@ void setup()
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill((AVAILABILITY_TOPIC).c_str(), 0, 1, "DISCONNECTED");
     mqttClient.setKeepAlive(60);
-
-    configureOTA();
 
     BLEDevice::init("");
     pBLEScan = BLEDevice::getScan(); //create new scan
