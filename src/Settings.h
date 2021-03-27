@@ -31,19 +31,28 @@
 
 //Specify the LED pin. For most dev boards, this is GPIO2
 #ifdef M5STICK
-#define LED_BUILTIN 10 // M5StickC
-#else
-#define LED_BUILTIN 13 // Feather
+
+#define LED_BUILTIN 10
+#define LED_BUILTIN_ON 0
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#else // Huzzah32
+
+#define LED_BUILTIN 13
+#define LED_BUILTIN_ON 1
+
+#define BUTTON 39
+#define BUTTON_PRESSED 1
+
 #endif
 
 #ifdef M5STICK
-#define BUTTON 39 // M5StickC
-#else
-#define BUTTON 39 // Feather
-#endif
 
-// Logic level for turning the led on. Most boards use active low, meaning LED_ON should be set to 0
-#define LED_ON 0
+#else
+
+#endif
 
 //Define the base topic for room detection. Usually "room_presence"
 #define CHANNEL String("room_presence")

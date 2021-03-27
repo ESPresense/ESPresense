@@ -212,10 +212,10 @@ void connectToWifi()
 
     // Set custom callback functions
     WiFiSettings.onSuccess = []() {
-        digitalWrite(LED_BUILTIN, LED_ON); // Turn LED on
+        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON); // Turn LED on
     };
     WiFiSettings.onFailure = []() {
-        digitalWrite(LED_BUILTIN, !LED_ON); // Turn LED off
+        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON); // Turn LED off
     };
     WiFiSettings.onWaitLoop = []() {
         digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // Toggle LED
@@ -317,12 +317,12 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
-        digitalWrite(LED_BUILTIN, LED_ON);
+        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
         //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
         BleFingerprint *f = getFingerprint(advertisedDevice);
         f->seen(advertisedDevice);
         vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
-        digitalWrite(LED_BUILTIN, !LED_ON);
+        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
     }
 };
 
@@ -419,7 +419,7 @@ void configureOTA()
         })
         .onEnd([]() {
             updateInProgress = false;
-            digitalWrite(LED_BUILTIN, !LED_ON);
+            digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
             Serial.println("\n\rEnd");
         })
         .onProgress([](unsigned int progress, unsigned int total) {
@@ -537,7 +537,7 @@ void spiffsInit()
     digitalWrite(LED_BUILTIN, ledState);
 
     long lastDebounceTime = millis();
-    while (digitalRead(BUTTON) == 0)
+    while (digitalRead(BUTTON) == BUTTON_PRESSED)
     {
         if ((millis() - lastDebounceTime) > debounceDelay)
         {
@@ -548,6 +548,7 @@ void spiffsInit()
 
             if (flashes > 10)
             {
+                Serial.println(F("Resetting back to defaults..."));
                 digitalWrite(LED_BUILTIN, 1);
                 SPIFFS.format();
                 SPIFFS.begin(true);
