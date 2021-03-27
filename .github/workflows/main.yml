@@ -29,13 +29,13 @@ jobs:
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/')
     - name: Run PlatformIO
-      run: pio run -e esp32 -e m5stickc -e m5stickc-plus -e m5stack-atom
+      run: pio run -e esp32 -e m5stickc -e m5stickc-plus -e m5atom-matrix
     - name: Rename firmware
       run: |
         cp .pio/build/esp32/firmware.bin esp32.bin
         cp .pio/build/m5stickc/firmware.bin m5stickc.bin
         cp .pio/build/m5stickc-plus/firmware.bin m5stickc-plus.bin
-        cp .pio/build/m5stack-atom/firmware.bin m5stack-atom.bin
+        cp .pio/build/m5atom-matrix/firmware.bin m5atom-matrix.bin
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')

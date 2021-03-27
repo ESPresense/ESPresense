@@ -29,8 +29,16 @@
 //Replace with the room name where the node will be placed
 #define DEFAULT_ROOM "living-room"
 
-//Specify the LED pin. For most dev boards, this is GPIO2
 #ifdef M5STICK
+
+#define LED_BUILTIN 10
+#define LED_BUILTIN_ON 0
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#else
+#if M5ATOM
 
 #define LED_BUILTIN 10
 #define LED_BUILTIN_ON 0
@@ -43,9 +51,7 @@
 #define LED_BUILTIN 13
 #define LED_BUILTIN_ON 1
 
-#define BUTTON 39
-#define BUTTON_PRESSED 1
-
+#endif
 #endif
 
 #ifdef M5STICK

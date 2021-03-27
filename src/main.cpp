@@ -475,21 +475,9 @@ void firmwareUpdate(void)
     WiFiClientSecure client;
     client.setInsecure();
 
-    httpUpdate.setLedPin(LED_BUILTIN, LOW);
+    httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-#ifdef M5STICK
-#ifdef PLUS
-    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stickc-plus.bin");
-#else
-    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stickc.bin");
-#endif
-#else
-#ifdef M5ATOM
-    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/m5stack-atom.bin");
-#else
-    String firmwareUrl = String("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/esp32.bin");
-#endif
-#endif
+    String firmwareUrl = Sprintf("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/%s.bin", FIRMWARE);
 
     HTTPClient http;
     if (!http.begin(client, firmwareUrl))
@@ -530,11 +518,13 @@ void firmwareUpdate(void)
 void spiffsInit()
 {
     int ledState = HIGH;
-    int flashes = 0;
-
-    unsigned long debounceDelay = 250;
-
     digitalWrite(LED_BUILTIN, ledState);
+
+#ifdef BUTTON
+
+    pinMode(BUTTON, INPUT);
+    int flashes = 0;
+    unsigned long debounceDelay = 250;
 
     long lastDebounceTime = millis();
     while (digitalRead(BUTTON) == BUTTON_PRESSED)
@@ -559,12 +549,13 @@ void spiffsInit()
         }
     }
 
+#endif
+
     SPIFFS.begin(true);
 }
 
 void setup()
 {
-    pinMode(BUTTON, INPUT);
     pinMode(LED_BUILTIN, OUTPUT);
 
     Serial.begin(115200);
