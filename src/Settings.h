@@ -1,3 +1,6 @@
+#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
+#define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
+
 //Replace with your Wifi SSID; example: #define ssid "MyWifi"
 #define DEFAULT_WIFI_SSID "$SSID$"
 
@@ -39,13 +42,13 @@
 #define LED_ON 0
 
 //Define the base topic for room detection. Usually "room_presence"
-#define CHANNEL String(F("room_presence"))
+#define CHANNEL String("room_presence")
 
 //Define the topic for publishing availability
-#define AVAILABILITY_TOPIC String(F("presence_nodes/")) + room
+#define AVAILABILITY_TOPIC (Sprintf("presence_nodes/%s", room))
 
 //Define the topic for publishing JSON attributes
-#define TELEMETRY_TOPIC String(F("presence_nodes/")) + room + String(F("/tele"))
+#define TELEMETRY_TOPIC (Sprintf("presence_nodes/%s/tele", room))
 
 // Define bluetooth scan parameters
 #define BLE_ACTIVE_SCAN true // Active scan uses more power, but get results faster

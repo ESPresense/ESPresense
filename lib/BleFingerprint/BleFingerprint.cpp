@@ -77,9 +77,9 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
         Serial.printf(", ID: %s", id.c_str());
         setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
 
-        char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
-        doc["tek"] = String(sdHex).substring(4, 20);
-        free(sdHex);
+        //char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
+        //doc["tek"] = String(sdHex).substring(4, 20);
+        //free(sdHex);
     }
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
     { // found Eddystone UUID
@@ -122,8 +122,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
             uint8_t cManufacturerData[100];
             strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
             char *mdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strManufacturerData.data(), strManufacturerData.length());
-
-            doc["md"] = mdHex;
 
             if (strManufacturerData.length() > 2 && cManufacturerData[0] == 0x4C && cManufacturerData[1] == 0x00) // Apple
             {
