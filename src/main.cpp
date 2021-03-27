@@ -267,11 +267,13 @@ void onMqttConnect(bool sessionPresent)
     }
 
     sendTelemetry();
+    xTimerStop(reconnectTimer, 0);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
     Serial.printf("Disconnected from MQTT; reason %d\n", (int)reason);
+    xTimerStart(reconnectTimer, 0);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -301,7 +303,7 @@ void reconnect(TimerHandle_t xTimer)
 
 void connectToMqtt()
 {
-    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(2000), pdFALSE, (void *)0, reconnect);
+    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(15000), pdTRUE, (void *)0, reconnect);
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
@@ -341,9 +343,12 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
     {
         if (MAX_DISTANCE == 0 || doc["distance"] < MAX_DISTANCE)
         {
-            if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) == true)
+            if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) && mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer))
             {
-                return (mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer) == true);
+#if VERBOSE
+                Serial.println(JSONmessageBuffer);
+#endif
+                return true;
             }
             else
             {
@@ -399,11 +404,7 @@ void scanForDevices(void *parameter)
         else
         {
             log_e("Cannot report; mqtt disconnected");
-
-            if (xTimerIsTimerActive(reconnectTimer) == pdFALSE)
-                xTimerStart(reconnectTimer, 0);
-
-            delay(15000);
+            delay(1000);
         }
     }
 }
@@ -471,9 +472,6 @@ void firmwareUpdate(void)
     if (millis() - lastFirmwareCheck < CHECK_FOR_UPDATES_MILI || WiFi.status() != WL_CONNECTED)
         return;
 
-    updateInProgress = true;
-    mqttClient.disconnect(true);
-    xTimerStop(reconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
     lastFirmwareCheck = millis();
 
     WiFiClientSecure client;
@@ -508,6 +506,8 @@ void firmwareUpdate(void)
 
     updateInProgress = true;
     Serial.printf("Updating from %s\n", firmwareUrl.c_str());
+    mqttClient.disconnect(true);
+    xTimerStop(reconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
@@ -601,7 +601,7 @@ void loop()
     TIMERG0.wdt_wprotect = TIMG_WDT_WKEY_VALUE;
     TIMERG0.wdt_feed = 1;
     TIMERG0.wdt_wprotect = 0;
-    ArduinoOTA.handle();
 
+    ArduinoOTA.handle();
     firmwareUpdate();
 }

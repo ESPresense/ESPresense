@@ -135,9 +135,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
                     int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
                     int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
 
-                    doc["major"] = major;
-                    doc["minor"] = minor;
-
                     id = "iBeacon:" + proximityUUID + "-" + String(major) + "-" + String(minor);
                     Serial.printf(", ID: %s", id.c_str());
                     setCalRssi(oBeacon.getSignalPower());
