@@ -1,6 +1,10 @@
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
 #define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
 
+#if VERBOSE
+#define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
+#endif
+
 //Replace with your Wifi SSID; example: #define ssid "MyWifi"
 #define DEFAULT_WIFI_SSID "$SSID$"
 
@@ -53,8 +57,8 @@
 // Define bluetooth scan parameters
 #define BLE_ACTIVE_SCAN true // Active scan uses more power, but get results faster
 
-#define BLE_SCAN_DURATION 2     // Define the duration of a single scan in seconds
-#define BLE_SCAN_INTERVAL 333   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
+#define BLE_SCAN_DURATION 3     // Define the duration of a single scan in seconds
+#define BLE_SCAN_INTERVAL 340   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 #define BLE_SCAN_WINDOW 320     // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
