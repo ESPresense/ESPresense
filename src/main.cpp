@@ -260,14 +260,13 @@ void onMqttConnect(bool sessionPresent)
     if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "CONNECTED") == true)
     {
         Serial.printf("Success sending presence message to: %s\n", availabilityTopic.c_str());
+        if (sendTelemetry())
+            xTimerStop(reconnectTimer, 0);
     }
     else
     {
-        Serial.println("Error sending presence message");
+        Serial.println(F("Error sending presence message"));
     }
-
-    sendTelemetry();
-    xTimerStop(reconnectTimer, 0);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
@@ -417,7 +416,6 @@ void configureOTA()
             pBLEScan->stop();
             updateInProgress = true;
             mqttClient.disconnect(true);
-            xTimerStop(reconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
         })
         .onEnd([]() {
             updateInProgress = false;
@@ -507,7 +505,6 @@ void firmwareUpdate(void)
     updateInProgress = true;
     Serial.printf("Updating from %s\n", firmwareUrl.c_str());
     mqttClient.disconnect(true);
-    xTimerStop(reconnectTimer, 0); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
 
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
