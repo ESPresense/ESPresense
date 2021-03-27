@@ -70,6 +70,7 @@ String mqttHost;
 int mqttPort;
 String mqttUser;
 String mqttPass;
+String availabilityTopic;
 
 String room;
 
@@ -232,16 +233,20 @@ void connectToWifi()
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
     room = WiFiSettings.string("room", ESPMAC);
+    availabilityTopic = AVAILABILITY_TOPIC;
+
     WiFiSettings.hostname = "mqtt-room-" + room;
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
 
-    Serial.print("IP address: \t");
+    Serial.print("IP address:  ");
     Serial.println(WiFi.localIP());
-    Serial.print("Hostname: \t");
+    Serial.print("DNS address: ");
+    Serial.println(WiFi.dnsIP());
+    Serial.print("Hostname:    ");
     Serial.println(WiFi.getHostname());
-    Serial.print("Room: \t");
+    Serial.print("Room:        ");
     Serial.println(room);
 
     localIp = WiFi.localIP().toString();
@@ -252,9 +257,9 @@ void onMqttConnect(bool sessionPresent)
     Serial.println("Connected to MQTT");
     retryAttempts = 0;
 
-    if (mqttClient.publish((AVAILABILITY_TOPIC).c_str(), 0, 1, "CONNECTED") == true)
+    if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "CONNECTED") == true)
     {
-        Serial.printf("Success sending message to topic: %s\n", AVAILABILITY_TOPIC.c_str());
+        Serial.printf("Success sending presence message to: %s\n", availabilityTopic.c_str());
     }
     else
     {
@@ -266,7 +271,7 @@ void onMqttConnect(bool sessionPresent)
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
-    Serial.printf("Disconnected from MQTT; reason %d\n", reason);
+    Serial.printf("Disconnected from MQTT; reason %d\n", (int)reason);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -301,7 +306,7 @@ void connectToMqtt()
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill((AVAILABILITY_TOPIC).c_str(), 0, 1, "DISCONNECTED");
+    mqttClient.setWill(availabilityTopic.c_str(), 0, 1, "DISCONNECTED");
     mqttClient.setKeepAlive(60);
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
@@ -363,12 +368,14 @@ void scanForDevices(void *parameter)
     int i = 0;
     while (1)
     {
-        i++;
-        if (!updateInProgress)
-        {
-            pBLEScan->setActiveScan(i % 10 == 0 ? BLE_ACTIVE_SCAN : false);
-            pBLEScan->clearResults();
+        delay(0);
+        if (updateInProgress)
+            continue;
 
+        if (mqttClient.connected())
+        {
+            pBLEScan->setActiveScan(i++ % 10 == 0 ? BLE_ACTIVE_SCAN : false);
+            pBLEScan->clearResults();
             BLEScanResults foundDevices = pBLEScan->start(BLE_SCAN_DURATION);
             int devicesCount = foundDevices.getCount();
 
@@ -379,25 +386,24 @@ void scanForDevices(void *parameter)
 #endif
 
             int devicesReported = 0;
-            if (mqttClient.connected())
+            for (uint32_t j = 0; j < devicesCount; j++)
             {
-                for (uint32_t i = 0; i < devicesCount; i++)
+                bool included = reportDevice(foundDevices.getDevice(j));
+                if (included)
                 {
-                    bool included = reportDevice(foundDevices.getDevice(i));
-                    if (included)
-                    {
-                        devicesReported++;
-                    }
+                    devicesReported++;
                 }
-                sendTelemetry(devicesCount, devicesReported);
             }
-            else
-            {
-                log_e("Cannot report; mqtt disconnected");
+            sendTelemetry(devicesCount, devicesReported);
+        }
+        else
+        {
+            log_e("Cannot report; mqtt disconnected");
 
-                if (xTimerIsTimerActive(reconnectTimer) == pdFALSE)
-                    xTimerStart(reconnectTimer, 0);
-            }
+            if (xTimerIsTimerActive(reconnectTimer) == pdFALSE)
+                xTimerStart(reconnectTimer, 0);
+
+            delay(15000);
         }
     }
 }
