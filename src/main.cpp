@@ -71,66 +71,31 @@ int mqttPort;
 String mqttUser;
 String mqttPass;
 String availabilityTopic;
-
 String room;
 
-static BleFingerprint *fingerprints[MAX_MAC_ADDRESSES];
-
-int mac_pos(const uint8_t mac[6])
-{
-#ifdef ALLOWED_LIST_CHECK
-    if (allowedListCheck)
-    {
-        bool allowedListFound = false;
-        for (uint32_t x = 0; x < allowedListNumberOfItems; x++)
-        {
-            if (mac_address == allowedList[x])
-            {
-                allowedListFound = true;
-            }
-        }
-
-        if (allowedListFound == false)
-        {
-            return false;
-        }
-    }
-#endif
-
-    static uint8_t mac_lib[MAX_MAC_ADDRESSES][6];
-    static unsigned int mac_count = 0;
-
-    for (int i = 0; i < mac_count && i < MAX_MAC_ADDRESSES; i++)
-    {
-        bool flag = true;
-        for (uint8_t j = 0; j < 6; j++)
-        {
-            if (mac_lib[i][j] != mac[j])
-            {
-                flag = false;
-                break;
-            }
-        }
-        if (flag == true)
-            return i;
-    }
-    uint8_t dest = mac_count % MAX_MAC_ADDRESSES;
-    for (uint8_t j = 0; j < 6; j++)
-        mac_lib[dest][j] = mac[j];
-    mac_count++;
-    return dest;
-}
+static std::list<BleFingerprint *> fingerprints;
 
 BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
-    int pos = mac_pos(advertisedDevice->getAddress().getNative());
-    //Serial.printf("%d\n", pos);
+    auto mac = advertisedDevice->getAddress();
 
-    BleFingerprint *f = fingerprints[pos];
-    if (f)
-        return f;
+    auto is_even = [mac](BleFingerprint *f) { return f->getAddress() == mac; };
 
-    return fingerprints[pos] = new BleFingerprint(advertisedDevice, MAX_DISTANCE);
+    auto it = std::find_if(fingerprints.begin(), fingerprints.end(), is_even);
+    if (it != fingerprints.end())
+    {
+        return *it;
+    }
+
+    if (fingerprints.size() > MAX_MAC_ADDRESSES)
+    {
+        delete fingerprints.back();
+        fingerprints.pop_back();
+    }
+
+    auto created = new BleFingerprint(advertisedDevice, MAX_DISTANCE);
+    fingerprints.push_front(created);
+    return created;
 }
 
 /**

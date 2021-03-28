@@ -21,8 +21,10 @@ public:
     void setCalRssi(int rssi);
 
     StaticJsonDocument<500> getJson();
+    NimBLEAddress getAddress() { return address; }
 
 private:
+    NimBLEAddress address;
     String id, name;
     int rssi, calRssi;
     float raw;

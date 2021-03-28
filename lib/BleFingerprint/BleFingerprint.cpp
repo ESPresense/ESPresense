@@ -46,20 +46,21 @@ StaticJsonDocument<500> BleFingerprint::getJson()
 {
     return doc;
 }
+#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
-    String mac_address = advertisedDevice->getAddress().toString().c_str();
-    mac_address.replace(":", "");
-    mac_address.toLowerCase();
+    address = advertisedDevice->getAddress();
+
+    auto nativeAddress = address.getNative();
+    String mac_address = Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
 
     Serial.print("MAC: ");
     Serial.print(mac_address);
+    doc["mac"] = mac_address;
 
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
-
-    doc["mac"] = mac_address;
 
     std::string strServiceData = advertisedDevice->getServiceData();
     uint8_t cServiceData[100];
