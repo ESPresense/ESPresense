@@ -18,9 +18,9 @@ public:
     void seen(BLEAdvertisedDevice *advertisedDevice);
     void report(BLEAdvertisedDevice *advertisedDevice);
 
-    void setCalRssi(int rssi);
+    void setCalRssi(int rssi) { calRssi = rssi; }
 
-    StaticJsonDocument<500> getJson();
+    StaticJsonDocument<500> getJson() { return doc; }
     NimBLEAddress getAddress() { return address; }
 
 private:

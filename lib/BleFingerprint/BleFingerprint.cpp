@@ -1,11 +1,9 @@
 #include "BleFingerprint.h"
 
-#define DT_COVARIANCE_RK 2
-#define DT_COVARIANCE_QK 0.1
-
 static const uint16_t beaconUUID = 0xFEAA;
 static const uint16_t tileUUID = 0xFEED;
 static const uint16_t exposureUUID = 0xFD6F;
+
 #ifdef TX_DEFAULT
 static const int defaultTxPower = TX_DEFAULT;
 #else
@@ -13,6 +11,7 @@ static const int defaultTxPower = -59;
 #endif
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
+#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
 
 static String getProximityUUIDString(BLEBeacon beacon)
 {
@@ -36,17 +35,6 @@ static String getProximityUUIDString(BLEBeacon beacon)
 
     return returnedString;
 }
-
-void BleFingerprint::setCalRssi(int rssi)
-{
-    calRssi = rssi;
-}
-
-StaticJsonDocument<500> BleFingerprint::getJson()
-{
-    return doc;
-}
-#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
@@ -205,7 +193,7 @@ void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
     //Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
     //Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
     //Serial.println();
-    if (id == nullptr && name == nullptr)
+    if (id == nullptr && name == nullptr && output.value.position > 0)
         return;
 
     if (id != nullptr)
@@ -216,4 +204,5 @@ void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
     doc["rssi"] = rssi;
     doc["raw"] = round(raw * 100.0f) / 100.0f;
     doc["distance"] = round(output.value.position * 100.0f) / 100.0f;
+    doc["speed"] = round(output.value.speed * 100.0f) / 100.0f;
 }
