@@ -55,7 +55,7 @@ extern "C"
 #endif
 
 #define MAX_MAC_ADDRESSES 50
-#define CHECK_FOR_UPDATES_MILI 100000
+#define CHECK_FOR_UPDATES_INTERVAL 5 * 60
 
 WiFiClient espClient;
 AsyncMqttClient mqttClient;
@@ -439,23 +439,21 @@ void setClock()
     log_i(F("NTP synced, current time: %s"), asctime(&timeinfo));
 }
 
-void firmwareUpdate(void)
+void firmwareUpdate()
 {
 #ifdef VERSION
     static long lastFirmwareCheck;
-    if (millis() - lastFirmwareCheck < CHECK_FOR_UPDATES_MILI)
+    long uptime = CalculateUptimeSeconds();
+    if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
         return;
 
-    lastFirmwareCheck = millis();
+    lastFirmwareCheck = uptime;
 
+    HTTPClient http;
     WiFiClientSecure client;
     client.setInsecure();
 
-    httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
-    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     String firmwareUrl = Sprintf("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/%s.bin", FIRMWARE);
-
-    HTTPClient http;
     if (!http.begin(client, firmwareUrl))
         return;
 
@@ -470,20 +468,22 @@ void firmwareUpdate(void)
     Serial.printf("Updating from %s\n", firmwareUrl.c_str());
     mqttClient.disconnect(true);
 
+    httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
+    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
-        Serial.printf("HTTP_UPDATE_FAILD Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        log_e("Http Update Failed (Error=%d): %s", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
         break;
 
     case HTTP_UPDATE_NO_UPDATES:
-        Serial.println("HTTP_UPDATE_NO_UPDATES");
+        log_i("No Update!");
         break;
 
     case HTTP_UPDATE_OK:
-        Serial.println("HTTP_UPDATE_OK");
+        log_w("Update OK!");
         break;
     }
 
