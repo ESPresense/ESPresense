@@ -38,16 +38,19 @@ static String getProximityUUIDString(BLEBeacon beacon)
     return returnedString;
 }
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
+BleFingerprint::~BleFingerprint()
+{
+    Serial.printf("Del   | MAC: %s, ID: %s\n", SMacf(address).c_str(), id.c_str());
+}
+
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
     firstSeen = time(nullptr);
     address = advertisedDevice->getAddress();
 
-    auto nativeAddress = address.getNative();
-    String mac_address = Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
+    String mac_address = SMacf(address);
 
-    Serial.print("New   | MAC: ");
-    Serial.print(mac_address);
+    Serial.printf("New   | MAC: %s", mac_address.c_str());
 
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
@@ -60,13 +63,13 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
     {
         id = "tile:" + mac_address;
         Serial.printf(", ID: %s", id.c_str());
-        setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+        calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
     }
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
     { // found covid exposure tracker
         id = "exp:" + String(strServiceData.length());
         Serial.printf(", ID: %s", id.c_str());
-        setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+        calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
 
         //char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
         //doc["tek"] = String(sdHex).substring(4, 20);
@@ -75,16 +78,15 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
     else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
     { // found Eddystone UUID
         Serial.print(", Eddystone");
-        // Update distance v ariable for Eddystone BLE devices
         if (cServiceData[0] == 0x10)
         {
             BLEEddystoneURL oBeacon = BLEEddystoneURL();
             oBeacon.setData(strServiceData);
             // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
-            // Serial.printf(oBeacon.getDecodedURL().c_str());
+            url = String(oBeacon.getDecodedURL().c_str());
             Serial.print(" URL: ");
-            Serial.print(oBeacon.getDecodedURL().c_str());
-            setCalRssi(oBeacon.getPower());
+            Serial.print(url.c_str());
+            calRssi = oBeacon.getPower();
         }
         else if (cServiceData[0] == 0x20)
         {
@@ -126,7 +128,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
 
                     id = "iBeacon:" + proximityUUID + "-" + String(major) + "-" + String(minor);
                     Serial.printf(", ID: %s", id.c_str());
-                    setCalRssi(oBeacon.getSignalPower());
+                    calRssi = oBeacon.getSignalPower();
                 }
                 else
                 {
@@ -137,7 +139,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
                     id = fingerprint;
                     Serial.printf(", ID: %s", id.c_str());
 
-                    setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+                    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
                 }
             }
             else
@@ -151,13 +153,13 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
                     Serial.printf(", ID: %s", id.c_str());
                 }
 
-                setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+                calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
             }
             free(mdHex);
         }
         else
         {
-            setCalRssi(advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
+            calRssi = (advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
         }
     }
     Serial.println();
@@ -172,9 +174,12 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
         calRssi = defaultTxPower;
 
     float ratio = (calRssi - rssi) / 35.0f;
-    float distFl = pow(10, ratio);
-    raw = distFl;
+    raw = pow(10, ratio);
+    setDistance(raw);
+}
 
+void BleFingerprint::setDistance(float distFl)
+{
     Reading<float> inter1, inter2;
 
     if (tsFilter.push(&distFl, &inter1))
@@ -186,7 +191,12 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     }
 }
 
-bool BleFingerprint::shouldReport()
+float BleFingerprint::getDistance()
+{
+    return output.value.position;
+}
+
+bool BleFingerprint::report(JsonDocument *doc)
 {
     if (id == nullptr && name == nullptr)
         return false;
@@ -194,40 +204,36 @@ bool BleFingerprint::shouldReport()
     if (!hasValue)
         return false;
 
-    return true;
-}
-
-StaticJsonDocument<512> BleFingerprint::report()
-{
-    StaticJsonDocument<512> doc;
+    String mac = SMacf(address);
     if (output.value.position < 0.5)
     {
         if (!enroll)
         {
-            Serial.printf("Enter | %-50s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+            Serial.printf("Enter | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
             enroll = true;
         }
     }
     else if (enroll && output.value.position > 1.5)
     {
-        Serial.printf("Left  | %-50s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+        Serial.printf("Left  | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
         enroll = false;
     }
 
     if (id != nullptr)
-        doc[F("id")] = id;
+        (*doc)[F("id")] = id;
     if (name != nullptr)
-        doc[F("name")] = name;
+        (*doc)[F("name")] = name;
 
-    doc[F("rssi@1m")] = calRssi;
-    doc[F("rssi")] = rssi;
+    (*doc)[F("rssi@1m")] = calRssi;
+    (*doc)[F("rssi")] = rssi;
 
-    doc[F("mac")] = SMacf(address);
-    doc[F("raw")] = round(raw * 100.0f) / 100.0f;
-    doc[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-    doc[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+    (*doc)[F("mac")] = mac;
+    (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
+    (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
+    (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
 
-    doc[F("first")] = SDateTimef(firstSeen);
-    doc[F("last")] = SDateTimef(lastSeen);
-    return doc;
+    (*doc)[F("first")] = SDateTimef(firstSeen);
+    (*doc)[F("last")] = SDateTimef(lastSeen);
+
+    return true;
 }

@@ -13,15 +13,19 @@ class BleFingerprint
 {
 
 public:
-    BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance);
+    BleFingerprint(BLEAdvertisedDevice *advertisedDevice);
+    ~BleFingerprint();
 
     void seen(BLEAdvertisedDevice *advertisedDevice);
-    bool shouldReport();
-    StaticJsonDocument<512> report();
+    bool report(JsonDocument *doc);
 
-    void setCalRssi(int rssi) { calRssi = rssi; }
+    String getId() { return id; }
+
+    float getDistance();
+    void setDistance(float distFl);
 
     NimBLEAddress getAddress() { return address; }
+    void setAddress(NimBLEAddress newAddr) { address = newAddr; }
 
 private:
     bool hasValue = false, enroll = false;

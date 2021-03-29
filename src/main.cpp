@@ -79,21 +79,26 @@ BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
     auto mac = advertisedDevice->getAddress();
 
-    auto is_even = [mac](BleFingerprint *f) { return f->getAddress() == mac; };
-
-    auto it = std::find_if(fingerprints.begin(), fingerprints.end(), is_even);
+    auto it = std::find_if(fingerprints.begin(), fingerprints.end(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.end())
     {
         return *it;
     }
 
-    if (fingerprints.size() > MAX_MAC_ADDRESSES)
+    if (fingerprints.size() >= MAX_MAC_ADDRESSES)
     {
         delete fingerprints.back();
         fingerprints.pop_back();
     }
 
-    auto created = new BleFingerprint(advertisedDevice, MAX_DISTANCE);
+    auto created = new BleFingerprint(advertisedDevice);
+    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
+    if (it2 != fingerprints.end())
+    {
+        auto found = *it2;
+        created->setDistance(found->getDistance());
+    }
+
     fingerprints.push_front(created);
     return created;
 }
@@ -257,7 +262,6 @@ void reconnect(TimerHandle_t xTimer)
     {
         retryAttempts++;
     }
-
     if (!WiFi.isConnected())
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
@@ -292,11 +296,11 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 bool reportDevice(BLEAdvertisedDevice advertisedDevice)
 {
     BleFingerprint *f = getFingerprint(&advertisedDevice);
+    StaticJsonDocument<512> doc;
 
-    if (!f->shouldReport())
+    if (!f->report(&doc))
         return false;
 
-    auto doc = f->report();
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
     String id = doc["id"];
@@ -439,7 +443,7 @@ void firmwareUpdate(void)
 {
 #ifdef VERSION
     static long lastFirmwareCheck;
-    if (millis() - lastFirmwareCheck < CHECK_FOR_UPDATES_MILI || WiFi.status() != WL_CONNECTED)
+    if (millis() - lastFirmwareCheck < CHECK_FOR_UPDATES_MILI)
         return;
 
     lastFirmwareCheck = millis();
