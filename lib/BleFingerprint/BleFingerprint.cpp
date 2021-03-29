@@ -12,6 +12,8 @@ static const int defaultTxPower = -59;
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
+#define SDateTimef(f) ({ struct tm firstSeenTm; gmtime_r(&f, &firstSeenTm); Sprintf("%d/%d/%d %d:%.2d:%.2d", firstSeenTm.tm_mon, firstSeenTm.tm_mday, 1900 + firstSeenTm.tm_year, firstSeenTm.tm_hour, firstSeenTm.tm_min, firstSeenTm.tm_sec); })
+#define SMacf(f) ({ auto nativeAddress = f.getNative(); Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); })
 
 static String getProximityUUIDString(BLEBeacon beacon)
 {
@@ -38,6 +40,7 @@ static String getProximityUUIDString(BLEBeacon beacon)
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float initalDistance)
 {
+    firstSeen = time(nullptr);
     address = advertisedDevice->getAddress();
 
     auto nativeAddress = address.getNative();
@@ -45,7 +48,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
 
     Serial.print("MAC: ");
     Serial.print(mac_address);
-    doc["mac"] = mac_address;
 
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
@@ -80,7 +82,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
             oBeacon.setData(strServiceData);
             // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
             // Serial.printf(oBeacon.getDecodedURL().c_str());
-            doc["url"] = oBeacon.getDecodedURL().c_str();
             Serial.print(" URL: ");
             Serial.print(oBeacon.getDecodedURL().c_str());
             setCalRssi(oBeacon.getPower());
@@ -101,7 +102,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
             {
                 std::string sid = advertisedDevice->getServiceUUID(i).toString();
                 Serial.printf(", sID: %s", sid.c_str());
-                doc["sid" + String(i)] = sid;
             }
         }
         if (advertisedDevice->haveManufacturerData() == true)
@@ -165,6 +165,8 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
 
 void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
+    lastSeen = time(nullptr);
+
     rssi = advertisedDevice->getRSSI();
     if (!calRssi)
         calRssi = defaultTxPower;
@@ -180,29 +182,43 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
         inter2.timestamp = inter1.timestamp;
         inter2.value = oneEuro(inter1.value);
         if (diffFilter.push(&inter2, &output))
-            ;
+            hasValue = true;
     }
-
-    //if (id == "2c96d71f47569faddd487c93cc9dac2e-0-0")
-    //Serial.printf("%-36s %d %5.1f %5.1f %5.1f %5.1f\n", id.c_str(), inter2.timestamp, distFl, inter2.value, output.value.speed * 1e6, output.value.acceleration * 1e12);
 }
 
-void BleFingerprint::report(BLEAdvertisedDevice *advertisedDevice)
+bool BleFingerprint::shouldReport()
 {
-    //Serial.printf("%s", id.c_str());
-    //Serial.printf(", RSSI: %d (@1m %d)", rssi, calRssi);
-    //Serial.printf(", Dist: %.1f (orig %.1f)", distance, original);
-    //Serial.println();
-    if (id == nullptr && name == nullptr && output.value.position > 0)
-        return;
+    if (id == nullptr && name == nullptr)
+        return false;
+
+    if (!hasValue)
+        return false;
+
+    return true;
+}
+
+StaticJsonDocument<512> BleFingerprint::report()
+{
+    StaticJsonDocument<512> doc;
+#if VERBOSE
+    //   if (id == "iBeacon:2c96d71f47569faddd487c93cc9dac2e-0-0")
+    //     Serial.printf("%-36s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+#endif
 
     if (id != nullptr)
-        doc["id"] = id;
+        doc[F("id")] = id;
     if (name != nullptr)
-        doc["name"] = name;
-    doc["rssi@1m"] = calRssi;
-    doc["rssi"] = rssi;
-    doc["raw"] = round(raw * 100.0f) / 100.0f;
-    doc["distance"] = round(output.value.position * 100.0f) / 100.0f;
-    doc["speed"] = round(output.value.speed * 100.0f) / 100.0f;
+        doc[F("name")] = name;
+
+    doc[F("rssi@1m")] = calRssi;
+    doc[F("rssi")] = rssi;
+
+    doc[F("mac")] = SMacf(address);
+    doc[F("raw")] = round(raw * 100.0f) / 100.0f;
+    doc[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
+    doc[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+
+    doc[F("first")] = SDateTimef(firstSeen);
+    doc[F("last")] = SDateTimef(lastSeen);
+    return doc;
 }

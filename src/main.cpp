@@ -295,8 +295,10 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
 {
     BleFingerprint *f = getFingerprint(&advertisedDevice);
 
-    f->report(&advertisedDevice);
-    StaticJsonDocument<500> doc = f->getJson();
+    if (!f->shouldReport())
+        return false;
+
+    auto doc = f->report();
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
     String id = doc["id"];
@@ -310,7 +312,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
             if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) && mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer))
             {
 #if VERBOSE
-                Serial.println(JSONmessageBuffer);
+//                Serial.println(JSONmessageBuffer);
 #endif
                 return true;
             }
