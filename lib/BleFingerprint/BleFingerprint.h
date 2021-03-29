@@ -24,7 +24,7 @@ public:
     NimBLEAddress getAddress() { return address; }
 
 private:
-    bool hasValue;
+    bool hasValue = false, enroll = false;
     NimBLEAddress address;
     String id, name, url;
     int rssi, calRssi;

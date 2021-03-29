@@ -46,7 +46,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float init
     auto nativeAddress = address.getNative();
     String mac_address = Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
 
-    Serial.print("MAC: ");
+    Serial.print("New   | MAC: ");
     Serial.print(mac_address);
 
     if (advertisedDevice->haveName())
@@ -200,10 +200,19 @@ bool BleFingerprint::shouldReport()
 StaticJsonDocument<512> BleFingerprint::report()
 {
     StaticJsonDocument<512> doc;
-#if VERBOSE
-    //   if (id == "iBeacon:2c96d71f47569faddd487c93cc9dac2e-0-0")
-    //     Serial.printf("%-36s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
-#endif
+    if (output.value.position < 0.5)
+    {
+        if (!enroll)
+        {
+            Serial.printf("Enter | %-50s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+            enroll = true;
+        }
+    }
+    else if (enroll && output.value.position > 1.5)
+    {
+        Serial.printf("Left  | %-50s %lu %5.1f %5.1f %5.1f\n", id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+        enroll = false;
+    }
 
     if (id != nullptr)
         doc[F("id")] = id;

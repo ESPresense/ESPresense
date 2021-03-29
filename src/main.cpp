@@ -283,10 +283,8 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
         digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
-        //Serial.printf("Advertised Device: %s \n", advertisedDevice->toString().c_str());
         BleFingerprint *f = getFingerprint(advertisedDevice);
         f->seen(advertisedDevice);
-        vTaskDelay(advertisedDevice->getRSSI() > -60 ? 2 : 1);
         digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
     }
 };
@@ -336,6 +334,13 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
 
 void scanForDevices(void *parameter)
 {
+    BLEDevice::init("");
+    pBLEScan = BLEDevice::getScan(); //create new scan
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
+    pBLEScan->setWindow(BLE_SCAN_WINDOW);
+
     int i = 0;
     while (1)
     {
@@ -534,14 +539,6 @@ void setup()
     connectToWifi();
     setClock();
     connectToMqtt();
-
-    BLEDevice::init("");
-    pBLEScan = BLEDevice::getScan(); //create new scan
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
-    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
-    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
-    pBLEScan->setWindow(BLE_SCAN_WINDOW);
-
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, pBLEScan, 1, &thBLEScan, 1);
 
 #ifdef M5STICK
