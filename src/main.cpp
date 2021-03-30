@@ -116,8 +116,6 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     tele["room"] = room;
     tele["ip"] = localIp;
     tele["hostname"] = WiFi.getHostname();
-    tele["scan_dur"] = BLE_SCAN_DURATION;
-    tele["max_dist"] = MAX_DISTANCE;
     tele["uptime"] = getUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
 
