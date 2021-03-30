@@ -40,7 +40,7 @@ static String getProximityUUIDString(BLEBeacon beacon)
 
 BleFingerprint::~BleFingerprint()
 {
-    Serial.printf("Del   | MAC: %s, ID: %s\n", SMacf(address).c_str(), id.c_str());
+    Serial.printf("%d Del   | MAC: %s, ID: %s\n", xPortGetCoreID(), SMacf(address).c_str(), id.c_str());
 }
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
@@ -50,7 +50,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
 
     String mac_address = SMacf(address);
 
-    Serial.printf("New   | MAC: %s", mac_address.c_str());
+    Serial.printf("%d New   | MAC: %s", xPortGetCoreID(), mac_address.c_str());
 
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
@@ -209,13 +209,13 @@ bool BleFingerprint::report(JsonDocument *doc)
     {
         if (!enroll)
         {
-            Serial.printf("Enter | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+            Serial.printf("%d Enter | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", xPortGetCoreID(), mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
             enroll = true;
         }
     }
     else if (enroll && output.value.position > 1.5)
     {
-        Serial.printf("Left  | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
+        Serial.printf("%d Left  | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", xPortGetCoreID(), mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
         enroll = false;
     }
 

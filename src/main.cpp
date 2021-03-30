@@ -42,6 +42,8 @@ extern "C"
 #include "NimBLEEddystoneTLM.h"
 #include "NimBLEBeacon.h"
 
+#include <set>
+
 #include "Settings.h"
 
 #include "BleFingerprint.h"
@@ -55,16 +57,16 @@ extern "C"
 #endif
 
 #define MAX_MAC_ADDRESSES 50
-#define CHECK_FOR_UPDATES_INTERVAL 5 * 60
+#define CHECK_FOR_UPDATES_INTERVAL 300
 
-WiFiClient espClient;
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
+TaskHandle_t scannerTask;
+
 bool updateInProgress = false;
 String localIp;
-byte retryAttempts = 0;
-BLEScan *pBLEScan;
-TaskHandle_t thBLEScan;
+int retryAttempts = 0;
+int sendFailures = 0;
 
 String mqttHost;
 int mqttPort;
@@ -137,9 +139,9 @@ unsigned long CalculateUptimeSeconds(void)
     return (0xFFFFFFFF / 1000) * _rolloverCount + (_lastMillis / 1000);
 }
 
-bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
+bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
-    StaticJsonDocument<256> tele;
+    StaticJsonDocument<512> tele;
     tele["room"] = room;
     tele["ip"] = localIp;
     tele["hostname"] = WiFi.getHostname();
@@ -148,21 +150,25 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     tele["uptime"] = CalculateUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
 
-    tele["free_heap"] = ESP.getFreeHeap();
-    tele["min_free_heap"] = ESP.getMinFreeHeap();
-    tele["heap_size"] = ESP.getHeapSize();
-    tele["max_alloc_heap"] = ESP.getMaxAllocHeap();
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
 
-    if (deviceCount > -1)
-        tele["disc_ct"] = deviceCount;
+    if (totalSeen > 0)
+        tele["seen"] = totalSeen;
+    if (totalReported > 0)
+        tele["reported"] = totalReported;
+    if (totalAdverts > 0)
+        tele["adverts"] = totalAdverts;
+    if (sendFailures > 0)
+        tele["sendFails"] = sendFailures;
 
-    if (reportCount > -1)
-        tele["rept_ct"] = reportCount;
+    tele["free_heap"] = ESP.getFreeHeap();
+    tele["min_free_heap"] = ESP.getMinFreeHeap();
+    tele["heap_size"] = ESP.getHeapSize();
+    tele["max_alloc_heap"] = ESP.getMaxAllocHeap();
 
-    char teleMessageBuffer[258];
+    char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
 
     if (mqttClient.publish((TELEMETRY_TOPIC).c_str(), 0, 0, teleMessageBuffer) == true)
@@ -171,6 +177,7 @@ bool sendTelemetry(int deviceCount = -1, int reportCount = -1)
     }
     else
     {
+        sendFailures++;
         log_e("Error sending telemetry");
         return false;
     }
@@ -284,18 +291,27 @@ void connectToMqtt()
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
+public:
+    int getTotalAdverts() { return totalSeen; }
+    std::set<BleFingerprint *> getSeen() { return seen; }
+
+private:
+    int totalSeen = 0;
+    std::set<BleFingerprint *> seen;
+
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
+        totalSeen++;
         digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
         BleFingerprint *f = getFingerprint(advertisedDevice);
         f->seen(advertisedDevice);
+        seen.insert(f);
         digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
     }
 };
 
-bool reportDevice(BLEAdvertisedDevice advertisedDevice)
+bool reportDevice(BleFingerprint *f)
 {
-    BleFingerprint *f = getFingerprint(&advertisedDevice);
     StaticJsonDocument<512> doc;
 
     if (!f->report(&doc))
@@ -320,6 +336,7 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
             }
             else
             {
+                sendFailures++;
                 Serial.print("Error sending message: ");
                 Serial.println(publishTopic);
                 Serial.print("Message: ");
@@ -338,49 +355,37 @@ bool reportDevice(BLEAdvertisedDevice advertisedDevice)
 
 void scanForDevices(void *parameter)
 {
+    auto scan = MyAdvertisedDeviceCallbacks();
     BLEDevice::init("");
-    pBLEScan = BLEDevice::getScan(); //create new scan
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
-    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
+    pBLEScan->setAdvertisedDeviceCallbacks(&scan, true);
+    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    pBLEScan->setMaxResults(0);
+    if (!pBLEScan->start(0, nullptr, false))
+        log_e("Error starting continuous ble scan");
 
-    int i = 0;
     while (1)
     {
-        delay(0);
-        if (updateInProgress)
+        delay(1000);
+
+        if (updateInProgress || !mqttClient.connected())
             continue;
 
-        if (mqttClient.connected())
+        auto results = scan;
+        pBLEScan->setAdvertisedDeviceCallbacks(&(scan = MyAdvertisedDeviceCallbacks()), true);
+
+        int totalSeen = 0;
+        int totalReported = 0;
+        auto seen = results.getSeen();
+        for (auto it = seen.begin(); it != seen.end(); ++it)
         {
-            pBLEScan->setActiveScan(i++ % 10 == 0 ? BLE_ACTIVE_SCAN : false);
-            pBLEScan->clearResults();
-            BLEScanResults foundDevices = pBLEScan->start(BLE_SCAN_DURATION);
-            int devicesCount = foundDevices.getCount();
-
-#ifdef M5STICK
-            M5.Lcd.setCursor(0, 0);
-            M5.Lcd.fillScreen(TFT_BLACK);
-
-#endif
-
-            int devicesReported = 0;
-            for (uint32_t j = 0; j < devicesCount; j++)
-            {
-                bool included = reportDevice(foundDevices.getDevice(j));
-                if (included)
-                {
-                    devicesReported++;
-                }
-            }
-            sendTelemetry(devicesCount, devicesReported);
+            totalSeen++;
+            if (reportDevice(*it))
+                totalReported++;
         }
-        else
-        {
-            log_e("Cannot report; mqtt disconnected");
-            delay(1000);
-        }
+        sendTelemetry(totalSeen, totalReported, results.getTotalAdverts());
     }
 }
 
@@ -389,7 +394,6 @@ void configureOTA()
     ArduinoOTA
         .onStart([]() {
             Serial.println("OTA Start");
-            pBLEScan->stop();
             updateInProgress = true;
             mqttClient.disconnect(true);
         })
@@ -442,7 +446,7 @@ void setClock()
 void firmwareUpdate()
 {
 #ifdef VERSION
-    static long lastFirmwareCheck;
+    static long lastFirmwareCheck = 0;
     long uptime = CalculateUptimeSeconds();
     if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
         return;
@@ -543,7 +547,7 @@ void setup()
     connectToWifi();
     setClock();
     connectToMqtt();
-    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, pBLEScan, 1, &thBLEScan, 1);
+    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, nullptr, 1, &scannerTask, 1);
 
 #ifdef M5STICK
     M5.begin();
