@@ -78,3 +78,8 @@
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define MAX_DISTANCE 16
 
+// Max number of mac addresses to keep track of
+#define MAX_MAC_ADDRESSES 50
+
+// Number of seconds between update checks
+#define CHECK_FOR_UPDATES_INTERVAL 300

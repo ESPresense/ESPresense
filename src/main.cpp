@@ -1,81 +1,4 @@
-/*
-     ESP32 Bluetooth Low Energy presence detection, for use with MQTT.
-
-     Project and documentation are available on GitHub at https://jptrsn.github.io/ESP32-mqtt-room/
-
-     Some giants upon whose shoulders the project stands -- major thanks to:
-
-     pcbreflux for the original version of this code, as well as the eddystone handlers https://github.com/pcbreflux
-
-     Andreis Speiss for his work on YouTube and his invaluable github at https://github.com/sensorsiot.
-
-     Sidddy for the implementation of Mi Flora plant sensor support. https://github.com/sidddy/flora
-
-     Based on Neil Kolban example for IDF: https://github.com/nkolban/esp32-snippets/blob/master/cpp_utils/tests/BLE%20Tests/SampleScan.cpp
-     Ported to Arduino ESP32 by Evandro Copercini
-*/
-#include <WiFi.h>
-extern "C"
-{
-#include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
-}
-#include "soc/timer_group_struct.h"
-#include "soc/timer_group_reg.h"
-
-#include <AsyncTCP.h>
-
-#include <AsyncMqttClient.h>
-#include <ArduinoJson.h>
-#include <ArduinoOTA.h>
-#include <HTTPUpdate.h>
-#include <HTTPClient.h>
-#include <WiFiClientSecure.h>
-
-#include <WebServer.h>
-#include <WiFiSettings.h>
-#include <SPIFFS.h>
-
-#include <NimBLEDevice.h>
-#include <NimBLEAdvertisedDevice.h>
-#include "NimBLEEddystoneURL.h"
-#include "NimBLEEddystoneTLM.h"
-#include "NimBLEBeacon.h"
-
-#include <set>
-
-#include "Settings.h"
-
-#include "BleFingerprint.h"
-
-#ifdef M5STICK
-#ifdef PLUS
-#include <M5StickCPlus.h>
-#else
-#include <M5StickC.h>
-#endif
-#endif
-
-#define MAX_MAC_ADDRESSES 50
-#define CHECK_FOR_UPDATES_INTERVAL 300
-
-AsyncMqttClient mqttClient;
-TimerHandle_t reconnectTimer;
-TaskHandle_t scannerTask;
-
-bool updateInProgress = false;
-String localIp;
-int retryAttempts = 0;
-int sendFailures = 0;
-
-String mqttHost;
-int mqttPort;
-String mqttUser;
-String mqttPass;
-String availabilityTopic;
-String room;
-
-static std::list<BleFingerprint *> fingerprints;
+#include <main.h>
 
 BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
@@ -105,11 +28,6 @@ BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
     return created;
 }
 
-unsigned long getUptimeSeconds(void)
-{
-    return esp_timer_get_time() / 1e6;
-}
-
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
     StaticJsonDocument<512> tele;
@@ -131,10 +49,13 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     if (sendFailures > 0)
         tele["sendFails"] = sendFailures;
 
-    tele["free_heap"] = ESP.getFreeHeap();
-    tele["min_free_heap"] = ESP.getMinFreeHeap();
-    tele["heap_size"] = ESP.getHeapSize();
-    tele["max_alloc_heap"] = ESP.getMaxAllocHeap();
+    tele["resetCore0"] = resetReason(rtc_get_reset_reason(0));
+    tele["resetCore1"] = resetReason(rtc_get_reset_reason(1));
+
+    tele["freeHeap"] = ESP.getFreeHeap();
+    tele["minFreeHeap"] = ESP.getMinFreeHeap();
+    tele["heapSize"] = ESP.getHeapSize();
+    tele["maxAllocHeap"] = ESP.getMaxAllocHeap();
 
     char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
@@ -355,113 +276,6 @@ void scanForDevices(void *parameter)
         }
         sendTelemetry(totalSeen, totalReported, results.getTotalAdverts());
     }
-}
-
-void configureOTA()
-{
-    ArduinoOTA
-        .onStart([]() {
-            Serial.println("OTA Start");
-            updateInProgress = true;
-            mqttClient.disconnect(true);
-        })
-        .onEnd([]() {
-            updateInProgress = false;
-            digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
-            Serial.println("\n\rEnd");
-        })
-        .onProgress([](unsigned int progress, unsigned int total) {
-            byte percent = (progress / (total / 100));
-            Serial.printf("Progress: %u\r\n", percent);
-            digitalWrite(LED_BUILTIN, percent % 2);
-        })
-        .onError([](ota_error_t error) {
-            Serial.printf("Error[%u]: ", error);
-            if (error == OTA_AUTH_ERROR)
-                Serial.println("Auth Failed");
-            else if (error == OTA_BEGIN_ERROR)
-                Serial.println("Begin Failed");
-            else if (error == OTA_CONNECT_ERROR)
-                Serial.println("Connect Failed");
-            else if (error == OTA_RECEIVE_ERROR)
-                Serial.println("Receive Failed");
-            else if (error == OTA_END_ERROR)
-                Serial.println("End Failed");
-            ESP.restart();
-        });
-    ArduinoOTA.setHostname(WiFi.getHostname());
-    ArduinoOTA.setPort(3232);
-    ArduinoOTA.begin();
-}
-
-void setClock()
-{
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov"); // UTC
-
-    time_t now = time(nullptr);
-    while (now < 8 * 3600 * 2)
-    {
-        yield();
-        delay(500);
-        now = time(nullptr);
-    }
-
-    struct tm timeinfo;
-    gmtime_r(&now, &timeinfo);
-    log_i(F("NTP synced, current time: %s"), asctime(&timeinfo));
-}
-
-void firmwareUpdate()
-{
-#ifdef VERSION
-    static long lastFirmwareCheck = 0;
-    long uptime = getUptimeSeconds();
-    if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
-        return;
-
-    lastFirmwareCheck = uptime;
-
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure();
-
-    String firmwareUrl = Sprintf("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/%s.bin", FIRMWARE);
-    if (!http.begin(client, firmwareUrl))
-        return;
-
-    int httpCode = http.sendRequest("HEAD");
-    if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(String(VERSION)) > 0)
-    {
-        Serial.printf("Not updating from: %s\n", http.getLocation().c_str());
-        http.end();
-        return;
-    }
-
-    updateInProgress = true;
-    Serial.printf("Updating from: %s\n", firmwareUrl.c_str());
-    mqttClient.disconnect(true);
-
-    httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
-    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
-
-    switch (ret)
-    {
-    case HTTP_UPDATE_FAILED:
-        log_e("Http Update Failed (Error=%d): %s", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-        break;
-
-    case HTTP_UPDATE_NO_UPDATES:
-        log_i("No Update!");
-        break;
-
-    case HTTP_UPDATE_OK:
-        log_w("Update OK!");
-        break;
-    }
-
-    updateInProgress = false;
-#endif
 }
 
 void spiffsInit()
