@@ -1,4 +1,3 @@
-Settings_local.h
 .pioenvs
 .piolibdeps
 .clang_complete
@@ -9,3 +8,5 @@ include/
 Settings_*.h
 .pio/*
 .vscode/*
+espota.py
+upload_all.sh
