@@ -113,7 +113,6 @@ unsigned long getUptimeSeconds(void)
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
     StaticJsonDocument<512> tele;
-    tele["room"] = room;
     tele["ip"] = localIp;
     tele["hostname"] = WiFi.getHostname();
     tele["uptime"] = getUptimeSeconds();
@@ -431,14 +430,15 @@ void firmwareUpdate()
         return;
 
     int httpCode = http.sendRequest("HEAD");
-    if (httpCode != 302 || http.getLocation().indexOf(String(VERSION)) > 0)
+    if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(String(VERSION)) > 0)
     {
+        Serial.printf("Not updating from: %s\n", http.getLocation().c_str());
         http.end();
         return;
     }
 
     updateInProgress = true;
-    Serial.printf("Updating from %s\n", firmwareUrl.c_str());
+    Serial.printf("Updating from: %s\n", firmwareUrl.c_str());
     mqttClient.disconnect(true);
 
     httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
