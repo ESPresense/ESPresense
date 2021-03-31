@@ -181,13 +181,16 @@ void firmwareUpdate()
     int httpCode = http.sendRequest("HEAD");
     if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(String(VERSION)) > 0)
     {
-        Serial.printf("Not updating from: %s\n", http.getLocation().c_str());
+        Serial.printf("Not updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
         http.end();
         return;
     }
+    else
+    {
+        Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
+    }
 
     updateInProgress = true;
-    Serial.printf("Updating from: %s\n", firmwareUrl.c_str());
     mqttClient.disconnect(true);
 
     httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
