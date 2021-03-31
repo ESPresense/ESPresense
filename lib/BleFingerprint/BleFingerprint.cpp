@@ -196,12 +196,15 @@ float BleFingerprint::getDistance()
     return output.value.position;
 }
 
-bool BleFingerprint::report(JsonDocument *doc)
+bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
 {
     if (id == nullptr && name == nullptr)
         return false;
 
     if (!hasValue)
+        return false;
+
+    if (maxDistance > 0 && output.value.position > maxDistance)
         return false;
 
     String mac = SMacf(address);

@@ -49,7 +49,7 @@ TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
-int retryAttempts = 0;
+int reconnectAttempts = 0;
 int sendFailures = 0;
 
 String mqttHost;
@@ -59,6 +59,7 @@ String mqttPass;
 String availabilityTopic;
 String room;
 
+static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;
 
 String resetReason(RESET_REASON reason)
@@ -152,7 +153,7 @@ void configureOTA()
                 Serial.println("Receive Failed");
             else if (error == OTA_END_ERROR)
                 Serial.println("End Failed");
-            ESP.restart();
+            updateInProgress = false;
         });
     ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPort(3232);

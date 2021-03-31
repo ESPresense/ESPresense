@@ -17,7 +17,7 @@ public:
     ~BleFingerprint();
 
     void seen(BLEAdvertisedDevice *advertisedDevice);
-    bool report(JsonDocument *doc);
+    bool report(JsonDocument *doc, int maxDistance);
 
     String getId() { return id; }
 

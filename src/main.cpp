@@ -1,6 +1,6 @@
 #include <main.h>
 
-BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
+BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
 {
     auto mac = advertisedDevice->getAddress();
 
@@ -28,6 +28,16 @@ BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
     return created;
 }
 
+BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
+{
+    if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
+        log_e("Couldn't take semaphore!");
+    auto f = getFingerprintInternal(advertisedDevice);
+    if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
+        log_e("Couldn't give semaphore!");
+    return f;
+}
+
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
     StaticJsonDocument<512> tele;
@@ -48,6 +58,8 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         tele["adverts"] = totalAdverts;
     if (sendFailures > 0)
         tele["sendFails"] = sendFailures;
+    if (reconnectAttempts > 0)
+        tele["reconnectAttempts"] = reconnectAttempts;
 
     tele["resetCore0"] = resetReason(rtc_get_reset_reason(0));
     tele["resetCore1"] = resetReason(rtc_get_reset_reason(1));
@@ -60,16 +72,16 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
 
-    if (mqttClient.publish((TELEMETRY_TOPIC).c_str(), 0, 0, teleMessageBuffer) == true)
+    for (int i = 0; i < 10; i++)
     {
-        return true;
+        if (mqttClient.publish((TELEMETRY_TOPIC).c_str(), 0, 0, teleMessageBuffer) == true)
+            return true;
+        delay(20);
     }
-    else
-    {
-        sendFailures++;
-        log_e("Error sending telemetry");
-        return false;
-    }
+
+    sendFailures++;
+    log_e("Error sending telemetry");
+    return false;
 }
 
 void connectToWifi()
@@ -121,7 +133,7 @@ void connectToWifi()
 void onMqttConnect(bool sessionPresent)
 {
     Serial.println("Connected to MQTT");
-    retryAttempts = 0;
+    reconnectAttempts = 0;
 
     if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "CONNECTED") == true)
     {
@@ -149,15 +161,12 @@ void reconnect(TimerHandle_t xTimer)
     if (WiFi.isConnected() && mqttClient.connected())
         return;
 
-    if (retryAttempts > 10)
+    if (reconnectAttempts++ > 10)
     {
-        log_e("Too many retries. Restarting");
+        log_e("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
-    else
-    {
-        retryAttempts++;
-    }
+
     if (!WiFi.isConnected())
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
@@ -190,6 +199,8 @@ private:
 
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
+        if (updateInProgress)
+            return;
         totalSeen++;
         digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
         BleFingerprint *f = getFingerprint(advertisedDevice);
@@ -202,48 +213,38 @@ private:
 bool reportDevice(BleFingerprint *f)
 {
     StaticJsonDocument<512> doc;
-
-    if (!f->report(&doc))
+    if (!f->report(&doc, MAX_DISTANCE))
         return false;
 
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
-    String id = doc["id"];
-    String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = CHANNEL + "/" + room + "/" + id;
 
-    if (mqttClient.connected())
+    String publishTopic = CHANNEL + "/" + room;
+    String publishTopic2 = CHANNEL + "/" + room + "/" + f->getId();
+
+    bool p1 = false, p2 = false;
+    for (int i = 0; i < 10; i++)
     {
-        if (MAX_DISTANCE == 0 || doc["distance"] < MAX_DISTANCE)
-        {
-            if (mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer) && mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer))
-            {
-#if VERBOSE
-//                Serial.println(JSONmessageBuffer);
-#endif
-                return true;
-            }
-            else
-            {
-                sendFailures++;
-                Serial.print("Error sending message: ");
-                Serial.println(publishTopic);
-                Serial.print("Message: ");
-                Serial.println(JSONmessageBuffer);
-                return false;
-            }
-        }
-        else
-        {
-            //Serial.printf("%s exceeded distance threshold %.2f\n\r", mac_address.c_str(), distance);
+        if (!mqttClient.connected())
             return false;
-        }
+
+        if (!p1 && mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer))
+            p1 = true;
+
+        if (!p2 && mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer))
+            p2 = true;
+
+        if (p1 && p2)
+            return true;
+        delay(20);
     }
+    sendFailures++;
     return false;
 }
 
 void scanForDevices(void *parameter)
 {
+    fingerprintSemaphore = xSemaphoreCreateBinary();
     auto scan = MyAdvertisedDeviceCallbacks();
     BLEDevice::init("");
     auto pBLEScan = BLEDevice::getScan();

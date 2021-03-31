@@ -72,8 +72,8 @@
 // Define bluetooth scan parameters
 #define BLE_ACTIVE_SCAN false // Active scan uses more power, but get results faster
 
-#define BLE_SCAN_INTERVAL 150 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
-#define BLE_SCAN_WINDOW 150   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
+#define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
+#define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define MAX_DISTANCE 16
