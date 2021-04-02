@@ -12,8 +12,19 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
 
     if (fingerprints.size() >= MAX_MAC_ADDRESSES)
     {
-        delete fingerprints.back();
-        fingerprints.pop_back();
+        long oldestTime = LONG_MAX;
+        BleFingerprint *oldest;
+        for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it)
+        {
+            long time = (*it)->getLastSeen();
+            if (time < oldestTime)
+            {
+                oldestTime = time;
+                oldest = (*it);
+            }
+        }
+        fingerprints.remove(oldest);
+        delete oldest;
     }
 
     auto created = new BleFingerprint(advertisedDevice);

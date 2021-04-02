@@ -25,7 +25,7 @@ public:
     void setDistance(float distFl);
 
     NimBLEAddress getAddress() { return address; }
-    void setAddress(NimBLEAddress newAddr) { address = newAddr; }
+    long getLastSeen() { return lastSeenMicros; };
 
 private:
     bool hasValue = false, enroll = false, reported = false;
