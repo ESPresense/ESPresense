@@ -12,7 +12,7 @@ static const int defaultTxPower = -59;
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
-#define SDateTimef(f) ({ struct tm firstSeenTm; gmtime_r(&f, &firstSeenTm); Sprintf("%d/%d/%d %d:%.2d:%.2d", firstSeenTm.tm_mon, firstSeenTm.tm_mday, 1900 + firstSeenTm.tm_year, firstSeenTm.tm_hour, firstSeenTm.tm_min, firstSeenTm.tm_sec); })
+//define SDateTimef(f) ({ struct tm firstSeenTm; gmtime_r(&f, &firstSeenTm); Sprintf("%d/%d/%d %d:%.2d:%.2d", firstSeenTm.tm_mon, firstSeenTm.tm_mday, 1900 + firstSeenTm.tm_year, firstSeenTm.tm_hour, firstSeenTm.tm_min, firstSeenTm.tm_sec); })
 #define SMacf(f) ({ auto nativeAddress = f.getNative(); Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); })
 
 static String getProximityUUIDString(BLEBeacon beacon)
@@ -45,7 +45,7 @@ BleFingerprint::~BleFingerprint()
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
-    firstSeen = time(nullptr);
+    firstSeenMicros = esp_timer_get_time();
     address = advertisedDevice->getAddress();
 
     String mac_address = SMacf(address);
@@ -167,7 +167,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
-    lastSeen = time(nullptr);
+    lastSeenMicros = esp_timer_get_time();
 
     rssi = advertisedDevice->getRSSI();
     if (!calRssi)
@@ -176,6 +176,7 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     float ratio = (calRssi - rssi) / 35.0f;
     raw = pow(10, ratio);
     setDistance(raw);
+    reported = false;
 }
 
 void BleFingerprint::setDistance(float distFl)
@@ -207,6 +208,18 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     if (maxDistance > 0 && output.value.position > maxDistance)
         return false;
 
+    if (reported)
+        return false;
+
+    auto now = esp_timer_get_time();
+
+    if (abs(output.value.position - lastReported) < 0.05f && abs(now - lastReportedMicros) < 5000000)
+        return false;
+
+    lastReportedMicros = now;
+    lastReported = output.value.position;
+    reported = true;
+
     String mac = SMacf(address);
     if (output.value.position < 0.5)
     {
@@ -234,9 +247,6 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
     (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
-
-    (*doc)[F("first")] = SDateTimef(firstSeen);
-    (*doc)[F("last")] = SDateTimef(lastSeen);
 
     return true;
 }

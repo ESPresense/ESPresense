@@ -28,13 +28,12 @@ public:
     void setAddress(NimBLEAddress newAddr) { address = newAddr; }
 
 private:
-    bool hasValue = false, enroll = false;
+    bool hasValue = false, enroll = false, reported = false;
     NimBLEAddress address;
     String id, name, url;
     int rssi, calRssi;
-    float raw;
-    time_t firstSeen;
-    time_t lastSeen;
+    float raw, lastReported = 0;
+    long firstSeenMicros, lastSeenMicros = 0, lastReportedMicros = 0;
 
     Reading<Differential<float>> output;
 

@@ -58,16 +58,14 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         tele["adverts"] = totalAdverts;
     if (sendFailures > 0)
         tele["sendFails"] = sendFailures;
-    if (reconnectAttempts > 0)
-        tele["reconnectAttempts"] = reconnectAttempts;
-
-    tele["resetCore0"] = resetReason(rtc_get_reset_reason(0));
-    tele["resetCore1"] = resetReason(rtc_get_reset_reason(1));
+    if (reconnectTries > 0)
+        tele["reconnectTries"] = reconnectTries;
 
     tele["freeHeap"] = ESP.getFreeHeap();
     tele["minFreeHeap"] = ESP.getMinFreeHeap();
     tele["heapSize"] = ESP.getHeapSize();
     tele["maxAllocHeap"] = ESP.getMaxAllocHeap();
+    tele["resetReason"] = resetReason(rtc_get_reset_reason(0));
 
     char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
@@ -88,16 +86,15 @@ void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...", WiFi.macAddress().c_str());
 
-    // Set custom callback functions
     WiFiSettings.onSuccess = []() {
-        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON); // Turn LED on
+        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
     };
     WiFiSettings.onFailure = []() {
-        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON); // Turn LED off
+        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
     };
     WiFiSettings.onWaitLoop = []() {
-        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN)); // Toggle LED
-        return 500;                                           // Delay next function call by 500ms
+        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+        return 500;
     };
     WiFiSettings.onPortalWaitLoop = []() {
         if (getUptimeSeconds() > 600)
@@ -133,7 +130,7 @@ void connectToWifi()
 void onMqttConnect(bool sessionPresent)
 {
     Serial.println("Connected to MQTT");
-    reconnectAttempts = 0;
+    reconnectTries = 0;
 
     if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "CONNECTED") == true)
     {
@@ -161,7 +158,7 @@ void reconnect(TimerHandle_t xTimer)
     if (WiFi.isConnected() && mqttClient.connected())
         return;
 
-    if (reconnectAttempts++ > 10)
+    if (reconnectTries++ > 10)
     {
         log_e("Too many reconnect attempts; Restarting");
         ESP.restart();
@@ -191,11 +188,9 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
 {
 public:
     int getTotalAdverts() { return totalSeen; }
-    std::set<BleFingerprint *> getSeen() { return seen; }
 
 private:
     int totalSeen = 0;
-    std::set<BleFingerprint *> seen;
 
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
@@ -205,7 +200,6 @@ private:
         digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
         BleFingerprint *f = getFingerprint(advertisedDevice);
         f->seen(advertisedDevice);
-        seen.insert(f);
         digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
     }
 };
@@ -268,7 +262,13 @@ void scanForDevices(void *parameter)
 
         int totalSeen = 0;
         int totalReported = 0;
-        auto seen = results.getSeen();
+
+        if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
+            log_e("Couldn't take semaphore!");
+        std::list<BleFingerprint *> seen(fingerprints);
+        if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
+            log_e("Couldn't give semaphore!");
+
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
             totalSeen++;

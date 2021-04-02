@@ -49,7 +49,7 @@ TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
-int reconnectAttempts = 0;
+int reconnectTries = 0;
 int sendFailures = 0;
 
 String mqttHost;
