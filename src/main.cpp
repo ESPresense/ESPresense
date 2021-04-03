@@ -10,23 +10,6 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
         return *it;
     }
 
-    if (fingerprints.size() >= MAX_MAC_ADDRESSES)
-    {
-        long oldestTime = LONG_MAX;
-        BleFingerprint *oldest;
-        for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it)
-        {
-            long time = (*it)->getLastSeen();
-            if (time < oldestTime)
-            {
-                oldestTime = time;
-                oldest = (*it);
-            }
-        }
-        fingerprints.remove(oldest);
-        delete oldest;
-    }
-
     auto created = new BleFingerprint(advertisedDevice);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end())
@@ -163,11 +146,10 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 
 void reconnect(TimerHandle_t xTimer)
 {
-    if (updateInProgress)
-        return;
+    Serial.println("Reconnecting...");
 
-    if (WiFi.isConnected() && mqttClient.connected())
-        return;
+    if (updateInProgress) return;
+    if (WiFi.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 10)
     {
@@ -184,7 +166,7 @@ void reconnect(TimerHandle_t xTimer)
 
 void connectToMqtt()
 {
-    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(15000), pdTRUE, (void *)0, reconnect);
+    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
@@ -276,6 +258,7 @@ void scanForDevices(void *parameter)
 
         if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
             log_e("Couldn't take semaphore!");
+        cleanupOldFingerprints();
         std::list<BleFingerprint *> seen(fingerprints);
         if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
             log_e("Couldn't give semaphore!");
@@ -288,45 +271,6 @@ void scanForDevices(void *parameter)
         }
         sendTelemetry(totalSeen, totalReported, results.getTotalAdverts());
     }
-}
-
-void spiffsInit()
-{
-    int ledState = HIGH;
-    digitalWrite(LED_BUILTIN, ledState);
-
-#ifdef BUTTON
-
-    pinMode(BUTTON, INPUT);
-    int flashes = 0;
-    unsigned long debounceDelay = 250;
-
-    long lastDebounceTime = millis();
-    while (digitalRead(BUTTON) == BUTTON_PRESSED)
-    {
-        if ((millis() - lastDebounceTime) > debounceDelay)
-        {
-            ledState = !ledState;
-            digitalWrite(LED_BUILTIN, ledState);
-            lastDebounceTime = millis();
-            flashes++;
-
-            if (flashes > 10)
-            {
-                Serial.println(F("Resetting back to defaults..."));
-                digitalWrite(LED_BUILTIN, 1);
-                SPIFFS.format();
-                SPIFFS.begin(true);
-                digitalWrite(LED_BUILTIN, 0);
-
-                return;
-            }
-        }
-    }
-
-#endif
-
-    SPIFFS.begin(true);
 }
 
 void setup()
@@ -354,10 +298,6 @@ void setup()
 
 void loop()
 {
-    TIMERG0.wdt_wprotect = TIMG_WDT_WKEY_VALUE;
-    TIMERG0.wdt_feed = 1;
-    TIMERG0.wdt_wprotect = 0;
-
     ArduinoOTA.handle();
     firmwareUpdate();
 }

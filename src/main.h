@@ -1,39 +1,26 @@
-#include <rom/rtc.h>
 #include <Arduino.h>
-
-#include <WiFi.h>
-extern "C"
-{
-#include "freertos/FreeRTOS.h"
-#include "freertos/timers.h"
-}
-#include "soc/timer_group_struct.h"
-#include "soc/timer_group_reg.h"
-
-#include <AsyncTCP.h>
-
-#include <AsyncMqttClient.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
-#include <HTTPUpdate.h>
+#include <AsyncMqttClient.h>
+#include <AsyncTCP.h>
 #include <HTTPClient.h>
-#include <WiFiClientSecure.h>
-
-#include <WebServer.h>
-#include <WiFiSettings.h>
-#include <SPIFFS.h>
-
-#include <NimBLEDevice.h>
+#include <HTTPUpdate.h>
 #include <NimBLEAdvertisedDevice.h>
-#include "NimBLEEddystoneURL.h"
-#include "NimBLEEddystoneTLM.h"
-#include "NimBLEBeacon.h"
-
-#include <set>
-
-#include "Settings.h"
+#include <NimBLEBeacon.h>
+#include <NimBLEDevice.h>
+#include <NimBLEEddystoneTLM.h>
+#include <NimBLEEddystoneURL.h>
+#include <SPIFFS.h>
+#include <WebServer.h>
+#include <WiFi.h>
+#include <WiFiClientSecure.h>
+#include <WiFiSettings.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/timers.h>
+#include <rom/rtc.h>
 
 #include "BleFingerprint.h"
+#include "Settings.h"
 
 #ifdef M5STICK
 #ifdef PLUS
@@ -214,4 +201,65 @@ void firmwareUpdate()
 
     updateInProgress = false;
 #endif
+}
+
+void spiffsInit()
+{
+    int ledState = HIGH;
+    digitalWrite(LED_BUILTIN, ledState);
+
+#ifdef BUTTON
+
+    pinMode(BUTTON, INPUT);
+    int flashes = 0;
+    unsigned long debounceDelay = 250;
+
+    long lastDebounceTime = millis();
+    while (digitalRead(BUTTON) == BUTTON_PRESSED)
+    {
+        if ((millis() - lastDebounceTime) > debounceDelay)
+        {
+            ledState = !ledState;
+            digitalWrite(LED_BUILTIN, ledState);
+            lastDebounceTime = millis();
+            flashes++;
+
+            if (flashes > 10)
+            {
+                Serial.println(F("Resetting back to defaults..."));
+                digitalWrite(LED_BUILTIN, 1);
+                SPIFFS.format();
+                SPIFFS.begin(true);
+                digitalWrite(LED_BUILTIN, 0);
+
+                return;
+            }
+        }
+    }
+
+#endif
+
+    SPIFFS.begin(true);
+}
+
+void cleanupOldFingerprints()
+{
+    if (fingerprints.size() < MAX_MAC_ADDRESSES)
+        return;
+
+    long oldestTime = LONG_MAX;
+    BleFingerprint *oldest = nullptr;
+    for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it)
+    {
+        long time = (*it)->getLastSeen();
+        if (time < oldestTime)
+        {
+            oldestTime = time;
+            oldest = (*it);
+        }
+    }
+    if (oldest == nullptr) return;
+
+    fingerprints.remove(oldest);
+    delete oldest;
 }
