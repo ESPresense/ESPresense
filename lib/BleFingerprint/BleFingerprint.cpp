@@ -43,7 +43,7 @@ BleFingerprint::~BleFingerprint()
     Serial.printf("%d Del   | MAC: %s, ID: %s\n", xPortGetCoreID(), SMacf(address).c_str(), id.c_str());
 }
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice)
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{one_euro_filter<double, unsigned long>(1, fcmin, beta, dcutoff)}
 {
     firstSeenMicros = esp_timer_get_time();
     address = advertisedDevice->getAddress();

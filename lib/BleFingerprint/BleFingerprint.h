@@ -1,19 +1,19 @@
 #ifndef _BLEFINGERPRINT_
 #define _BLEFINGERPRINT_
 
-#include <NimBLEDevice.h>
-#include <NimBLEAdvertisedDevice.h>
-#include <NimBLEEddystoneURL.h>
-#include <NimBLEEddystoneTLM.h>
-#include <NimBLEBeacon.h>
 #include <ArduinoJson.h>
+#include <NimBLEAdvertisedDevice.h>
+#include <NimBLEBeacon.h>
+#include <NimBLEDevice.h>
+#include <NimBLEEddystoneTLM.h>
+#include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
 
 class BleFingerprint
 {
 
 public:
-    BleFingerprint(BLEAdvertisedDevice *advertisedDevice);
+    BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
     ~BleFingerprint();
 
     void seen(BLEAdvertisedDevice *advertisedDevice);
@@ -38,7 +38,7 @@ private:
     Reading<Differential<float>> output;
 
     TimestampFilter<float> tsFilter;
-    one_euro_filter<double, unsigned long> oneEuro{one_euro_filter<double, unsigned long>(1, 0.01, 0.01, 1)};
+    one_euro_filter<double, unsigned long> oneEuro;
     DifferentialFilter<float> diffFilter;
 };
 #endif

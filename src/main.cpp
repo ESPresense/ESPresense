@@ -10,7 +10,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
         return *it;
     }
 
-    auto created = new BleFingerprint(advertisedDevice);
+    auto created = new BleFingerprint(advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end())
     {
