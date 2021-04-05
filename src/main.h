@@ -116,7 +116,6 @@ void configureOTA()
         .onStart([]() {
             Serial.println("OTA Start");
             updateInProgress = true;
-            mqttClient.disconnect(true);
         })
         .onEnd([]() {
             updateInProgress = false;
@@ -178,8 +177,6 @@ void firmwareUpdate()
     }
 
     updateInProgress = true;
-    mqttClient.disconnect(true);
-
     httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
