@@ -244,7 +244,7 @@ void spiffsInit()
 
 void cleanupOldFingerprints()
 {
-    if (fingerprints.size() < MAX_MAC_ADDRESSES)
+    if (fingerprints.size() <= MAX_MAC_ADDRESSES)
         return;
 
     long oldestTime = LONG_MAX;
