@@ -84,8 +84,8 @@
 // Number of seconds between update checks
 #define CHECK_FOR_UPDATES_INTERVAL 300
 
-#define ONE_EURO_FCMIN 0.05
+#define ONE_EURO_FCMIN 0.01
 
-#define ONE_EURO_BETA 0.05
+#define ONE_EURO_BETA 0.005
 
 #define ONE_EURO_DCUTOFF 1
