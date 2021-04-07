@@ -15,7 +15,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
     if (it2 != fingerprints.end())
     {
         auto found = *it2;
-        created->setDistance(found->getDistance());
+        created->setInitial(found->getRSSI(), found->getDistance());
     }
 
     fingerprints.push_front(created);
@@ -39,6 +39,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     tele["hostname"] = WiFi.getHostname();
     tele["uptime"] = getUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
+    tele["rssi"] = WiFi.RSSI();
 
 #ifdef VERSION
     tele["ver"] = String(VERSION);

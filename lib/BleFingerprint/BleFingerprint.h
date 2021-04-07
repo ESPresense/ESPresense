@@ -21,8 +21,10 @@ public:
 
     String getId() { return id; }
 
-    float getDistance();
-    void setDistance(float distFl);
+    float getDistance() { return output.value.position; }
+    int getRSSI() { return rssi; }
+
+    void setInitial(int rssi, float distance);
 
     NimBLEAddress getAddress() { return address; }
     long getLastSeen() { return lastSeenMicros; };
@@ -31,7 +33,10 @@ private:
     bool hasValue = false, enroll = false, reported = false;
     NimBLEAddress address;
     String id, name, url;
-    int rssi, calRssi;
+    int rssi = -100, calRssi = 0;
+    int newest = -100;
+    int recent = -100;
+    int oldest = -100;
     float raw, lastReported = 0;
     long firstSeenMicros, lastSeenMicros = 0, lastReportedMicros = 0;
 
@@ -40,5 +45,7 @@ private:
     TimestampFilter<float> tsFilter;
     one_euro_filter<double, unsigned long> oneEuro;
     DifferentialFilter<float> diffFilter;
+
+    bool filter();
 };
 #endif

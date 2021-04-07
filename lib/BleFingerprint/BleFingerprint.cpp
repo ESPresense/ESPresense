@@ -1,42 +1,5 @@
 #include "BleFingerprint.h"
-
-static const uint16_t beaconUUID = 0xFEAA;
-static const uint16_t tileUUID = 0xFEED;
-static const uint16_t exposureUUID = 0xFD6F;
-
-#ifdef TX_DEFAULT
-static const int defaultTxPower = TX_DEFAULT;
-#else
-static const int defaultTxPower = -59;
-#endif
-
-#define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
-#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
-//define SDateTimef(f) ({ struct tm firstSeenTm; gmtime_r(&f, &firstSeenTm); Sprintf("%d/%d/%d %d:%.2d:%.2d", firstSeenTm.tm_mon, firstSeenTm.tm_mday, 1900 + firstSeenTm.tm_year, firstSeenTm.tm_hour, firstSeenTm.tm_min, firstSeenTm.tm_sec); })
-#define SMacf(f) ({ auto nativeAddress = f.getNative(); Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); })
-
-static String getProximityUUIDString(BLEBeacon beacon)
-{
-    std::string serviceData = beacon.getProximityUUID().toString().c_str();
-    int serviceDataLength = serviceData.length();
-    String returnedString = "";
-    int i = serviceDataLength;
-    while (i > 0)
-    {
-        if (serviceData[i - 1] == '-')
-        {
-            i--;
-        }
-        char a = serviceData[i - 1];
-        char b = serviceData[i - 2];
-        returnedString += b;
-        returnedString += a;
-
-        i -= 2;
-    }
-
-    return returnedString;
-}
+#include "util.h"
 
 BleFingerprint::~BleFingerprint()
 {
@@ -47,6 +10,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 {
     firstSeenMicros = esp_timer_get_time();
     address = advertisedDevice->getAddress();
+    newest = recent = oldest = rssi = advertisedDevice->getRSSI();
 
     String mac_address = SMacf(address);
 
@@ -165,36 +129,46 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     Serial.println();
 }
 
-void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
-{
-    lastSeenMicros = esp_timer_get_time();
-
-    rssi = advertisedDevice->getRSSI();
-    if (!calRssi)
-        calRssi = defaultTxPower;
-
-    float ratio = (calRssi - rssi) / 35.0f;
-    raw = pow(10, ratio);
-    setDistance(raw);
-    reported = false;
-}
-
-void BleFingerprint::setDistance(float distFl)
+bool BleFingerprint::filter()
 {
     Reading<float> inter1, inter2;
 
-    if (tsFilter.push(&distFl, &inter1))
+    if (tsFilter.push(&raw, &inter1))
     {
         inter2.timestamp = inter1.timestamp;
         inter2.value = oneEuro(inter1.value);
         if (diffFilter.push(&inter2, &output))
-            hasValue = true;
+            return true;
+    }
+    return false;
+}
+
+void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
+{
+    lastSeenMicros = esp_timer_get_time();
+
+    oldest = recent;
+    recent = newest;
+    newest = advertisedDevice->getRSSI();
+    rssi = median_of_3(oldest, recent, newest);
+
+    if (!calRssi) calRssi = defaultTxPower;
+
+    float ratio = (calRssi - rssi) / 35.0f;
+    raw = pow(10, ratio);
+
+    if (filter())
+    {
+        hasValue = true;
+        reported = false;
     }
 }
 
-float BleFingerprint::getDistance()
+void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 {
-    return output.value.position;
+    newest = recent = oldest = rssi = initalRssi;
+    raw = initalDistance;
+    hasValue = filter() || filter();
 }
 
 bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
