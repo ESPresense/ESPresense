@@ -148,6 +148,7 @@ void configureOTA()
 
 void firmwareUpdate()
 {
+#ifndef NOUPDATE
 #ifdef VERSION
     static long lastFirmwareCheck = 0;
     long uptime = getUptimeSeconds();
@@ -160,7 +161,7 @@ void firmwareUpdate()
     WiFiClientSecure client;
     client.setInsecure();
 
-    String firmwareUrl = Sprintf("https://github.com/DTTerastar/ESP32-mqtt-room/releases/latest/download/%s.bin", FIRMWARE);
+    String firmwareUrl = Sprintf("https://github.com/ESPresense/ESPresense/releases/latest/download/%s.bin", FIRMWARE);
     if (!http.begin(client, firmwareUrl))
         return;
 
@@ -197,6 +198,7 @@ void firmwareUpdate()
     }
 
     updateInProgress = false;
+#endif
 #endif
 }
 
