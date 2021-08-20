@@ -103,6 +103,9 @@ void connectToWifi()
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
     room = WiFiSettings.string("room", ESPMAC);
+    publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
+    publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
+    publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
     availabilityTopic = AVAILABILITY_TOPIC;
 
     WiFiSettings.hostname = "mqtt-room-" + room;
@@ -208,7 +211,7 @@ bool reportDevice(BleFingerprint *f)
     serializeJson(doc, JSONmessageBuffer);
 
     String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = CHANNEL + "/" + room + "/" + f->getId();
+    String publishTopic2 = "devices/" + f->getId() + "/" + room;
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)

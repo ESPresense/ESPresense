@@ -45,6 +45,9 @@ String mqttUser;
 String mqttPass;
 String availabilityTopic;
 String room;
+bool publishTele;
+bool publishRooms;
+bool publishDevices;
 
 static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;
