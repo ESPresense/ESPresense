@@ -65,9 +65,11 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
 
+    String teleTopic = CHANNEL + "/" + room + "/telemetry";
+
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish((TELEMETRY_TOPIC).c_str(), 0, 0, teleMessageBuffer) == true)
+        if (mqttClient.publish(teleTopic.c_str(), 0, 0, teleMessageBuffer) == true)
             return true;
         delay(20);
     }
@@ -106,7 +108,6 @@ void connectToWifi()
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
-    availabilityTopic = AVAILABILITY_TOPIC;
 
     WiFiSettings.hostname = "mqtt-room-" + room;
 
@@ -130,7 +131,9 @@ void onMqttConnect(bool sessionPresent)
     Serial.println("Connected to MQTT");
     reconnectTries = 0;
 
-    if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "CONNECTED") == true)
+    String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
+
+    if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
     {
         Serial.printf("Success sending presence message to: %s\n", availabilityTopic.c_str());
         if (sendTelemetry())
@@ -170,12 +173,13 @@ void reconnect(TimerHandle_t xTimer)
 
 void connectToMqtt()
 {
+    String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill(availabilityTopic.c_str(), 0, 1, "DISCONNECTED");
+    mqttClient.setWill(availabilityTopic.c_str(), 0, 1, "offline");
     mqttClient.setKeepAlive(60);
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
@@ -211,7 +215,7 @@ bool reportDevice(BleFingerprint *f)
     serializeJson(doc, JSONmessageBuffer);
 
     String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = CHANNEL + "devices/" + f->getId() + "/" + room;
+    String publishTopic2 = CHANNEL + "/devices/" + f->getId() + "/" + room;
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)

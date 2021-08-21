@@ -43,7 +43,6 @@ String mqttHost;
 int mqttPort;
 String mqttUser;
 String mqttPass;
-String availabilityTopic;
 String room;
 bool publishTele;
 bool publishRooms;

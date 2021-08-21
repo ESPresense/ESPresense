@@ -60,14 +60,8 @@
 
 #endif
 
-//Define the base topic for room detection. Usually "room_presence"
-#define CHANNEL String("room_presence")
-
-//Define the topic for publishing availability
-#define AVAILABILITY_TOPIC (Sprintf("presence_nodes/%s", room.c_str()))
-
-//Define the topic for publishing JSON attributes
-#define TELEMETRY_TOPIC (Sprintf("presence_nodes/%s/tele", room.c_str()))
+//Define the base topic for room detection. Usually "presense"
+#define CHANNEL String("presense")
 
 // Define bluetooth scan parameters
 #define BLE_ACTIVE_SCAN false // Active scan uses more power, but get results faster
