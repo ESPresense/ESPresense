@@ -211,7 +211,7 @@ bool reportDevice(BleFingerprint *f)
     serializeJson(doc, JSONmessageBuffer);
 
     String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = "devices/" + f->getId() + "/" + room;
+    String publishTopic2 = CHANNEL + "devices/" + f->getId() + "/" + room;
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)
