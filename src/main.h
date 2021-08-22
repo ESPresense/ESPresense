@@ -44,9 +44,11 @@ int mqttPort;
 String mqttUser;
 String mqttPass;
 String room;
+String availabilityTopic;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
+bool initial = true; // First contact with mqtt
 
 static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;

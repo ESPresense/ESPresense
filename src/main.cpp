@@ -34,6 +34,23 @@ BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
+    if (initial)
+    {
+        initial = false;
+        String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
+        Serial.println("Connected to MQTT");
+
+        if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
+        {
+            Serial.printf("Success sending availability to: %s\n", availabilityTopic.c_str());
+            reconnectTries = 0;
+        }
+        else
+        {
+            Serial.println(F("Error sending availability"));
+        }
+    }
+
     StaticJsonDocument<512> tele;
     tele["ip"] = localIp;
     tele["hostname"] = WiFi.getHostname();
@@ -81,7 +98,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 
 void connectToWifi()
 {
-    Serial.printf("Connecting to WiFi (%s)...", WiFi.macAddress().c_str());
+    Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
 
     WiFiSettings.onSuccess = []() {
         digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
@@ -109,7 +126,7 @@ void connectToWifi()
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.hostname = "mqtt-room-" + room;
+    WiFiSettings.hostname = "espresense-" + room;
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
@@ -128,21 +145,8 @@ void connectToWifi()
 
 void onMqttConnect(bool sessionPresent)
 {
-    Serial.println("Connected to MQTT");
-    reconnectTries = 0;
-
-    String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
-
-    if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
-    {
-        Serial.printf("Success sending presence message to: %s\n", availabilityTopic.c_str());
-        if (sendTelemetry())
-            xTimerStop(reconnectTimer, 0);
-    }
-    else
-    {
-        Serial.println(F("Error sending presence message"));
-    }
+    xTimerStop(reconnectTimer, 0);
+    initial = true;
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
@@ -173,7 +177,7 @@ void reconnect(TimerHandle_t xTimer)
 
 void connectToMqtt()
 {
-    String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
+    availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);

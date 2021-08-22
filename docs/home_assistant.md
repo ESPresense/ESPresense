@@ -14,8 +14,8 @@ sensor:
 # One entry for each beacon you want to track
   - platform: mqtt_room
     device_id: "fda50693a4e24fb1afcfc6eb07647825-5-0" # Note that major version must match, but any minor version will be ignored
-    name: 'iBeacon Room Presence'
-    state_topic: 'room_presence'
+    name: 'ESPresense Presence'
+    state_topic: 'espresense'
     timeout: 60
     away_timeout: 120
 
@@ -24,10 +24,10 @@ binary_sensor:
 # One entry per sensor node to understand when the device is online/offline and see device metadata such as IP address and settings values
   - platform: mqtt
     name: ESP32 A
-    state_topic: "presence_nodes/esp32_a"
-    json_attributes_topic: "presence_nodes/esp32_a/tele"
-    payload_on: "CONNECTED"
-    payload_off: "DISCONNECTED"
+    state_topic: "espresense/esp32_a/telemetry/availability"
+    json_attributes_topic: "espresense/esp32_a/telemetry
+    payload_on: "online"
+    payload_off: "offline"
     device_class: connectivity
 ```
 Binary sensor with telemetry in the lovelace UI:
