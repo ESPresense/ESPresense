@@ -37,12 +37,9 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     if (initial)
     {
         initial = false;
-        String availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
-        Serial.println("Connected to MQTT");
-
         if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
         {
-            Serial.printf("Success sending availability to: %s\n", availabilityTopic.c_str());
+            Serial.println("Connected to MQTT");
             reconnectTries = 0;
         }
         else
@@ -184,7 +181,6 @@ void connectToMqtt()
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(availabilityTopic.c_str(), 0, 1, "offline");
-    mqttClient.setKeepAlive(60);
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
