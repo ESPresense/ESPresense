@@ -24,12 +24,13 @@ void GUI::status(const char *format, ...)
 #ifdef M5STICK
     sprite.fillSprite(TFT_BLACK);
     sprite.setTextDatum(MC_DATUM);
-#ifdef PLUS
+
     char *message;
     va_list args;
     va_start(args, format);
     vasprintf(&message, format, args);
     va_end(args);
+#ifdef PLUS
     sprite.drawString(message, sprite.width() / 2, sprite.height() / 2, 4);
 #else
     sprite.drawString(message, sprite.width() / 2, sprite.height() / 2, 1);
