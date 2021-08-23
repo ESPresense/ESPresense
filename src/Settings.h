@@ -11,9 +11,6 @@
 //Replace with your Wifi password; example: #define password "12345678"
 #define DEFAULT_WIFI_PASSWORD "$WIFI_PASSWORD$"
 
-//Replace with a human-friendly host name. Must not contain spaces or special characters and be unique on your network
-#define DEFAULT_HOSTNAME "esp32_room_presence"
-
 //Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
 
@@ -26,8 +23,8 @@
 //Replace with your MQTT Broker password
 #define DEFAULT_MQTT_PASSWORD ""
 
-//Replace with the room name where the node will be placed
-#define DEFAULT_ROOM "living-room"
+// Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
+#define DEFAULT_MAX_DISTANCE 16
 
 #ifdef M5STICK
 
@@ -68,9 +65,6 @@
 
 #define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 #define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
-
-// Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
-#define MAX_DISTANCE 16
 
 // Max number of mac addresses to keep track of
 #define MAX_MAC_ADDRESSES 50

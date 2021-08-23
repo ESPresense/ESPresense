@@ -22,33 +22,29 @@
 #include "BleFingerprint.h"
 #include "Settings.h"
 
-#ifdef M5STICK
-#ifdef PLUS
-#include <M5StickCPlus.h>
-#else
-#include <M5StickC.h>
-#endif
-#endif
-
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
+int64_t lastTeleMicros;
 int reconnectTries = 0;
-int sendFailures = 0;
+int teleFails = 0;
+bool online; // Have we successfully sent status=online
 
 String mqttHost;
 int mqttPort;
 String mqttUser;
 String mqttPass;
 String room;
-String availabilityTopic;
+String statusTopic;
+String teleTopic;
+String roomsTopic;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-bool initial = true; // First contact with mqtt
+int maxDistance;
 
 static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;

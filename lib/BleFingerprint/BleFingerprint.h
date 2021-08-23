@@ -2,6 +2,7 @@
 #define _BLEFINGERPRINT_
 
 #include <ArduinoJson.h>
+#include <GUI.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
@@ -30,7 +31,7 @@ public:
     long getLastSeen() { return lastSeenMicros; };
 
 private:
-    bool hasValue = false, enroll = false, reported = false;
+    bool hasValue = false, close = false, reported = false;
     NimBLEAddress address;
     String id, name, url;
     int rssi = -100, calRssi = 0;

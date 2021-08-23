@@ -90,9 +90,10 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
                     int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
                     int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
 
-                    id = "iBeacon:" + proximityUUID + "-" + String(major) + "-" + String(minor);
+                    id = "iBeacon:" + proximityUUID;
                     Serial.printf(", ID: %s", id.c_str());
                     calRssi = oBeacon.getSignalPower();
+                    if (calRssi > 0) calRssi = defaultTxPower;
                 }
                 else
                 {
@@ -187,7 +188,7 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
 
     auto now = esp_timer_get_time();
 
-    if (abs(output.value.position - lastReported) < 0.05f && abs(now - lastReportedMicros) < 5000000)
+    if (abs(output.value.position - lastReported) < 0.1f && abs(now - lastReportedMicros) < 15000000)
         return false;
 
     lastReportedMicros = now;
@@ -197,16 +198,16 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     String mac = SMacf(address);
     if (output.value.position < 0.5)
     {
-        if (!enroll)
+        if (!close)
         {
-            Serial.printf("%d Enter | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", xPortGetCoreID(), mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
-            enroll = true;
+            Display.close(mac.c_str(), id.c_str());
+            close = true;
         }
     }
-    else if (enroll && output.value.position > 1.5)
+    else if (close && output.value.position > 1.5)
     {
-        Serial.printf("%d Left  | MAC: %s, ID: %-50s %lu %5.1f %5.1f %5.1f\n", xPortGetCoreID(), mac.c_str(), id.c_str(), output.timestamp, output.value.position, output.value.speed * 1e6, output.value.acceleration * 1e12);
-        enroll = false;
+        Display.left(mac.c_str(), id.c_str());
+        close = false;
     }
 
     if (id != nullptr)

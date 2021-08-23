@@ -24,8 +24,8 @@ binary_sensor:
 # One entry per sensor node to understand when the device is online/offline and see device metadata such as IP address and settings values
   - platform: mqtt
     name: ESP32 A
-    state_topic: "espresense/esp32_a/telemetry/availability"
-    json_attributes_topic: "espresense/esp32_a/telemetry
+    state_topic: "espresense/rooms/esp32_a/status"
+    json_attributes_topic: "espresense/rooms/esp32_a/telemetry"
     payload_on: "online"
     payload_off: "offline"
     device_class: connectivity
