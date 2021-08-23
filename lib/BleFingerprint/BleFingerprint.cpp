@@ -180,8 +180,8 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     if (!hasValue)
         return false;
 
-    // if (maxDistance > 0 && output.value.position > maxDistance)
-    //     return false;
+    if (maxDistance > 0 && output.value.position > maxDistance)
+        return false;
 
     if (reported)
         return false;
