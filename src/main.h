@@ -28,8 +28,10 @@ TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
+int64_t lastTeleMicros;
 int reconnectTries = 0;
 int teleFails = 0;
+bool online; // Have we successfully sent status=online
 
 String mqttHost;
 int mqttPort;
@@ -42,7 +44,7 @@ String roomsTopic;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-bool online; // Have we successfully sent status=online
+int maxDistance;
 
 static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;

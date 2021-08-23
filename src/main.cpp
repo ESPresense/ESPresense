@@ -48,9 +48,15 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         }
     }
 
+    auto now = esp_timer_get_time();
+
+    if (abs(now - lastTeleMicros) < 15000000)
+        return false;
+
+    lastTeleMicros = now;
+
     StaticJsonDocument<512> tele;
     tele["ip"] = localIp;
-    tele["hostname"] = WiFi.getHostname();
     tele["uptime"] = getUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
     tele["rssi"] = WiFi.RSSI();
@@ -117,9 +123,11 @@ void connectToWifi()
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
     room = WiFiSettings.string("room", ESPMAC);
+    WiFiSettings.heading("Preferences");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+    maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.hostname = "espresense-" + room;
 
@@ -134,6 +142,13 @@ void connectToWifi()
     Serial.println(WiFi.getHostname());
     Serial.print("Room:        ");
     Serial.println(room);
+    Serial.print("Telemetry:   ");
+    Serial.println(publishRooms ? "enabled" : "disabled");
+    Serial.print("Rooms:       ");
+    Serial.println(publishRooms ? "enabled" : "disabled");
+    Serial.print("Devices:     ");
+    Serial.println(publishDevices ? "enabled" : "disabled");
+    Serial.printf("Max Distance: %d\n", maxDistance);
 
     localIp = WiFi.localIP().toString();
     roomsTopic = CHANNEL + "/rooms/" + room;
@@ -210,7 +225,7 @@ private:
 bool reportDevice(BleFingerprint *f)
 {
     StaticJsonDocument<512> doc;
-    if (!f->report(&doc, MAX_DISTANCE))
+    if (!f->report(&doc, maxDistance))
         return false;
 
     char JSONmessageBuffer[512];

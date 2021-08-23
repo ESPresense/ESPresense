@@ -92,7 +92,8 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
                     id = "iBeacon:" + proximityUUID;
                     Serial.printf(", ID: %s", id.c_str());
-                    calRssi = -oBeacon.getSignalPower();
+                    calRssi = oBeacon.getSignalPower();
+                    if (calRssi > 0) calRssi = defaultTxPower;
                 }
                 else
                 {
@@ -179,15 +180,15 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     if (!hasValue)
         return false;
 
-    if (maxDistance > 0 && output.value.position > maxDistance)
-        return false;
+    // if (maxDistance > 0 && output.value.position > maxDistance)
+    //     return false;
 
     if (reported)
         return false;
 
     auto now = esp_timer_get_time();
 
-    if (abs(output.value.position - lastReported) < 0.05f && abs(now - lastReportedMicros) < 5000000)
+    if (abs(output.value.position - lastReported) < 0.1f && abs(now - lastReportedMicros) < 15000000)
         return false;
 
     lastReportedMicros = now;
