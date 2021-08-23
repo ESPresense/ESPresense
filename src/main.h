@@ -22,14 +22,6 @@
 #include "BleFingerprint.h"
 #include "Settings.h"
 
-#ifdef M5STICK
-#ifdef PLUS
-#include <M5StickCPlus.h>
-#else
-#include <M5StickC.h>
-#endif
-#endif
-
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;

@@ -39,7 +39,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         initial = false;
         if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
         {
-            Serial.println("Connected to MQTT");
+            Display.status("Connected to MQTT");
             reconnectTries = 0;
         }
         else
@@ -295,12 +295,6 @@ void setup()
     setClock();
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, nullptr, 1, &scannerTask, 1);
-
-#ifdef M5STICK
-    M5.begin();
-    M5.Lcd.setTextColor(TFT_WHITE, TFT_BLACK);
-#endif
-
     configureOTA();
 }
 
@@ -308,4 +302,5 @@ void loop()
 {
     ArduinoOTA.handle();
     firmwareUpdate();
+    Display.update();
 }
