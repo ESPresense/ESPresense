@@ -134,6 +134,9 @@ void connectToWifi()
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
 
+#ifdef VERSION
+    Serial.println("Version:     " + String(VERSION));
+#endif
     Serial.print("IP address:  ");
     Serial.println(WiFi.localIP());
     Serial.print("DNS address: ");
