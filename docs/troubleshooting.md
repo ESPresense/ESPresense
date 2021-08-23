@@ -46,7 +46,7 @@ Stopping wifi reconnect timer
 If your device won't connect to your wireless network, copy and paste any logs you see into your issue.
 
 ### ESP32 MQTT (yellow arrow)
-To report devices, the ESP32 must be connected to your MQTT server. It will attempt to connect once it has established a connection to your wireless network. Once connected, the device will publish a status message ("CONNECTED") to the `availabilityTopic` as defined in your settings. It also publishes your configuration information to the `telemetryTopic` which consists of:
+To report devices, the ESP32 must be connected to your MQTT server. It will attempt to connect once it has established a connection to your wireless network. Once connected, the device will publish a status message ("CONNECTED") to the `statusTopic` as defined in your settings. It also publishes your configuration information to the `telemetryTopic` which consists of:
 * **room**: the configured room name
 * **ip**: the assigned IP address of the device
 * **hostname**: the host name, used for WiFi as well as client ID for MQTT (must be unique on your network)
@@ -58,7 +58,7 @@ To report devices, the ESP32 must be connected to your MQTT server. It will atte
 
 ![Home Assistant telemetry](./images/home_assistant_telemetry.jpg)
 
-If you do not see any information being published to either the `availabilityTopic` or `telemetryTopic` then you will want to connect to the serial monitor and check the logs. Verify that your MQTT user name and password is correct, and check the logs on your MQTT server itself. You should see it reporting a new client connected from the ESP32's IP address:
+If you do not see any information being published to either the `statusTopic` or `telemetryTopic` then you will want to connect to the serial monitor and check the logs. Verify that your MQTT user name and password is correct, and check the logs on your MQTT server itself. You should see it reporting a new client connected from the ESP32's IP address:
 ```
 New client connected from 192.168.1.104 as esp32_d (c1, k60, u'my_mqtt_username').
 ```

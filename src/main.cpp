@@ -34,17 +34,17 @@ BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
-    if (initial)
+    if (!online)
     {
-        initial = false;
-        if (mqttClient.publish(availabilityTopic.c_str(), 0, 1, "online") == true)
+        if (mqttClient.publish(statusTopic.c_str(), 0, 1, "online"))
         {
+            online = true;
             Display.status("Connected to MQTT");
             reconnectTries = 0;
         }
         else
         {
-            Serial.println(F("Error sending availability"));
+            log_e("Error sending status=online");
         }
     }
 
@@ -65,8 +65,8 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         tele["reported"] = totalReported;
     if (totalAdverts > 0)
         tele["adverts"] = totalAdverts;
-    if (sendFailures > 0)
-        tele["sendFails"] = sendFailures;
+    if (teleFails > 0)
+        tele["teleFails"] = teleFails;
     if (reconnectTries > 0)
         tele["reconnectTries"] = reconnectTries;
 
@@ -79,17 +79,15 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     char teleMessageBuffer[512];
     serializeJson(tele, teleMessageBuffer);
 
-    String teleTopic = CHANNEL + "/" + room + "/telemetry";
-
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(teleTopic.c_str(), 0, 0, teleMessageBuffer) == true)
+        if (!publishTele || mqttClient.publish(teleTopic.c_str(), 0, 0, teleMessageBuffer))
             return true;
-        delay(20);
+        delay(50);
     }
 
-    sendFailures++;
-    log_e("Error sending telemetry");
+    teleFails++;
+    Serial.printf("Error after 10 tries sending telemetry (%d times since boot)\n", teleFails);
     return false;
 }
 
@@ -138,24 +136,25 @@ void connectToWifi()
     Serial.println(room);
 
     localIp = WiFi.localIP().toString();
+    roomsTopic = CHANNEL + "/rooms/" + room;
+    statusTopic = roomsTopic + "/status";
+    teleTopic = roomsTopic + "/telemetry";
 }
 
 void onMqttConnect(bool sessionPresent)
 {
     xTimerStop(reconnectTimer, 0);
-    initial = true;
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
-    Serial.printf("Disconnected from MQTT; reason %d\n", (int)reason);
+    log_e("Disconnected from MQTT; reason %d\n", reason);
     xTimerStart(reconnectTimer, 0);
+    online = false;
 }
 
 void reconnect(TimerHandle_t xTimer)
 {
-    Serial.println("Reconnecting...");
-
     if (updateInProgress) return;
     if (WiFi.isConnected() && mqttClient.connected()) return;
 
@@ -166,21 +165,24 @@ void reconnect(TimerHandle_t xTimer)
     }
 
     if (!WiFi.isConnected())
+    {
+        Serial.println("Reconnecting to WiFi...");
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
+    }
 
+    Serial.println("Reconnecting to MQTT...");
     mqttClient.connect();
 }
 
 void connectToMqtt()
 {
-    availabilityTopic = CHANNEL + "/" + room + "/telemetry/availability";
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill(availabilityTopic.c_str(), 0, 1, "offline");
+    mqttClient.setWill(statusTopic.c_str(), 0, 1, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
@@ -214,8 +216,7 @@ bool reportDevice(BleFingerprint *f)
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
 
-    String publishTopic = CHANNEL + "/" + room;
-    String publishTopic2 = CHANNEL + "/devices/" + f->getId() + "/" + room;
+    String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + room;
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)
@@ -223,17 +224,17 @@ bool reportDevice(BleFingerprint *f)
         if (!mqttClient.connected())
             return false;
 
-        if (!p1 && mqttClient.publish((char *)publishTopic.c_str(), 0, 0, JSONmessageBuffer))
+        if (!p1 && (!publishRooms || mqttClient.publish((char *)roomsTopic.c_str(), 0, 0, JSONmessageBuffer)))
             p1 = true;
 
-        if (!p2 && mqttClient.publish((char *)publishTopic2.c_str(), 0, 0, JSONmessageBuffer))
+        if (!p2 && (!publishDevices || mqttClient.publish((char *)devicesTopic.c_str(), 0, 0, JSONmessageBuffer)))
             p2 = true;
 
         if (p1 && p2)
             return true;
         delay(20);
     }
-    sendFailures++;
+    teleFails++;
     return false;
 }
 

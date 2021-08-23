@@ -29,18 +29,20 @@ TaskHandle_t scannerTask;
 bool updateInProgress = false;
 String localIp;
 int reconnectTries = 0;
-int sendFailures = 0;
+int teleFails = 0;
 
 String mqttHost;
 int mqttPort;
 String mqttUser;
 String mqttPass;
 String room;
-String availabilityTopic;
+String statusTopic;
+String teleTopic;
+String roomsTopic;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-bool initial = true; // First contact with mqtt
+bool online; // Have we successfully sent status=online
 
 static SemaphoreHandle_t fingerprintSemaphore;
 static std::list<BleFingerprint *> fingerprints;
