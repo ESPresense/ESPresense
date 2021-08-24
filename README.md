@@ -9,7 +9,7 @@ Differences from ESP32-room-assistant:
  * Fully supports using Tiles as trackers
  * Filters rssi via a 3 value media filter with a Kalman filter on top
  * Fully multithreaded, uses constant BLE scanning
- * Additional AppDaemon app will post process mqtt topics into ips topic (x,y,z) and (latt,long,elevation)
+ * Additional [AppDaemon app](https://github.com/ESPresense/ad-espresense-ips) will post process mqtt topics into ips topic (x,y,z) and (latt,long,elevation)
 
 ## Release Notes
 View the [changelog here](./CHANGELOG.md).
