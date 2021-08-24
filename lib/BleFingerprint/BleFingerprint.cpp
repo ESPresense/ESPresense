@@ -174,7 +174,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
 {
-    if (id == nullptr && name == nullptr)
+    if (id.isEmpty() && name.isEmpty())
         return false;
 
     if (!hasValue)
@@ -210,10 +210,8 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
         close = false;
     }
 
-    if (id != nullptr)
-        (*doc)[F("id")] = id;
-    if (name != nullptr)
-        (*doc)[F("name")] = name;
+    if (!id.isEmpty()) (*doc)[F("id")] = id;
+    if (!name.isEmpty()) (*doc)[F("name")] = name;
 
     (*doc)[F("rssi@1m")] = calRssi;
     (*doc)[F("rssi")] = rssi;

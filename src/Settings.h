@@ -61,7 +61,7 @@
 #define CHANNEL String("presense")
 
 // Define bluetooth scan parameters
-#define BLE_ACTIVE_SCAN false // Active scan uses more power, but get results faster
+#define BLE_ACTIVE_SCAN true // Active scan uses more power, but get results faster
 
 #define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 #define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
