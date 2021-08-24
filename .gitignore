@@ -6,7 +6,6 @@
 .dblite
 include/
 Settings_*.h
-.pio/*
-.vscode/*
-espota.py
-upload_all.sh
+.pio
+.vscode
+.scripts
