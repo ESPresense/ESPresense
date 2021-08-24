@@ -57,8 +57,8 @@
 
 #endif
 
-//Define the base topic for room detection. Usually "presense"
-#define CHANNEL String("presense")
+//Define the base topic for room detection. Usually "espresense"
+#define CHANNEL String("espresense")
 
 // Define bluetooth scan parameters
 #define BLE_ACTIVE_SCAN true // Active scan uses more power, but get results faster
