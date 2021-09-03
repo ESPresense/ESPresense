@@ -15,7 +15,7 @@ sensor:
   - platform: mqtt_room
     device_id: "fda50693a4e24fb1afcfc6eb07647825-5-0" # Note that major version must match, but any minor version will be ignored
     name: 'ESPresense Presence'
-    state_topic: 'espresense'
+    state_topic: 'espresense/rooms'
     timeout: 60
     away_timeout: 120
 
