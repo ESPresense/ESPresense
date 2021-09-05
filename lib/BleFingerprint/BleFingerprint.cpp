@@ -90,7 +90,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
                     int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
                     int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
 
-                    id = "iBeacon:" + proximityUUID;
+                    id = "iBeacon:" + proximityUUID + "-" + major + "-" + minor;
                     Serial.printf(", ID: %s", id.c_str());
                     calRssi = oBeacon.getSignalPower();
                     if (calRssi > 0) calRssi = defaultTxPower;

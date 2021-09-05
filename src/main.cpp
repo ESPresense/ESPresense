@@ -78,7 +78,6 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 
     tele["freeHeap"] = ESP.getFreeHeap();
     tele["minFreeHeap"] = ESP.getMinFreeHeap();
-    tele["heapSize"] = ESP.getHeapSize();
     tele["maxAllocHeap"] = ESP.getMaxAllocHeap();
     tele["resetReason"] = resetReason(rtc_get_reset_reason(0));
 
