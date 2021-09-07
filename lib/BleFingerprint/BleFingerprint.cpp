@@ -127,6 +127,9 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
             calRssi = (advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
         }
     }
+
+    if (id.isEmpty() && advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
+            id = mac_address;
     Serial.println();
 }
 
@@ -174,7 +177,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
 {
-    if (id.isEmpty() && name.isEmpty())
+    if (id.isEmpty())
         return false;
 
     if (!hasValue)

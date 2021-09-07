@@ -258,6 +258,7 @@ bool reportDevice(BleFingerprint *f)
 void scanForDevices(void *parameter)
 {
     fingerprintSemaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(fingerprintSemaphore);
     auto scan = MyAdvertisedDeviceCallbacks();
     BLEDevice::init("");
     auto pBLEScan = BLEDevice::getScan();
