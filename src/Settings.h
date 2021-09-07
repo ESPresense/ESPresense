@@ -43,10 +43,13 @@
 #define BUTTON 39
 #define BUTTON_PRESSED 0
 
-#else // Huzzah32
+#else // Huzzah32 or DevKit
 
 #define LED_BUILTIN 13
 #define LED_BUILTIN_ON 1
+
+#define BUTTON 15
+#define BUTTON_PRESSED 1
 
 #endif
 #endif
