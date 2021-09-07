@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2]
+
+- Add support for clearing wifi setting via button on DevKit (as long as it's on GPIO15)
+
 ## [1.1.1]
 
 - Fix fingerprinting of udm-pro
