@@ -8,6 +8,9 @@ BleFingerprint::~BleFingerprint()
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{one_euro_filter<double, unsigned long>(1, fcmin, beta, dcutoff)}
 {
+    if (advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
+        macPublic = true;
+
     firstSeenMicros = esp_timer_get_time();
     address = advertisedDevice->getAddress();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
@@ -114,8 +117,8 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
                     String fingerprint = "md:" + String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2) + ":" + String(strManufacturerData.length());
                     if (advertisedDevice->haveTXPower())
                         fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-                    id = fingerprint;
-                    Serial.printf(", ID: %s", id.c_str());
+                    id = macPublic ? mac_address : fingerprint;
+                    Serial.printf(", ID: %s, MD: %s", id.c_str(), mdHex);
                 }
 
                 calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
@@ -128,8 +131,8 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
         }
     }
 
-    if (id.isEmpty() && advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
-            id = mac_address;
+    if (id.isEmpty() && macPublic)
+        id = mac_address;
     Serial.println();
 }
 

@@ -31,7 +31,7 @@ public:
     long getLastSeen() { return lastSeenMicros; };
 
 private:
-    bool hasValue = false, close = false, reported = false;
+    bool hasValue = false, close = false, reported = false, macPublic = false;
     NimBLEAddress address;
     String id, name, url;
     int rssi = -100, calRssi = 0;
