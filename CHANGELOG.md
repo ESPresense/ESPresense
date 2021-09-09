@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0]
+
+- Prefer mac address as ID if we have a static MAC and only md fingerprint
+- Breaking: If you're using a md:*:* fingerprint, verify that it hasn't switched to the mac
+
 ## [1.1.2]
 
 - Add support for clearing wifi setting via button on DevKit (as long as it's on GPIO15)
