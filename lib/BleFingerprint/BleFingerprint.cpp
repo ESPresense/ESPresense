@@ -22,68 +22,73 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
 
+    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
+
     std::string strServiceData = advertisedDevice->getServiceData();
     uint8_t cServiceData[100];
     strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
-
-    if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
+    if (advertisedDevice->haveServiceUUID())
     {
-        id = "tile:" + mac_address;
-        Serial.printf(", ID: %s", id.c_str());
-        calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
-    }
-    else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
-    { // found covid exposure tracker
-        id = "exp:" + String(strServiceData.length());
-        Serial.printf(", ID: %s", id.c_str());
-        calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
+        if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
+        {
+            id = "tile:" + mac_address;
+            Serial.printf(", ID: %s", id.c_str());
+        }
+        else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
+        { // found covid exposure tracker
+            id = "exp:" + String(strServiceData.length());
+            Serial.printf(", ID: %s", id.c_str());
 
-        //char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
-        //doc["tek"] = String(sdHex).substring(4, 20);
-        //free(sdHex);
-    }
-    else if (advertisedDevice->haveServiceUUID() && advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
-    { // found Eddystone UUID
-        Serial.print(", Eddystone");
-        if (cServiceData[0] == 0x10)
-        {
-            BLEEddystoneURL oBeacon = BLEEddystoneURL();
-            oBeacon.setData(strServiceData);
-            // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
-            url = String(oBeacon.getDecodedURL().c_str());
-            Serial.print(" URL: ");
-            Serial.print(url.c_str());
-            calRssi = oBeacon.getPower();
+            //char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
+            //doc["tek"] = String(sdHex).substring(4, 20);
+            //free(sdHex);
         }
-        else if (cServiceData[0] == 0x20)
-        {
-            BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
-            oBeacon.setData(strServiceData);
-            Serial.printf(" TLM: ");
-            Serial.printf(oBeacon.toString().c_str());
+        else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
+        { // found Eddystone UUID
+            Serial.print(", Eddystone");
+            if (cServiceData[0] == 0x10)
+            {
+                BLEEddystoneURL oBeacon = BLEEddystoneURL();
+                oBeacon.setData(strServiceData);
+                // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
+                url = String(oBeacon.getDecodedURL().c_str());
+                Serial.print(" URL: ");
+                Serial.print(url.c_str());
+                calRssi = oBeacon.getPower();
+            }
+            else if (cServiceData[0] == 0x20)
+            {
+                BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
+                oBeacon.setData(strServiceData);
+                Serial.printf(" TLM: ");
+                Serial.printf(oBeacon.toString().c_str());
+            }
         }
-    }
-    else
-    {
-        if (advertisedDevice->haveServiceUUID())
+        else
         {
+            String fingerprint = "sid:";
             for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
             {
                 std::string sid = advertisedDevice->getServiceUUID(i).toString();
                 Serial.printf(", sID: %s", sid.c_str());
+                fingerprint = fingerprint + String(sid.c_str());
             }
+            id = fingerprint;
+            if (advertisedDevice->haveTXPower())
+                fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
         }
-        if (advertisedDevice->haveManufacturerData() == true)
+    }
+    else if (advertisedDevice->haveManufacturerData())
+    {
+        std::string strManufacturerData = advertisedDevice->getManufacturerData();
+        if (strManufacturerData.length() > 2)
         {
-            std::string strManufacturerData = advertisedDevice->getManufacturerData();
-
-            uint8_t cManufacturerData[100];
-            strManufacturerData.copy((char *)cManufacturerData, strManufacturerData.length(), 0);
             char *mdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strManufacturerData.data(), strManufacturerData.length());
+            String manuf = String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2);
 
-            if (strManufacturerData.length() > 2 && cManufacturerData[0] == 0x4C && cManufacturerData[1] == 0x00) // Apple
+            if (manuf == "004c") // Apple
             {
-                if (strManufacturerData.length() == 25 && cManufacturerData[2] == 0x02 && cManufacturerData[3] == 0x15)
+                if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15)
                 {
                     BLEBeacon oBeacon = BLEBeacon();
                     oBeacon.setData(strManufacturerData);
@@ -96,7 +101,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
                     id = "iBeacon:" + proximityUUID + "-" + major + "-" + minor;
                     Serial.printf(", ID: %s", id.c_str());
                     calRssi = oBeacon.getSignalPower();
-                    if (calRssi > 0) calRssi = defaultTxPower;
                 }
                 else
                 {
@@ -106,30 +110,36 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
                     id = fingerprint;
                     Serial.printf(", ID: %s", id.c_str());
-
-                    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
                 }
+            }
+            else if (manuf == "05a7") //Sonos
+            {
+                id = "sonos:" + mac_address;
+                Serial.printf(", ID: %s", id.c_str());
+            }
+            else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
+            {
+                id = "microsoft:" + String(mdHex).substring(12, 59);
+                Serial.printf(", ID: %s", id.c_str());
+            }
+            else if (manuf == "0075") //samsung
+            {
+                id = "samsung:" + mac_address;
+                Serial.printf(", ID: %s", id.c_str());
             }
             else
             {
-                if (strManufacturerData.length() > 2)
-                {
-                    String fingerprint = "md:" + String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2) + ":" + String(strManufacturerData.length());
-                    if (advertisedDevice->haveTXPower())
-                        fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-                    id = macPublic ? mac_address : fingerprint;
-                    Serial.printf(", ID: %s, MD: %s", id.c_str(), mdHex);
-                }
-
-                calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
+                String fingerprint = "md:" + String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2) + ":" + String(strManufacturerData.length());
+                if (advertisedDevice->haveTXPower())
+                    fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
+                id = macPublic ? mac_address : fingerprint;
+                Serial.printf(", ID: %s, MD: %s", id.c_str(), mdHex);
             }
             free(mdHex);
         }
-        else
-        {
-            calRssi = (advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0);
-        }
     }
+
+    if (calRssi > 0) calRssi = defaultTxPower;
 
     if (id.isEmpty() && macPublic)
         id = mac_address;
