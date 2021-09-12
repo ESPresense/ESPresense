@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0]
+
+- More changes to fingerprinting, id will be different if the device is sonos or samsung.  Those instead of saying md:<id> now use the manufacture name (samsung or sonos) as the prefix with the mac at the end
+- Windows 10 we fingerprint as microsoft:<last 23 bytes in hex of manufacture data>. See https://petsymposium.org/2019/files/papers/issue3/popets-2019-0036.pdf for why, still not useful for a consistent fingerprint
+
 ## [1.2.0]
 
 - Prefer mac address as ID if we have a static MAC and only md fingerprint
