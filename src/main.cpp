@@ -311,7 +311,9 @@ void setup()
 #endif
     spiffsInit();
     connectToWifi();
+#if NTP
     setClock();
+#endif
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, nullptr, 1, &scannerTask, 1);
     configureOTA();

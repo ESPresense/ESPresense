@@ -4,7 +4,6 @@
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
-//define SDateTimef(f) ({ struct tm firstSeenTm; gmtime_r(&f, &firstSeenTm); Sprintf("%d/%d/%d %d:%.2d:%.2d", firstSeenTm.tm_mon, firstSeenTm.tm_mday, 1900 + firstSeenTm.tm_year, firstSeenTm.tm_hour, firstSeenTm.tm_min, firstSeenTm.tm_sec); })
 #define SMacf(f) ({ auto nativeAddress = f.getNative(); Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); })
 
 #ifdef TX_DEFAULT
