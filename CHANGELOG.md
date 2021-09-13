@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.1]
+
+- Turn off NTP by default
+
 ## [1.3.0]
 
 - More changes to fingerprinting, id will be different if the device is sonos or samsung.  Those instead of saying md:<id> now use the manufacture name (samsung or sonos) as the prefix with the mac at the end
