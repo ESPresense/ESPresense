@@ -1,37 +1,5 @@
 #include <main.h>
 
-BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
-{
-    auto mac = advertisedDevice->getAddress();
-
-    auto it = std::find_if(fingerprints.begin(), fingerprints.end(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
-    if (it != fingerprints.end())
-    {
-        return *it;
-    }
-
-    auto created = new BleFingerprint(advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
-    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
-    if (it2 != fingerprints.end())
-    {
-        auto found = *it2;
-        created->setInitial(found->getRSSI(), found->getDistance());
-    }
-
-    fingerprints.push_front(created);
-    return created;
-}
-
-BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice)
-{
-    if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
-        log_e("Couldn't take semaphore!");
-    auto f = getFingerprintInternal(advertisedDevice);
-    if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
-        log_e("Couldn't give semaphore!");
-    return f;
-}
-
 bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
 {
     if (!online)
@@ -204,26 +172,6 @@ void connectToMqtt()
     mqttClient.connect();
 }
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
-{
-public:
-    int getTotalAdverts() { return totalSeen; }
-
-private:
-    int totalSeen = 0;
-
-    void onResult(BLEAdvertisedDevice *advertisedDevice)
-    {
-        if (updateInProgress)
-            return;
-        totalSeen++;
-        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
-        BleFingerprint *f = getFingerprint(advertisedDevice);
-        f->seen(advertisedDevice);
-        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
-    }
-};
-
 bool reportDevice(BleFingerprint *f)
 {
     StaticJsonDocument<512> doc;
@@ -257,14 +205,11 @@ bool reportDevice(BleFingerprint *f)
 
 void scanForDevices(void *parameter)
 {
-    fingerprintSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(fingerprintSemaphore);
-    auto scan = MyAdvertisedDeviceCallbacks();
     BLEDevice::init("");
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(&scan, true);
+    pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
     pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
     pBLEScan->setMaxResults(0);
     if (!pBLEScan->start(0, nullptr, false))
@@ -277,18 +222,10 @@ void scanForDevices(void *parameter)
         if (updateInProgress || !mqttClient.connected())
             continue;
 
-        auto results = scan;
-        pBLEScan->setAdvertisedDeviceCallbacks(&(scan = MyAdvertisedDeviceCallbacks()), true);
-
         int totalSeen = 0;
         int totalReported = 0;
 
-        if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
-            log_e("Couldn't take semaphore!");
-        cleanupOldFingerprints();
-        std::list<BleFingerprint *> seen(fingerprints);
-        if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
-            log_e("Couldn't give semaphore!");
+        auto seen = fingerprints.getSeen();
 
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
@@ -296,7 +233,7 @@ void scanForDevices(void *parameter)
             if (reportDevice(*it))
                 totalReported++;
         }
-        sendTelemetry(totalSeen, totalReported, results.getTotalAdverts());
+        sendTelemetry(totalSeen, totalReported, fingerprints.getTotalAdverts());
     }
 }
 

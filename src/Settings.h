@@ -26,40 +26,6 @@
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define DEFAULT_MAX_DISTANCE 16
 
-#ifdef M5STICK
-
-#define LED_BUILTIN 10
-#define LED_BUILTIN_ON 0
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#else
-#if M5ATOM
-
-#define LED_BUILTIN 10
-#define LED_BUILTIN_ON 0
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#else // Huzzah32 or DevKit
-
-#define LED_BUILTIN 13
-#define LED_BUILTIN_ON 1
-
-#define BUTTON 15
-#define BUTTON_PRESSED 1
-
-#endif
-#endif
-
-#ifdef M5STICK
-
-#else
-
-#endif
-
 //Define the base topic for room detection. Usually "espresense"
 #define CHANNEL String("espresense")
 
@@ -74,9 +40,3 @@
 
 // Number of seconds between update checks
 #define CHECK_FOR_UPDATES_INTERVAL 300
-
-#define ONE_EURO_FCMIN 0.01
-
-#define ONE_EURO_BETA 0.005
-
-#define ONE_EURO_DCUTOFF 1

@@ -2,6 +2,16 @@
 
 GUI Display;
 
+void GUI::seenStart()
+{
+    digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+}
+
+void GUI::seenEnd()
+{
+    digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
+}
+
 void GUI::connected(bool wifi = false, bool mqtt = false)
 {
     status("Wifi: %s Mqtt: %s", (wifi ? "no" : "yes"), (wifi ? "no" : "yes"));

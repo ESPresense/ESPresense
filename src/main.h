@@ -5,11 +5,8 @@
 #include <AsyncTCP.h>
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
-#include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
-#include <NimBLEEddystoneTLM.h>
-#include <NimBLEEddystoneURL.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
@@ -20,6 +17,7 @@
 #include <rom/rtc.h>
 
 #include "BleFingerprint.h"
+#include "BleFingerprintCollection.h"
 #include "Settings.h"
 
 AsyncMqttClient mqttClient;
@@ -45,9 +43,7 @@ bool publishTele;
 bool publishRooms;
 bool publishDevices;
 int maxDistance;
-
-static SemaphoreHandle_t fingerprintSemaphore;
-static std::list<BleFingerprint *> fingerprints;
+BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
 {
@@ -116,16 +112,18 @@ void configureOTA()
         .onStart([]() {
             Serial.println("OTA Start");
             updateInProgress = true;
+            fingerprints.setDisable(updateInProgress);
         })
         .onEnd([]() {
             updateInProgress = false;
-            digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
+            fingerprints.setDisable(updateInProgress);
+            Display.updateEnd();
             Serial.println("\n\rEnd");
         })
         .onProgress([](unsigned int progress, unsigned int total) {
             byte percent = (progress / (total / 100));
             Serial.printf("Progress: %u\r\n", percent);
-            digitalWrite(LED_BUILTIN, percent % 2);
+            Display.updateProgress(progress);
         })
         .onError([](ota_error_t error) {
             Serial.printf("Error[%u]: ", error);
@@ -178,6 +176,7 @@ void firmwareUpdate()
     }
 
     updateInProgress = true;
+    fingerprints.setDisable(updateInProgress);
     httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
@@ -239,26 +238,4 @@ void spiffsInit()
 #endif
 
     SPIFFS.begin(true);
-}
-
-void cleanupOldFingerprints()
-{
-    if (fingerprints.size() <= MAX_MAC_ADDRESSES)
-        return;
-
-    long oldestTime = LONG_MAX;
-    BleFingerprint *oldest = nullptr;
-    for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it)
-    {
-        long time = (*it)->getLastSeen();
-        if (time < oldestTime)
-        {
-            oldestTime = time;
-            oldest = (*it);
-        }
-    }
-    if (oldest == nullptr) return;
-
-    fingerprints.remove(oldest);
-    delete oldest;
 }
