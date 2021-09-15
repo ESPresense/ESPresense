@@ -101,6 +101,10 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             {
                 pid = "sonos:" + getMac();
             }
+            else if (manuf == "0157") //Mi-fit
+            {
+                pid = "mifit:" + getMac();
+            }
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
                 pid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
