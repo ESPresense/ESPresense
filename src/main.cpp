@@ -60,7 +60,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     }
 
     teleFails++;
-    Serial.printf("Error after 10 tries sending telemetry (%d times since boot)\n", teleFails);
+    log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
     return false;
 }
 
@@ -243,7 +243,7 @@ void setup()
 
     Serial.begin(115200);
     Serial.setDebugOutput(true);
-#if VERBOSE
+#ifdef VERBOSE
     esp_log_level_set("*", ESP_LOG_DEBUG);
 #endif
     spiffsInit();

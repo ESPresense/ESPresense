@@ -5,7 +5,6 @@
 #include <AsyncTCP.h>
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
-#include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
@@ -18,6 +17,7 @@
 
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
+#include "GUI.h"
 #include "Settings.h"
 
 AsyncMqttClient mqttClient;
@@ -103,7 +103,7 @@ void setClock()
 
     struct tm timeinfo;
     gmtime_r(&now, &timeinfo);
-    log_i(F("NTP synced, current time: %s"), asctime(&timeinfo));
+    log_i("NTP synced, current time: %s", asctime(&timeinfo));
 }
 
 void configureOTA()

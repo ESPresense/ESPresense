@@ -17,16 +17,26 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
     status("Wifi: %s Mqtt: %s", (wifi ? "no" : "yes"), (wifi ? "no" : "yes"));
 }
 
-void GUI::close(const char *mac, const char *id)
+void GUI::close(BleFingerprint *f)
 {
-    Serial.printf("%d Close | MAC: %s, ID: %-50s\n", xPortGetCoreID(), mac, id);
-    status("C: %s", id);
+    Serial.printf("%d Close | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
+    status("C: %s", f->getId());
 }
 
-void GUI::left(const char *mac, const char *id)
+void GUI::added(BleFingerprint *f)
 {
-    Serial.printf("%d Left  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), mac, id);
-    status("L: %s", id);
+    Serial.printf("%d New   | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
+}
+
+void GUI::removed(BleFingerprint *f)
+{
+    Serial.printf("%d Del   | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
+}
+
+void GUI::left(BleFingerprint *f)
+{
+    Serial.printf("%d Left  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
+    status("L: %s", f->getId());
 }
 
 void GUI::status(const char *format, ...)

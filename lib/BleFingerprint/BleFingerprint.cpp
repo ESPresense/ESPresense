@@ -1,11 +1,6 @@
 #include "BleFingerprint.h"
 #include "util.h"
 
-BleFingerprint::~BleFingerprint()
-{
-    Serial.printf("%d Del   | MAC: %s, ID: %s\n", xPortGetCoreID(), SMacf(address).c_str(), id.c_str());
-}
-
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{one_euro_filter<double, unsigned long>(1, fcmin, beta, dcutoff)}
 {
     if (advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
@@ -15,53 +10,49 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     address = advertisedDevice->getAddress();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
 
-    String mac_address = SMacf(address);
+    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
 
-    Serial.printf("%d New   | MAC: %s", xPortGetCoreID(), mac_address.c_str());
+    fingerprint(advertisedDevice);
+
+    if (calRssi > 0) calRssi = defaultTxPower;
+}
+
+void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
+{
 
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
 
-    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
-
-    std::string strServiceData = advertisedDevice->getServiceData();
-    uint8_t cServiceData[100];
-    strServiceData.copy((char *)cServiceData, strServiceData.length(), 0);
     if (advertisedDevice->haveServiceUUID())
     {
         if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
         {
-            id = "tile:" + mac_address;
-            Serial.printf(", ID: %s", id.c_str());
+            pid = "tile:" + getMac();
         }
         else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
         { // found covid exposure tracker
-            id = "exp:" + String(strServiceData.length());
-            Serial.printf(", ID: %s", id.c_str());
-
-            //char *sdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strServiceData.data(), strServiceData.length());
-            //doc["tek"] = String(sdHex).substring(4, 20);
-            //free(sdHex);
+            std::string strServiceData = advertisedDevice->getServiceData(BLEUUID(exposureUUID));
+            pid = "exp:" + String(strServiceData.length());
         }
         else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
         { // found Eddystone UUID
-            Serial.print(", Eddystone");
-            if (cServiceData[0] == 0x10)
+            std::string strServiceData = advertisedDevice->getServiceData(BLEUUID(beaconUUID));
+            if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18)
             {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
                 oBeacon.setData(strServiceData);
-                // Serial.printf("Eddystone Frame Type (Eddystone-URL) ");
                 url = String(oBeacon.getDecodedURL().c_str());
-                Serial.print(" URL: ");
-                Serial.print(url.c_str());
                 calRssi = oBeacon.getPower();
             }
-            else if (cServiceData[0] == 0x20)
+            else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE)
             {
                 BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
                 oBeacon.setData(strServiceData);
-                Serial.printf(" TLM: ");
-                Serial.printf(oBeacon.toString().c_str());
+                temp = oBeacon.getTemp();
+                volts = oBeacon.getVolt();
+#ifdef VERBOSE
+                Serial.println(oBeacon.toString().c_str());
+#endif
             }
         }
         else
@@ -70,12 +61,11 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
             for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
             {
                 std::string sid = advertisedDevice->getServiceUUID(i).toString();
-                Serial.printf(", sID: %s", sid.c_str());
                 fingerprint = fingerprint + String(sid.c_str());
             }
-            id = fingerprint;
             if (advertisedDevice->haveTXPower())
                 fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
+            sid = fingerprint;
         }
     }
     else if (advertisedDevice->haveManufacturerData())
@@ -83,8 +73,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
         std::string strManufacturerData = advertisedDevice->getManufacturerData();
         if (strManufacturerData.length() > 2)
         {
-            char *mdHex = NimBLEUtils::buildHexData(nullptr, (uint8_t *)strManufacturerData.data(), strManufacturerData.length());
-            String manuf = String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2);
+            String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
 
             if (manuf == "004c") // Apple
             {
@@ -98,52 +87,42 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
                     int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
                     int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
 
-                    id = "iBeacon:" + proximityUUID + "-" + major + "-" + minor;
-                    Serial.printf(", ID: %s", id.c_str());
+                    pid = "iBeacon:" + proximityUUID + "-" + major + "-" + minor;
                     calRssi = oBeacon.getSignalPower();
                 }
                 else
                 {
-                    String fingerprint = "apple:" + String(mdHex).substring(4, 8) + ":" + String(strManufacturerData.length());
                     if (advertisedDevice->haveTXPower())
-                        fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-
-                    id = fingerprint;
-                    Serial.printf(", ID: %s", id.c_str());
+                        pid = Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower());
+                    else
+                        pid = Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 }
             }
             else if (manuf == "05a7") //Sonos
             {
-                id = "sonos:" + mac_address;
-                Serial.printf(", ID: %s", id.c_str());
+                pid = "sonos:" + getMac();
             }
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
-                id = "microsoft:" + String(mdHex).substring(12, 59);
-                Serial.printf(", ID: %s", id.c_str());
+                pid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                              strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
+                              strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
+                              strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
+                              strManufacturerData[24], strManufacturerData[25], strManufacturerData[26], strManufacturerData[27], strManufacturerData[28]);
             }
             else if (manuf == "0075") //samsung
             {
-                id = "samsung:" + mac_address;
-                Serial.printf(", ID: %s", id.c_str());
+                pid = "samsung:" + getMac();
             }
             else
             {
-                String fingerprint = "md:" + String(mdHex).substring(2, 4) + String(mdHex).substring(0, 2) + ":" + String(strManufacturerData.length());
+                String fingerprint = Sprintf("md:%s:%d", manuf.c_str(), strManufacturerData.length());
                 if (advertisedDevice->haveTXPower())
                     fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-                id = macPublic ? mac_address : fingerprint;
-                Serial.printf(", ID: %s, MD: %s", id.c_str(), mdHex);
+                sid = fingerprint;
             }
-            free(mdHex);
         }
     }
-
-    if (calRssi > 0) calRssi = defaultTxPower;
-
-    if (id.isEmpty() && macPublic)
-        id = mac_address;
-    Serial.println();
 }
 
 bool BleFingerprint::filter()
@@ -169,6 +148,7 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     newest = advertisedDevice->getRSSI();
     rssi = median_of_3(oldest, recent, newest);
 
+    fingerprint(advertisedDevice);
     if (!calRssi) calRssi = defaultTxPower;
 
     float ratio = (calRssi - rssi) / 35.0f;
@@ -190,7 +170,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
 {
-    if (id.isEmpty())
+    if (pid.isEmpty() && sid.isEmpty() && !macPublic)
         return false;
 
     if (!hasValue)
@@ -216,17 +196,17 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     {
         if (!close)
         {
-            Display.close(mac.c_str(), id.c_str());
+            //Display.close(mac.c_str(), id.c_str());
             close = true;
         }
     }
     else if (close && output.value.position > 1.5)
     {
-        Display.left(mac.c_str(), id.c_str());
+        //Display.left(mac.c_str(), id.c_str());
         close = false;
     }
 
-    if (!id.isEmpty()) (*doc)[F("id")] = id;
+    (*doc)[F("id")] = getId();
     if (!name.isEmpty()) (*doc)[F("name")] = name;
 
     (*doc)[F("rssi@1m")] = calRssi;
@@ -236,6 +216,9 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
     (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+
+    if (volts) (*doc)[F("volts")] = volts;
+    if (temp) (*doc)[F("temp")] = temp;
 
     return true;
 }

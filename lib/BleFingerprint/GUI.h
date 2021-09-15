@@ -1,6 +1,7 @@
 #ifndef GUI_h
 #define GUI_h
 
+#include "BleFingerprint.h"
 #include <Arduino.h>
 
 #ifdef M5STICK
@@ -48,12 +49,16 @@
 class GUI
 {
 public:
+    void added(BleFingerprint *f);
+    void removed(BleFingerprint *f);
+    void close(BleFingerprint *f);
+    void left(BleFingerprint *f);
+
     void seenStart();
     void seenEnd();
     void updateProgress(unsigned int percent) { digitalWrite(LED_BUILTIN, percent % 2); }
     void updateEnd() { digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON); }
-    void close(const char *mac, const char *id);
-    void left(const char *mac, const char *id);
+
     void status(const char *message, ...);
     void connected(bool wifi, bool mqtt);
     void update();
