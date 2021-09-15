@@ -59,9 +59,9 @@ private:
     int newest = -100;
     int recent = -100;
     int oldest = -100;
-    float raw, lastReported, temp = 0;
+    float raw = 0, lastReported = 0, temp = 0;
     long firstSeenMicros, lastSeenMicros = 0, lastReportedMicros = 0;
-    uint16_t volts;
+    uint16_t volts = 0;
 
     Reading<Differential<float>> output;
 
