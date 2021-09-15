@@ -19,7 +19,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
-
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
 

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0]
+
+- Fingerprints are now 3 tier: primary ids > publicMac > secondard ids.  A single mac can have multiple advertisements sent (especially certain beacons).  So it might take a few packets before the id settles into the correct one.
+- Volts and temperature are now reported from Eddystone TLM advertisements
+- Names should show up more reliably now as well
+
 ## [1.3.1]
 
 - Turn off NTP by default
