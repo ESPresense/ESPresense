@@ -10,9 +10,10 @@ static const int defaultTxPower = TX_DEFAULT;
 static const int defaultTxPower = -59;
 #endif
 
-static const uint16_t eddystoneUUID = 0xFEAA;
-static const uint16_t tileUUID = 0xFEED;
-static const uint16_t exposureUUID = 0xFD6F;
+static BLEUUID eddystoneUUID((uint16_t)0xFEAA);
+static BLEUUID tileUUID((uint16_t)0xFEED);
+static BLEUUID exposureUUID((uint16_t)0xFD6F);
+static BLEUUID sonosUUID((uint16_t)0xFE07);
 
 static int median_of_3(int a, int b, int c)
 {
