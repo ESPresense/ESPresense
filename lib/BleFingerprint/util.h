@@ -10,7 +10,7 @@ static const int defaultTxPower = TX_DEFAULT;
 static const int defaultTxPower = -59;
 #endif
 
-static const uint16_t beaconUUID = 0xFEAA;
+static const uint16_t eddystoneUUID = 0xFEAA;
 static const uint16_t tileUUID = 0xFEED;
 static const uint16_t exposureUUID = 0xFD6F;
 

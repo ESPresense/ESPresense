@@ -24,18 +24,18 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 
     if (advertisedDevice->haveServiceUUID())
     {
-        if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(tileUUID)) == true)
+        if (advertisedDevice->isAdvertisingService(BLEUUID(tileUUID)))
         {
             pid = "tile:" + getMac();
         }
-        else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(exposureUUID)) == true)
+        else if (advertisedDevice->isAdvertisingService(BLEUUID(exposureUUID)))
         { // found covid exposure tracker
             std::string strServiceData = advertisedDevice->getServiceData(BLEUUID(exposureUUID));
             pid = "exp:" + String(strServiceData.length());
         }
-        else if (advertisedDevice->getServiceDataUUID().equals(BLEUUID(beaconUUID)) == true)
+        else if (advertisedDevice->isAdvertisingService(BLEUUID(eddystoneUUID)))
         { // found Eddystone UUID
-            std::string strServiceData = advertisedDevice->getServiceData(BLEUUID(beaconUUID));
+            std::string strServiceData = advertisedDevice->getServiceData(BLEUUID(eddystoneUUID));
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18)
             {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
