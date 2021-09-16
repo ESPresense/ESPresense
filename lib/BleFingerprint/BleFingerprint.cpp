@@ -10,15 +10,13 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     address = advertisedDevice->getAddress();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
 
-    calRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : 0;
-
     fingerprint(advertisedDevice);
-
-    if (calRssi > 0) calRssi = defaultTxPower;
 }
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
+    calcRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : NO_RSSI;
+
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
 
@@ -45,7 +43,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
                 oBeacon.setData(strServiceData);
                 url = String(oBeacon.getDecodedURL().c_str());
-                calRssi = oBeacon.getPower();
+                calRssi = oBeacon.getPower() - 41;
             }
             else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE)
             {
@@ -150,9 +148,8 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     rssi = median_of_3(oldest, recent, newest);
 
     fingerprint(advertisedDevice);
-    if (!calRssi) calRssi = defaultTxPower;
 
-    float ratio = (calRssi - rssi) / 35.0f;
+    float ratio = (get1mRssi() - rssi) / 35.0f;
     raw = pow(10, ratio);
 
     if (filter())
@@ -210,7 +207,7 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     (*doc)[F("id")] = getId();
     if (!name.isEmpty()) (*doc)[F("name")] = name;
 
-    (*doc)[F("rssi@1m")] = calRssi;
+    (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
     (*doc)[F("mac")] = mac;

@@ -9,6 +9,13 @@
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
 
+#define NO_RSSI -32768
+#ifdef TX_DEFAULT
+static const int defaultTxPower = TX_DEFAULT;
+#else
+static const int defaultTxPower = -59;
+#endif
+
 #define Sprintf(f, ...) (             \
     {                                 \
         char *s;                      \
@@ -40,6 +47,12 @@ public:
         return getMac();
     }
     String getMac() { return SMacf(address); }
+    int get1mRssi()
+    {
+        if (calRssi != NO_RSSI) return calRssi;
+        if (calcRssi != NO_RSSI) return calcRssi;
+        return defaultTxPower;
+    }
 
     float getDistance() { return output.value.position; }
     int getRSSI() { return rssi; }
@@ -55,7 +68,7 @@ private:
     bool hasValue = false, close = false, reported = false, macPublic = false;
     NimBLEAddress address;
     String pid, sid, name, url;
-    int rssi = -100, calRssi = 0;
+    int rssi = -100, calRssi = NO_RSSI, calcRssi = NO_RSSI;
     int newest = -100;
     int recent = -100;
     int oldest = -100;

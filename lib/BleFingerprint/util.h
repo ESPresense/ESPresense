@@ -4,12 +4,6 @@
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
 
-#ifdef TX_DEFAULT
-static const int defaultTxPower = TX_DEFAULT;
-#else
-static const int defaultTxPower = -59;
-#endif
-
 static BLEUUID eddystoneUUID((uint16_t)0xFEAA);
 static BLEUUID tileUUID((uint16_t)0xFEED);
 static BLEUUID exposureUUID((uint16_t)0xFD6F);
