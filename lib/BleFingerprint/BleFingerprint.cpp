@@ -84,13 +84,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 {
                     BLEBeacon oBeacon = BLEBeacon();
                     oBeacon.setData(strManufacturerData);
-
-                    String proximityUUID = getProximityUUIDString(oBeacon);
-
-                    int major = ENDIAN_CHANGE_U16(oBeacon.getMajor());
-                    int minor = ENDIAN_CHANGE_U16(oBeacon.getMinor());
-
-                    pid = "iBeacon:" + proximityUUID + "-" + major + "-" + minor;
+                    pid = Sprintf("iBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor()));
                     calRssi = oBeacon.getSignalPower();
                 }
                 else

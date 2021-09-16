@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0]
+
+- Breaking Change: iBeacon id's were backwards, they are now correct and match HA Companion
+- Bump NimBLE to 1.3.1
+
 ## [1.4.4]
 
 - Additional sonos fingerprinting

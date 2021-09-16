@@ -23,26 +23,3 @@ static int median_of_3(int a, int b, int c)
     int the_median = the_max ^ the_min ^ a ^ b ^ c;
     return (the_median);
 }
-
-static String getProximityUUIDString(BLEBeacon beacon)
-{
-    std::string serviceData = beacon.getProximityUUID().toString().c_str();
-    int serviceDataLength = serviceData.length();
-    String returnedString = "";
-    int i = serviceDataLength;
-    while (i > 0)
-    {
-        if (serviceData[i - 1] == '-')
-        {
-            i--;
-        }
-        char a = serviceData[i - 1];
-        char b = serviceData[i - 2];
-        returnedString += b;
-        returnedString += a;
-
-        i -= 2;
-    }
-
-    return returnedString;
-}
