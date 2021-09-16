@@ -4,17 +4,56 @@ GUI Display;
 
 void GUI::seenStart()
 {
+#ifdef M5ATOM
+    M5.dis.drawpix(0, CRGB(15, 15, 15));
+#else
     digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+#endif
 }
 
 void GUI::seenEnd()
 {
+#ifdef M5ATOM
+    M5.dis.drawpix(0, CRGB(0, 0, 0));
+#else
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
+#endif
+}
+
+void GUI::erasing()
+{
+    status("Erasing...");
+    Serial.println(F("Resetting back to defaults..."));
+}
+
+void GUI::erased()
+{
+}
+
+void GUI::connecting()
+{
+    status("Connecting...");
+    connected(false, false);
+#ifdef LED_BUILTIN
+    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+#endif
 }
 
 void GUI::connected(bool wifi = false, bool mqtt = false)
 {
+#ifdef M5ATOM
+    if (!wifi)
+        M5.dis.drawpix(0, CRGB(0, 128, 0));
+    else if (!mqtt)
+        M5.dis.drawpix(0, CRGB(0, 0, 128));
+    else
+        M5.dis.drawpix(0, CRGB(0, 0, 0));
+#else
+#ifdef LED_BUILTIN
+    digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
+#endif
     status("Wifi: %s Mqtt: %s", (wifi ? "no" : "yes"), (wifi ? "no" : "yes"));
+#endif
 }
 
 void GUI::close(BleFingerprint *f)
@@ -62,20 +101,39 @@ void GUI::status(const char *format, ...)
 
 void GUI::update()
 {
-#ifdef M5STICK
     if (!init)
     {
-        M5.begin(true, true, false);
+#ifdef M5STICK
+        M5.begin(false, true, false);
         M5.Lcd.setRotation(3);
         sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
         sprite.setSwapBytes(true);
+#elif defined M5ATOM
+        M5.begin(false, false, true);
+        M5.dis.drawpix(0, CRGB(64, 0, 0));
+#endif
         init = true;
     }
+#ifdef M5STICK
     if (dirty)
     {
         sprite.pushSprite(0, 0);
         M5.Axp.ScreenBreath(12);
         dirty = false;
     }
+#endif
+}
+
+void GUI::updateProgress(unsigned int percent)
+{
+#ifdef LED_BUILTIN
+    digitalWrite(LED_BUILTIN, percent % 2);
+#endif
+}
+
+void GUI::updateEnd()
+{
+#ifdef LED_BUILTIN
+    digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
 }

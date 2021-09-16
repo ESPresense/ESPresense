@@ -7,10 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.5.0]
+## [1.5.1]
 
 - Breaking Change: iBeacon id's were backwards, they are now correct and match HA Companion
 - Bump NimBLE to 1.3.1
+- Add support for blinking m5atom led, red=no wifi, blue=no mqtt, blinking white is packet seen
+
+## [1.5.0]
+
+- Nothing changed, changes missed this release
 
 ## [1.4.4]
 

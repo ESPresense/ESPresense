@@ -7,7 +7,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         if (mqttClient.publish(statusTopic.c_str(), 0, 1, "online"))
         {
             online = true;
-            Display.status("Connected to MQTT");
+            Display.connected(true, true);
             reconnectTries = 0;
         }
         else
@@ -67,15 +67,19 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
+    Display.update();
 
-    WiFiSettings.onSuccess = []() {
-        digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+    WiFiSettings.onSuccess = []()
+    {
+        Display.connected(true, false);
     };
-    WiFiSettings.onFailure = []() {
-        digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
+    WiFiSettings.onFailure = []()
+    {
+        Display.connected(false, false);
     };
-    WiFiSettings.onWaitLoop = []() {
-        digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    WiFiSettings.onWaitLoop = []()
+    {
+        Display.connecting();
         return 500;
     };
     WiFiSettings.onPortalWaitLoop = []() {
@@ -133,6 +137,7 @@ void onMqttConnect(bool sessionPresent)
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
+    Display.connected(true, false);
     log_e("Disconnected from MQTT; reason %d\n", reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
@@ -239,7 +244,9 @@ void scanForDevices(void *parameter)
 
 void setup()
 {
+#ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
+#endif
 
     Serial.begin(115200);
     Serial.setDebugOutput(true);

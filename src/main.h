@@ -177,7 +177,9 @@ void firmwareUpdate()
 
     updateInProgress = true;
     fingerprints.setDisable(updateInProgress);
+#ifdef LED_BUILTIN
     httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
+#endif
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
 
@@ -203,11 +205,7 @@ void firmwareUpdate()
 
 void spiffsInit()
 {
-    int ledState = HIGH;
-    digitalWrite(LED_BUILTIN, ledState);
-
 #ifdef BUTTON
-
     pinMode(BUTTON, INPUT);
     int flashes = 0;
     unsigned long debounceDelay = 250;
@@ -217,18 +215,17 @@ void spiffsInit()
     {
         if ((millis() - lastDebounceTime) > debounceDelay)
         {
-            ledState = !ledState;
-            digitalWrite(LED_BUILTIN, ledState);
+            Display.connecting();
             lastDebounceTime = millis();
             flashes++;
 
             if (flashes > 10)
             {
-                Serial.println(F("Resetting back to defaults..."));
-                digitalWrite(LED_BUILTIN, 1);
+
+                Display.erasing();
                 SPIFFS.format();
                 SPIFFS.begin(true);
-                digitalWrite(LED_BUILTIN, 0);
+                Display.erased();
 
                 return;
             }
