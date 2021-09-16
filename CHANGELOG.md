@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4]
+
+- Additional sonos fingerprinting
+- Remove button handling from esp32 flavors (#34)
+
 ## [1.4.3]
 
 - Add mifit fingerprint

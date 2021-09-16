@@ -12,7 +12,7 @@
 #endif
 #endif
 
-#ifdef M5STICK
+#if defined M5STICK
 
 #define LED_BUILTIN 10
 #define LED_BUILTIN_ON 0
@@ -20,8 +20,7 @@
 #define BUTTON 39
 #define BUTTON_PRESSED 0
 
-#else
-#if M5ATOM
+#elif defined M5ATOM
 
 #define LED_BUILTIN 10
 #define LED_BUILTIN_ON 0
@@ -29,20 +28,15 @@
 #define BUTTON 39
 #define BUTTON_PRESSED 0
 
-#else // Huzzah32 or DevKit
+#elif defined HUZZAH32
 
 #define LED_BUILTIN 13
 #define LED_BUILTIN_ON 1
 
-#define BUTTON 15
-#define BUTTON_PRESSED 1
+#else //DevKit / generic
 
-#endif
-#endif
-
-#ifdef M5STICK
-
-#else
+#define LED_BUILTIN 2
+#define LED_BUILTIN_ON 1
 
 #endif
 
