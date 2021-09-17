@@ -39,6 +39,8 @@
 
 #endif
 
+class BleFingerprint;
+
 class GUI
 {
 public:

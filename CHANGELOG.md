@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2]
+
+- Fix Close message not being logged out serial
+- Don't trust inaccurate Apple txPower
+
 ## [1.5.1]
 
 - Breaking Change: iBeacon id's were backwards, they are now correct and match HA Companion

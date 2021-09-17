@@ -1,6 +1,7 @@
 #ifndef _BLEFINGERPRINT_
 #define _BLEFINGERPRINT_
 
+#include "GUI.h"
 #include <ArduinoJson.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>

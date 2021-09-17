@@ -15,8 +15,6 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
-    calcRssi = advertisedDevice->haveTXPower() ? (-advertisedDevice->getTXPower()) - 41 : NO_RSSI;
-
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
 
@@ -24,19 +22,23 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
     {
         if (advertisedDevice->isAdvertisingService(tileUUID))
         {
+            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             pid = "tile:" + getMac();
         }
         else if (advertisedDevice->isAdvertisingService(exposureUUID))
         { // found covid exposure tracker
             std::string strServiceData = advertisedDevice->getServiceData(exposureUUID);
+            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             pid = "exp:" + String(strServiceData.length());
         }
         else if (advertisedDevice->isAdvertisingService(sonosUUID))
         {
+            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             pid = "sonos:" + getMac();
         }
         else if (advertisedDevice->isAdvertisingService(eddystoneUUID))
         { // found Eddystone UUID
+            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             std::string strServiceData = advertisedDevice->getServiceData(eddystoneUUID);
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18)
             {
@@ -58,6 +60,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
         }
         else
         {
+            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             String fingerprint = "sid:";
             for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
             {
@@ -95,14 +98,17 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             }
             else if (manuf == "05a7") //Sonos
             {
+                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
                 pid = "sonos:" + getMac();
             }
             else if (manuf == "0157") //Mi-fit
             {
+                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
                 pid = "mifit:" + getMac();
             }
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
+                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
                 pid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                               strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
                               strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
@@ -111,10 +117,12 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             }
             else if (manuf == "0075") //samsung
             {
+                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
                 pid = "samsung:" + getMac();
             }
             else
             {
+                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
                 String fingerprint = Sprintf("md:%s:%d", manuf.c_str(), strManufacturerData.length());
                 if (advertisedDevice->haveTXPower())
                     fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
@@ -194,13 +202,13 @@ bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
     {
         if (!close)
         {
-            //Display.close(mac.c_str(), id.c_str());
+            Display.close(this);
             close = true;
         }
     }
     else if (close && output.value.position > 1.5)
     {
-        //Display.left(mac.c_str(), id.c_str());
+        Display.left(this);
         close = false;
     }
 

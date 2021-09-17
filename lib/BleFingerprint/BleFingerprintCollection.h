@@ -2,7 +2,6 @@
 #define _BLEFINGERPRINTCOLLECTION_
 
 #include "BleFingerprint.h"
-#include "GUI.h"
 #include <ArduinoJson.h>
 
 #define ONE_EURO_FCMIN 0.01
