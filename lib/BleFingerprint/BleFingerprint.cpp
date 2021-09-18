@@ -72,7 +72,8 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             sid = fingerprint;
         }
     }
-    else if (advertisedDevice->haveManufacturerData())
+
+    if (advertisedDevice->haveManufacturerData())
     {
         std::string strManufacturerData = advertisedDevice->getManufacturerData();
         if (strManufacturerData.length() > 2)
