@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3]
+
+- Fix m5stickc init flag
+
 ## [1.5.2]
 
 - Fix Close message not being logged out serial

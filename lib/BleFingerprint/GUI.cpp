@@ -104,7 +104,7 @@ void GUI::update()
     if (!init)
     {
 #ifdef M5STICK
-        M5.begin(false, true, false);
+        M5.begin(true, true, false);
         M5.Lcd.setRotation(3);
         sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
         sprite.setSwapBytes(true);
