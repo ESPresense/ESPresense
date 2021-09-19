@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Fix GUI of m5stickc
+
 ## [1.5.4]
 
 - Fix beacons that send BOTH manufacture data and service uuids (#41)

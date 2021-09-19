@@ -59,7 +59,7 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
 void GUI::close(BleFingerprint *f)
 {
     Serial.printf("%d Close | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
-    status("C: %s", f->getId());
+    status("C: %s", f->getId().c_str());
 }
 
 void GUI::added(BleFingerprint *f)
@@ -75,7 +75,7 @@ void GUI::removed(BleFingerprint *f)
 void GUI::left(BleFingerprint *f)
 {
     Serial.printf("%d Left  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
-    status("L: %s", f->getId());
+    status("L: %s", f->getId().c_str());
 }
 
 void GUI::status(const char *format, ...)
