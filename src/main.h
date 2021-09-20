@@ -39,10 +39,14 @@ String room;
 String statusTopic;
 String teleTopic;
 String roomsTopic;
+String subTopic;
+bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
+bool discovery;
 int maxDistance;
+
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
@@ -235,4 +239,87 @@ void spiffsInit()
 #endif
 
     SPIFFS.begin(true);
+}
+
+bool sendOnline()
+{
+    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
+}
+
+void commonDiscovery(JsonDocument *doc)
+{
+    JsonArray identifiers = (*doc)["dev"].createNestedArray("ids");
+    identifiers.add(WiFi.macAddress());
+    JsonArray connections = (*doc)["dev"].createNestedArray("cns");
+    connections.add(serialized(("[\"MAC\",\"" + WiFi.macAddress() + "\"]").c_str()));
+    (*doc)["dev"]["name"] = "ESPresense " + room;
+    (*doc)["dev"]["sa"] = room;
+}
+
+bool sendDiscoveryConnectivity()
+{
+    if (!discovery) return true;
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/connectivity/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room;
+    doc["unique_id"] = WiFi.macAddress() + "_connectivity";
+    doc["json_attr_t"] = "~/telemetry";
+    doc["stat_t"] = "~/status";
+    doc["frc_upd"] = true;
+    doc["dev_cla"] = "connectivity";
+    doc["pl_on"] = "online";
+    doc["pl_off"] = "offline";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+
+    return false;
+}
+
+bool sendDiscoveryMaxDistance()
+{
+    if (!discovery) return true;
+    String discoveryTopic = "homeassistant/number/espresense_" + room + "/max_distance/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Max Distance";
+    doc["unique_id"] = WiFi.macAddress() + "_max_distance";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/max_distance";
+    doc["cmd_t"] = "~/max_distance/set";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+
+    return false;
+}
+
+bool spurt(const String &fn, const String &content)
+{
+    File f = SPIFFS.open(fn, "w");
+    if (!f) return false;
+    auto w = f.print(content);
+    f.close();
+    return w == content.length();
 }

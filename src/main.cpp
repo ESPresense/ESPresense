@@ -4,10 +4,9 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 {
     if (!online)
     {
-        if (mqttClient.publish(statusTopic.c_str(), 0, 1, "online"))
+        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance())
         {
             online = true;
-            Display.connected(true, true);
             reconnectTries = 0;
         }
         else
@@ -69,24 +68,26 @@ void connectToWifi()
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
     Display.update();
 
-    WiFiSettings.onSuccess = []()
-    {
-        Display.connected(true, false);
-    };
-    WiFiSettings.onFailure = []()
+    WiFiSettings.onConnect = []()
     {
         Display.connected(false, false);
+    };
+
+    WiFiSettings.onFailure = []()
+    {
+        Display.status("WiFi Portal...");
     };
     WiFiSettings.onWaitLoop = []()
     {
         Display.connecting();
-        return 500;
+        return 150;
     };
     WiFiSettings.onPortalWaitLoop = []() {
         if (getUptimeSeconds() > 600)
             ESP.restart();
     };
 
+    Display.connected(true, false);
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST);
@@ -95,9 +96,11 @@ void connectToWifi()
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
     room = WiFiSettings.string("room", ESPMAC);
     WiFiSettings.heading("Preferences");
+    activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+    discovery = WiFiSettings.checkbox("discovery", true, "Hass Discovery");
     maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.hostname = "espresense-" + room;
@@ -128,11 +131,14 @@ void connectToWifi()
     roomsTopic = CHANNEL + "/rooms/" + room;
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
+    subTopic = roomsTopic + "/+/set";
 }
 
 void onMqttConnect(bool sessionPresent)
 {
     xTimerStop(reconnectTimer, 0);
+    uint16_t packetIdSub = mqttClient.subscribe(subTopic.c_str(), 2);
+    Display.connected(true, true);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
@@ -141,6 +147,18 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
     log_e("Disconnected from MQTT; reason %d\n", reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
+}
+
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+    char new_payload[len + 1];
+    new_payload[len] = '\0';
+    strncpy(new_payload, payload, len);
+    String pay = String(new_payload);
+
+    Serial.printf("%s: %s\n", topic, new_payload);
+    maxDistance = pay.toInt();
+    spurt("/max_dist", String(new_payload));
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -171,6 +189,7 @@ void connectToMqtt()
     Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
+    mqttClient.onMessage(onMqttMessage);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(statusTopic.c_str(), 0, 1, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
@@ -215,7 +234,7 @@ void scanForDevices(void *parameter)
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
     pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
-    pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    if (activeScan) pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
     pBLEScan->setMaxResults(0);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
@@ -259,7 +278,7 @@ void setup()
     setClock();
 #endif
     connectToMqtt();
-    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4096, nullptr, 1, &scannerTask, 1);
+    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
 }
 

@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.5]
 
-- Fix GUI of m5stickc
+- Misc GUI fixes for m5stickc
+- Max distance settable via MQTT /max_distance/set
+- Make active scanning optional (can help battery life on certain devices)
+- Optional HA Auto Discovery (fix #16)
 
 ## [1.5.4]
 

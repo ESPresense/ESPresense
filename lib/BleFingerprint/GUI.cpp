@@ -52,7 +52,7 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
 #ifdef LED_BUILTIN
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
-    status("Wifi: %s Mqtt: %s", (wifi ? "no" : "yes"), (wifi ? "no" : "yes"));
+    status("Wifi: %s Mqtt: %s", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
 #endif
 }
 
