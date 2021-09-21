@@ -108,12 +108,7 @@ void connectToWifi()
 
     WiFiSettings.hostname = "espresense-" + room;
 
-    if (slurp("/portal") == String("next"))
-    {
-        SPIFFS.remove("/portal");
-        WiFiSettings.portal();
-    }
-    else if (!WiFiSettings.connect(true, 60))
+    if (!WiFiSettings.connect(true, 60))
         ESP.restart();
 
 #ifdef VERSION
@@ -176,11 +171,6 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         maxDistance = pay.toInt();
         spurt("/max_dist", pay);
-    }
-    else if (top == roomsTopic + "/portal/set")
-    {
-        spurt("/portal", pay);
-        ESP.restart();
     }
 }
 
@@ -358,4 +348,5 @@ void loop()
     Display.update();
     pirLoop();
     radarLoop();
+    WiFiSettings.httpLoop();
 }

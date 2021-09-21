@@ -355,14 +355,6 @@ bool sendDiscoveryMaxDistance()
     return false;
 }
 
-String slurp(const String &fn)
-{
-    File f = SPIFFS.open(fn, "r");
-    String r = f.readString();
-    f.close();
-    return r;
-}
-
 bool spurt(const String &fn, const String &content)
 {
     File f = SPIFFS.open(fn, "w");
