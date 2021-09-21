@@ -307,7 +307,7 @@ void setup()
     configureOTA();
 }
 
-void pirloop()
+void pirLoop()
 {
     if (!pirPin) return;
     int pirValue = digitalRead(pirPin);
@@ -329,7 +329,7 @@ void pirloop()
     }
 }
 
-void radarloop()
+void radarLoop()
 {
     if (!radarPin) return;
     int radarValue = digitalRead(radarPin);
@@ -356,6 +356,6 @@ void loop()
     ArduinoOTA.handle();
     firmwareUpdate();
     Display.update();
-    pirloop();
-    radarloop();
+    pirLoop();
+    radarLoop();
 }
