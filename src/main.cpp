@@ -91,20 +91,26 @@ void connectToWifi()
     Display.connected(true, false);
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
-    mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST);
-    mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT);
-    mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER);
-    mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD);
-    room = WiFiSettings.string("room", ESPMAC);
+    room = WiFiSettings.string("room", ESPMAC, "Room");
+    maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+
+    WiFiSettings.heading("MQTT Connection");
+    mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
+    mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
+    mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
+    mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
+
     WiFiSettings.heading("Preferences");
+
+    discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
-    discovery = WiFiSettings.checkbox("discovery", true, "Hass Discovery");
-    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR Motion Sensor pin (0 for disable)");
-    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar Motion pin (0 for disable)");
-    maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+
+    WiFiSettings.heading("Additional Sensors");
+    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
+    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
 
     WiFiSettings.hostname = "espresense-" + room;
 
@@ -122,6 +128,7 @@ void connectToWifi()
     Serial.println(WiFi.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
+    Serial.printf("Max Distance: %d\n", maxDistance);
     Serial.print("Telemetry:    ");
     Serial.println(publishTele ? "enabled" : "disabled");
     Serial.print("Rooms:        ");
@@ -130,7 +137,6 @@ void connectToWifi()
     Serial.println(publishDevices ? "enabled" : "disabled");
     Serial.print("Discovery:    ");
     Serial.println(discovery ? "enabled" : "disabled");
-    Serial.printf("Max Distance: %d\n", maxDistance);
     Serial.print("PIR Sensor:   ");
     Serial.println(pirPin ? "enabled" : "disabled");
     Serial.print("Radar Sensor: ");
