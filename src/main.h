@@ -47,6 +47,16 @@ bool publishDevices;
 bool discovery;
 int maxDistance;
 
+//pir sensor
+bool pirsensor;
+int inputPinPir = 27;
+int lastPirValue = LOW;
+
+//radar sensor
+bool radarsensor;
+int inputPinRadar = 26;
+int lastRadarValue = LOW;
+
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
@@ -113,36 +123,40 @@ void setClock()
 void configureOTA()
 {
     ArduinoOTA
-        .onStart([]() {
-            Serial.println("OTA Start");
-            updateInProgress = true;
-            fingerprints.setDisable(updateInProgress);
-        })
-        .onEnd([]() {
-            updateInProgress = false;
-            fingerprints.setDisable(updateInProgress);
-            Display.updateEnd();
-            Serial.println("\n\rEnd");
-        })
-        .onProgress([](unsigned int progress, unsigned int total) {
-            byte percent = (progress / (total / 100));
-            Serial.printf("Progress: %u\r\n", percent);
-            Display.updateProgress(progress);
-        })
-        .onError([](ota_error_t error) {
-            Serial.printf("Error[%u]: ", error);
-            if (error == OTA_AUTH_ERROR)
-                Serial.println("Auth Failed");
-            else if (error == OTA_BEGIN_ERROR)
-                Serial.println("Begin Failed");
-            else if (error == OTA_CONNECT_ERROR)
-                Serial.println("Connect Failed");
-            else if (error == OTA_RECEIVE_ERROR)
-                Serial.println("Receive Failed");
-            else if (error == OTA_END_ERROR)
-                Serial.println("End Failed");
-            updateInProgress = false;
-        });
+        .onStart([]()
+                 {
+                     Serial.println("OTA Start");
+                     updateInProgress = true;
+                     fingerprints.setDisable(updateInProgress);
+                 })
+        .onEnd([]()
+               {
+                   updateInProgress = false;
+                   fingerprints.setDisable(updateInProgress);
+                   Display.updateEnd();
+                   Serial.println("\n\rEnd");
+               })
+        .onProgress([](unsigned int progress, unsigned int total)
+                    {
+                        byte percent = (progress / (total / 100));
+                        Serial.printf("Progress: %u\r\n", percent);
+                        Display.updateProgress(progress);
+                    })
+        .onError([](ota_error_t error)
+                 {
+                     Serial.printf("Error[%u]: ", error);
+                     if (error == OTA_AUTH_ERROR)
+                         Serial.println("Auth Failed");
+                     else if (error == OTA_BEGIN_ERROR)
+                         Serial.println("Begin Failed");
+                     else if (error == OTA_CONNECT_ERROR)
+                         Serial.println("Connect Failed");
+                     else if (error == OTA_RECEIVE_ERROR)
+                         Serial.println("Receive Failed");
+                     else if (error == OTA_END_ERROR)
+                         Serial.println("End Failed");
+                     updateInProgress = false;
+                 });
     ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPort(3232);
     ArduinoOTA.begin();
@@ -246,6 +260,11 @@ bool sendOnline()
     return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
 }
 
+bool sendOnlineOccupancy()
+{
+    return mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "online");
+}
+
 void commonDiscovery(JsonDocument *doc)
 {
     JsonArray identifiers = (*doc)["dev"].createNestedArray("ids");
@@ -286,6 +305,38 @@ bool sendDiscoveryConnectivity()
         delay(50);
     }
 
+    return false;
+}
+
+bool sendDiscoveryOccupancy()
+{
+    if (!discovery) return true;
+    if (pirsensor or radarsensor)
+    {
+        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/occupancy/config";
+
+        DynamicJsonDocument doc(1200);
+        char buffer[1200];
+
+        doc["~"] = roomsTopic;
+        doc["name"] = "ESPresense " + room + " Occupancy";
+        doc["unique_id"] = WiFi.macAddress() + "_occupancy";
+        doc["availability_topic"] = "~/status";
+        doc["stat_t"] = "~/occupancy";
+        doc["dev_cla"] = "motion";
+        doc["pl_on"] = "true";
+        doc["pl_off"] = "false";
+
+        commonDiscovery(&doc);
+        serializeJson(doc, buffer);
+
+        for (int i = 0; i < 10; i++)
+        {
+            if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+                return true;
+            delay(50);
+        }
+    }
     return false;
 }
 
