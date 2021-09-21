@@ -254,6 +254,8 @@ void commonDiscovery(JsonDocument *doc)
     connections.add(serialized(("[\"MAC\",\"" + WiFi.macAddress() + "\"]").c_str()));
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
+    (*doc)["dev"]["mdl"] = ESP.getChipModel();
+    (*doc)["dev"]["mf"] = "espressif";
 }
 
 bool sendDiscoveryConnectivity()

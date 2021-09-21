@@ -111,20 +111,22 @@ void connectToWifi()
 #ifdef VERSION
     Serial.println("Version:     " + String(VERSION));
 #endif
-    Serial.print("IP address:  ");
+    Serial.print("IP address:   ");
     Serial.println(WiFi.localIP());
-    Serial.print("DNS address: ");
+    Serial.print("DNS address:  ");
     Serial.println(WiFi.dnsIP());
-    Serial.print("Hostname:    ");
+    Serial.print("Hostname:     ");
     Serial.println(WiFi.getHostname());
-    Serial.print("Room:        ");
+    Serial.print("Room:         ");
     Serial.println(room);
-    Serial.print("Telemetry:   ");
+    Serial.print("Telemetry:    ");
+    Serial.println(publishTele ? "enabled" : "disabled");
+    Serial.print("Rooms:        ");
     Serial.println(publishRooms ? "enabled" : "disabled");
-    Serial.print("Rooms:       ");
-    Serial.println(publishRooms ? "enabled" : "disabled");
-    Serial.print("Devices:     ");
+    Serial.print("Devices:      ");
     Serial.println(publishDevices ? "enabled" : "disabled");
+    Serial.print("Discovery:    ");
+    Serial.println(discovery ? "enabled" : "disabled");
     Serial.printf("Max Distance: %d\n", maxDistance);
 
     localIp = WiFi.localIP().toString();
