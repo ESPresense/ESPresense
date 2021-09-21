@@ -47,6 +47,16 @@ bool publishDevices;
 bool discovery;
 int maxDistance;
 
+//pir sensor
+bool pirsensor;
+int inputPinPir  = 27;
+int lastPirValue = LOW;
+
+//radar sensor
+bool radarsensor;
+int inputPinRadar = 26;
+int lastRadarValue = LOW;
+
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
@@ -246,6 +256,11 @@ bool sendOnline()
     return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
 }
 
+bool sendOnlineOccupancy()
+{
+    return mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "online");
+}
+
 void commonDiscovery(JsonDocument *doc)
 {
     JsonArray identifiers = (*doc)["dev"].createNestedArray("ids");
@@ -254,6 +269,10 @@ void commonDiscovery(JsonDocument *doc)
     connections.add(serialized(("[\"MAC\",\"" + WiFi.macAddress() + "\"]").c_str()));
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
+    (*doc)["dev"]["mdl"] = ESP.getChipModel();
+    (*doc)["dev"]["mf"] = "espressif";  
+    //(*doc)["dev"]["sw"] = running_app_info.project_name + " - " + String(VERSION);  
+
 }
 
 bool sendDiscoveryConnectivity()
@@ -285,6 +304,38 @@ bool sendDiscoveryConnectivity()
     }
 
     return false;
+}
+
+bool sendDiscoveryOccupancy()
+{
+    if (!discovery) return true;
+    if (pirsensor or radarsensor) 
+    {
+        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/occupancy/config";
+
+        DynamicJsonDocument doc(1200);
+        char buffer[1200];
+
+        doc["~"] = roomsTopic;
+        doc["name"] = "ESPresense " + room + " Occupancy";
+        doc["unique_id"] = WiFi.macAddress() + "_occupancy";
+        doc["availability_topic"] = "~/status";
+        doc["stat_t"] = "~/occupancy";
+        doc["dev_cla"] = "motion";
+        doc["pl_on"] = "true";
+        doc["pl_off"] = "false";
+
+        commonDiscovery(&doc);
+        serializeJson(doc, buffer);
+
+        for (int i = 0; i < 10; i++)
+        {
+            if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+                return true;
+            delay(50);
+        }     
+    }
+    return false;   
 }
 
 bool sendDiscoveryMaxDistance()
