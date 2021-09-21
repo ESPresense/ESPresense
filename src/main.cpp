@@ -177,8 +177,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         maxDistance = pay.toInt();
         spurt("/max_dist", pay);
     }
-
-    if (top == roomsTopic + "/portal/set")
+    else if (top == roomsTopic + "/portal/set")
     {
         spurt("/portal", pay);
         ESP.restart();
