@@ -40,22 +40,16 @@ String statusTopic;
 String teleTopic;
 String roomsTopic;
 String subTopic;
+String pirSetTopic;
+String maxDistanceSetTopic;
 bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
 bool discovery;
 int maxDistance;
-
-//pir sensor
-bool pirsensor;
-int inputPinPir  = 27;
+int pirPort;
 int lastPirValue = LOW;
-
-//radar sensor
-bool radarsensor;
-int inputPinRadar = 26;
-int lastRadarValue = LOW;
 
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
@@ -253,12 +247,14 @@ void spiffsInit()
 
 bool sendOnline()
 {
-    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
+    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") 
+        && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str())
+        && mqttClient.publish((roomsTopic + "/pir_port").c_str(), 0, 1, String(pirPort).c_str());
 }
 
-bool sendOnlineOccupancy()
+bool sendOnlineMotion()
 {
-    return mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "online");
+    return mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "online");
 }
 
 void commonDiscovery(JsonDocument *doc)
@@ -306,31 +302,31 @@ bool sendDiscoveryConnectivity()
     return false;
 }
 
-bool sendDiscoveryOccupancy()
+bool sendDiscoveryMotion()
 {
     if (!discovery) return true;
-    if (pirsensor or radarsensor) 
+    if (pirPort > 0) 
     {
-        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/occupancy/config";
+        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/motion/config";
 
         DynamicJsonDocument doc(1200);
         char buffer[1200];
 
         doc["~"] = roomsTopic;
-        doc["name"] = "ESPresense " + room + " Occupancy";
-        doc["unique_id"] = WiFi.macAddress() + "_occupancy";
+        doc["name"] = "ESPresense " + room + " Motion";
+        doc["unique_id"] = WiFi.macAddress() + "_motion";
         doc["availability_topic"] = "~/status";
-        doc["stat_t"] = "~/occupancy";
+        doc["stat_t"] = "~/motion";
         doc["dev_cla"] = "motion";
-        doc["pl_on"] = "true";
-        doc["pl_off"] = "false";
+        doc["pl_on"] = "on";
+        doc["pl_off"] = "off";
 
         commonDiscovery(&doc);
         serializeJson(doc, buffer);
 
         for (int i = 0; i < 10; i++)
         {
-            if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            if (mqttClient.publish(discoveryTopic.c_str(), 0, false, buffer))
                 return true;
             delay(50);
         }     
@@ -352,6 +348,34 @@ bool sendDiscoveryMaxDistance()
     doc["availability_topic"] = "~/status";
     doc["stat_t"] = "~/max_distance";
     doc["cmd_t"] = "~/max_distance/set";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+
+    return false;
+}
+
+bool sendDiscoveryPirPort()
+{
+    if (!discovery) return true;
+    String discoveryTopic = "homeassistant/number/espresense_" + room + "/pir_port/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Motion Detection GPIO Port";
+    doc["unique_id"] = WiFi.macAddress() + "_pir_port";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/pir_port";
+    doc["cmd_t"] = "~/pir_port/set";
 
     commonDiscovery(&doc);
     serializeJson(doc, buffer);
