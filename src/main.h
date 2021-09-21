@@ -264,7 +264,6 @@ void commonDiscovery(JsonDocument *doc)
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
     (*doc)["dev"]["mdl"] = ESP.getChipModel();
-    (*doc)["dev"]["mf"] = "espressif";
 }
 
 bool sendDiscoveryConnectivity()

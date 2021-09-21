@@ -306,12 +306,12 @@ void pirLoop()
     {
         if (pirValue == HIGH)
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "on");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "ON");
             Serial.println("PIR MOTION DETECTED!!!");
         }
         else
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "off");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "OFF");
             Serial.println("NO PIR MOTION DETECTED!!!");
         }
 
@@ -328,12 +328,12 @@ void radarLoop()
     {
         if (radarValue == HIGH)
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "on");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "ON");
             Serial.println("Radar MOTION DETECTED!!!");
         }
         else
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "off");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "OFF");
             Serial.println("NO Radar MOTION DETECTED!!!");
         }
 
