@@ -276,8 +276,6 @@ void scanForDevices(void *parameter)
 
 void setup()
 {
-    if (pirPin) pinMode(pirPin, INPUT);
-    if (radarPin) pinMode(radarPin, INPUT);
 #ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
 #endif
@@ -289,6 +287,8 @@ void setup()
 #endif
     spiffsInit();
     connectToWifi();
+    if (pirPin) pinMode(pirPin, INPUT);
+    if (radarPin) pinMode(radarPin, INPUT);
 #if NTP
     setClock();
 #endif
