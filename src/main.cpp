@@ -4,16 +4,10 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance())
+        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion())
         {
             online = true;
             reconnectTries = 0;
-
-            if (pirsensor or radarsensor)
-            {
-                sendDiscoveryOccupancy();
-                sendOnlineOccupancy();
-            }
         }
         else
         {
@@ -108,13 +102,18 @@ void connectToWifi()
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
     discovery = WiFiSettings.checkbox("discovery", true, "Hass Discovery");
-    pirsensor = WiFiSettings.checkbox("pirsensor", false, "Use PIR Motion Sensor (HC-SR501) on GPIO27");
-    radarsensor = WiFiSettings.checkbox("radarsensor", false, "Use Radar Sensor (RCWL-0516) on GPIO26");
+    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR Motion Sensor pin (0 for disable)");
+    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar Motion pin (0 for disable)");
     maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.hostname = "espresense-" + room;
 
-    if (!WiFiSettings.connect(true, 60))
+    if (slurp("/portal") == String("next"))
+    {
+        SPIFFS.remove("/portal");
+        WiFiSettings.portal();
+    }
+    else if (!WiFiSettings.connect(true, 60))
         ESP.restart();
 
 #ifdef VERSION
@@ -138,9 +137,9 @@ void connectToWifi()
     Serial.println(discovery ? "enabled" : "disabled");
     Serial.printf("Max Distance: %d\n", maxDistance);
     Serial.print("PIR Sensor:   ");
-    Serial.println(pirsensor ? "enabled" : "disabled");
+    Serial.println(pirPin ? "enabled" : "disabled");
     Serial.print("Radar Sensor: ");
-    Serial.println(radarsensor ? "enabled" : "disabled");
+    Serial.println(radarPin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
     roomsTopic = CHANNEL + "/rooms/" + room;
@@ -152,7 +151,7 @@ void connectToWifi()
 void onMqttConnect(bool sessionPresent)
 {
     xTimerStop(reconnectTimer, 0);
-    uint16_t packetIdSub = mqttClient.subscribe(subTopic.c_str(), 2);
+    mqttClient.subscribe(subTopic.c_str(), 2);
     Display.connected(true, true);
 }
 
@@ -169,11 +168,21 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     char new_payload[len + 1];
     new_payload[len] = '\0';
     strncpy(new_payload, payload, len);
-    String pay = String(new_payload);
-
     Serial.printf("%s: %s\n", topic, new_payload);
-    maxDistance = pay.toInt();
-    spurt("/max_dist", String(new_payload));
+
+    String top = String(topic);
+    String pay = String(new_payload);
+    if (top == roomsTopic + "/max_distance/set")
+    {
+        maxDistance = pay.toInt();
+        spurt("/max_dist", pay);
+    }
+
+    if (top == roomsTopic + "/portal/set")
+    {
+        spurt("/portal", pay);
+        ESP.restart();
+    }
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -278,6 +287,8 @@ void scanForDevices(void *parameter)
 
 void setup()
 {
+    if (pirPin) pinMode(pirPin, INPUT);
+    if (radarPin) pinMode(radarPin, INPUT);
 #ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
 #endif
@@ -295,67 +306,49 @@ void setup()
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
-
-    if (pirsensor)
-    {
-        // PIR Motion Sensor mode INPUT_PULLUP
-        pinMode(inputPinPir, INPUT);
-    }
-
-    if (radarsensor)
-    {
-        // radarsensor Motion Sensor mode INPUT_PULLUP
-        pinMode(inputPinRadar, INPUT);
-    }
 }
 
 void pirloop()
 {
-    int pirValue = digitalRead(inputPinPir);
+    if (!pirPin) return;
+    int pirValue = digitalRead(pirPin);
 
-    if (pirsensor)
+    if (pirValue != lastPirValue)
     {
-        if (pirValue != lastPirValue)
+        if (pirValue == HIGH)
         {
-            if (pirValue == HIGH)
-            {
-                mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "true");
-                Serial.println("MOTION DETECTED!!!");
-            }
-            else
-            {
-                mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "false");
-                Serial.println("NO MOTION DETECTED!!!");
-            }
-
-            lastPirValue = pirValue;
-            //delay(30 * 1000);
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "on");
+            Serial.println("PIR MOTION DETECTED!!!");
         }
+        else
+        {
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "off");
+            Serial.println("NO PIR MOTION DETECTED!!!");
+        }
+
+        lastPirValue = pirValue;
     }
 }
 
 void radarloop()
 {
-    int radarValue = digitalRead(inputPinRadar);
+    if (!radarPin) return;
+    int radarValue = digitalRead(radarPin);
 
-    if (radarsensor)
+    if (radarValue != lastRadarValue)
     {
-        if (radarValue != lastRadarValue)
+        if (radarValue == HIGH)
         {
-            if (radarValue == HIGH)
-            {
-                mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "true");
-                Serial.println("Radar MOTION DETECTED!!!");
-            }
-            else
-            {
-                mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "false");
-                Serial.println("NO MOTION DETECTED!!!");
-            }
-
-            lastRadarValue = radarValue;
-            //delay(30 * 1000);
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "on");
+            Serial.println("Radar MOTION DETECTED!!!");
         }
+        else
+        {
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "off");
+            Serial.println("NO Radar MOTION DETECTED!!!");
+        }
+
+        lastRadarValue = radarValue;
     }
 }
 

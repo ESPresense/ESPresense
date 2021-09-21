@@ -46,16 +46,11 @@ bool publishRooms;
 bool publishDevices;
 bool discovery;
 int maxDistance;
+int pirPin;
+int radarPin;
 
-//pir sensor
-bool pirsensor;
-int inputPinPir = 27;
-int lastPirValue = LOW;
-
-//radar sensor
-bool radarsensor;
-int inputPinRadar = 26;
-int lastRadarValue = LOW;
+int lastPirValue = -1;
+int lastRadarValue = -1;
 
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
@@ -260,11 +255,6 @@ bool sendOnline()
     return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
 }
 
-bool sendOnlineOccupancy()
-{
-    return mqttClient.publish((roomsTopic + "/occupancy").c_str(), 0, 1, "online");
-}
-
 void commonDiscovery(JsonDocument *doc)
 {
     JsonArray identifiers = (*doc)["dev"].createNestedArray("ids");
@@ -308,34 +298,31 @@ bool sendDiscoveryConnectivity()
     return false;
 }
 
-bool sendDiscoveryOccupancy()
+bool sendDiscoveryMotion()
 {
     if (!discovery) return true;
-    if (pirsensor or radarsensor)
+    if (!pirPin && !radarPin) return true;
+
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/motion/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Motion";
+    doc["unique_id"] = WiFi.macAddress() + "_motion";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/motion";
+    doc["dev_cla"] = "motion";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
     {
-        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/occupancy/config";
-
-        DynamicJsonDocument doc(1200);
-        char buffer[1200];
-
-        doc["~"] = roomsTopic;
-        doc["name"] = "ESPresense " + room + " Occupancy";
-        doc["unique_id"] = WiFi.macAddress() + "_occupancy";
-        doc["availability_topic"] = "~/status";
-        doc["stat_t"] = "~/occupancy";
-        doc["dev_cla"] = "motion";
-        doc["pl_on"] = "true";
-        doc["pl_off"] = "false";
-
-        commonDiscovery(&doc);
-        serializeJson(doc, buffer);
-
-        for (int i = 0; i < 10; i++)
-        {
-            if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-                return true;
-            delay(50);
-        }
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
     }
     return false;
 }
@@ -366,6 +353,14 @@ bool sendDiscoveryMaxDistance()
     }
 
     return false;
+}
+
+String slurp(const String &fn)
+{
+    File f = SPIFFS.open(fn, "r");
+    String r = f.readString();
+    f.close();
+    return r;
 }
 
 bool spurt(const String &fn, const String &content)
