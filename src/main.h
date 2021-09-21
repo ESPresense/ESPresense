@@ -46,6 +46,11 @@ bool publishRooms;
 bool publishDevices;
 bool discovery;
 int maxDistance;
+int pirPin;
+int radarPin;
+
+int lastPirValue = -1;
+int lastRadarValue = -1;
 
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
@@ -113,36 +118,40 @@ void setClock()
 void configureOTA()
 {
     ArduinoOTA
-        .onStart([]() {
-            Serial.println("OTA Start");
-            updateInProgress = true;
-            fingerprints.setDisable(updateInProgress);
-        })
-        .onEnd([]() {
-            updateInProgress = false;
-            fingerprints.setDisable(updateInProgress);
-            Display.updateEnd();
-            Serial.println("\n\rEnd");
-        })
-        .onProgress([](unsigned int progress, unsigned int total) {
-            byte percent = (progress / (total / 100));
-            Serial.printf("Progress: %u\r\n", percent);
-            Display.updateProgress(progress);
-        })
-        .onError([](ota_error_t error) {
-            Serial.printf("Error[%u]: ", error);
-            if (error == OTA_AUTH_ERROR)
-                Serial.println("Auth Failed");
-            else if (error == OTA_BEGIN_ERROR)
-                Serial.println("Begin Failed");
-            else if (error == OTA_CONNECT_ERROR)
-                Serial.println("Connect Failed");
-            else if (error == OTA_RECEIVE_ERROR)
-                Serial.println("Receive Failed");
-            else if (error == OTA_END_ERROR)
-                Serial.println("End Failed");
-            updateInProgress = false;
-        });
+        .onStart([]()
+                 {
+                     Serial.println("OTA Start");
+                     updateInProgress = true;
+                     fingerprints.setDisable(updateInProgress);
+                 })
+        .onEnd([]()
+               {
+                   updateInProgress = false;
+                   fingerprints.setDisable(updateInProgress);
+                   Display.updateEnd();
+                   Serial.println("\n\rEnd");
+               })
+        .onProgress([](unsigned int progress, unsigned int total)
+                    {
+                        byte percent = (progress / (total / 100));
+                        Serial.printf("Progress: %u\r\n", percent);
+                        Display.updateProgress(progress);
+                    })
+        .onError([](ota_error_t error)
+                 {
+                     Serial.printf("Error[%u]: ", error);
+                     if (error == OTA_AUTH_ERROR)
+                         Serial.println("Auth Failed");
+                     else if (error == OTA_BEGIN_ERROR)
+                         Serial.println("Begin Failed");
+                     else if (error == OTA_CONNECT_ERROR)
+                         Serial.println("Connect Failed");
+                     else if (error == OTA_RECEIVE_ERROR)
+                         Serial.println("Receive Failed");
+                     else if (error == OTA_END_ERROR)
+                         Serial.println("End Failed");
+                     updateInProgress = false;
+                 });
     ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPort(3232);
     ArduinoOTA.begin();
@@ -286,6 +295,35 @@ bool sendDiscoveryConnectivity()
         delay(50);
     }
 
+    return false;
+}
+
+bool sendDiscoveryMotion()
+{
+    if (!discovery) return true;
+    if (!pirPin && !radarPin) return true;
+
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/motion/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Motion";
+    doc["unique_id"] = WiFi.macAddress() + "_motion";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/motion";
+    doc["dev_cla"] = "motion";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
     return false;
 }
 
