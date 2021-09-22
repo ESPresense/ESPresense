@@ -27,7 +27,9 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
     tele["uptime"] = getUptimeSeconds();
     tele["firm"] = String(FIRMWARE);
     tele["rssi"] = WiFi.RSSI();
-
+#ifdef MACCHINA_A0
+    tele["batt"] = a0_read_batt_mv() / 1000.0f;
+#endif
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
@@ -102,6 +104,7 @@ void connectToWifi()
 
     WiFiSettings.heading("Preferences");
 
+    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");

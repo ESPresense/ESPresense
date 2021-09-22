@@ -40,11 +40,12 @@ String statusTopic;
 String teleTopic;
 String roomsTopic;
 String subTopic;
+bool autoUpdate;
+bool discovery;
 bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-bool discovery;
 int maxDistance;
 int pirPin;
 int radarPin;
@@ -159,8 +160,7 @@ void configureOTA()
 
 void firmwareUpdate()
 {
-#ifndef NOUPDATE
-#ifdef VERSION
+    if (!autoUpdate) return;
     static long lastFirmwareCheck = 0;
     long uptime = getUptimeSeconds();
     if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
@@ -176,6 +176,7 @@ void firmwareUpdate()
     if (!http.begin(client, firmwareUrl))
         return;
 
+#ifdef VERSION
     int httpCode = http.sendRequest("HEAD");
     if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(String(VERSION)) > 0)
     {
@@ -187,6 +188,7 @@ void firmwareUpdate()
     {
         Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
     }
+#endif
 
     updateInProgress = true;
     fingerprints.setDisable(updateInProgress);
@@ -212,8 +214,6 @@ void firmwareUpdate()
     }
 
     updateInProgress = false;
-#endif
-#endif
 }
 
 void spiffsInit()
@@ -362,3 +362,11 @@ bool spurt(const String &fn, const String &content)
     f.close();
     return w == content.length();
 }
+
+#ifdef MACCHINA_A0
+int a0_read_batt_mv()
+{
+    float vout = ((float)analogRead(GPIO_NUM_35) + 35) / 215.0;
+    return vout * 1100; // V to mV with +10% correction
+}
+#endif
