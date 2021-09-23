@@ -19,6 +19,8 @@
 #include "BleFingerprintCollection.h"
 #include "GUI.h"
 #include "Settings.h"
+#include <Adafruit_Sensor.h>
+#include "DHTesp.h"
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
@@ -48,10 +50,13 @@ bool discovery;
 int maxDistance;
 int pirPin;
 int radarPin;
+int dht11Pin;
+int dht22Pin;
 
 int lastPirValue = -1;
 int lastRadarValue = -1;
 
+DHTesp dht;
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
@@ -313,6 +318,65 @@ bool sendDiscoveryMotion()
     doc["availability_topic"] = "~/status";
     doc["stat_t"] = "~/motion";
     doc["dev_cla"] = "motion";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+    return false;
+}
+
+bool sendDiscoveryTemperature()
+{
+    if (!discovery) return true;
+    if (!dht11Pin && !dht22Pin) return true;
+
+    String discoveryTopic = "homeassistant/sensor/espresense_" + room + "/temperature/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Temperature";
+    doc["unique_id"] = WiFi.macAddress() + "_temperature";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/temperature";
+    doc["dev_cla"] = "temperature";
+    doc["unit_of_measurement"] = "C°";
+
+    commonDiscovery(&doc);
+    serializeJson(doc, buffer);
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+    return false;
+}
+
+bool sendDiscoveryHumidity()
+{
+    if (!discovery) return true;
+    if (!dht11Pin && !dht22Pin) return true;
+
+    String discoveryTopic = "homeassistant/sensor/espresense_" + room + "/humidity/config";
+
+    DynamicJsonDocument doc(1200);
+    char buffer[1200];
+
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Humidity";
+    doc["unique_id"] = WiFi.macAddress() + "_humidity";
+    doc["availability_topic"] = "~/status";
+    doc["stat_t"] = "~/humidity";
+    doc["dev_cla"] = "humidity";
 
     commonDiscovery(&doc);
     serializeJson(doc, buffer);

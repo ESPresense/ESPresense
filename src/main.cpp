@@ -4,7 +4,8 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion())
+        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() 
+            && sendDiscoveryHumidity() && sendDiscoveryTemperature())
         {
             online = true;
             reconnectTries = 0;
@@ -111,6 +112,8 @@ void connectToWifi()
     WiFiSettings.heading("Additional Sensors");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
+    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "Temperature & humidity Sensor DHT11 (0 for disable)");
+    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "Temperature & humidity Sensor DHT22 (0 for disable)");
 
     WiFiSettings.hostname = "espresense-" + room;
 
@@ -295,6 +298,9 @@ void setup()
     connectToWifi();
     if (pirPin) pinMode(pirPin, INPUT);
     if (radarPin) pinMode(radarPin, INPUT);
+    if (dht11Pin) dht.setup(dht11Pin, DHTesp::DHT11);
+    if (dht22Pin) dht.setup(dht11Pin, DHTesp::DHT22); //(AM2302)
+
 #if NTP
     setClock();
 #endif
@@ -347,8 +353,30 @@ void radarLoop()
     }
 }
 
+
+void dhtLoop()
+{
+    if (!dht11Pin && !dht22Pin) return ;
+    delay(dht.getMinimumSamplingPeriod());
+
+    float humidity = dht.getHumidity();
+    float temperature = dht.getTemperature();
+
+    Serial.print(dht.getStatusString());
+    Serial.print("\t");
+    Serial.print(humidity, 1);
+    Serial.print("\t\t");
+    Serial.print(temperature, 1);
+    Serial.print("\t\t");
+    Serial.println(dht.computeHeatIndex(temperature, humidity, false), 1);    
+
+    mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
+    mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
+}
+
 void loop()
 {
+    dhtLoop();
     ArduinoOTA.handle();
     firmwareUpdate();
     Display.update();
