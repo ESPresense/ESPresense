@@ -40,3 +40,9 @@
 
 // Number of seconds between update checks
 #define CHECK_FOR_UPDATES_INTERVAL 300
+
+#ifdef VERSION
+#define DEFAULT_AUTO_UPDATE true
+#else
+#define DEFAULT_AUTO_UPDATE false
+#endif
