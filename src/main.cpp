@@ -94,7 +94,7 @@ void connectToWifi()
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
     room = WiFiSettings.string("room", ESPMAC, "Room");
-    maxDistance = WiFiSettings.integer("max_dist", DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.heading("MQTT Connection");
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
@@ -131,7 +131,7 @@ void connectToWifi()
     Serial.println(WiFi.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
-    Serial.printf("Max Distance: %d\n", maxDistance);
+    Serial.printf("Max Distance: %.2f\n", maxDistance);
     Serial.print("Telemetry:    ");
     Serial.println(publishTele ? "enabled" : "disabled");
     Serial.print("Rooms:        ");
@@ -178,7 +178,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     String pay = String(new_payload);
     if (top == roomsTopic + "/max_distance/set")
     {
-        maxDistance = pay.toInt();
+        maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
     }
 }

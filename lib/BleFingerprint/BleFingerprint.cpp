@@ -175,7 +175,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
     hasValue = filter() || filter();
 }
 
-bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
+bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 {
     if (pid.isEmpty() && sid.isEmpty() && !macPublic)
         return false;
