@@ -214,6 +214,7 @@ void firmwareUpdate()
     }
 
     updateInProgress = false;
+    fingerprints.setDisable(updateInProgress);
 }
 
 void spiffsInit()
