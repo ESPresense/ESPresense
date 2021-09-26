@@ -4,40 +4,55 @@
 #include "BleFingerprint.h"
 #include <ArduinoJson.h>
 
-#define ONE_EURO_FCMIN 0.01
-#define ONE_EURO_BETA 0.005
-#define ONE_EURO_DCUTOFF 1
+#define ONE_EURO_FCMIN 1e-8
+#define ONE_EURO_BETA 1e-10
+#define ONE_EURO_DCUTOFF 1e-8
 
 class BleFingerprintCollection : public BLEAdvertisedDeviceCallbacks
 {
 public:
-    BleFingerprintCollection(int _maxCapacity) : maxCapacity{_maxCapacity}
+    BleFingerprintCollection()
     {
         fingerprintSemaphore = xSemaphoreCreateBinary();
         xSemaphoreGive(fingerprintSemaphore);
     }
     BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice);
     void cleanupOldFingerprints();
-    int getTotalAdverts() { return totalSeen; }
+    int getTotalAdverts() { return _totalSeen; }
     std::list<BleFingerprint *> getSeen();
-    void setDisable(bool val) { disable = val; }
+    void setDisable(bool disable) { _disable = disable; }
+    void setParams(int rssiRef, int forgetMs, float skipDistance, int skipMs, float maxDistance)
+    {
+        _refRssi = rssiRef;
+        _forgetMs = forgetMs;
+        _skipDistance = skipDistance;
+        _skipMs = skipMs;
+        _maxDistance = maxDistance;
+    }
+    int getSkipMs() { return _skipMs; }
+    int getSkipDistance() { return _skipDistance; }
+    int getRefRssi() { return _refRssi; }
 
 private:
-    bool disable = false;
-    int totalSeen = 0;
-    int maxCapacity;
+    bool _disable = false;
+    int _totalSeen = 0;
+
+    float _maxDistance, _skipDistance;
+    int _refRssi, _forgetMs, _skipMs;
+
     SemaphoreHandle_t fingerprintSemaphore;
     std::list<BleFingerprint *> fingerprints;
     BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice);
 
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
-        totalSeen++;
-        if (disable) return;
+        _totalSeen++;
+        if (_disable) return;
 
         Display.seenStart();
         BleFingerprint *f = getFingerprint(advertisedDevice);
-        f->seen(advertisedDevice);
+        if (f->seen(advertisedDevice))
+            Display.added(f);
         Display.seenEnd();
     }
 };

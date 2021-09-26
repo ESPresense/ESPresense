@@ -8,6 +8,7 @@ static BLEUUID eddystoneUUID((uint16_t)0xFEAA);
 static BLEUUID tileUUID((uint16_t)0xFEED);
 static BLEUUID exposureUUID((uint16_t)0xFD6F);
 static BLEUUID sonosUUID((uint16_t)0xFE07);
+static BLEUUID itagUUID((uint16_t)0xffe0);
 
 static int median_of_3(int a, int b, int c)
 {

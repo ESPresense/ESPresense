@@ -2,25 +2,22 @@
 
 void BleFingerprintCollection::cleanupOldFingerprints()
 {
-    if (fingerprints.size() <= maxCapacity)
-        return;
-
-    long oldestTime = LONG_MAX;
-    BleFingerprint *oldest = nullptr;
-    for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it)
+    auto it = fingerprints.begin();
+    while (it != fingerprints.end())
     {
-        long time = (*it)->getLastSeen();
-        if (time < oldestTime)
+        auto item = (*it);
+        long age = item->getAge();
+        if (age > _forgetMs)
         {
-            oldestTime = time;
-            oldest = (*it);
+            Display.removed(item, age);
+            it = fingerprints.erase(it);
+            delete item;
+        }
+        else
+        {
+            ++it;
         }
     }
-    if (oldest == nullptr) return;
-
-    Display.removed(oldest);
-    fingerprints.remove(oldest);
-    delete oldest;
 }
 
 BleFingerprint *BleFingerprintCollection::getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
@@ -30,18 +27,15 @@ BleFingerprint *BleFingerprintCollection::getFingerprintInternal(BLEAdvertisedDe
     auto it = std::find_if(fingerprints.begin(), fingerprints.end(), [mac](BleFingerprint *f)
                            { return f->getAddress() == mac; });
     if (it != fingerprints.end())
-    {
         return *it;
-    }
 
-    auto created = new BleFingerprint(advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
-    Display.added(created);
+    auto created = new BleFingerprint(this, advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f)
                             { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end())
     {
         auto found = *it2;
-        created->setInitial(found->getRSSI(), found->getDistance());
+        created->setInitial(found->getRssi(), found->getDistance());
     }
 
     fingerprints.push_front(created);

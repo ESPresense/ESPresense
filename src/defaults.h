@@ -29,20 +29,23 @@
 //Define the base topic for room detection. Usually "espresense"
 #define CHANNEL String("espresense")
 
-// Define bluetooth scan parameters
-#define BLE_ACTIVE_SCAN true // Active scan uses more power, but get results faster
-
 #define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 #define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
-// Max number of mac addresses to keep track of
-#define MAX_MAC_ADDRESSES 50
+#define DEFAULT_REF_RSSI -65
+
+#define DEFAULT_FORGET_MS 300000 // Ms to remove fingerprint after not seeing it
+
+#define DEFAULT_SKIP_DISTANCE 0.1 // If beacon has moved less than this skip update
+#define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
 
 // Number of seconds between update checks
 #define CHECK_FOR_UPDATES_INTERVAL 300
 
 #ifdef VERSION
 #define DEFAULT_AUTO_UPDATE true
+#define DEFAULT_OTA_UPDATE false
 #else
 #define DEFAULT_AUTO_UPDATE false
+#define DEFAULT_OTA_UPDATE true
 #endif

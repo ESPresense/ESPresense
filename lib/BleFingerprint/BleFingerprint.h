@@ -11,19 +11,16 @@
 #include <SoftFilters.h>
 
 #define NO_RSSI -32768
-#ifdef TX_DEFAULT
-static const int defaultTxPower = TX_DEFAULT;
-#else
-static const int defaultTxPower = -59;
-#endif
+
+class BleFingerprintCollection;
 
 class BleFingerprint
 {
 
 public:
-    BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
+    BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
 
-    void seen(BLEAdvertisedDevice *advertisedDevice);
+    bool seen(BLEAdvertisedDevice *advertisedDevice);
     bool report(JsonDocument *doc, float maxDistance);
 
     String getId()
@@ -34,40 +31,37 @@ public:
         return getMac();
     }
     String getMac();
-    int get1mRssi()
-    {
-        if (calRssi != NO_RSSI) return calRssi;
-        if (calcRssi != NO_RSSI) return calcRssi;
-        return defaultTxPower;
-    }
+    int get1mRssi();
 
     float getDistance() { return output.value.position; }
-    int getRSSI() { return rssi; }
+    int getRssi() { return rssi; }
+    int getNewestRssi() { return newest; }
 
     void setInitial(int rssi, float distance);
 
     NimBLEAddress getAddress() { return address; }
-    long getLastSeen() { return lastSeenMicros; };
+    long getAge() { return millis() - lastSeenMillis; };
+    bool getIgnore() { return ignore; };
 
 private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
 
-    bool hasValue = false, close = false, reported = false, macPublic = false;
+    BleFingerprintCollection *_parent;
+    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false;
     NimBLEAddress address;
     String pid, sid, name, url;
-    int rssi = -100, calRssi = NO_RSSI, calcRssi = NO_RSSI;
+    int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     int newest = -100;
     int recent = -100;
     int oldest = -100;
     float raw = 0, lastReported = 0, temp = 0;
-    long firstSeenMicros, lastSeenMicros = 0, lastReportedMicros = 0;
+    unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0;
     uint16_t volts = 0;
 
     Reading<Differential<float>> output;
 
-    TimestampFilter<float> tsFilter;
-    one_euro_filter<double, unsigned long> oneEuro;
-    DifferentialFilter<float> diffFilter;
+    OneEuroFilter<float, long long> oneEuro;
+    DifferentialFilter<float, long long> diffFilter;
 
     bool filter();
 };
