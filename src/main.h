@@ -48,7 +48,7 @@ bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-int maxDistance;
+float maxDistance;
 int pirPin;
 int radarPin;
 int dht11Pin;
@@ -219,6 +219,7 @@ void firmwareUpdate()
     }
 
     updateInProgress = false;
+    fingerprints.setDisable(updateInProgress);
 }
 
 void spiffsInit()
@@ -404,6 +405,7 @@ bool sendDiscoveryMaxDistance()
     doc["availability_topic"] = "~/status";
     doc["stat_t"] = "~/max_distance";
     doc["cmd_t"] = "~/max_distance/set";
+    doc["step"] = "0.01";
 
     commonDiscovery(&doc);
     serializeJson(doc, buffer);

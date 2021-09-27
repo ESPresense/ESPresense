@@ -1,6 +1,41 @@
 #include "BleFingerprint.h"
 #include "util.h"
 
+#define Sprintf(f, ...) (             \
+    {                                 \
+        char *s;                      \
+        asprintf(&s, f, __VA_ARGS__); \
+        String r = s;                 \
+        free(s);                      \
+        r;                            \
+    })
+
+#define SMacf(f) (                                                                                                                                       \
+    {                                                                                                                                                    \
+        auto nativeAddress = f.getNative();                                                                                                              \
+        Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); \
+    })
+
+static std::string hexStr(const char *data, int len)
+{
+    constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+    std::string s(len * 2, ' ');
+    for (int i = 0; i < len; ++i)
+    {
+        s[2 * i] = hexmap[(data[i] & 0xF0) >> 4];
+        s[2 * i + 1] = hexmap[data[i] & 0x0F];
+    }
+    return s;
+}
+
+static std::string hexStr(std::string s)
+{
+    return hexStr(s.c_str(), s.length());
+}
+
+String BleFingerprint::getMac() { return SMacf(address); }
+
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{one_euro_filter<double, unsigned long>(1, fcmin, beta, dcutoff)}
 {
     if (advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
@@ -76,6 +111,9 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
     if (advertisedDevice->haveManufacturerData())
     {
         std::string strManufacturerData = advertisedDevice->getManufacturerData();
+#ifdef VERBOSE
+        Serial.printf("Verbose | %-58sMD: %s\n", getId().c_str(), hexStr(strManufacturerData).c_str());
+#endif
         if (strManufacturerData.length() > 2)
         {
             String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
@@ -175,7 +213,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
     hasValue = filter() || filter();
 }
 
-bool BleFingerprint::report(JsonDocument *doc, int maxDistance)
+bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 {
     if (pid.isEmpty() && sid.isEmpty() && !macPublic)
         return false;
