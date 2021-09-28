@@ -258,10 +258,12 @@ bool sendOnline()
 
 void commonDiscovery(JsonDocument *doc)
 {
-    JsonArray identifiers = (*doc)["dev"].createNestedArray("ids");
+    auto identifiers = (*doc)["dev"].createNestedArray("ids");
     identifiers.add(WiFi.macAddress());
-    JsonArray connections = (*doc)["dev"].createNestedArray("cns");
-    connections.add(serialized(("[\"MAC\",\"" + WiFi.macAddress() + "\"]").c_str()));
+    auto connections = (*doc)["dev"].createNestedArray("cns");
+    auto mac = connections.createNestedArray();
+    mac.add("MAC");
+    mac.add(WiFi.macAddress());
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
     (*doc)["dev"]["mdl"] = ESP.getChipModel();
