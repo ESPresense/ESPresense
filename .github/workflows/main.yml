@@ -28,7 +28,7 @@ jobs:
         pio run -t clean
     - name: Set env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
-      if: startsWith(github.ref, 'refs/tags/')
+      if: startsWith(github.ref, 'refs/tags/v')
     - name: Run PlatformIO
       run: pio run -e esp32 -e esp32-verbose -e adafruit-huzzah32 -e m5stickc -e m5stickc-plus -e m5atom-matrix -e macchina-a0
     - name: Rename firmware
@@ -42,7 +42,7 @@ jobs:
         cp .pio/build/macchina-a0/firmware.bin macchina-a0.bin
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+      if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: "*.bin"
       env:
