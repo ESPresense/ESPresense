@@ -147,6 +147,10 @@ void connectToWifi()
     Serial.println(pirPin ? "enabled" : "disabled");
     Serial.print("Radar Sensor: ");
     Serial.println(radarPin ? "enabled" : "disabled");
+    Serial.print("DHT11 Sensor: ");
+    Serial.println(dht11Pin ? "enabled" : "disabled");
+    Serial.print("DHT22 Sensor: ");
+    Serial.println(dht22Pin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
     roomsTopic = CHANNEL + "/rooms/" + room;
@@ -286,6 +290,41 @@ void scanForDevices(void *parameter)
     }
 }
 
+/**
+ * Task to reads temperature from DHT11 sensor
+ * @param pvParameters
+ *		pointer to task parameters
+ */
+void tempTask(void *pvParameters) 
+{
+	Serial.println("tempTask loop started");
+	while (1) // tempTask loop
+	{
+		if (dhtTasksEnabled && !gotNewTemperature) 
+        { 
+            // Read temperature only if old data was processed already
+			// Reading temperature for humidity takes about 250 milliseconds!
+			// Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+			dhtSensorData = dhtSensor.getTempAndHumidity();	// Read values from sensor 1
+			gotNewTemperature = true;
+		}
+		vTaskSuspend(NULL);
+	}
+}
+
+/**
+ * triggerGetTemp
+ * Sets flag dhtUpdated to true for handling in loop()
+ * called by Ticker tempTicker
+ */
+void triggerGetTemp() 
+{
+	if (dhtTempTaskHandle != NULL) 
+    {
+		 xTaskResumeFromISR(dhtTempTaskHandle);
+	}
+}
+
 void setup()
 {
 #ifdef LED_BUILTIN
@@ -301,8 +340,34 @@ void setup()
     connectToWifi();
     if (pirPin) pinMode(pirPin, INPUT);
     if (radarPin) pinMode(radarPin, INPUT);
-    if (dht11Pin) dht.setup(dht11Pin, DHTesp::DHT11);
-    if (dht22Pin) dht.setup(dht11Pin, DHTesp::DHT22); //(AM2302)
+    if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
+    if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
+
+    if (dht11Pin || dht22Pin) 
+    {
+        // Start task to get temperature
+        xTaskCreatePinnedToCore(
+                tempTask,			    /* Function to implement the task */
+                "tempTask ",		    /* Name of the task */
+                4000,				    /* Stack size in words */
+                NULL,			    	/* Task input parameter */
+                5,			    		/* Priority of the task */
+                &dhtTempTaskHandle,		/* Task handle. */
+                1);						/* Core where the task should run */
+
+        if (dhtTempTaskHandle == NULL) 
+        {
+            Serial.println("[ERROR] Failed to start task for temperature update");
+        } else 
+        {
+            // Start update of environment data every 10 seconds
+            tempTicker.attach(dhtUpdateTime, triggerGetTemp);
+        }
+
+        // Signal end of setup() to tasks
+        dhtTasksEnabled = true;
+    }
+
 
 #if NTP
     setClock();
@@ -360,30 +425,31 @@ void radarLoop()
 void dhtLoop()
 {
     if (!dht11Pin && !dht22Pin) return ;
-    delay(dht.getMinimumSamplingPeriod());
 
-    float humidity = dht.getHumidity();
-    float temperature = dht.getTemperature();
+    if (gotNewTemperature) 
+    {
+        float humidity = dhtSensorData.humidity;
+        float temperature = dhtSensorData.temperature;
+        Serial.println("Temp: " + String(temperature,2) + "'C Humidity: " + String(humidity,1) + "%");
+ 
+        mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
+        mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
 
-    Serial.print(dht.getStatusString());
-    Serial.print("\t");
-    Serial.print(humidity, 1);
-    Serial.print("\t\t");
-    Serial.print(temperature, 1);
-    Serial.print("\t\t");
-    Serial.println(dht.computeHeatIndex(temperature, humidity, false), 1);    
+        gotNewTemperature = false;
+    }    
 
-    mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
-    mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
 }
 
+
+
+
 void loop()
-{
-    dhtLoop();
+{    
     ArduinoOTA.handle();
     firmwareUpdate();
     Display.update();
     pirLoop();
     radarLoop();
+    dhtLoop();
     WiFiSettings.httpLoop();
 }

@@ -19,8 +19,8 @@
 #include "BleFingerprintCollection.h"
 #include "GUI.h"
 #include "Settings.h"
-#include <Adafruit_Sensor.h>
 #include "DHTesp.h"
+#include <Ticker.h>
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
@@ -57,7 +57,27 @@ int dht22Pin;
 int lastPirValue = -1;
 int lastRadarValue = -1;
 
-DHTesp dht;
+/** Initialize DHT sensor 1 */
+DHTesp dhtSensor;
+
+/** Task handle for the light value read task */
+TaskHandle_t dhtTempTaskHandle = NULL;
+
+/** Ticker for temperature reading */
+Ticker tempTicker;
+
+/** Flags for temperature readings finished */
+bool gotNewTemperature = false;
+
+/** Data from dht sensor 1 */
+TempAndHumidity dhtSensorData;
+
+/* Flag if main loop is running */
+bool dhtTasksEnabled = false;
+
+/* update time */
+int dhtUpdateTime = 10; //ToDo: maybe make this a user choise via settings menu
+
 BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
 
 String resetReason(RESET_REASON reason)
