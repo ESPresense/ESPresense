@@ -90,6 +90,13 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             asRssi = _parent->getRefRssi() + (advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() : ITAG_TX);
             pid = "itag:" + getMac();
         }
+        else if (advertisedDevice->isAdvertisingService(roomAssistantService))
+        {
+            asRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+            readAddlChar = true;
+            service = roomAssistantService;
+            characteristic = rootAssistantCharacteristic;
+        }
         else if (advertisedDevice->isAdvertisingService(eddystoneUUID))
         {
             std::string strServiceData = advertisedDevice->getServiceData(eddystoneUUID);
@@ -148,6 +155,9 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 else
                 {
                     ignore = strManufacturerData[2] != 0x10;
+                    //readAddlChar = true;
+                    //service = deviceInformationService;
+                    //characteristic = modelNumberCharacteristic;
                     if (advertisedDevice->haveTXPower())
                         pid = Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower());
                     else
@@ -252,36 +262,85 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 {
+    if (readAddlChar)
+        connect();
+
     if (pid.isEmpty() && sid.isEmpty() && !macPublic)
         return false;
 
     if (reported || !hasValue)
         return false;
 
-     if (maxDistance > 0 && output.value.position > maxDistance)
-         return false;
+    if (maxDistance > 0 && output.value.position > maxDistance)
+        return false;
 
-     auto now = millis();
-     if (abs(output.value.position - lastReported) < _parent->getSkipDistance() && lastReportedMillis > 0 && now - lastReportedMillis < _parent->getSkipMs())
-         return false;
+    auto now = millis();
+    if (abs(output.value.position - lastReported) < _parent->getSkipDistance() && lastReportedMillis > 0 && now - lastReportedMillis < _parent->getSkipMs())
+        return false;
 
-     lastReportedMillis = now;
-     lastReported = output.value.position;
-     reported = true;
+    lastReportedMillis = now;
+    lastReported = output.value.position;
+    reported = true;
 
-     (*doc)[F("id")] = getId();
-     if (!name.isEmpty()) (*doc)[F("name")] = name;
+    (*doc)[F("id")] = getId();
+    if (!name.isEmpty()) (*doc)[F("name")] = name;
 
-     (*doc)[F("rssi@1m")] = get1mRssi();
-     (*doc)[F("rssi")] = rssi;
+    (*doc)[F("rssi@1m")] = get1mRssi();
+    (*doc)[F("rssi")] = rssi;
 
-     (*doc)[F("mac")] = SMacf(address);
-     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
-     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-     (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+    (*doc)[F("mac")] = SMacf(address);
+    (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
+    (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
+    (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
 
-     if (volts) (*doc)[F("volts")] = volts;
-     if (temp) (*doc)[F("temp")] = temp;
+    if (volts) (*doc)[F("volts")] = volts;
+    if (temp) (*doc)[F("temp")] = temp;
 
-     return true;
+    return true;
 }
+
+int BleFingerprint::connectionsUnderway = 0;
+
+void BleFingerprint::connect()
+{
+    if (connectAttempted || connectionsUnderway > 2) return;
+    connectAttempted = true;
+    connectionsUnderway++;
+    auto pClient = NimBLEDevice::getDisconnectedClient();
+    if (!pClient) pClient = NimBLEDevice::createClient();
+    Serial.printf("%d BTLE  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str());
+
+    pClient->setClientCallbacks(this, false);
+    NimBLEDevice::getScan()->stop();
+    if (pClient->connect(address))
+    {
+        auto value = pClient->getValue(service, characteristic);
+        Serial.printf("%d Char  | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), value.c_str());
+    }
+    pClient->disconnect();
+}
+
+void BleFingerprint::onConnect(NimBLEClient *pClient)
+{
+    Serial.printf("%d Conn  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str());
+};
+
+void BleFingerprint::onDisconnect(NimBLEClient *pClient)
+{
+    Serial.printf("%d Disc  | MAC: %s, ID: %-50s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str());
+
+    connectionsUnderway--;
+    if (connectionsUnderway <= 0)
+        NimBLEDevice::getScan()->start(0, true);
+};
+
+void BleFingerprint::onAuthenticationComplete(ble_gap_conn_desc *desc)
+{
+    if (!desc->sec_state.encrypted)
+    {
+        Serial.println("Encrypt connection failed - disconnecting");
+        /** Find the client with the connection handle provided in desc */
+        NimBLEDevice::getClientByID(desc->conn_handle)->disconnect();
+        return;
+    }
+};
