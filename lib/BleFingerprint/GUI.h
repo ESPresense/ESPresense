@@ -45,7 +45,7 @@ class GUI
 {
 public:
     void added(BleFingerprint *f);
-    void removed(BleFingerprint *f);
+    void removed(BleFingerprint *f, long age);
     void close(BleFingerprint *f);
     void left(BleFingerprint *f);
 

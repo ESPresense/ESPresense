@@ -1,4 +1,6 @@
 #include "BleFingerprint.h"
+#include "BleFingerprintCollection.h"
+#include "rssi.h"
 #include "util.h"
 
 #define Sprintf(f, ...) (             \
@@ -36,16 +38,22 @@ static std::string hexStr(std::string s)
 
 String BleFingerprint::getMac() { return SMacf(address); }
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{one_euro_filter<double, unsigned long>(1, fcmin, beta, dcutoff)}
+int BleFingerprint::get1mRssi()
 {
-    if (advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC)
-        macPublic = true;
+    if (calRssi != NO_RSSI) return calRssi;
+    if (mdRssi != NO_RSSI) return mdRssi;
+    if (asRssi != NO_RSSI) return asRssi;
+    return _parent->getRefRssi() + DEFAULT_TX;
+}
 
-    firstSeenMicros = esp_timer_get_time();
+BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, long long>(1, fcmin, beta, dcutoff)}
+{
+    _parent = parent;
+
+    firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
+    macPublic = advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC;
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
-
-    fingerprint(advertisedDevice);
 }
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
@@ -55,32 +63,42 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 
     if (advertisedDevice->haveServiceUUID())
     {
+
+#ifdef VERBOSE
+        for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
+            Serial.printf("Verbose | %-58sSD: %s\n", getId().c_str(), advertisedDevice->getServiceUUID(i).toString().c_str());
+#endif
+
         if (advertisedDevice->isAdvertisingService(tileUUID))
         {
-            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+            calRssi = _parent->getRefRssi() + TILE_TX;
             pid = "tile:" + getMac();
         }
         else if (advertisedDevice->isAdvertisingService(exposureUUID))
         { // found covid exposure tracker
             std::string strServiceData = advertisedDevice->getServiceData(exposureUUID);
-            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+            calRssi = _parent->getRefRssi() + EXPOSURE_TX;
             pid = "exp:" + String(strServiceData.length());
         }
         else if (advertisedDevice->isAdvertisingService(sonosUUID))
         {
-            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+            asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
             pid = "sonos:" + getMac();
         }
+        else if (advertisedDevice->isAdvertisingService(itagUUID))
+        {
+            asRssi = _parent->getRefRssi() + (advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() : ITAG_TX);
+            pid = "itag:" + getMac();
+        }
         else if (advertisedDevice->isAdvertisingService(eddystoneUUID))
-        { // found Eddystone UUID
-            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+        {
             std::string strServiceData = advertisedDevice->getServiceData(eddystoneUUID);
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18)
             {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
                 oBeacon.setData(strServiceData);
                 url = String(oBeacon.getDecodedURL().c_str());
-                calRssi = oBeacon.getPower() - 41;
+                calRssi = EDDYSTONE_ADD_1M + oBeacon.getPower();
             }
             else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE)
             {
@@ -95,7 +113,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
         }
         else
         {
-            calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+            asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
             String fingerprint = "sid:";
             for (int i = 0; i < advertisedDevice->getServiceUUIDCount(); i++)
             {
@@ -129,39 +147,42 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 }
                 else
                 {
+                    ignore = strManufacturerData[2] != 0x10;
                     if (advertisedDevice->haveTXPower())
                         pid = Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower());
                     else
                         pid = Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                    mdRssi = _parent->getRefRssi() + APPLE_TX;
                 }
             }
             else if (manuf == "05a7") //Sonos
             {
-                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+                mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 pid = "sonos:" + getMac();
             }
             else if (manuf == "0157") //Mi-fit
             {
-                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+                mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 pid = "mifit:" + getMac();
             }
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
-                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+                mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 pid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                               strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
                               strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
                               strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
                               strManufacturerData[24], strManufacturerData[25], strManufacturerData[26], strManufacturerData[27], strManufacturerData[28]);
+                ignore = true;
             }
             else if (manuf == "0075") //samsung
             {
-                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+                mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 pid = "samsung:" + getMac();
             }
             else
             {
-                calcRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
+                mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 String fingerprint = Sprintf("md:%s:%d", manuf.c_str(), strManufacturerData.length());
                 if (advertisedDevice->haveTXPower())
                     fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
@@ -173,21 +194,18 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 bool BleFingerprint::filter()
 {
-    Reading<float> inter1, inter2;
+    Reading<float, long long> inter1, inter2;
+    inter1.timestamp = esp_timer_get_time();
+    inter1.value = raw;
 
-    if (tsFilter.push(&raw, &inter1))
-    {
-        inter2.timestamp = inter1.timestamp;
-        inter2.value = oneEuro(inter1.value);
-        if (diffFilter.push(&inter2, &output))
-            return true;
-    }
-    return false;
+    return oneEuro.push(&inter1, &inter2) && diffFilter.push(&inter2, &output);
 }
 
-void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
+bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
-    lastSeenMicros = esp_timer_get_time();
+    lastSeenMillis = millis();
+
+    if (ignore) return false;
 
     oldest = recent;
     recent = newest;
@@ -196,14 +214,33 @@ void BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     fingerprint(advertisedDevice);
 
+    if (ignore) return false;
+
     float ratio = (get1mRssi() - rssi) / 35.0f;
     raw = pow(10, ratio);
+
+    bool hadValue = hasValue;
 
     if (filter())
     {
         hasValue = true;
         reported = false;
+
+        if (!close && newest > CLOSE_RSSI)
+        {
+            Display.close(this);
+            close = true;
+        }
+        else if (close && newest < LEFT_RSSI)
+        {
+            Display.left(this);
+            close = false;
+        }
+
+        if (!hadValue) return true;
     }
+
+    return false;
 }
 
 void BleFingerprint::setInitial(int initalRssi, float initalDistance)
@@ -218,52 +255,33 @@ bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
     if (pid.isEmpty() && sid.isEmpty() && !macPublic)
         return false;
 
-    if (!hasValue)
+    if (reported || !hasValue)
         return false;
 
-    if (maxDistance > 0 && output.value.position > maxDistance)
-        return false;
+     if (maxDistance > 0 && output.value.position > maxDistance)
+         return false;
 
-    if (reported)
-        return false;
+     auto now = millis();
+     if (abs(output.value.position - lastReported) < _parent->getSkipDistance() && lastReportedMillis > 0 && now - lastReportedMillis < _parent->getSkipMs())
+         return false;
 
-    auto now = esp_timer_get_time();
+     lastReportedMillis = now;
+     lastReported = output.value.position;
+     reported = true;
 
-    if (abs(output.value.position - lastReported) < 0.1f && abs(now - lastReportedMicros) < 15000000)
-        return false;
+     (*doc)[F("id")] = getId();
+     if (!name.isEmpty()) (*doc)[F("name")] = name;
 
-    lastReportedMicros = now;
-    lastReported = output.value.position;
-    reported = true;
+     (*doc)[F("rssi@1m")] = get1mRssi();
+     (*doc)[F("rssi")] = rssi;
 
-    String mac = SMacf(address);
-    if (output.value.position < 0.5)
-    {
-        if (!close)
-        {
-            Display.close(this);
-            close = true;
-        }
-    }
-    else if (close && output.value.position > 1.5)
-    {
-        Display.left(this);
-        close = false;
-    }
+     (*doc)[F("mac")] = SMacf(address);
+     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
+     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
+     (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
 
-    (*doc)[F("id")] = getId();
-    if (!name.isEmpty()) (*doc)[F("name")] = name;
+     if (volts) (*doc)[F("volts")] = volts;
+     if (temp) (*doc)[F("temp")] = temp;
 
-    (*doc)[F("rssi@1m")] = get1mRssi();
-    (*doc)[F("rssi")] = rssi;
-
-    (*doc)[F("mac")] = mac;
-    (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
-    (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-    (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
-
-    if (volts) (*doc)[F("volts")] = volts;
-    if (temp) (*doc)[F("temp")] = temp;
-
-    return true;
+     return true;
 }

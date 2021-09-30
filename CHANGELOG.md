@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0]
+
+- Potientaly breaking: room name is now lower cased, trimmed, and all whitespace replaced with underscores when put into mqtt (#64)
+- ANSI Colors Added to Serial
+- Close/Left totally rewritten to find stuff quickly (uses NO filtering)
+- Serial display for 'New' waits for 2nd packet before showing
+- One Euro filter reoptimized to work for slow broadcasters (Tiles) as well as it previously did for quick (Phones/Watches)
+- All time measurement made wraparound protected
+- Make Arduino OTA disabled by default, but a setting
+- Add a calibration section of settings with lots of knobs to twiddle
+- Ignore microsoft and non Nearby Info apple packets (they are useless for tracking atm)
+- Delete old fingerprints after configurable max age instead of waiting for MAX MACS and deleting the oldest
+
 ## [1.6.4]
 
 - Fix malformed discovery json

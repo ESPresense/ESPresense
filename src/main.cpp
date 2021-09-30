@@ -16,12 +16,12 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         }
     }
 
-    auto now = esp_timer_get_time();
+    auto now = millis();
 
-    if (abs(now - lastTeleMicros) < 15000000)
+    if (now - lastTeleMillis < 15000)
         return false;
 
-    lastTeleMicros = now;
+    lastTeleMillis = now;
 
     StaticJsonDocument<512> tele;
     tele["ip"] = localIp;
@@ -95,7 +95,6 @@ void connectToWifi()
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
     room = WiFiSettings.string("room", ESPMAC, "Room");
-    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.heading("MQTT Connection");
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
@@ -106,11 +105,19 @@ void connectToWifi()
     WiFiSettings.heading("Preferences");
 
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
+    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+
+    WiFiSettings.heading("Calibration");
+    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
+    skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
+    skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Update mqtt if this time has elapsed since last report (in ms)");
+    refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
 
     WiFiSettings.heading("Additional Sensors");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
@@ -118,7 +125,7 @@ void connectToWifi()
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "Temperature & humidity Sensor DHT11 (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "Temperature & humidity Sensor DHT22 (0 for disable)");
 
-    WiFiSettings.hostname = "espresense-" + room;
+    WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
@@ -153,7 +160,7 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
-    roomsTopic = CHANNEL + "/rooms/" + room;
+    roomsTopic = CHANNEL + "/rooms/" + slugify(room);
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     subTopic = roomsTopic + "/+/set";
@@ -188,6 +195,8 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
     }
+
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -258,12 +267,13 @@ bool reportDevice(BleFingerprint *f)
 
 void scanForDevices(void *parameter)
 {
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
     BLEDevice::init("");
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
     pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
-    if (activeScan) pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    if (activeScan) pBLEScan->setActiveScan(true);
     pBLEScan->setMaxResults(0);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
@@ -367,7 +377,6 @@ void setup()
         // Signal end of setup() to tasks
         dhtTasksEnabled = true;
     }
-
 
 #if NTP
     setClock();

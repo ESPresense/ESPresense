@@ -1,12 +1,21 @@
+#include "BleFingerprint.h"
+#include "BleFingerprintCollection.h"
+
+#include "GUI.h"
+#include "defaults.h"
+#include "strings.h"
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <AsyncMqttClient.h>
 #include <AsyncTCP.h>
+#include <DHTesp.h>
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <NimBLEDevice.h>
 #include <SPIFFS.h>
+#include <Ticker.h>
 #include <WebServer.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
@@ -28,7 +37,7 @@ TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
-int64_t lastTeleMicros;
+unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online; // Have we successfully sent status=online
@@ -42,13 +51,17 @@ String statusTopic;
 String teleTopic;
 String roomsTopic;
 String subTopic;
-bool autoUpdate;
+bool autoUpdate, otaUpdate;
 bool discovery;
 bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
 float maxDistance;
+float skipDistance;
+int refRssi;
+int forgetMs;
+int skipMs;
 int pirPin;
 int radarPin;
 int dht11Pin;
@@ -143,6 +156,7 @@ void setClock()
 
 void configureOTA()
 {
+    if (!otaUpdate) return;
     ArduinoOTA
         .onStart([]()
                  {
