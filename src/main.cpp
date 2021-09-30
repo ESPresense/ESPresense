@@ -124,7 +124,7 @@ void connectToWifi()
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "Temperature & humidity Sensor DHT11 (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "Temperature & humidity Sensor DHT22 (0 for disable)");
 
-    WiFiSettings.hostname = "espresense-" + room;
+    WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
@@ -159,7 +159,7 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
-    roomsTopic = CHANNEL + "/rooms/" + room;
+    roomsTopic = CHANNEL + "/rooms/" + slugify(room);
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     subTopic = roomsTopic + "/+/set";

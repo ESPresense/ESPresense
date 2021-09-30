@@ -1,7 +1,10 @@
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
+
 #include "GUI.h"
 #include "defaults.h"
+#include "strings.h"
+
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
