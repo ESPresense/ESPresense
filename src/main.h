@@ -40,6 +40,7 @@ int mqttPort;
 String mqttUser;
 String mqttPass;
 String room;
+String id;
 String statusTopic;
 String teleTopic;
 String roomsTopic;
@@ -304,7 +305,7 @@ void commonDiscovery(JsonDocument *doc)
 bool sendDiscoveryConnectivity()
 {
     if (!discovery) return true;
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/connectivity/config";
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + id + "/connectivity/config";
 
     DynamicJsonDocument doc(1200);
     char buffer[1200];
@@ -337,7 +338,7 @@ bool sendDiscoveryMotion()
     if (!discovery) return true;
     if (!pirPin && !radarPin) return true;
 
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + room + "/motion/config";
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + id + "/motion/config";
 
     DynamicJsonDocument doc(1200);
     char buffer[1200];
@@ -366,7 +367,7 @@ bool sendDiscoveryTemperature()
     if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
-    String discoveryTopic = "homeassistant/sensor/espresense_" + room + "/temperature/config";
+    String discoveryTopic = "homeassistant/sensor/espresense_" + id + "/temperature/config";
 
     DynamicJsonDocument doc(1200);
     char buffer[1200];
@@ -396,7 +397,7 @@ bool sendDiscoveryHumidity()
     if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
-    String discoveryTopic = "homeassistant/sensor/espresense_" + room + "/humidity/config";
+    String discoveryTopic = "homeassistant/sensor/espresense_" + id + "/humidity/config";
 
     DynamicJsonDocument doc(1200);
     char buffer[1200];
@@ -423,7 +424,7 @@ bool sendDiscoveryHumidity()
 bool sendDiscoveryMaxDistance()
 {
     if (!discovery) return true;
-    String discoveryTopic = "homeassistant/number/espresense_" + room + "/max_distance/config";
+    String discoveryTopic = "homeassistant/number/espresense_" + id + "/max_distance/config";
 
     DynamicJsonDocument doc(1200);
     char buffer[1200];

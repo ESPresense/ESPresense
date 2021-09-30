@@ -91,11 +91,10 @@ void connectToWifi()
     };
 
     Display.connected(true, false);
-    // Define custom settings saved by WifiSettings
-    // These will return the default if nothing was set before
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
     WiFiSettings.heading("MQTT Connection");
+
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
@@ -112,6 +111,7 @@ void connectToWifi()
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     WiFiSettings.heading("Calibration");
+
     maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
     skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
@@ -119,10 +119,11 @@ void connectToWifi()
     refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
 
     WiFiSettings.heading("Additional Sensors");
+
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
-    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "Temperature & humidity Sensor DHT11 (0 for disable)");
-    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "Temperature & humidity Sensor DHT22 (0 for disable)");
+    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
+    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
@@ -159,7 +160,8 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
-    roomsTopic = CHANNEL + "/rooms/" + slugify(room);
+    id = slugify(room);
+    roomsTopic = CHANNEL + "/rooms/" + id;
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     subTopic = roomsTopic + "/+/set";
@@ -242,7 +244,7 @@ bool reportDevice(BleFingerprint *f)
     char JSONmessageBuffer[512];
     serializeJson(doc, JSONmessageBuffer);
 
-    String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + room;
+    String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + id;
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)
