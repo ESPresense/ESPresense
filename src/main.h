@@ -24,13 +24,6 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 
-#include "BleFingerprint.h"
-#include "BleFingerprintCollection.h"
-#include "GUI.h"
-#include "Settings.h"
-#include "DHTesp.h"
-#include <Ticker.h>
-
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
@@ -91,7 +84,7 @@ bool dhtTasksEnabled = false;
 /* update time */
 int dhtUpdateTime = 10; //ToDo: maybe make this a user choise via settings menu
 
-BleFingerprintCollection fingerprints(MAX_MAC_ADDRESSES);
+BleFingerprintCollection fingerprints;
 
 String resetReason(RESET_REASON reason)
 {

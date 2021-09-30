@@ -4,8 +4,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() 
-            && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
         {
             online = true;
             reconnectTries = 0;
@@ -305,21 +304,21 @@ void scanForDevices(void *parameter)
  * @param pvParameters
  *		pointer to task parameters
  */
-void tempTask(void *pvParameters) 
+void tempTask(void *pvParameters)
 {
-	Serial.println("tempTask loop started");
-	while (1) // tempTask loop
-	{
-		if (dhtTasksEnabled && !gotNewTemperature) 
-        { 
+    Serial.println("tempTask loop started");
+    while (1) // tempTask loop
+    {
+        if (dhtTasksEnabled && !gotNewTemperature)
+        {
             // Read temperature only if old data was processed already
-			// Reading temperature for humidity takes about 250 milliseconds!
-			// Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-			dhtSensorData = dhtSensor.getTempAndHumidity();	// Read values from sensor 1
-			gotNewTemperature = true;
-		}
-		vTaskSuspend(NULL);
-	}
+            // Reading temperature for humidity takes about 250 milliseconds!
+            // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+            dhtSensorData = dhtSensor.getTempAndHumidity(); // Read values from sensor 1
+            gotNewTemperature = true;
+        }
+        vTaskSuspend(NULL);
+    }
 }
 
 /**
@@ -327,12 +326,12 @@ void tempTask(void *pvParameters)
  * Sets flag dhtUpdated to true for handling in loop()
  * called by Ticker tempTicker
  */
-void triggerGetTemp() 
+void triggerGetTemp()
 {
-	if (dhtTempTaskHandle != NULL) 
+    if (dhtTempTaskHandle != NULL)
     {
-		 xTaskResumeFromISR(dhtTempTaskHandle);
-	}
+        xTaskResumeFromISR(dhtTempTaskHandle);
+    }
 }
 
 void setup()
@@ -353,22 +352,23 @@ void setup()
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
     if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
 
-    if (dht11Pin || dht22Pin) 
+    if (dht11Pin || dht22Pin)
     {
         // Start task to get temperature
         xTaskCreatePinnedToCore(
-                tempTask,			    /* Function to implement the task */
-                "tempTask ",		    /* Name of the task */
-                4000,				    /* Stack size in words */
-                NULL,			    	/* Task input parameter */
-                5,			    		/* Priority of the task */
-                &dhtTempTaskHandle,		/* Task handle. */
-                1);						/* Core where the task should run */
+            tempTask,           /* Function to implement the task */
+            "tempTask ",        /* Name of the task */
+            4000,               /* Stack size in words */
+            NULL,               /* Task input parameter */
+            5,                  /* Priority of the task */
+            &dhtTempTaskHandle, /* Task handle. */
+            1);                 /* Core where the task should run */
 
-        if (dhtTempTaskHandle == NULL) 
+        if (dhtTempTaskHandle == NULL)
         {
             Serial.println("[ERROR] Failed to start task for temperature update");
-        } else 
+        }
+        else
         {
             // Start update of environment data every 10 seconds
             tempTicker.attach(dhtUpdateTime, triggerGetTemp);
@@ -430,31 +430,27 @@ void radarLoop()
     }
 }
 
-
 void dhtLoop()
 {
-    if (!dht11Pin && !dht22Pin) return ;
+    if (!dht11Pin && !dht22Pin) return;
 
-    if (gotNewTemperature) 
+    if (gotNewTemperature)
     {
         float humidity = dhtSensorData.humidity;
         float temperature = dhtSensorData.temperature;
-        Serial.println("Temp: " + String(temperature,2) + "'C Humidity: " + String(humidity,1) + "%");
- 
+        Serial.println("Temp: " + String(temperature, 2) + "'C Humidity: " + String(humidity, 1) + "%");
+
         mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
         mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
 
         gotNewTemperature = false;
-    }    
-
+    }
 }
 
-
-
-
 void loop()
-{    
-    ArduinoOTA.handle();
+{
+    if (otaUpdate)
+        ArduinoOTA.handle();
     firmwareUpdate();
     Display.update();
     pirLoop();
