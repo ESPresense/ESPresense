@@ -4,8 +4,7 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() 
-            && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
         {
             online = true;
             reconnectTries = 0;
@@ -16,12 +15,12 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         }
     }
 
-    auto now = esp_timer_get_time();
+    auto now = millis();
 
-    if (abs(now - lastTeleMicros) < 15000000)
+    if (now - lastTeleMillis < 15000)
         return false;
 
-    lastTeleMicros = now;
+    lastTeleMillis = now;
 
     StaticJsonDocument<512> tele;
     tele["ip"] = localIp;
@@ -95,7 +94,6 @@ void connectToWifi()
     // Define custom settings saved by WifiSettings
     // These will return the default if nothing was set before
     room = WiFiSettings.string("room", ESPMAC, "Room");
-    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
 
     WiFiSettings.heading("MQTT Connection");
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
@@ -106,11 +104,19 @@ void connectToWifi()
     WiFiSettings.heading("Preferences");
 
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
+    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+
+    WiFiSettings.heading("Calibration");
+    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
+    skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
+    skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Update mqtt if this time has elapsed since last report (in ms)");
+    refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
 
     WiFiSettings.heading("Additional Sensors");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
@@ -118,7 +124,7 @@ void connectToWifi()
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "Temperature & humidity Sensor DHT11 (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "Temperature & humidity Sensor DHT22 (0 for disable)");
 
-    WiFiSettings.hostname = "espresense-" + room;
+    WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
@@ -153,7 +159,7 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
 
     localIp = WiFi.localIP().toString();
-    roomsTopic = CHANNEL + "/rooms/" + room;
+    roomsTopic = CHANNEL + "/rooms/" + slugify(room);
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     subTopic = roomsTopic + "/+/set";
@@ -188,6 +194,8 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
     }
+
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -258,12 +266,13 @@ bool reportDevice(BleFingerprint *f)
 
 void scanForDevices(void *parameter)
 {
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
     BLEDevice::init("");
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
     pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
-    if (activeScan) pBLEScan->setActiveScan(BLE_ACTIVE_SCAN);
+    if (activeScan) pBLEScan->setActiveScan(true);
     pBLEScan->setMaxResults(0);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
@@ -295,21 +304,21 @@ void scanForDevices(void *parameter)
  * @param pvParameters
  *		pointer to task parameters
  */
-void tempTask(void *pvParameters) 
+void tempTask(void *pvParameters)
 {
-	Serial.println("tempTask loop started");
-	while (1) // tempTask loop
-	{
-		if (dhtTasksEnabled && !gotNewTemperature) 
-        { 
+    Serial.println("tempTask loop started");
+    while (1) // tempTask loop
+    {
+        if (dhtTasksEnabled && !gotNewTemperature)
+        {
             // Read temperature only if old data was processed already
-			// Reading temperature for humidity takes about 250 milliseconds!
-			// Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-			dhtSensorData = dhtSensor.getTempAndHumidity();	// Read values from sensor 1
-			gotNewTemperature = true;
-		}
-		vTaskSuspend(NULL);
-	}
+            // Reading temperature for humidity takes about 250 milliseconds!
+            // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
+            dhtSensorData = dhtSensor.getTempAndHumidity(); // Read values from sensor 1
+            gotNewTemperature = true;
+        }
+        vTaskSuspend(NULL);
+    }
 }
 
 /**
@@ -317,12 +326,12 @@ void tempTask(void *pvParameters)
  * Sets flag dhtUpdated to true for handling in loop()
  * called by Ticker tempTicker
  */
-void triggerGetTemp() 
+void triggerGetTemp()
 {
-	if (dhtTempTaskHandle != NULL) 
+    if (dhtTempTaskHandle != NULL)
     {
-		 xTaskResumeFromISR(dhtTempTaskHandle);
-	}
+        xTaskResumeFromISR(dhtTempTaskHandle);
+    }
 }
 
 void setup()
@@ -343,22 +352,23 @@ void setup()
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
     if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
 
-    if (dht11Pin || dht22Pin) 
+    if (dht11Pin || dht22Pin)
     {
         // Start task to get temperature
         xTaskCreatePinnedToCore(
-                tempTask,			    /* Function to implement the task */
-                "tempTask ",		    /* Name of the task */
-                4000,				    /* Stack size in words */
-                NULL,			    	/* Task input parameter */
-                5,			    		/* Priority of the task */
-                &dhtTempTaskHandle,		/* Task handle. */
-                1);						/* Core where the task should run */
+            tempTask,           /* Function to implement the task */
+            "tempTask ",        /* Name of the task */
+            4000,               /* Stack size in words */
+            NULL,               /* Task input parameter */
+            5,                  /* Priority of the task */
+            &dhtTempTaskHandle, /* Task handle. */
+            1);                 /* Core where the task should run */
 
-        if (dhtTempTaskHandle == NULL) 
+        if (dhtTempTaskHandle == NULL)
         {
             Serial.println("[ERROR] Failed to start task for temperature update");
-        } else 
+        }
+        else
         {
             // Start update of environment data every 10 seconds
             tempTicker.attach(dhtUpdateTime, triggerGetTemp);
@@ -367,7 +377,6 @@ void setup()
         // Signal end of setup() to tasks
         dhtTasksEnabled = true;
     }
-
 
 #if NTP
     setClock();
@@ -421,31 +430,27 @@ void radarLoop()
     }
 }
 
-
 void dhtLoop()
 {
-    if (!dht11Pin && !dht22Pin) return ;
+    if (!dht11Pin && !dht22Pin) return;
 
-    if (gotNewTemperature) 
+    if (gotNewTemperature)
     {
         float humidity = dhtSensorData.humidity;
         float temperature = dhtSensorData.temperature;
-        Serial.println("Temp: " + String(temperature,2) + "'C Humidity: " + String(humidity,1) + "%");
- 
+        Serial.println("Temp: " + String(temperature, 2) + "'C Humidity: " + String(humidity, 1) + "%");
+
         mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
         mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
 
         gotNewTemperature = false;
-    }    
-
+    }
 }
 
-
-
-
 void loop()
-{    
-    ArduinoOTA.handle();
+{
+    if (otaUpdate)
+        ArduinoOTA.handle();
     firmwareUpdate();
     Display.update();
     pirLoop();
