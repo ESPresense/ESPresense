@@ -91,6 +91,9 @@ void connectToWifi()
     };
 
     Display.connected(true, false);
+#ifdef VERSION
+    WiFiSettings.info("ESPResense Version: " + String(VERSION));
+#endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
     WiFiSettings.heading("MQTT Connection");

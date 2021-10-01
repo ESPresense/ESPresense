@@ -292,36 +292,38 @@ bool sendOnline()
 void commonDiscovery(JsonDocument *doc)
 {
     auto identifiers = (*doc)["dev"].createNestedArray("ids");
-    identifiers.add(WiFi.macAddress());
+    identifiers.add(Sprintf("espresense_%06" PRIx64, ESP.getEfuseMac() >> 24));
     auto connections = (*doc)["dev"].createNestedArray("cns");
     auto mac = connections.createNestedArray();
-    mac.add("MAC");
+    mac.add("mac");
     mac.add(WiFi.macAddress());
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
+#ifdef VERSION
+    (*doc)["dev"]["sw_version"] = VERSION;
+#endif
+    (*doc)["dev"]["manufacturer"] = "ESPresense (" FIRMWARE ")";
     (*doc)["dev"]["mdl"] = ESP.getChipModel();
 }
 
 bool sendDiscoveryConnectivity()
 {
     if (!discovery) return true;
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + id + "/connectivity/config";
 
     DynamicJsonDocument doc(1200);
-    char buffer[1200];
-
+    commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room;
-    doc["unique_id"] = WiFi.macAddress() + "_connectivity";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_connectivity", ESP.getEfuseMac() >> 24);
     doc["json_attr_t"] = "~/telemetry";
     doc["stat_t"] = "~/status";
-    doc["frc_upd"] = true;
     doc["dev_cla"] = "connectivity";
     doc["pl_on"] = "online";
     doc["pl_off"] = "offline";
 
-    commonDiscovery(&doc);
+    char buffer[1200];
     serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/connectivity/config";
 
     for (int i = 0; i < 10; i++)
     {
@@ -338,20 +340,18 @@ bool sendDiscoveryMotion()
     if (!discovery) return true;
     if (!pirPin && !radarPin) return true;
 
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + id + "/motion/config";
-
     DynamicJsonDocument doc(1200);
-    char buffer[1200];
-
+    commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Motion";
-    doc["unique_id"] = WiFi.macAddress() + "_motion";
-    doc["availability_topic"] = "~/status";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_motion", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/motion";
     doc["dev_cla"] = "motion";
 
-    commonDiscovery(&doc);
+    char buffer[1200];
     serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/motion/config";
 
     for (int i = 0; i < 10; i++)
     {
@@ -367,21 +367,20 @@ bool sendDiscoveryTemperature()
     if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
-    String discoveryTopic = "homeassistant/sensor/espresense_" + id + "/temperature/config";
-
     DynamicJsonDocument doc(1200);
-    char buffer[1200];
-
+    commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Temperature";
-    doc["unique_id"] = WiFi.macAddress() + "_temperature";
-    doc["availability_topic"] = "~/status";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_temperature", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/temperature";
     doc["dev_cla"] = "temperature";
     doc["unit_of_measurement"] = "C°";
+    doc["frc_upd"] = true;
 
-    commonDiscovery(&doc);
+    char buffer[1200];
     serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/temperature/config";
 
     for (int i = 0; i < 10; i++)
     {
@@ -397,20 +396,19 @@ bool sendDiscoveryHumidity()
     if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
-    String discoveryTopic = "homeassistant/sensor/espresense_" + id + "/humidity/config";
-
     DynamicJsonDocument doc(1200);
-    char buffer[1200];
-
+    commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Humidity";
-    doc["unique_id"] = WiFi.macAddress() + "_humidity";
-    doc["availability_topic"] = "~/status";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_humidity", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/humidity";
     doc["dev_cla"] = "humidity";
+    doc["frc_upd"] = true;
 
-    commonDiscovery(&doc);
+    char buffer[1200];
     serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/humidity/config";
 
     for (int i = 0; i < 10; i++)
     {
@@ -424,21 +422,20 @@ bool sendDiscoveryHumidity()
 bool sendDiscoveryMaxDistance()
 {
     if (!discovery) return true;
-    String discoveryTopic = "homeassistant/number/espresense_" + id + "/max_distance/config";
 
     DynamicJsonDocument doc(1200);
-    char buffer[1200];
-
+    commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Max Distance";
-    doc["unique_id"] = WiFi.macAddress() + "_max_distance";
-    doc["availability_topic"] = "~/status";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_max_distance", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/max_distance";
     doc["cmd_t"] = "~/max_distance/set";
     doc["step"] = "0.01";
 
-    commonDiscovery(&doc);
+    char buffer[1200];
     serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/number/espresense_" + ESPMAC + "/max_distance/config";
 
     for (int i = 0; i < 10; i++)
     {
