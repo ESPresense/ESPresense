@@ -273,6 +273,7 @@ void scanForDevices(void *parameter)
 {
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
     BLEDevice::init("");
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
@@ -282,17 +283,29 @@ void scanForDevices(void *parameter)
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
 
+    int totalSeen = 0;
+    int totalReported = 0;
+    int totalQueried = 0;
+
     while (1)
     {
-        delay(1000);
+        while (updateInProgress || !mqttClient.connected())
+            delay(1000);
 
-        if (updateInProgress || !mqttClient.connected())
-            continue;
-
-        int totalSeen = 0;
-        int totalReported = 0;
+        sendTelemetry(totalSeen, totalReported, fingerprints.getTotalAdverts());
 
         auto seen = fingerprints.getSeen();
+
+        auto now = millis();
+        for (auto it = seen.begin(); it != seen.end(); ++it)
+        {
+            auto f = (*it);
+            if (f->query())
+                totalQueried++;
+        }
+
+        if (!pBLEScan->start(0, nullptr, false))
+            log_e("Error re-starting continuous ble scan");
 
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
@@ -300,7 +313,6 @@ void scanForDevices(void *parameter)
             if (reportDevice(*it))
                 totalReported++;
         }
-        sendTelemetry(totalSeen, totalReported, fingerprints.getTotalAdverts());
     }
 }
 

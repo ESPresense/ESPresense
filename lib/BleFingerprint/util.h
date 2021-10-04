@@ -13,8 +13,14 @@ static BLEUUID itagUUID((uint16_t)0xffe0);
 static BLEUUID roomAssistantService(uint32_t(0x5403c8a7), uint16_t(0x5c96), uint16_t(0x47e9), uint64_t(0x9ab859e373d875a7));
 static BLEUUID rootAssistantCharacteristic(0x21c46f33, 0xe813, 0x4407, 0x86012ad281030052);
 
+static BLEUUID genericAccessService(uint16_t(0x1800));
 static BLEUUID deviceInformationService(uint16_t(0x180A));
-static BLEUUID modelNumberCharacteristic(uint16_t(0x2A24));
+
+static BLEUUID nameChar(uint16_t(0x2A00));
+static BLEUUID manufChar(uint16_t(0x2A29));
+static BLEUUID modelChar(uint16_t(0x2A24));
+static BLEUUID hwRevChar(uint16_t(0x2A27));
+static BLEUUID fwRevChar(uint16_t(0x2A26));
 
 static int median_of_3(int a, int b, int c)
 {

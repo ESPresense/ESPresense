@@ -25,11 +25,11 @@ public:
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
     bool report(JsonDocument *doc, float maxDistance);
-    void connect();
+    bool query();
 
     String getId()
     {
-        if (!pid.isEmpty()) return pid;
+        if (!pid.isEmpty()) return pid + qry;
         if (macPublic) return getMac();
         if (!sid.isEmpty()) return sid;
         return getMac();
@@ -51,17 +51,18 @@ private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
 
     BleFingerprintCollection *_parent;
-    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, readAddlChar = false, connectAttempted = false;
+    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, pidOverriden = false;
     NimBLEAddress address;
-    String pid, sid, name, url;
+    String pid, sid, name, url, qry;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     int newest = -100;
     int recent = -100;
     int oldest = -100;
+    int qryAttempts = 0;
+
     float raw = 0, lastReported = 0, temp = 0;
-    unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0;
+    unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t volts = 0;
-    BLEUUID service, characteristic;
 
     Reading<Differential<float>> output;
 
@@ -69,19 +70,5 @@ private:
     DifferentialFilter<float, long long> diffFilter;
 
     bool filter();
-
-    void onConnect(NimBLEClient *pClient);
-    void onDisconnect(NimBLEClient *pClient);
-    void onAuthenticationComplete(ble_gap_conn_desc *desc);
-
-    struct constructor
-    {
-        constructor()
-        {
-            connectionsUnderway = 0;
-        }
-    };
-    static int connectionsUnderway;
-    static constructor cons;
 };
 #endif
