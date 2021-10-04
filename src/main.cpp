@@ -233,7 +233,7 @@ void connectToMqtt()
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill(statusTopic.c_str(), 0, 1, "offline");
+    mqttClient.setWill(statusTopic.c_str(), 0, 1, offline.c_str());
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
