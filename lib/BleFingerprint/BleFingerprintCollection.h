@@ -30,7 +30,7 @@ public:
         _maxDistance = maxDistance;
     }
     int getSkipMs() { return _skipMs; }
-    int getSkipDistance() { return _skipDistance; }
+    float getSkipDistance() { return _skipDistance; }
     int getRefRssi() { return _refRssi; }
 
 private:
