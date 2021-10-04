@@ -34,7 +34,7 @@ unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online; // Have we successfully sent status=online
-
+String offline = "offline";
 String mqttHost;
 int mqttPort;
 String mqttUser;
