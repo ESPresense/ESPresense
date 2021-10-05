@@ -62,6 +62,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             std::string strServiceData = advertisedDevice->getServiceData(exposureUUID);
             calRssi = _parent->getRefRssi() + EXPOSURE_TX;
             if (!pidOverriden) pid = "exp:" + String(strServiceData.length());
+            name = hexStr(strServiceData).c_str();
         }
         else if (advertisedDevice->isAdvertisingService(sonosUUID))
         {
@@ -120,7 +121,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 #ifdef VERBOSE
         Serial.printf("Verbose | %-58sMD: %s\n", getId().c_str(), hexStr(strManufacturerData).c_str());
 #endif
-        if (strManufacturerData.length() > 2)
+        if (strManufacturerData.length() >= 2)
         {
             String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
 
@@ -169,11 +170,12 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                sid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                                                 strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
-                                                 strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
-                                                 strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
-                                                 strManufacturerData[24], strManufacturerData[25], strManufacturerData[26], strManufacturerData[27], strManufacturerData[28]);
+                pid = "md:microsoft:29";
+                name = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                               strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
+                               strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
+                               strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
+                               strManufacturerData[24], strManufacturerData[25], strManufacturerData[26], strManufacturerData[27], strManufacturerData[28]);
                 ignore = true;
             }
             else if (manuf == "0075") //samsung
