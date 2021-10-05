@@ -5,13 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0]
+
+- Add `Query` switch to mqtt and webapp setup (defaults to off so as to not break existing fingerprints)
+- Add `Active Scan` switch to mqtt and webapp setup
+- Add device model to apple fingerprints 
+- Add support [room assistant app](https://apps.apple.com/us/app/room-assistant/id1538642237?itsct=apps_box_link&itscg=30200) @DTTerastar (#69)
+- Stats reworked
+
+## [1.7.3]
+
+- Skip distance was being ignored because of an accidental cast to int @DTTerastar (#75)
+
 ## [1.7.2]
 
-Fix MQTT last will and testament not consistently sending offline
+- Fix MQTT last will and testament not consistently sending offline
 
 ## [1.7.1]
 
-Fix more places slugified room name is needed
+- Fix more places slugified room name is needed
 
 ## [1.7.0]
 
