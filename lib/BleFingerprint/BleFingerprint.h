@@ -9,7 +9,6 @@
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
-#include <esp_bt_defs.h>
 #include <esp_gap_ble_api.h>
 #include <esp_gattc_api.h>
 
