@@ -9,3 +9,4 @@ Settings_*.h
 .pio
 .vscode
 .scripts
+.DS_Store
