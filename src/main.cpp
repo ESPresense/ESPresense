@@ -1,10 +1,9 @@
 #include <main.h>
-
-bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
+bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        if (sendOnline())
         {
             online = true;
             reconnectTries = 0;
@@ -12,6 +11,18 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
         else
         {
             log_e("Error sending status=online");
+        }
+    }
+
+    if (discovery && !sentDiscovery)
+    {
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance") && sendSwitchDiscovery("Active Scan") && sendSwitchDiscovery("Query") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        {
+            sentDiscovery = true;
+        }
+        else
+        {
+            log_e("Error sending discovery");
         }
     }
 
@@ -33,13 +44,15 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
-
     if (totalSeen > 0)
-        tele["seen"] = totalSeen;
-    if (totalReported > 0)
-        tele["reported"] = totalReported;
-    if (totalAdverts > 0)
-        tele["adverts"] = totalAdverts;
+        tele["adverts"] = totalSeen;
+    if (totalFpSeen > 0)
+        tele["seen"] = totalFpSeen;
+    if (totalFpQueried > 0)
+        tele["queried"] = totalFpQueried;
+    if (totalFpReported > 0)
+        tele["reported"] = totalFpReported;
+
     if (teleFails > 0)
         tele["teleFails"] = teleFails;
     if (reconnectTries > 0)
@@ -108,7 +121,8 @@ void connectToWifi()
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
-    activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
+    activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
+    allowQuery = WiFiSettings.checkbox("query", false, "Query devices for characteristics (helps apple fingerprints uniqueness)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
@@ -198,6 +212,19 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
+        online = false;
+    }
+    else if (top == roomsTopic + "/active_scan/set")
+    {
+        activeScan = pay == "ON";
+        spurt("/active_scan", String(activeScan));
+        online = false;
+    }
+    else if (top == roomsTopic + "/query/set")
+    {
+        allowQuery = pay == "ON";
+        spurt("/query", String(allowQuery));
+        online = false;
     }
 
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
@@ -273,6 +300,7 @@ void scanForDevices(void *parameter)
 {
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
     BLEDevice::init("");
+    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
@@ -282,25 +310,45 @@ void scanForDevices(void *parameter)
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
 
+    int totalSeen = 0;
+    int totalFpSeen = 0;
+    int totalFpQueried = 0;
+    int totalFpReported = 0;
+
     while (1)
     {
-        delay(1000);
+        while (updateInProgress || !mqttClient.connected())
+            delay(1000);
 
-        if (updateInProgress || !mqttClient.connected())
-            continue;
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
-        int totalSeen = 0;
-        int totalReported = 0;
+        auto seen = fingerprints.getCopy();
 
-        auto seen = fingerprints.getSeen();
+        if (allowQuery)
+        {
+            for (auto it = seen.begin(); it != seen.end(); ++it)
+            {
+                auto f = (*it);
+                if (f->query())
+                    totalFpQueried++;
+            }
+
+            if (!pBLEScan->start(0, nullptr, false))
+                log_e("Error re-starting continuous ble scan");
+        }
 
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
-            totalSeen++;
-            if (reportDevice(*it))
-                totalReported++;
+            auto f = (*it);
+            auto seen = f->getSeenCount();
+            if (seen)
+            {
+                totalSeen += seen;
+                totalFpSeen++;
+            }
+            if (reportDevice(f))
+                totalFpReported++;
         }
-        sendTelemetry(totalSeen, totalReported, fingerprints.getTotalAdverts());
     }
 }
 
