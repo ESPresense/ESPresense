@@ -301,9 +301,6 @@ bool BleFingerprint::query()
     lastQryMillis = now;
     auto pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
-
-    //pClient->setClientCallbacks(this, false);
-    NimBLEDevice::getScan()->setActiveScan(false);
     pClient->setConnectTimeout(5);
     if (pClient->connect(address))
     {
