@@ -9,7 +9,6 @@
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
-#include <esp_gattc_api.h>
 
 #define NO_RSSI -32768
 
