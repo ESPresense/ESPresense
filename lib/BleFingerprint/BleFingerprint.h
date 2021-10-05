@@ -14,7 +14,7 @@
 
 class BleFingerprintCollection;
 
-class BleFingerprint : public NimBLEClientCallbacks
+class BleFingerprint
 {
 
 public:
