@@ -316,7 +316,7 @@ bool BleFingerprint::query()
         if (!sRmAst.empty())
         {
             Serial.printf("%d RmAst | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
-            pid = String("roomAssistant:") + kebabify(sRmAst).c_str();
+            if (!pidOverriden) pid = String("roomAssistant:") + kebabify(sRmAst).c_str();
             pidOverriden = true;
         }
         else
@@ -325,11 +325,13 @@ bool BleFingerprint::query()
             if (!sMdl.empty())
             {
                 Serial.printf("%d Model | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
-                qry = String("-") + kebabify(sMdl).c_str();
+                if (!pidOverriden) pid = String("-") + kebabify(sMdl).c_str();
+                pidOverriden = true;
             }
             else
             {
-                if (name.length() > 0) qry = String("-") + kebabify(name);
+                if (name.length() > 0 && !pidOverriden) pid = pid + String("-") + kebabify(name);
+                pidOverriden = true;
             }
         }
 

@@ -26,7 +26,7 @@ public:
 
     String getId()
     {
-        if (!pid.isEmpty()) return pid + qry;
+        if (!pid.isEmpty()) return pid;
         if (macPublic) return getMac();
         if (!sid.isEmpty()) return sid;
         return getMac();
@@ -56,7 +56,7 @@ private:
     BleFingerprintCollection *_parent;
     bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, pidOverriden = false;
     NimBLEAddress address;
-    String pid, sid, name, url, qry;
+    String pid, sid, name, url;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     int newest = -100, recent = -100, oldest = -100;
     int qryAttempts = 0, seenCount = 1;
