@@ -37,6 +37,7 @@ private:
 
     float _maxDistance, _skipDistance;
     int _refRssi, _forgetMs, _skipMs;
+    unsigned long lastCleanup = 0;
 
     SemaphoreHandle_t fingerprintSemaphore;
     std::list<BleFingerprint *> fingerprints;

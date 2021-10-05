@@ -2,6 +2,9 @@
 
 void BleFingerprintCollection::cleanupOldFingerprints()
 {
+    auto now = millis();
+    if (now - lastCleanup < 5000) return;
+    lastCleanup = now;
     auto it = fingerprints.begin();
     while (it != fingerprints.end())
     {
