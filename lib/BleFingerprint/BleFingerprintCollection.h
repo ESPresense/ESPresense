@@ -18,8 +18,7 @@ public:
     }
     BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice);
     void cleanupOldFingerprints();
-    int getTotalAdverts() { return _totalSeen; }
-    std::list<BleFingerprint *> getSeen();
+    std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
     void setParams(int rssiRef, int forgetMs, float skipDistance, int skipMs, float maxDistance)
     {
@@ -35,7 +34,6 @@ public:
 
 private:
     bool _disable = false;
-    int _totalSeen = 0;
 
     float _maxDistance, _skipDistance;
     int _refRssi, _forgetMs, _skipMs;
@@ -46,7 +44,6 @@ private:
 
     void onResult(BLEAdvertisedDevice *advertisedDevice)
     {
-        _totalSeen++;
         if (_disable) return;
 
         Display.seenStart();

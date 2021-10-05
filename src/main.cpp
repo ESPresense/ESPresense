@@ -1,6 +1,5 @@
 #include <main.h>
-
-bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts = -1)
+bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
 {
     if (!online)
     {
@@ -33,13 +32,15 @@ bool sendTelemetry(int totalSeen = -1, int totalReported = -1, int totalAdverts 
 #ifdef VERSION
     tele["ver"] = String(VERSION);
 #endif
-
     if (totalSeen > 0)
-        tele["seen"] = totalSeen;
-    if (totalReported > 0)
-        tele["reported"] = totalReported;
-    if (totalAdverts > 0)
-        tele["adverts"] = totalAdverts;
+        tele["adverts"] = totalSeen;
+    if (totalFpSeen > 0)
+        tele["seen"] = totalFpSeen;
+    if (totalFpQueried > 0)
+        tele["queried"] = totalFpQueried;
+    if (totalFpReported > 0)
+        tele["reported"] = totalFpReported;
+
     if (teleFails > 0)
         tele["teleFails"] = teleFails;
     if (reconnectTries > 0)
@@ -108,7 +109,8 @@ void connectToWifi()
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
-    activeScan = WiFiSettings.checkbox("active_scan", true, "Active scanning (uses more battery but more results)");
+    activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
+    allowQuery = WiFiSettings.checkbox("query", false, "Query devices for characteristics (helps apple fingerprints uniqueness)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
@@ -284,34 +286,43 @@ void scanForDevices(void *parameter)
         log_e("Error starting continuous ble scan");
 
     int totalSeen = 0;
-    int totalReported = 0;
-    int totalQueried = 0;
+    int totalFpSeen = 0;
+    int totalFpQueried = 0;
+    int totalFpReported = 0;
 
     while (1)
     {
         while (updateInProgress || !mqttClient.connected())
             delay(1000);
 
-        sendTelemetry(totalSeen, totalReported, fingerprints.getTotalAdverts());
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
-        auto seen = fingerprints.getSeen();
+        auto seen = fingerprints.getCopy();
 
-        auto now = millis();
+        if (allowQuery)
+        {
+            for (auto it = seen.begin(); it != seen.end(); ++it)
+            {
+                auto f = (*it);
+                if (f->query())
+                    totalFpQueried++;
+            }
+
+            if (!pBLEScan->start(0, nullptr, false))
+                log_e("Error re-starting continuous ble scan");
+        }
+
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
             auto f = (*it);
-            if (f->query())
-                totalQueried++;
-        }
-
-        if (!pBLEScan->start(0, nullptr, false))
-            log_e("Error re-starting continuous ble scan");
-
-        for (auto it = seen.begin(); it != seen.end(); ++it)
-        {
-            totalSeen++;
-            if (reportDevice(*it))
-                totalReported++;
+            auto seen = f->getSeenCount();
+            if (seen)
+            {
+                totalSeen += seen;
+                totalFpSeen++;
+            }
+            if (reportDevice(f))
+                totalFpReported++;
         }
     }
 }

@@ -47,7 +47,7 @@ String roomsTopic;
 String subTopic;
 bool autoUpdate, otaUpdate;
 bool discovery;
-bool activeScan;
+bool activeScan, allowQuery;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;

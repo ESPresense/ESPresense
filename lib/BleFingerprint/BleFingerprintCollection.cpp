@@ -52,13 +52,13 @@ BleFingerprint *BleFingerprintCollection::getFingerprint(BLEAdvertisedDevice *ad
     return f;
 }
 
-std::list<BleFingerprint *> BleFingerprintCollection::getSeen()
+std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
 {
     if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
         log_e("Couldn't take semaphore!");
     cleanupOldFingerprints();
-    std::list<BleFingerprint *> seen(fingerprints);
+    std::list<BleFingerprint *> copy(fingerprints);
     if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
         log_e("Couldn't give semaphore!");
-    return seen;
+    return copy;
 }

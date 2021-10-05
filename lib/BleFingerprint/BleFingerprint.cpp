@@ -205,6 +205,7 @@ bool BleFingerprint::filter()
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
     lastSeenMillis = millis();
+    seenCount++;
 
     if (ignore) return false;
 

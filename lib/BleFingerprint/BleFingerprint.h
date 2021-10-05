@@ -46,6 +46,12 @@ public:
     NimBLEAddress getAddress() { return address; }
     long getAge() { return millis() - lastSeenMillis; };
     bool getIgnore() { return ignore; };
+    int getSeenCount()
+    {
+        auto sc = seenCount;
+        seenCount = 0;
+        return sc;
+    }
 
 private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
@@ -55,10 +61,8 @@ private:
     NimBLEAddress address;
     String pid, sid, name, url, qry;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
-    int newest = -100;
-    int recent = -100;
-    int oldest = -100;
-    int qryAttempts = 0;
+    int newest = -100, recent = -100, oldest = -100;
+    int qryAttempts = 0, seenCount = 1;
 
     float raw = 0, lastReported = 0, temp = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
