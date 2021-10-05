@@ -325,7 +325,7 @@ bool BleFingerprint::query()
             if (!sMdl.empty())
             {
                 Serial.printf("%d Model | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
-                if (!pidOverriden) pid = String("-") + kebabify(sMdl).c_str();
+                if (!pidOverriden) pid = pid + String("-") + kebabify(sMdl).c_str();
                 pidOverriden = true;
             }
             else
