@@ -169,7 +169,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                if (!pidOverriden) sid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                sid = Sprintf("microsoft:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                                                  strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
                                                  strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
                                                  strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
