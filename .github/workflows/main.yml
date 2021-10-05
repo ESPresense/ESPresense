@@ -1,6 +1,12 @@
-
-on: [push]
-
+name: Build and Attach Releases
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  release:
+    types:
+      - created
 jobs:
   build:
     runs-on: ubuntu-latest
