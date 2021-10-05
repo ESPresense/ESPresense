@@ -3,7 +3,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 {
     if (!online)
     {
-        if (sendOnline() && sendDiscoveryConnectivity() && sendDiscoveryMaxDistance() && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        if (sendOnline())
         {
             online = true;
             reconnectTries = 0;
@@ -11,6 +11,18 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
         else
         {
             log_e("Error sending status=online");
+        }
+    }
+
+    if (discovery && !sentDiscovery)
+    {
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance") && sendSwitchDiscovery("Active Scan") && sendSwitchDiscovery("Query") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        {
+            sentDiscovery = true;
+        }
+        else
+        {
+            log_e("Error sending discovery");
         }
     }
 
@@ -200,6 +212,19 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
+        online = false;
+    }
+    else if (top == roomsTopic + "/active_scan/set")
+    {
+        activeScan = pay == "ON";
+        spurt("/active_scan", String(activeScan));
+        online = false;
+    }
+    else if (top == roomsTopic + "/query/set")
+    {
+        allowQuery = pay == "ON";
+        spurt("/query", String(allowQuery));
+        online = false;
     }
 
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);

@@ -33,7 +33,8 @@ String localIp;
 unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
-bool online; // Have we successfully sent status=online
+bool online = false; // Have we successfully sent status=online
+bool sentDiscovery = false; // Have we successfully sent discovery
 String offline = "offline";
 String mqttHost;
 int mqttPort;
@@ -286,7 +287,7 @@ void spiffsInit()
 
 bool sendOnline()
 {
-    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str());
+    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, String(allowQuery ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery(JsonDocument *doc)
@@ -308,8 +309,6 @@ void commonDiscovery(JsonDocument *doc)
 
 bool sendDiscoveryConnectivity()
 {
-    if (!discovery) return true;
-
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
@@ -337,7 +336,6 @@ bool sendDiscoveryConnectivity()
 
 bool sendDiscoveryMotion()
 {
-    if (!discovery) return true;
     if (!pirPin && !radarPin) return true;
 
     DynamicJsonDocument doc(1200);
@@ -364,7 +362,6 @@ bool sendDiscoveryMotion()
 
 bool sendDiscoveryTemperature()
 {
-    if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
     DynamicJsonDocument doc(1200);
@@ -393,7 +390,6 @@ bool sendDiscoveryTemperature()
 
 bool sendDiscoveryHumidity()
 {
-    if (!discovery) return true;
     if (!dht11Pin && !dht22Pin) return true;
 
     DynamicJsonDocument doc(1200);
@@ -419,23 +415,50 @@ bool sendDiscoveryHumidity()
     return false;
 }
 
-bool sendDiscoveryMaxDistance()
+bool sendSwitchDiscovery(String name)
 {
-    if (!discovery) return true;
+    auto slug = slugify(name);
 
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Max Distance";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_max_distance", ESP.getEfuseMac() >> 24);
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
     doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/max_distance";
-    doc["cmd_t"] = "~/max_distance/set";
+    doc["stat_t"] = "~/" + slug;
+    doc["cmd_t"] = "~/" + slug + "/set";
+
+    char buffer[1200];
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/switch/espresense_" + ESPMAC + "/" + slug + "/config";
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+
+    return false;
+}
+
+bool sendNumberDiscovery(String name)
+{
+    auto slug = slugify(name);
+
+    DynamicJsonDocument doc(1200);
+    commonDiscovery(&doc);
+    doc["~"] = roomsTopic;
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/" + slug;
+    doc["cmd_t"] = "~/" + slug + "/set";
     doc["step"] = "0.01";
 
     char buffer[1200];
     serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/number/espresense_" + ESPMAC + "/max_distance/config";
+    String discoveryTopic = "homeassistant/number/espresense_" + ESPMAC + "/" + slug + "/config";
 
     for (int i = 0; i < 10; i++)
     {
