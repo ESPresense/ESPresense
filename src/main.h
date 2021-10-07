@@ -24,6 +24,16 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 
+//GY-302 lux sensor
+#include <Wire.h>
+#include <hp_BH1750.h>
+hp_BH1750 BH1750;
+long ms_BH1750;
+float lux_BH1750;
+int lux_BH1750_MQTT;
+String BH1750_I2c;
+bool I2CDebug;
+
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
@@ -87,6 +97,10 @@ bool dhtTasksEnabled = false;
 int dhtUpdateTime = 10; //ToDo: maybe make this a user choise via settings menu
 
 BleFingerprintCollection fingerprints;
+
+
+
+
 
 String resetReason(RESET_REASON reason)
 {
@@ -414,6 +428,37 @@ bool sendDiscoveryHumidity()
     }
     return false;
 }
+
+bool sendDiscoveryLux()
+{
+    if (!BH1750_I2c) return true;
+    
+    DynamicJsonDocument doc(1200);
+    commonDiscovery(&doc);
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Lux";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_lux", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/lux";
+    doc["dev_cla"] = "illuminance";
+    doc["unit_of_measurement"] = "lux";
+    doc["frc_upd"] = true;
+
+    char buffer[1200];
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/lux/config";
+
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+            return true;
+        delay(50);
+    }
+    
+    return false;
+}
+
+
 
 bool sendSwitchDiscovery(String name)
 {

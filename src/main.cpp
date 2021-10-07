@@ -16,7 +16,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance") && sendSwitchDiscovery("Active Scan") && sendSwitchDiscovery("Query") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature())
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance") && sendSwitchDiscovery("Active Scan") && sendSwitchDiscovery("Query") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux())
         {
             sentDiscovery = true;
         }
@@ -142,6 +142,10 @@ void connectToWifi()
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
+    
+    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C Adress of BH1750 Sensor, like 0x23 or 0x5C.");
+    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C Adress. Look at the Logs to get the correct adress. Dont forgett to turn it of! ");
+
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
@@ -175,6 +179,8 @@ void connectToWifi()
     Serial.println(dht11Pin ? "enabled" : "disabled");
     Serial.print("DHT22 Sensor: ");
     Serial.println(dht22Pin ? "enabled" : "disabled");
+    Serial.print("BH1750_I2c Sensor: ");
+    Serial.println(BH1750_I2c);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -389,15 +395,17 @@ void triggerGetTemp()
 
 void setup()
 {
-#ifdef LED_BUILTIN
-    pinMode(LED_BUILTIN, OUTPUT);
-#endif
+    #ifdef LED_BUILTIN
+        pinMode(LED_BUILTIN, OUTPUT);
+    #endif
 
     Serial.begin(115200);
     Serial.setDebugOutput(true);
-#ifdef VERBOSE
-    esp_log_level_set("*", ESP_LOG_DEBUG);
-#endif
+
+    #ifdef VERBOSE
+        esp_log_level_set("*", ESP_LOG_DEBUG);
+    #endif
+    
     spiffsInit();
     connectToWifi();
     if (pirPin) pinMode(pirPin, INPUT);
@@ -431,12 +439,65 @@ void setup()
         dhtTasksEnabled = true;
     }
 
-#if NTP
-    setClock();
-#endif
+    #if NTP
+        setClock();
+    #endif
+    
+    // BH1750_I2c
+    // BH1750_updateFr 
+    if (BH1750_I2c == "0x23" || BH1750_I2c == "0x5C") 
+    {
+        // Init BH1750 (witch default l2c adres)
+        int rc;  // Returncode
+        long m;  // milli for calibration
+        bool state;
+
+        // if (! BH1750.begin(BH1750_TO_GROUND)) 
+        if (BH1750_I2c == "0x23")  
+        {
+            state = BH1750.begin(BH1750_TO_GROUND);
+        }else if (BH1750_I2c == "0x5C")     
+        {
+            state = BH1750.begin(BH1750_TO_VCC);
+        }
+
+        if (! state) 
+        {
+            Serial.println("Error on initialisation BH1750 GY-302");
+        } else 
+        {
+            sendDiscoveryLux();
+            Serial.println("initialisation BH1750 GY-302 success");
+            m = millis();
+            rc = BH1750.calibrateTiming();
+            m = millis() - m;
+            Serial.print("Lux Sensor BH1750 GY-302 calibrated (Time: ");
+            Serial.print(m);
+            Serial.print(" ms)");
+            if (rc != 0) 
+            {
+                Serial.print(" - Lux Sensor Error code ");
+                Serial.print(rc);
+            }
+            Serial.println();
+
+            // start first measure and timecount
+            lux_BH1750 = -1;  // nothing to compare
+            BH1750.start(BH1750_QUALITY_HIGH,1);
+            ms_BH1750 = millis();    
+        }
+    }
+    
+    if (I2CDebug)
+    {
+        Wire.begin();
+        Serial.println("\nI2C Scanner");    
+    }
+
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
+
 }
 
 void pirLoop()
@@ -500,6 +561,103 @@ void dhtLoop()
     }
 }
 
+//non blocking ambient sensor
+void luxLoop()
+{
+    if (BH1750_I2c == "0x23" || BH1750_I2c == "0x5C")
+    {
+
+        float lux;
+        int lux_mqtt;
+
+        if (BH1750.hasValue()) 
+        {
+            ms_BH1750 = millis() - ms_BH1750;  
+            if (!BH1750.saturated()) 
+            {
+                lux = BH1750.getLux();
+                lux_mqtt = int(lux);
+
+                if (lux != lux_BH1750) 
+                {
+                    lux_BH1750 = lux;                    
+                    // Serial.print("BH1750 (");
+                    // Serial.print(ms_BH1750);
+                    // Serial.print(" ms): ");
+                    // Serial.print(lux);
+                    // Serial.println(" lx");
+                }
+                
+                //convert lx to integer to reduce mqtt traffic, send only if lx changed
+                if (lux_mqtt != lux_BH1750_MQTT) 
+                {
+                    lux_BH1750_MQTT = lux_mqtt;
+                    Serial.print("BH1750 (");
+                    Serial.print(ms_BH1750);
+                    Serial.print(" ms): ");
+                    Serial.print(lux_mqtt);
+                    Serial.println(" lx");
+                    mqttClient.publish((roomsTopic + "/lux").c_str(), 0, 1, String(lux_mqtt).c_str());
+                }
+
+            }
+            
+            BH1750.adjustSettings(90);            
+            BH1750.start();
+            ms_BH1750 = millis();
+        }
+    }     
+}
+
+void l2cScanner()
+{
+    if (!I2CDebug) return;
+
+    byte error, address;
+    int nDevices;
+    Serial.println("Scanning I2C device...");
+    nDevices = 0;
+
+    for(address = 1; address < 127; address++ ) 
+    {
+        Wire.beginTransmission(address);
+        error = Wire.endTransmission();
+        if (error == 0) 
+        {
+            Serial.print("I2C device found at address 0x");
+
+            if (address<16) 
+            {
+                Serial.print("0");
+            }
+            
+            Serial.println(address,HEX);
+            nDevices++;
+        }
+        else if (error==4) 
+        {
+            Serial.print("Unknow error at address 0x");
+            if (address<16) 
+            {
+                Serial.print("0");
+            }
+            Serial.println(address,HEX);
+        }    
+    }
+
+    if (nDevices == 0) 
+    {
+        Serial.println("No I2C devices found\n");
+    }
+    else 
+    {
+        Serial.println("done\n");
+        I2CDebug=false;
+    }
+    delay(5000); 
+          
+}
+
 void loop()
 {
     if (otaUpdate)
@@ -509,5 +667,8 @@ void loop()
     pirLoop();
     radarLoop();
     dhtLoop();
+    luxLoop();
+    l2cScanner(); 
     WiFiSettings.httpLoop();
+
 }
