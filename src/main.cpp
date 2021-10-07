@@ -1,4 +1,5 @@
 #include <main.h>
+
 bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
 {
     if (!online)
@@ -141,6 +142,14 @@ void connectToWifi()
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
+
+    #ifdef CAM32_1
+        WiFiSettings.heading("ESP32-CAM Settings *beta");
+        esp32Cam_board = WiFiSettings.string("esp32Cam_board", "aithinker", "Camera Board. Can be one of: esp32cam, aithinker, wrover_kit, esp_eye");
+        esp32CamSize = WiFiSettings.string("esp32CamSize", "vga", "Frame size. Can be one of: vga, svga, xvga");
+        //esp32Cam_jpeg_quality = WiFiSettings.integer("esp32Cam_board", 40, "Quality 0-63 lower numbers are higher quality");
+    #endif    
+
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
@@ -395,6 +404,7 @@ void setup()
 
     Serial.begin(115200);
     Serial.setDebugOutput(true);
+
 #ifdef VERBOSE
     esp_log_level_set("*", ESP_LOG_DEBUG);
 #endif
@@ -437,6 +447,60 @@ void setup()
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
+
+    #ifdef CAM32_1
+
+        Serial.println("init Camera");
+
+        if (esp32CamSize.equals("vga")){
+            cam.setFrameSize(FRAMESIZE_VGA);
+        }else if (esp32CamSize.equals("svga")){
+            cam.setFrameSize(FRAMESIZE_SVGA);
+        }else if (esp32CamSize.equals("xvga")){
+            cam.setFrameSize(FRAMESIZE_XGA);
+        }
+
+        if (esp32Cam_board.equals("esp32cam")){
+            cam.init(esp32cam_aithinker_config);
+        }else if (esp32Cam_board.equals("aithinker")){
+            cam.init(esp32cam_aithinker_config);
+        }else if (esp32Cam_board.equals("wrover_kit")){
+            cam.init(esp32cam_aithinker_config);}
+        else if (esp32Cam_board.equals("esp_eye")){
+            cam.init(esp32cam_aithinker_config);
+        }        
+
+
+
+        IPAddress ip = WiFi.localIP();
+        Serial.printf("init ESP32-Cam with board: %s, Frame size %s\n", esp32Cam_board, esp32CamSize);
+        #ifdef ENABLE_WEBSERVER
+            Serial.println("init ESP32-Cam Webserver ");
+            Serial.print("Image Stream: http://");
+            Serial.print(ip);
+            Serial.println(":8080");
+            Serial.print("JPG Image: http://");
+            Serial.print(ip);
+            Serial.println(":8080/jpg");
+            server_web.on("/", HTTP_GET, handle_jpg_stream);
+            server_web.on("/jpg", HTTP_GET, handle_jpg);
+            server_web.onNotFound(handleNotFound);
+            server_web.begin();
+        #endif
+
+        #ifdef ENABLE_RTSPSERVER            
+            Serial.print("Stream Link: rtsp://");
+            Serial.print(ip);
+            Serial.println(":8554/mjpeg/1\n");
+
+            rtspServer.begin();
+
+            //streamer = new SimStreamer(true);             // our streamer for UDP/TCP based RTP transport
+            streamer = new OV2640Streamer(cam);             // our streamer for UDP/TCP based RTP transport
+        #endif
+
+    #endif
+
 }
 
 void pirLoop()
@@ -500,6 +564,8 @@ void dhtLoop()
     }
 }
 
+
+
 void loop()
 {
     if (otaUpdate)
@@ -509,5 +575,41 @@ void loop()
     pirLoop();
     radarLoop();
     dhtLoop();
+
+    #ifdef ENABLE_WEBSERVER
+        server_web.handleClient();
+    #endif
+
+    #ifdef ENABLE_RTSPSERVER
+        uint32_t msecPerFrame = 100;
+        static uint32_t lastimage = millis();
+
+        // If we have an active client connection, just service that until gone
+        streamer->handleRequests(0); // we don't use a timeout here,
+        // instead we send only if we have new enough frames
+        uint32_t now = millis();
+        if(streamer->anySessions()) {
+            if(now > lastimage + msecPerFrame || now < lastimage) { // handle clock rollover
+                streamer->streamImage(now);
+                lastimage = now;
+
+                // check if we are overrunning our max frame rate
+                now = millis();
+                if(now > lastimage + msecPerFrame) {
+                    printf("warning exceeding max frame rate of %d ms\n", now - lastimage);
+                }
+            }
+        }
+        
+        WiFiClient rtspClient = rtspServer.accept();
+        if(rtspClient) {
+            Serial.print("client: ");
+            Serial.print(rtspClient.remoteIP());
+            Serial.println();
+            streamer->addSession(rtspClient);
+        }
+    #endif
+
     WiFiSettings.httpLoop();
+
 }

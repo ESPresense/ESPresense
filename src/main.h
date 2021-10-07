@@ -24,6 +24,40 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 
+#ifdef CAM32_1
+    // Camera stuff
+    #include "Micro-RTSP/OV2640.h"
+    #include "Micro-RTSP/SimStreamer.h"
+    #include "Micro-RTSP/OV2640Streamer.h"
+    #include "Micro-RTSP/CRtspSession.h"
+
+    // Camera class
+    OV2640 cam;
+
+    // Select which of the servers are active
+    // Select only one or the streaming will be very slow!
+    #define ENABLE_WEBSERVER
+    //#define ENABLE_RTSPSERVER
+
+    #ifdef ENABLE_WEBSERVER
+    WebServer server_web(8080);
+    #endif
+
+    #ifdef ENABLE_RTSPSERVER
+    WiFiServer rtspServer(8554);
+    #endif
+
+    CStreamer *streamer;
+    
+    String esp32Cam_board;
+    String esp32CamSize;
+    int esp32Cam_jpeg_quality;
+
+    // Camera class
+    extern OV2640 cam;    
+#endif
+
+
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
@@ -484,5 +518,59 @@ int a0_read_batt_mv()
 {
     float vout = ((float)analogRead(GPIO_NUM_35) + 35) / 215.0;
     return vout * 1100; // V to mV with +10% correction
+}
+#endif
+
+#ifdef ENABLE_WEBSERVER
+void handle_jpg_stream(void)
+{
+    WiFiClient client = server_web.client();
+    String response = "HTTP/1.1 200 OK\r\n";
+    response += "Content-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n";
+    server_web.sendContent(response);
+
+    while (1)
+    {
+        cam.run();
+        if (!client.connected())
+            break;
+        response = "--frame\r\n";
+        response += "Content-Type: image/jpeg\r\n\r\n";
+        server_web.sendContent(response);
+
+        client.write((char *)cam.getfb(), cam.getSize());
+        server_web.sendContent("\r\n");
+        if (!client.connected())
+            break;
+    }
+}
+
+void handle_jpg(void)
+{
+    WiFiClient client = server_web.client();
+
+    cam.run();
+    if (!client.connected())
+    {
+        return;
+    }
+    String response = "HTTP/1.1 200 OK\r\n";
+    response += "Content-disposition: inline; filename=capture.jpg\r\n";
+    response += "Content-type: image/jpeg\r\n\r\n";
+    server_web.sendContent(response);
+    client.write((char *)cam.getfb(), cam.getSize());
+}
+
+void handleNotFound()
+{
+    String message = "Server is running!\n\n";
+    message += "URI: ";
+    message += server_web.uri();
+    message += "\nMethod: ";
+    message += (server_web.method() == HTTP_GET) ? "GET" : "POST";
+    message += "\nArguments: ";
+    message += server_web.args();
+    message += "\n";
+    server_web.send(200, "text/plain", message);
 }
 #endif
