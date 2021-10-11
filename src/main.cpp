@@ -142,8 +142,8 @@ void connectToWifi()
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
-    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C Adress of BH1750 Sensor, like 0x23 or 0x5C.");
-    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C Adress. Look at the Logs to get the correct adress. Dont forgett to turn it of! ");
+    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C address of BH1750 Sensor, like 0x23 or 0x5C.");
+    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C address. Look at the serial log to get the correct address.");
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
