@@ -31,6 +31,7 @@ public:
     int getSkipMs() { return _skipMs; }
     float getSkipDistance() { return _skipDistance; }
     int getRefRssi() { return _refRssi; }
+    float getMaxDistance() { return _maxDistance; }
 
 private:
     bool _disable = false;

@@ -273,7 +273,7 @@ void connectToMqtt()
 bool reportDevice(BleFingerprint *f)
 {
     StaticJsonDocument<512> doc;
-    if (!f->report(&doc, maxDistance))
+    if (!f->report(&doc))
         return false;
 
     char JSONmessageBuffer[512];

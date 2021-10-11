@@ -256,7 +256,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
     hasValue = filter() || filter();
 }
 
-bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
+bool BleFingerprint::report(JsonDocument *doc)
 {
     if (ignore || (idType == 0 && !macPublic))
         return false;
@@ -264,6 +264,7 @@ bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
     if (reported || !hasValue)
         return false;
 
+    auto maxDistance = _parent->getMaxDistance();
     if (maxDistance > 0 && output.value.position > maxDistance)
         return false;
 
@@ -298,11 +299,20 @@ bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 bool BleFingerprint::query()
 {
     if (!shouldQuery || didQuery) return false;
+
+    auto maxDistance = _parent->getMaxDistance();
+    if (!maxDistance) maxDistance = 16;
+
+    if (!hasValue || output.value.position > maxDistance)
+        return false;
+
     auto now = millis();
     if (now - lastQryMillis < 500) return false;
     didQuery = true;
     lastQryMillis = now;
-    auto pClient = NimBLEDevice::getDisconnectedClient();
+
+    NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+    if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
     pClient->setConnectTimeout(5);
     if (pClient->connect(address))

@@ -38,7 +38,7 @@ public:
     BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
-    bool report(JsonDocument *doc, float maxDistance);
+    bool report(JsonDocument *doc);
     bool query();
 
     String getId()
