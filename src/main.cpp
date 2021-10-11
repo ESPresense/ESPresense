@@ -449,7 +449,7 @@ void setup()
         // Init BH1750 (witch default l2c adres)
         int rc; // Returncode
         long m; // milli for calibration
-        bool state;
+        bool state = false;
 
         // if (! BH1750.begin(BH1750_TO_GROUND))
         if (BH1750_I2c == "0x23")

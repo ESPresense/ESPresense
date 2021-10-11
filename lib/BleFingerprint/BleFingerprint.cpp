@@ -55,29 +55,30 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
         if (advertisedDevice->isAdvertisingService(tileUUID))
         {
             calRssi = _parent->getRefRssi() + TILE_TX;
-            if (!pidOverriden) pid = "tile:" + getMac();
+            setId("tile:" + getMac(), ID_TYPE_TILE);
         }
         else if (advertisedDevice->isAdvertisingService(exposureUUID))
         { // found covid exposure tracker
             std::string strServiceData = advertisedDevice->getServiceData(exposureUUID);
             calRssi = _parent->getRefRssi() + EXPOSURE_TX;
-            if (!pidOverriden) pid = "exp:" + String(strServiceData.length());
+            setId("exp:" + String(strServiceData.length()), ID_TYPE_EXPOSURE);
             name = hexStr(strServiceData).c_str();
         }
         else if (advertisedDevice->isAdvertisingService(sonosUUID))
         {
             asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-            if (!pidOverriden) pid = "sonos:" + getMac();
+            setId("sonos:" + getMac(), ID_TYPE_SONOS);
         }
         else if (advertisedDevice->isAdvertisingService(itagUUID))
         {
             asRssi = _parent->getRefRssi() + (advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() : ITAG_TX);
-            if (!pidOverriden) pid = "itag:" + getMac();
+            setId("itag:" + getMac(), ID_TYPE_ITAG);
         }
         else if (advertisedDevice->isAdvertisingService(roomAssistantService))
         {
             asRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
             shouldQuery = true;
+            rmAsst = true;
         }
         else if (advertisedDevice->isAdvertisingService(eddystoneUUID))
         {
@@ -86,7 +87,6 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
                 oBeacon.setData(strServiceData);
-                url = String(oBeacon.getDecodedURL().c_str());
                 calRssi = EDDYSTONE_ADD_1M + oBeacon.getPower();
             }
             else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE)
@@ -111,7 +111,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             }
             if (advertisedDevice->haveTXPower())
                 fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-            sid = fingerprint;
+            setId(fingerprint, ID_TYPE_SID);
         }
     }
 
@@ -131,28 +131,30 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 {
                     BLEBeacon oBeacon = BLEBeacon();
                     oBeacon.setData(strManufacturerData);
-                    if (!pidOverriden) pid = Sprintf("iBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor()));
+                    setId(Sprintf("iBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_IBEACON);
                     calRssi = oBeacon.getSignalPower();
                 }
                 else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
                 {
                     shouldQuery = true;
                     ignore = false;
-                    if (!pidOverriden)
                     {
+                        String pid;
                         if (advertisedDevice->haveTXPower())
                             pid = Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower());
                         else
                             pid = Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                        setId(pid, ID_TYPE_APPLE_NEARBY);
                     }
+                    disc = hexStr(strManufacturerData.substr(4)).c_str();
                     mdRssi = _parent->getRefRssi() + APPLE_TX;
                 }
                 else
                 {
                     if (advertisedDevice->haveTXPower())
-                        sid = Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower());
+                        setId(Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -advertisedDevice->getTXPower()), ID_TYPE_MISC_APPLE + ID_TYPE_TX_POW);
                     else
-                        sid = Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                        setId(Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length()), ID_TYPE_MISC_APPLE);
                     mdRssi = _parent->getRefRssi() + APPLE_TX;
                     ignore = true;
                 }
@@ -160,18 +162,18 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             else if (manuf == "05a7") //Sonos
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                if (!pidOverriden) pid = "sonos:" + getMac();
+                setId("sonos:" + getMac(), ID_TYPE_SONOS);
             }
             else if (manuf == "0157") //Mi-fit
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                pid = "mifit:" + getMac();
+                setId("mifit:" + getMac(), ID_TYPE_MIFIT);
             }
             else if (manuf == "0006" && strManufacturerData.length() == 29) //microsoft
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                pid = "md:microsoft:29";
-                name = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                setId("md:microsoft:29", ID_TYPE_MSFT);
+                disc = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                                strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10], strManufacturerData[11],
                                strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15], strManufacturerData[16], strManufacturerData[17],
                                strManufacturerData[18], strManufacturerData[19], strManufacturerData[20], strManufacturerData[21], strManufacturerData[22], strManufacturerData[23],
@@ -181,7 +183,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             else if (manuf == "0075") //samsung
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
-                if (!pidOverriden) pid = "samsung:" + getMac();
+                setId("samsung:" + getMac(), ID_TYPE_MISC);
             }
             else
             {
@@ -189,7 +191,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 String fingerprint = Sprintf("md:%s:%d", manuf.c_str(), strManufacturerData.length());
                 if (advertisedDevice->haveTXPower())
                     fingerprint = fingerprint + String(-advertisedDevice->getTXPower());
-                sid = fingerprint;
+                setId(fingerprint, ID_TYPE_MD);
             }
         }
     }
@@ -256,7 +258,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 {
-    if (pid.isEmpty() && sid.isEmpty() && !macPublic)
+    if (ignore || (idType == 0 && !macPublic))
         return false;
 
     if (reported || !hasValue)
@@ -277,6 +279,7 @@ bool BleFingerprint::report(JsonDocument *doc, float maxDistance)
 
     (*doc)[F("id")] = getId();
     if (!name.isEmpty()) (*doc)[F("name")] = name;
+    if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
 
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
@@ -304,33 +307,34 @@ bool BleFingerprint::query()
     pClient->setConnectTimeout(5);
     if (pClient->connect(address))
     {
-        auto sName = pClient->getValue(genericAccessService, nameChar);
-        if (!sName.empty())
+        if (name.isEmpty())
         {
-            Serial.printf("%d Name  | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
-            if (name.length() == 0) name = sName.c_str();
+            auto sName = pClient->getValue(genericAccessService, nameChar);
+            if (!sName.empty())
+            {
+                Serial.printf("%d Name  | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
+                if (name.length() == 0) name = sName.c_str();
+            }
         }
 
         auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
         if (!sRmAst.empty())
         {
-            Serial.printf("%d RmAst | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
-            if (!pidOverriden) pid = String("roomAssistant:") + kebabify(sRmAst).c_str();
-            pidOverriden = true;
+            Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
+            setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
         }
         else
         {
             auto sMdl = pClient->getValue(deviceInformationService, modelChar);
             if (!sMdl.empty())
             {
-                Serial.printf("%d Model | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
-                if (!pidOverriden) pid = pid + String("-") + kebabify(sMdl).c_str();
-                pidOverriden = true;
+                Serial.printf("%d Model | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
+                setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_APPLE_MODEL);
+                if (name.isEmpty()) name = sMdl.c_str();
             }
             else
             {
-                if (name.length() > 0 && !pidOverriden) pid = pid + String("-") + kebabify(name);
-                pidOverriden = true;
+                if (name.length() > 0) setId(String("name:") + kebabify(name), ID_TYPE_NAME);
             }
         }
 

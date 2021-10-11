@@ -5,11 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1]
+
+- Query bugs squashed! Needs a bit more testing, but it's MUCH better than 2.0
+- Apple model fingerprint updated to apple:model (with the , turned into a -)
+- BH1750 sensor support added [lux sensor](https://amzn.to/3AoKlQ4)
+
 ## [2.0.0]
 
 - Add `Query` switch to mqtt and webapp setup (defaults to off so as to not break existing fingerprints)
 - Add `Active Scan` switch to mqtt and webapp setup
-- Add device model to apple fingerprints 
+- Add device model to apple fingerprints
 - Add support [room assistant app](https://apps.apple.com/us/app/room-assistant/id1538642237?itsct=apps_box_link&itscg=30200) @DTTerastar (#69)
 - Stats reworked
 

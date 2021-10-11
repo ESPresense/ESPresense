@@ -12,6 +12,23 @@
 
 #define NO_RSSI -32768
 
+#define ID_TYPE_TX_POW short(1)
+#define ID_TYPE_SID short(7)
+#define ID_TYPE_MD short(8)
+#define ID_TYPE_MISC_APPLE short(9)
+#define ID_TYPE_NAME short(10)
+#define ID_TYPE_MISC short(11)
+#define ID_TYPE_MSFT short(12)
+#define ID_TYPE_SONOS short(13)
+#define ID_TYPE_MIFIT short(14)
+#define ID_TYPE_EXPOSURE short(15)
+#define ID_TYPE_ITAG short(16)
+#define ID_TYPE_TILE short(17)
+#define ID_TYPE_APPLE_NEARBY short(35)
+#define ID_TYPE_APPLE_MODEL short(40)
+#define ID_TYPE_IBEACON short(99)
+#define ID_TYPE_RM_ASST short(100)
+
 class BleFingerprintCollection;
 
 class BleFingerprint
@@ -26,13 +43,22 @@ public:
 
     String getId()
     {
-        if (!pid.isEmpty()) return pid;
+        if (!id.isEmpty() && idType > 10) return id;
         if (macPublic) return getMac();
-        if (!sid.isEmpty()) return sid;
+        if (!id.isEmpty()) return id;
         return getMac();
     }
+
+    void setId(String newId, short int newIdType)
+    {
+        if (newIdType < idType) return;
+        id = newId;
+        idType = newIdType;
+    }
+
     String getMac();
     int get1mRssi();
+    String getDiscriminator() { return disc; }
 
     float getDistance() { return output.value.position; }
     int getRssi() { return rssi; }
@@ -54,10 +80,10 @@ private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
 
     BleFingerprintCollection *_parent;
-    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, pidOverriden = false;
+    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, rmAsst = false;
     NimBLEAddress address;
-    String pid, sid, name, url;
-    int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
+    String id, name, disc;
+    short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     int newest = -100, recent = -100, oldest = -100;
     int qryAttempts = 0, seenCount = 1;
 

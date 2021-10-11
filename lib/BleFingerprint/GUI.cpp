@@ -59,7 +59,7 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
 void GUI::added(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
-    Serial.printf("%d New   | MAC: %s, ID: %s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str());
+    Serial.printf("%d New   | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
 void GUI::removed(BleFingerprint *f, long age)
