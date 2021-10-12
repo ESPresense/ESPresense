@@ -9,6 +9,7 @@ static BLEUUID tileUUID((uint16_t)0xFEED);
 static BLEUUID exposureUUID((uint16_t)0xFD6F);
 static BLEUUID sonosUUID((uint16_t)0xFE07);
 static BLEUUID itagUUID((uint16_t)0xffe0);
+static BLEUUID fitbitUUID(uint32_t(0xadabfb00), uint16_t(0x6e7d), uint16_t(0x4601), uint64_t(0xbda2bffaa68956ba));
 
 static BLEUUID roomAssistantService(uint32_t(0x5403c8a7), uint16_t(0x5c96), uint16_t(0x47e9), uint64_t(0x9ab859e373d875a7));
 static BLEUUID rootAssistantCharacteristic(0x21c46f33, 0xe813, 0x4407, 0x86012ad281030052);

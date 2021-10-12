@@ -10,3 +10,4 @@ Settings_*.h
 .vscode
 .scripts
 .DS_Store
+cmake-build-*

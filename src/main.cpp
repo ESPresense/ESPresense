@@ -304,8 +304,10 @@ bool reportDevice(BleFingerprint *f)
 void scanForDevices(void *parameter)
 {
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
-    BLEDevice::init("");
-    NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+    BLEDevice::init(Stdprintf("ESPresense-%06" PRIx64, ESP.getEfuseMac() >> 24));
+    for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
+        NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
+
     auto pBLEScan = BLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);

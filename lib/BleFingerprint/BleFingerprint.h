@@ -26,6 +26,7 @@
 #define ID_TYPE_TILE short(17)
 #define ID_TYPE_APPLE_NEARBY short(35)
 #define ID_TYPE_APPLE_MODEL short(40)
+#define ID_TYPE_APPLE_NAME short(50)
 #define ID_TYPE_IBEACON short(99)
 #define ID_TYPE_RM_ASST short(100)
 
@@ -83,10 +84,8 @@ private:
     bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, rmAsst = false;
     NimBLEAddress address;
     String id, name, disc;
-    short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
-    int newest = -100, recent = -100, oldest = -100;
-    int qryAttempts = 0, seenCount = 1;
-
+    short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
+    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 1;
     float raw = 0, lastReported = 0, temp = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t volts = 0;

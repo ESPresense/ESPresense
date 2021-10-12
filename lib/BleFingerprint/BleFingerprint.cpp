@@ -299,17 +299,14 @@ bool BleFingerprint::report(JsonDocument *doc)
 bool BleFingerprint::query()
 {
     if (!shouldQuery || didQuery) return false;
-
-    auto maxDistance = _parent->getMaxDistance();
-    if (!maxDistance) maxDistance = 16;
-
-    if (!hasValue || output.value.position > maxDistance)
-        return false;
+    if (rssi < -90) return false;
 
     auto now = millis();
-    if (now - lastQryMillis < 500) return false;
+    if (now - lastQryMillis < qryDelayMillis) return false;
     didQuery = true;
     lastQryMillis = now;
+
+    bool success = false;
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -317,34 +314,33 @@ bool BleFingerprint::query()
     pClient->setConnectTimeout(5);
     if (pClient->connect(address))
     {
-        if (name.isEmpty())
-        {
-            auto sName = pClient->getValue(genericAccessService, nameChar);
-            if (!sName.empty())
-            {
-                Serial.printf("%d Name  | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
-                if (name.length() == 0) name = sName.c_str();
-            }
-        }
-
         auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
         if (!sRmAst.empty())
         {
-            Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
             setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
+            Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
+            success = true;
         }
         else
         {
             auto sMdl = pClient->getValue(deviceInformationService, modelChar);
-            if (!sMdl.empty())
+            auto sName = pClient->getValue(genericAccessService, nameChar);
+            if (!sName.empty() && !sMdl.empty() && sMdl.find(sName) == std::string::npos && sName.compare("Apple Watch") != 0)
             {
-                Serial.printf("%d Model | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
+                setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_APPLE_NAME);
+                Serial.printf("%d Name  | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
+                success = !rmAsst; // Success only if we don't expect to get rootAssistantCharacteristic
+            }
+            else if (!sMdl.empty())
+            {
                 setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_APPLE_MODEL);
                 if (name.isEmpty()) name = sMdl.c_str();
+                Serial.printf("%d Model | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
+                success = !rmAsst; // Success only if we don't expect to get rootAssistantCharacteristic
             }
-            else
+            else if (!sName.empty())
             {
-                if (name.length() > 0) setId(String("name:") + kebabify(name), ID_TYPE_NAME);
+                if (name.isEmpty()) name = sName.c_str();
             }
         }
 
@@ -356,10 +352,17 @@ bool BleFingerprint::query()
 
         pClient->disconnect();
     }
+
+    if (success) return true;
+
+    Serial.printf("%d QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi, qryAttempts, qryDelayMillis);
+
+    qryAttempts++;
+    if (qryDelayMillis < 60000)
+        qryDelayMillis *= 2;
     else
-    {
-        qryAttempts++;
-        if (qryAttempts < 10) didQuery = false;
-    }
+        qryDelayMillis = 60000;
+    didQuery = false;
+
     return true;
 }
