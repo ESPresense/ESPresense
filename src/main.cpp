@@ -340,8 +340,9 @@ void scanForDevices(void *parameter)
                     totalFpQueried++;
             }
 
-            if (!pBLEScan->start(0, nullptr, false))
-                log_e("Error re-starting continuous ble scan");
+            if (!pBLEScan->isScanning())
+                if (!pBLEScan->start(0, nullptr, false))
+                    log_e("Error re-starting continuous ble scan");
         }
 
         for (auto it = seen.begin(); it != seen.end(); ++it)
