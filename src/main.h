@@ -427,7 +427,7 @@ bool sendDiscoveryHumidity()
 
 bool sendDiscoveryLux()
 {
-    if (!BH1750_I2c) return true;
+    if (BH1750_I2c.isEmpty()) return true;
 
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
