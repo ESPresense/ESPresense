@@ -245,15 +245,15 @@ void firmwareUpdate()
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
-        log_e("Http Update Failed (Error=%d): %s", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+        Serial.printf("Http Update Failed (Error=%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
         break;
 
     case HTTP_UPDATE_NO_UPDATES:
-        log_i("No Update!");
+        Serial.printf("No Update!\n");
         break;
 
     case HTTP_UPDATE_OK:
-        log_w("Update OK!");
+        Serial.printf("Update OK!\n");
         break;
     }
 

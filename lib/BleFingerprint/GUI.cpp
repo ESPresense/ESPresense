@@ -65,7 +65,7 @@ void GUI::added(BleFingerprint *f)
 void GUI::removed(BleFingerprint *f, long age)
 {
     if (f->getIgnore()) return;
-    Serial.printf("\u001b[31m%d Del   | MAC: %s, ID: %-60s (%lus)\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), age / 1000);
+    Serial.printf("\u001b[31m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
 void GUI::close(BleFingerprint *f)
