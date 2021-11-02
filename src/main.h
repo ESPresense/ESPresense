@@ -382,7 +382,7 @@ bool sendDiscoveryTemperature()
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/temperature";
     doc["dev_cla"] = "temperature";
-    doc["unit_of_measurement"] = "C°";
+    doc["unit_of_meas"] = "°C";
     doc["frc_upd"] = true;
 
     char buffer[1200];
@@ -437,7 +437,7 @@ bool sendDiscoveryLux()
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/lux";
     doc["dev_cla"] = "illuminance";
-    doc["unit_of_measurement"] = "lux";
+    doc["unit_of_meas"] = "lx";
     doc["frc_upd"] = true;
 
     char buffer[1200];
