@@ -454,7 +454,7 @@ bool sendDiscoveryLux()
     return false;
 }
 
-bool sendSwitchDiscovery(String name)
+bool sendSwitchDiscovery(String name, String entityCategory)
 {
     auto slug = slugify(name);
 
@@ -466,6 +466,7 @@ bool sendSwitchDiscovery(String name)
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
+    doc["entity_category"] = entityCategory;
 
     char buffer[1200];
     serializeJson(doc, buffer);
@@ -481,7 +482,7 @@ bool sendSwitchDiscovery(String name)
     return false;
 }
 
-bool sendNumberDiscovery(String name)
+bool sendNumberDiscovery(String name, String entityCategory)
 {
     auto slug = slugify(name);
 
@@ -494,6 +495,7 @@ bool sendNumberDiscovery(String name)
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["step"] = "0.01";
+    doc["entity_category"] = entityCategory;
 
     char buffer[1200];
     serializeJson(doc, buffer);
