@@ -235,7 +235,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 setId("samsung:" + getMac(), ID_TYPE_MISC);
             }
-            else
+            else if (manuf != "0000")
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 String fingerprint = Sprintf("md:%s:%d", manuf.c_str(), strManufacturerData.length());
