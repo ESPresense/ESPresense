@@ -65,6 +65,8 @@ public:
     void update();
 
 private:
+    void begin();
+
     bool init;
 #ifdef M5STICK
     bool dirty;
