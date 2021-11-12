@@ -80,8 +80,14 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
         else if (advertisedDevice->isAdvertisingService(roomAssistantService))
         {
             asRssi = advertisedDevice->haveTXPower() ? advertisedDevice->getTXPower() - 65 : NO_RSSI;
-            shouldQuery = true;
-            rmAsst = true;
+            if (!rmAsst)
+            {
+                rmAsst = true;
+                didQuery = false;
+                shouldQuery = true;
+                qryAttempts = 0;
+                qryDelayMillis = 1;
+            }
         }
         else
         {
