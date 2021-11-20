@@ -4,6 +4,7 @@ GUI Display;
 
 void GUI::seenStart()
 {
+    begin();
 #ifdef M5ATOM
     M5.dis.drawpix(0, CRGB(15, 15, 15));
 #else
@@ -13,6 +14,7 @@ void GUI::seenStart()
 
 void GUI::seenEnd()
 {
+    begin();
 #ifdef M5ATOM
     M5.dis.drawpix(0, CRGB(0, 0, 0));
 #else
@@ -41,6 +43,7 @@ void GUI::connecting()
 
 void GUI::connected(bool wifi = false, bool mqtt = false)
 {
+    begin();
 #ifdef M5ATOM
     if (!wifi)
         M5.dis.drawpix(0, CRGB(0, 128, 0));
@@ -65,7 +68,7 @@ void GUI::added(BleFingerprint *f)
 void GUI::removed(BleFingerprint *f, long age)
 {
     if (f->getIgnore()) return;
-    Serial.printf("\u001b[31m%d Del   | MAC: %s, ID: %-60s (%lus)\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), age / 1000);
+    Serial.printf("\u001b[31m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
 void GUI::close(BleFingerprint *f)
@@ -84,6 +87,7 @@ void GUI::left(BleFingerprint *f)
 
 void GUI::status(const char *format, ...)
 {
+    begin();
 #ifdef M5STICK
     sprite.fillSprite(TFT_BLACK);
     sprite.setTextDatum(MC_DATUM);
@@ -103,7 +107,7 @@ void GUI::status(const char *format, ...)
 #endif
 }
 
-void GUI::update()
+void GUI::begin()
 {
     if (!init)
     {
@@ -118,6 +122,11 @@ void GUI::update()
 #endif
         init = true;
     }
+}
+
+void GUI::update()
+{
+    begin();
 #ifdef M5STICK
     if (dirty)
     {

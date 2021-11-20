@@ -16,7 +16,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance") && sendSwitchDiscovery("Active Scan") && sendSwitchDiscovery("Query") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux())
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux())
         {
             sentDiscovery = true;
         }

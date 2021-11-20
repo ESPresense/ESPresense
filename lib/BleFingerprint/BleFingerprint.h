@@ -13,17 +13,21 @@
 #define NO_RSSI -32768
 
 #define ID_TYPE_TX_POW short(1)
-#define ID_TYPE_SID short(7)
+#define ID_TYPE_AD short(6)
+#define ID_TYPE_SD short(7)
 #define ID_TYPE_MD short(8)
 #define ID_TYPE_MISC_APPLE short(9)
 #define ID_TYPE_NAME short(10)
 #define ID_TYPE_MISC short(11)
 #define ID_TYPE_MSFT short(12)
 #define ID_TYPE_SONOS short(13)
-#define ID_TYPE_MIFIT short(14)
-#define ID_TYPE_EXPOSURE short(15)
-#define ID_TYPE_ITAG short(16)
-#define ID_TYPE_TILE short(17)
+#define ID_TYPE_MITHERM short(14)
+#define ID_TYPE_MIFIT short(15)
+#define ID_TYPE_EXPOSURE short(16)
+#define ID_TYPE_ITAG short(17)
+#define ID_TYPE_TRACKR short(18)
+#define ID_TYPE_TILE short(19)
+#define ID_TYPE_MEATER short(20)
 #define ID_TYPE_APPLE_NEARBY short(35)
 #define ID_TYPE_APPLE_MODEL short(40)
 #define ID_TYPE_APPLE_NAME short(50)
@@ -86,9 +90,9 @@ private:
     String id, name, disc;
     short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
     int qryAttempts = 0, seenCount = 1, qryDelayMillis = 1;
-    float raw = 0, lastReported = 0, temp = 0;
+    float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
-    uint16_t volts = 0;
+    uint16_t mv = 0;
 
     Reading<Differential<float>> output;
 

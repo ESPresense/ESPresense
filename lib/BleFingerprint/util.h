@@ -9,10 +9,16 @@ static BLEUUID tileUUID((uint16_t)0xFEED);
 static BLEUUID exposureUUID((uint16_t)0xFD6F);
 static BLEUUID sonosUUID((uint16_t)0xFE07);
 static BLEUUID itagUUID((uint16_t)0xffe0);
-static BLEUUID fitbitUUID(uint32_t(0xadabfb00), uint16_t(0x6e7d), uint16_t(0x4601), uint64_t(0xbda2bffaa68956ba));
+static BLEUUID miThermUUID(uint16_t(0x181A));
+static BLEUUID trackrUUID((uint16_t)0x0F3E);
 
-static BLEUUID roomAssistantService(uint32_t(0x5403c8a7), uint16_t(0x5c96), uint16_t(0x47e9), uint64_t(0x9ab859e373d875a7));
+static BLEUUID fitbitUUID(0xadabfb00, 0x6e7d, 0x4601, 0xbda2bffaa68956ba);
+
+static BLEUUID roomAssistantService(0x5403c8a7, 0x5c96, 0x47e9, 0x9ab859e373d875a7);
 static BLEUUID rootAssistantCharacteristic(0x21c46f33, 0xe813, 0x4407, 0x86012ad281030052);
+
+static BLEUUID meaterService(0xa75cc7fc, 0xc956, 0x488f, 0xac2a2dbc08b63a04);
+static BLEUUID meaterCharacteristic(0x7edda774, 0x045e, 0x4bbf, 0x909b45d1991a2876);
 
 static BLEUUID genericAccessService(uint16_t(0x1800));
 static BLEUUID deviceInformationService(uint16_t(0x180A));

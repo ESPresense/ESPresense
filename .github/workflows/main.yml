@@ -54,3 +54,7 @@ jobs:
         files: "*.bin"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Archive Build
+      uses: kittaakos/upload-artifact-as-is@v0
+      with:
+        path: ./*.bin
