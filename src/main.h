@@ -67,7 +67,7 @@ TaskHandle_t scannerTask;
 
 bool updateInProgress = false;
 String localIp;
-unsigned long lastTeleMillis;
+unsigned long lastTeleMillis, lastQueryMillis;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online = false;        // Have we successfully sent status=online
@@ -83,9 +83,12 @@ String statusTopic;
 String teleTopic;
 String roomsTopic;
 String subTopic;
+String query;
+String include;
+String exclude;
 bool autoUpdate, otaUpdate;
 bool discovery, statusLed;
-bool activeScan, allowQuery;
+bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
@@ -335,7 +338,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool sendOnline()
 {
-    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, String(allowQuery ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
+    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, query.c_str()) && mqttClient.publish((roomsTopic + "/include").c_str(), 0, 1, include.c_str()) && mqttClient.publish((roomsTopic + "/exclude").c_str(), 0, 1, exclude.c_str()) && mqttClient.publish((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery(JsonDocument *doc)
@@ -632,6 +635,13 @@ bool sendSwitchDiscovery(String name, String entityCategory)
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/switch/espresense_" + ESPMAC + "/" + slug + "/config";
     return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
+
+bool sendDeleteDiscovery(String domain, String name)
+{
+    auto slug = slugify(name);
+    String discoveryTopic = "homeassistant/" + domain + "/espresense_" + ESPMAC + "/" + slug + "/config";
+    return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
 bool sendNumberDiscovery(String name, String entityCategory)

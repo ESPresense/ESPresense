@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -115,28 +115,28 @@ void connectToWifi()
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
     WiFiSettings.heading("MQTT Connection");
-
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
 
     WiFiSettings.heading("Preferences");
-
     statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
     Display.setStatusLed(statusLed);
-
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
-    allowQuery = WiFiSettings.checkbox("query", false, "Query devices for characteristics (helps apple fingerprints uniqueness)");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.heading("Calibration");
+    WiFiSettings.heading("Filtering");
+    query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:iphone10-6 apple:iphone13-2)");
+    include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sensing these ids to mqtt (eg. exp:20 apple:iphone10-6)");
 
+    WiFiSettings.heading("Calibration");
     maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
     skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
@@ -144,7 +144,6 @@ void connectToWifi()
     refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
 
     WiFiSettings.heading("Additional Sensors");
-
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
 #ifdef SENSORS
@@ -222,7 +221,13 @@ void connectToWifi()
     Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     Serial.println(BH1750_I2c);
 #endif
-  
+    Serial.print("Query: ");
+    Serial.println(query);
+    Serial.print("Include: ");
+    Serial.println(include);
+    Serial.print("Exclude: ");
+    Serial.println(exclude);
+
     localIp = WiFi.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + "/rooms/" + id;
@@ -269,8 +274,20 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     }
     else if (top == roomsTopic + "/query/set")
     {
-        allowQuery = pay == "ON";
-        spurt("/query", String(allowQuery));
+        query = pay;
+        spurt("/query", String(query));
+        online = false;
+    }
+    else if (top == roomsTopic + "/include/set")
+    {
+        include = pay;
+        spurt("/include", String(include));
+        online = false;
+    }
+    else if (top == roomsTopic + "/exclude/set")
+    {
+        exclude = pay;
+        spurt("/exclude", String(exclude));
         online = false;
     }
     else if (top == roomsTopic + "/status_led/set")
@@ -281,7 +298,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         online = false;
     }
 
-    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -352,7 +369,7 @@ bool reportDevice(BleFingerprint *f)
 
 void scanForDevices(void *parameter)
 {
-    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance);
+    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
     BLEDevice::init(Stdprintf("ESPresense-%06" PRIx64, ESP.getEfuseMac() >> 24));
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
@@ -380,7 +397,9 @@ void scanForDevices(void *parameter)
 
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
-        if (allowQuery)
+        auto now = millis();
+
+        if (now - lastQueryMillis > 5000)
         {
             for (auto it = seen.begin(); it != seen.end(); ++it)
             {
@@ -392,6 +411,8 @@ void scanForDevices(void *parameter)
             if (!pBLEScan->isScanning())
                 if (!pBLEScan->start(0, nullptr, false))
                     log_e("Error re-starting continuous ble scan");
+
+            lastQueryMillis = now;
         }
 
         for (auto it = seen.begin(); it != seen.end(); ++it)

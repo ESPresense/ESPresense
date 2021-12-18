@@ -19,6 +19,37 @@
         Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); \
     })
 
+void BleFingerprint::setId(String newId, short int newIdType)
+{
+    if (newIdType < idType) return;
+    auto include = _parent->getInclude();
+    auto exclude = _parent->getExclude();
+    auto query = _parent->getQuery();
+    if (include.length() > 0)
+    {
+        int posStr_wh = include.indexOf(newId);
+        hidden = (posStr_wh < 0);
+    }
+    else if (exclude.length() > 0)
+    {
+        int posStr_bl = exclude.indexOf(newId);
+        hidden = (posStr_bl > -1);
+    }
+    else
+        hidden = false;
+
+    if (query.length() > 0)
+    {
+        int posStr_bl = query.indexOf(newId);
+        allowQuery = (posStr_bl > -1);
+    }
+    else
+        allowQuery = false;
+
+    id = newId;
+    idType = newIdType;
+}
+
 String BleFingerprint::getMac() { return SMacf(address); }
 
 int BleFingerprint::get1mRssi()
@@ -338,7 +369,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc)
 {
-    if (ignore || (idType == 0 && !macPublic))
+    if (ignore || (idType == 0 && !macPublic) || hidden)
         return false;
 
     if (reported || !hasValue)
@@ -380,7 +411,7 @@ bool BleFingerprint::report(JsonDocument *doc)
 
 bool BleFingerprint::query()
 {
-    if (!shouldQuery || didQuery) return false;
+    if (!allowQuery || !shouldQuery || didQuery) return false;
     if (rssi < -90) return false;
 
     auto now = millis();

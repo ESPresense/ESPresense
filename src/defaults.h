@@ -30,6 +30,10 @@
 //Define the base topic for room detection. Usually "espresense"
 #define CHANNEL String("espresense")
 
+#define DEFAULT_QUERY ""
+#define DEFAULT_INCLUDE ""
+#define DEFAULT_EXCLUDE ""
+
 #define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 #define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
 
