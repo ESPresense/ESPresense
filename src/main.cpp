@@ -110,14 +110,12 @@ void connectToWifi()
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
     WiFiSettings.heading("MQTT Connection");
-
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
 
     WiFiSettings.heading("Preferences");
-
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
@@ -127,8 +125,11 @@ void connectToWifi()
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.heading("Calibration");
+    WiFiSettings.heading("Filter");
+    whitelist = WiFiSettings.string("white_list", DEFAULT_WHITELIST, "Device Whitelist. Send only MQTT Data from these Devices: like apple:iphone10-6 apple:iphone13-2 ");
+    blacklist = WiFiSettings.string("black_list", DEFAULT_BLACKLIST, "Device Blacklist. Filter these Devices. Like exp:20 apple:iphone10-6");
 
+    WiFiSettings.heading("Calibration");
     maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
     skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
@@ -136,12 +137,10 @@ void connectToWifi()
     refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
 
     WiFiSettings.heading("Additional Sensors");
-
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
-
     BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C address of BH1750 Sensor, like 0x23 or 0x5C.");
     I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C address. Look at the serial log to get the correct address.");
 
@@ -180,6 +179,10 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
     Serial.print("BH1750_I2c Sensor: ");
     Serial.println(BH1750_I2c);
+    Serial.print("Whitelist: ");
+    Serial.println(whitelist);
+    Serial.print("Blacklist: ");
+    Serial.println(blacklist);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -280,6 +283,28 @@ bool reportDevice(BleFingerprint *f)
     serializeJson(doc, JSONmessageBuffer);
 
     String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + id;
+ 
+    // Whitelist
+    if(whitelist.length() > 0)
+    {
+        int posStr_wh = whitelist.indexOf(f->getId());
+        if(posStr_wh < 0)
+        {     
+            Serial.println(f->getId() + " - P: " + String(posStr_wh) + " not in whitelist. Cancel MQTT");
+            return false;
+        }
+    }
+
+    // Blacklist
+    if(blacklist.length() > 0)
+    {
+        int posStr_bl = blacklist.indexOf(f->getId());  
+        if(posStr_bl > -1)
+        {     
+            Serial.println(f->getId() + " - P: " + String(posStr_bl) + " found in Blacklist. Cancel MQTT");
+            return false;
+        }
+    }
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++)

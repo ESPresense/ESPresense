@@ -56,6 +56,8 @@ String statusTopic;
 String teleTopic;
 String roomsTopic;
 String subTopic;
+String whitelist;
+String blacklist;
 bool autoUpdate, otaUpdate;
 bool discovery;
 bool activeScan, allowQuery;
