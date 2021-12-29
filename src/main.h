@@ -463,7 +463,7 @@ bool sendDiscoveryLux()
 
 bool sendDiscoveryBME280Temperature()
 {
-    if (!BME280_I2c) return true;
+    if (BME280_I2c.isEmpty()) return true;
 
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
@@ -491,7 +491,7 @@ bool sendDiscoveryBME280Temperature()
 
 bool sendDiscoveryBME280Humidity()
 {
-    if (!BME280_I2c) return true;
+    if (BME280_I2c.isEmpty()) return true;
 
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
@@ -519,7 +519,7 @@ bool sendDiscoveryBME280Humidity()
 
 bool sendDiscoveryBME280Pressure()
 {
-    if (!BME280_I2c) return true;
+    if (BME280_I2c.isEmpty()) return true;
 
     DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);

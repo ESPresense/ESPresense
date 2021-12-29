@@ -617,8 +617,6 @@ void luxLoop()
 
 void bme280Loop() {
 
-    if (!BME280_I2c) return;
-
     if (BME280_I2c == "0x76") {
         BME280_status = BME280.begin(0x76);
     } else if (BME280_I2c == "0x77") {
