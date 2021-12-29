@@ -138,14 +138,33 @@ void connectToWifi()
 
     WiFiSettings.heading("Additional Sensors");
 
-    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
-    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
-    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
-    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
+    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 to disable)");
+    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 to disable)");
+    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 to disable)");
+    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 to disable)");
 
-    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C address of BH1750 Sensor, like 0x23 or 0x5C");
-    BME280_I2c = WiFiSettings.string("BME280_I2c", "", "Weather Sensor - I2C address of BME280 Sensor, like 0x76 or 0x77");
-    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C address. Look at the serial log to get the correct address");
+    WiFiSettings.heading("I2C Settings");
+
+    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
+
+    WiFiSettings.html("h4", "Bus 1:");
+    I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (0 to disable)");
+    I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (0 to disable)");
+
+    WiFiSettings.html("h4", "Bus 2:");
+
+    I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", 0, "SDA pin (0 to disable)");
+    I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", 0, "SCL pin (0 to disable)");
+
+    WiFiSettings.heading("I2C Sensors");
+
+    WiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
+    BH1750_I2c_Bus = WiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
+
+    WiFiSettings.html("h4", "BME280 - Weather Sensor:");
+    BME280_I2c_Bus = WiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+    BME280_I2c = WiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
@@ -181,9 +200,9 @@ void connectToWifi()
     Serial.print("DHT22 Sensor: ");
     Serial.println(dht22Pin ? "enabled" : "disabled");
     Serial.print("BH1750_I2c Sensor: ");
-    Serial.println(BH1750_I2c);
+    Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
     Serial.print("BME280_I2c Sensor: ");
-    Serial.println(BME280_I2c);
+    Serial.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -459,13 +478,21 @@ void setup()
         bool state = false;
 
         // if (! BH1750.begin(BH1750_TO_GROUND))
-        if (BH1750_I2c == "0x23")
+        if (BH1750_I2c == "0x23" && BH1750_I2c_Bus == 1)
         {
-            state = BH1750.begin(BH1750_TO_GROUND);
+            state = BH1750.begin(BH1750_TO_GROUND, &Wire);
         }
-        else if (BH1750_I2c == "0x5C")
+        else if (BH1750_I2c == "0x5C" && BH1750_I2c_Bus == 1)
         {
-            state = BH1750.begin(BH1750_TO_VCC);
+            state = BH1750.begin(BH1750_TO_VCC, &Wire);
+        }
+        else if (BH1750_I2c == "0x23" && BH1750_I2c_Bus == 2)
+        {
+            state = BH1750.begin(BH1750_TO_GROUND, &Wire1);
+        }
+        else if (BH1750_I2c == "0x5C" && BH1750_I2c_Bus == 2)
+        {
+            state = BH1750.begin(BH1750_TO_VCC, &Wire1);
         }
 
         if (!state)
@@ -496,9 +523,18 @@ void setup()
         }
     }
 
+    if (I2C_Bus_1_SDA != 0 && I2C_Bus_1_SDA != 0) {
+        Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
+        Serial.println("\nInitialized I2C Bus 1");
+    }
+
+    if (I2C_Bus_2_SDA != 0 && I2C_Bus_2_SDA != 0) {
+        Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
+        Serial.println("\nInitialized I2C Bus 2");
+    }
+
     if (I2CDebug)
     {
-        Wire.begin();
         Serial.println("\nI2C Scanner");
     }
 
@@ -617,10 +653,14 @@ void luxLoop()
 
 void bme280Loop() {
 
-    if (BME280_I2c == "0x76") {
-        BME280_status = BME280.begin(0x76);
-    } else if (BME280_I2c == "0x77") {
-        BME280_status = BME280.begin(0x77);
+    if (BME280_I2c == "0x76" && BME280_I2c_Bus == 1) {
+        BME280_status = BME280.begin(0x76, &Wire);
+    } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 1) {
+        BME280_status = BME280.begin(0x77, &Wire);
+    } else if (BME280_I2c == "0x76" && BME280_I2c_Bus == 2) {
+        BME280_status = BME280.begin(0x76, &Wire1);
+    } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
+        BME280_status = BME280.begin(0x77, &Wire1);
     }
 
     if (!BME280_status) {
@@ -660,7 +700,7 @@ void l2cScanner()
         error = Wire.endTransmission();
         if (error == 0)
         {
-            Serial.print("I2C device found at address 0x");
+            Serial.print("I2C device found on bus 1 at address 0x");
 
             if (address < 16)
             {
@@ -672,7 +712,34 @@ void l2cScanner()
         }
         else if (error == 4)
         {
-            Serial.print("Unknow error at address 0x");
+            Serial.print("Unknow error on bus 1 at address 0x");
+            if (address < 16)
+            {
+                Serial.print("0");
+            }
+            Serial.println(address, HEX);
+        }
+    }
+
+    for (address = 1; address < 127; address++)
+    {
+        Wire1.beginTransmission(address);
+        error = Wire1.endTransmission();
+        if (error == 0)
+        {
+            Serial.print("I2C device found on bus 2 at address 0x");
+
+            if (address < 16)
+            {
+                Serial.print("0");
+            }
+
+            Serial.println(address, HEX);
+            nDevices++;
+        }
+        else if (error == 4)
+        {
+            Serial.print("Unknow error on bus 2 at address 0x");
             if (address < 16)
             {
                 Serial.print("0");

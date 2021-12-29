@@ -24,21 +24,29 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 
-//GY-302 lux sensor
+// I2C
 #include <Wire.h>
+int I2C_Bus_1_SDA;
+int I2C_Bus_1_SCL;
+int I2C_Bus_2_SDA;
+int I2C_Bus_2_SCL;
+bool I2CDebug;
+
+//GY-302 lux sensor
 #include <hp_BH1750.h>
 hp_BH1750 BH1750;
 long ms_BH1750;
 float lux_BH1750;
 int lux_BH1750_MQTT;
 String BH1750_I2c;
-bool I2CDebug;
+int BH1750_I2c_Bus;
 
 //I2C BME280 sensor
 #include <Adafruit_BME280.h>
 Adafruit_BME280 BME280;
 long BME280_status;
 String BME280_I2c;
+int BME280_I2c_Bus;
 
 
 AsyncMqttClient mqttClient;
