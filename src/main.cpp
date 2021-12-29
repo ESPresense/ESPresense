@@ -1,4 +1,5 @@
-#include <main.h>
+#include "main.h"
+
 bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
 {
     if (!online)
@@ -16,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux())
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure())
         {
             sentDiscovery = true;
         }
@@ -143,6 +144,7 @@ void connectToWifi()
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
     BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C address of BH1750 Sensor, like 0x23 or 0x5C.");
+    BME280_I2c = WiFiSettings.string("BME280_I2c", "", "Weather Sensor - I2C address of BME280 Sensor, like 0x76 or 0x77.");
     I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C address. Look at the serial log to get the correct address.");
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
@@ -180,6 +182,8 @@ void connectToWifi()
     Serial.println(dht22Pin ? "enabled" : "disabled");
     Serial.print("BH1750_I2c Sensor: ");
     Serial.println(BH1750_I2c);
+    Serial.print("BME280_I2c Sensor: ");
+    Serial.println(BME280_I2c);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -611,6 +615,38 @@ void luxLoop()
     }
 }
 
+void bme280Loop() {
+
+    if (!BME280_I2c) return;
+
+    if (BME280_I2c == "0x76") {
+        BME280_status = BME280.begin(0x76);
+    } else if (BME280_I2c == "0x77") {
+        BME280_status = BME280.begin(0x77);
+    }
+
+    if (!BME280_status) {
+        Serial.println("Couldn't find a BME280 sensor, check your wiring and I2C address!");
+    }
+
+    BME280.setSampling(Adafruit_BME280::MODE_NORMAL,
+                    Adafruit_BME280::SAMPLING_X16,  // Temperature
+                    Adafruit_BME280::SAMPLING_X16,  // Pressure
+                    Adafruit_BME280::SAMPLING_X16,  // Humidity
+                    Adafruit_BME280::FILTER_X16,
+                    //Adafruit_BME280::FILTER_OFF,
+                    Adafruit_BME280::STANDBY_MS_0_5 );
+    
+    float temperature = BME280.readTemperature();
+    float humidity = BME280.readHumidity();
+    float pressure = BME280.readPressure() / 100.0F;
+
+    mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
+    mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
+    mqttClient.publish((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+
+}
+
 void l2cScanner()
 {
     if (!I2CDebug) return;
@@ -669,6 +705,7 @@ void loop()
     radarLoop();
     dhtLoop();
     luxLoop();
+    bme280Loop();
     l2cScanner();
     WiFiSettings.httpLoop();
 }
