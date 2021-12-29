@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure())
+        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux())
         {
             sentDiscovery = true;
         }
@@ -166,6 +166,10 @@ void connectToWifi()
     BME280_I2c_Bus = WiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     BME280_I2c = WiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
 
+    WiFiSettings.html("h4", "TSL2561 - Ambient Light Sensor:");
+    TSL2561_I2c_Bus = WiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+    TSL2561_I2c = WiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
+
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
@@ -203,6 +207,8 @@ void connectToWifi()
     Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
     Serial.print("BME280_I2c Sensor: ");
     Serial.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
+    Serial.print("TSL2561_I2c Sensor: ");
+    Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -661,6 +667,8 @@ void bme280Loop() {
         BME280_status = BME280.begin(0x76, &Wire1);
     } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
         BME280_status = BME280.begin(0x77, &Wire1);
+    } else {
+        return;
     }
 
     if (!BME280_status) {
@@ -673,7 +681,7 @@ void bme280Loop() {
                     Adafruit_BME280::SAMPLING_X16,  // Humidity
                     Adafruit_BME280::FILTER_X16,
                     //Adafruit_BME280::FILTER_OFF,
-                    Adafruit_BME280::STANDBY_MS_0_5 );
+                    Adafruit_BME280::STANDBY_MS_1000);
     
     float temperature = BME280.readTemperature();
     float humidity = BME280.readHumidity();
@@ -682,6 +690,42 @@ void bme280Loop() {
     mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
     mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
     mqttClient.publish((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+
+}
+
+void tsl2561Loop() {
+
+    int tsl2561_address;
+
+    if (TSL2561_I2c == "0x39") {
+        tsl2561_address = 0x39;
+    } else if (TSL2561_I2c == "0x29") {
+        tsl2561_address = 0x29;
+    } else if (TSL2561_I2c == "0x49") {
+        tsl2561_address = 0x49;
+    } else {
+        return;
+    }
+
+    Adafruit_TSL2561_Unified tsl = Adafruit_TSL2561_Unified(tsl2561_address);
+
+    if (TSL2561_I2c_Bus == 1) {
+        tsl.begin(&Wire);
+    } else if (TSL2561_I2c_Bus == 2) {
+        tsl.begin(&Wire1);
+    }
+
+    tsl.setGain(TSL2561_GAIN_16X);
+    tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
+
+    sensors_event_t event;
+    tsl.getEvent(&event);
+
+    if (event.light) {
+        mqttClient.publish((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
+    } else {
+        Serial.println("TSL2561 Sensor overloaded");
+    }
 
 }
 
@@ -771,6 +815,7 @@ void loop()
     dhtLoop();
     luxLoop();
     bme280Loop();
+    tsl2561Loop();
     l2cScanner();
     WiFiSettings.httpLoop();
 }
