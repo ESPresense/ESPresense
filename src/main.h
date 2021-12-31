@@ -52,6 +52,7 @@ int BME280_I2c_Bus;
 #include <Adafruit_TSL2561_U.h>
 String TSL2561_I2c;
 int TSL2561_I2c_Bus;
+String TSL2561_I2c_Gain;
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;

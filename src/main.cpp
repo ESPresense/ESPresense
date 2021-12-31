@@ -169,6 +169,7 @@ void connectToWifi()
     WiFiSettings.html("h4", "TSL2561 - Ambient Light Sensor:");
     TSL2561_I2c_Bus = WiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     TSL2561_I2c = WiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
+    TSL2561_I2c_Gain = WiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
@@ -668,6 +669,7 @@ void bme280Loop() {
     } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
         BME280_status = BME280.begin(0x77, &Wire1);
     } else {
+        Serial.println("BME280 - Invalid I2C address");
         return;
     }
 
@@ -681,7 +683,8 @@ void bme280Loop() {
                     Adafruit_BME280::SAMPLING_X16,  // Humidity
                     Adafruit_BME280::FILTER_X16,
                     //Adafruit_BME280::FILTER_OFF,
-                    Adafruit_BME280::STANDBY_MS_1000);
+                    Adafruit_BME280::STANDBY_MS_1000
+                    );
     
     float temperature = BME280.readTemperature();
     float humidity = BME280.readHumidity();
@@ -704,6 +707,7 @@ void tsl2561Loop() {
     } else if (TSL2561_I2c == "0x49") {
         tsl2561_address = 0x49;
     } else {
+        Serial.println("TSL2561 - Invalid I2C address");
         return;
     }
 
@@ -715,7 +719,17 @@ void tsl2561Loop() {
         tsl.begin(&Wire1);
     }
 
-    tsl.setGain(TSL2561_GAIN_16X);
+    if (TSL2561_I2c_Gain == "auto") {
+        tsl.enableAutoRange(true);
+    } else if (TSL2561_I2c_Gain == "1x") {
+        tsl.setGain(TSL2561_GAIN_1X);
+    } else if (TSL2561_I2c_Gain == "16x") {
+        tsl.setGain(TSL2561_GAIN_16X);
+    } else {
+        Serial.println("TSL2561 - Invalid gain");
+        return;
+    }
+
     tsl.setIntegrationTime(TSL2561_INTEGRATIONTIME_402MS);
 
     sensors_event_t event;
@@ -724,7 +738,7 @@ void tsl2561Loop() {
     if (event.light) {
         mqttClient.publish((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
     } else {
-        Serial.println("TSL2561 Sensor overloaded");
+        Serial.println("TSL2561 - Sensor overloaded");
     }
 
 }
