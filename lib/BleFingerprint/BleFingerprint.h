@@ -31,6 +31,8 @@
 #define ID_TYPE_APPLE_NEARBY short(35)
 #define ID_TYPE_APPLE_MODEL short(40)
 #define ID_TYPE_APPLE_NAME short(50)
+#define ID_TYPE_EBEACON short(97)
+#define ID_TYPE_ABEACON short(98)
 #define ID_TYPE_IBEACON short(99)
 #define ID_TYPE_RM_ASST short(100)
 

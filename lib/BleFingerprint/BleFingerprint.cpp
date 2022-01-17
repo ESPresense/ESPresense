@@ -246,6 +246,13 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
                 setId("samsung:" + getMac(), ID_TYPE_MISC);
             }
+            else if (strManufacturerData.length() == 26 && strManufacturerData[2] == 0xBE && strManufacturerData[3] == 0xAC)
+            {
+                BLEBeacon oBeacon = BLEBeacon();
+                oBeacon.setData(strManufacturerData.substr(0, 25));
+                setId(Sprintf("altBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
+                calRssi = oBeacon.getSignalPower();
+            }
             else if (manuf != "0000")
             {
                 mdRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
