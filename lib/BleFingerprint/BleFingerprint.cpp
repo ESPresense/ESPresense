@@ -166,6 +166,18 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                     Serial.println(oBeacon.toString().c_str());
 #endif
                 }
+                else if (strServiceData[0] == 0x00)
+                {
+                    auto serviceData = strServiceData.c_str();
+                    int8_t rss0m = *(int8_t *)(serviceData + 1);
+                    calRssi = EDDYSTONE_ADD_1M + rss0m;
+                    setId(Sprintf("eddy:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x-%02x%02x%02x%02x%02x%02x",
+                                  strServiceData[2], strServiceData[3], strServiceData[4], strServiceData[5], strServiceData[6],
+                                  strServiceData[6], strServiceData[7], strServiceData[8], strServiceData[9], strServiceData[10],
+                                  strServiceData[11], strServiceData[12], strServiceData[13], strServiceData[14], strServiceData[15],
+                                  strServiceData[16], strServiceData[17]),
+                          ID_TYPE_EBEACON);
+                }
             }
             else
             {
