@@ -1,5 +1,30 @@
 #include "GUI.h"
 
+#if defined M5STICK
+
+#define LED_BUILTIN 10
+#define LED_BUILTIN_ON 0
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#elif defined M5ATOM
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#elif defined HUZZAH32
+
+#define LED_BUILTIN 13
+#define LED_BUILTIN_ON 1
+
+#else //DevKit / generic
+
+#define LED_BUILTIN 2
+#define LED_BUILTIN_ON 1
+
+#endif
+
 GUI Display;
 
 void GUI::seenStart()
@@ -8,7 +33,7 @@ void GUI::seenStart()
 #ifdef M5ATOM
     M5.dis.drawpix(0, CRGB(15, 15, 15));
 #else
-    digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+    if (_statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 #endif
 }
 
@@ -37,7 +62,7 @@ void GUI::connecting()
     status("Connecting...");
     connected(false, false);
 #ifdef LED_BUILTIN
-    digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    if (_statusLed) digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 #endif
 }
 
@@ -107,6 +132,13 @@ void GUI::status(const char *format, ...)
 #endif
 }
 
+void GUI::setup()
+{
+#ifdef LED_BUILTIN
+    pinMode(LED_BUILTIN, OUTPUT);
+#endif
+}
+
 void GUI::begin()
 {
     if (!init)
@@ -124,7 +156,7 @@ void GUI::begin()
     }
 }
 
-void GUI::update()
+void GUI::blit()
 {
     begin();
 #ifdef M5STICK
@@ -137,10 +169,17 @@ void GUI::update()
 #endif
 }
 
+void GUI::updateStart()
+{
+#ifdef LED_BUILTIN
+    if (_statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+#endif
+}
+
 void GUI::updateProgress(unsigned int percent)
 {
 #ifdef LED_BUILTIN
-    digitalWrite(LED_BUILTIN, percent % 2);
+    if (_statusLed) digitalWrite(LED_BUILTIN, percent % 2);
 #endif
 }
 
