@@ -14,36 +14,13 @@
 #include <M5Atom.h>
 #endif
 
-#if defined M5STICK
-
-#define LED_BUILTIN 10
-#define LED_BUILTIN_ON 0
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#elif defined M5ATOM
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#elif defined HUZZAH32
-
-#define LED_BUILTIN 13
-#define LED_BUILTIN_ON 1
-
-#else //DevKit / generic
-
-#define LED_BUILTIN 2
-#define LED_BUILTIN_ON 1
-
-#endif
-
 class BleFingerprint;
 
 class GUI
 {
 public:
+    void setup();
+
     void added(BleFingerprint *f);
     void removed(BleFingerprint *f, long age);
     void close(BleFingerprint *f);
@@ -55,6 +32,7 @@ public:
     void seenStart();
     void seenEnd();
 
+    void updateStart();
     void updateProgress(unsigned int percent);
     void updateEnd();
 
@@ -62,9 +40,12 @@ public:
     void connected(bool wifi, bool mqtt);
 
     void status(const char *message, ...);
-    void update();
+    void blit();
+
+    void setStatusLed(bool enabled) { _statusLed = enabled; }
 
 private:
+    bool _statusLed = true;
     void begin();
 
     bool init;

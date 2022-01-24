@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [2.0.15]
+
+- Allow status led to be disabled (fixes #156) @DTTerastar (#196)
+- Add device configuration url to mqtt discovery
+
+## [2.0.14]
+
+- Add eddystone uid support @DTTerastar (#188)
+- Add support for alt-beacons @DTTerastar (#187)
+
+## [2.0.13]
+
+- Bump NimBLE-Arduino.git to 1.3.3 @DTTerastar (#145)
+
+## [2.0.11] && [2.0.12]
+
+- Requery if room assistant broadcast found after query @DTTerastar (#126)
+- Slight tweaks and logging to try and fix #125
+
+## [2.0.10]
+
+- Add trackr support @DTTerastar (#121)
+
+## [2.0.9]
+
+- Add support for ATC\_MiThermometer @DTTerastar (#124)
+- Add initial support for meater @DTTerastar (#124)
+- Improve msft:cdp fingerprint @DTTerastar (#124)
+
+## [2.0.7] && [2.0.8]
+
+- Add entity categories for config items @DTTerastar (#114)
 
 ## [2.0.6]
 

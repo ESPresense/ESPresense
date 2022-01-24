@@ -81,7 +81,7 @@ String teleTopic;
 String roomsTopic;
 String subTopic;
 bool autoUpdate, otaUpdate;
-bool discovery;
+bool discovery, statusLed;
 bool activeScan, allowQuery;
 bool publishTele;
 bool publishRooms;
@@ -260,11 +260,10 @@ void firmwareUpdate()
 
     updateInProgress = true;
     fingerprints.setDisable(updateInProgress);
-#ifdef LED_BUILTIN
-    httpUpdate.setLedPin(LED_BUILTIN, LED_BUILTIN_ON);
-#endif
+    Display.updateStart();
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
+    Display.updateEnd();
 
     switch (ret)
     {
@@ -321,7 +320,7 @@ void spiffsInit()
 
 bool sendOnline()
 {
-    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, String(allowQuery ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
+    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, String(allowQuery ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery(JsonDocument *doc)
@@ -335,9 +334,10 @@ void commonDiscovery(JsonDocument *doc)
     (*doc)["dev"]["name"] = "ESPresense " + room;
     (*doc)["dev"]["sa"] = room;
 #ifdef VERSION
-    (*doc)["dev"]["sw_version"] = VERSION;
+    (*doc)["dev"]["sw"] = VERSION;
 #endif
-    (*doc)["dev"]["manufacturer"] = "ESPresense (" FIRMWARE ")";
+    (*doc)["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
+    (*doc)["dev"]["cu"] = "http://" + localIp;
     (*doc)["dev"]["mdl"] = ESP.getChipModel();
 }
 

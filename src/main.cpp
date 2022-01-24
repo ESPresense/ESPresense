@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux())
+        if (sendDiscoveryConnectivity() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux())
         {
             sentDiscovery = true;
         }
@@ -82,7 +82,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
-    Display.update();
+    Display.blit();
 
     WiFiSettings.onConnect = []()
     {
@@ -118,6 +118,9 @@ void connectToWifi()
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
 
     WiFiSettings.heading("Preferences");
+
+    statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
+    Display.setStatusLed(statusLed);
 
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
@@ -259,6 +262,13 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         allowQuery = pay == "ON";
         spurt("/query", String(allowQuery));
+        online = false;
+    }
+    else if (top == roomsTopic + "/status_led/set")
+    {
+        statusLed = pay == "ON";
+        spurt("/status_led", String(statusLed));
+        Display.setStatusLed(statusLed);
         online = false;
     }
 
@@ -427,9 +437,7 @@ void triggerGetTemp()
 
 void setup()
 {
-#ifdef LED_BUILTIN
-    pinMode(LED_BUILTIN, OUTPUT);
-#endif
+    Display.setup();
 
     Serial.begin(115200);
     Serial.setDebugOutput(true);
@@ -834,7 +842,7 @@ void loop()
     if (otaUpdate)
         ArduinoOTA.handle();
     firmwareUpdate();
-    Display.update();
+    Display.blit();
     pirLoop();
     radarLoop();
     dhtLoop();
