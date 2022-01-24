@@ -13,11 +13,16 @@ A clear and concise description of what the bug is.
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Logs**
-If possible, copy and paste any logs from the serial monitor from the time that you see the bug.
-
 **Hardware Details**
 If the bug is related to tracking a specific piece of hardware (e.g. iBeacon, phone, etc), please enter any relevant details about the hardware (such as firmware version, MAC address, etc).
+
+**Config**
+
+- Active Scan   [ ]
+- Query enabled [ ]
+
+**Logs**
+If possible, copy and paste any logs from the serial monitor from the time that you see the bug.
 
 **Screenshots**
 If applicable, add screenshots to help explain your problem.
