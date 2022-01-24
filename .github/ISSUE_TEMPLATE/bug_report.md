@@ -18,8 +18,8 @@ If the bug is related to tracking a specific piece of hardware (e.g. iBeacon, ph
 
 **Config**
 
-- Active Scan   [ ]
-- Query enabled [ ]
+- [ ] Active Scan enabled
+- [ ] Query enabled
 
 **Logs**
 If possible, copy and paste any logs from the serial monitor from the time that you see the bug.
