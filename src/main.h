@@ -32,6 +32,8 @@ int I2C_Bus_2_SDA;
 int I2C_Bus_2_SCL;
 bool I2CDebug;
 
+unsigned long sensorInterval = 60000;
+
 //GY-302 lux sensor
 #include <hp_BH1750.h>
 hp_BH1750 BH1750;
@@ -47,12 +49,14 @@ Adafruit_BME280 BME280;
 long BME280_status;
 String BME280_I2c;
 int BME280_I2c_Bus;
+unsigned long bme280PreviousMillis = 0;
 
 //I2C TSL2561 sensor
 #include <Adafruit_TSL2561_U.h>
 String TSL2561_I2c;
 int TSL2561_I2c_Bus;
 String TSL2561_I2c_Gain;
+unsigned long tsl2561PreviousMillis = 0;
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;

@@ -677,6 +677,7 @@ void bme280Loop() {
         Serial.println("Couldn't find a BME280 sensor, check your wiring and I2C address!");
     }
 
+
     BME280.setSampling(Adafruit_BME280::MODE_NORMAL,
                     Adafruit_BME280::SAMPLING_X16,  // Temperature
                     Adafruit_BME280::SAMPLING_X16,  // Pressure
@@ -684,15 +685,21 @@ void bme280Loop() {
                     Adafruit_BME280::FILTER_X16,
                     //Adafruit_BME280::FILTER_OFF,
                     Adafruit_BME280::STANDBY_MS_1000
-                    );
-    
+    );
+
+
     float temperature = BME280.readTemperature();
     float humidity = BME280.readHumidity();
     float pressure = BME280.readPressure() / 100.0F;
 
-    mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
-    mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
-    mqttClient.publish((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+    if (millis() - bme280PreviousMillis >= sensorInterval) {
+
+        mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
+        mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
+        mqttClient.publish((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+
+        bme280PreviousMillis = millis();
+    }
 
 }
 
@@ -736,7 +743,11 @@ void tsl2561Loop() {
     tsl.getEvent(&event);
 
     if (event.light) {
-        mqttClient.publish((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
+        if (millis() - tsl2561PreviousMillis >= sensorInterval) {
+            mqttClient.publish((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
+
+            tsl2561PreviousMillis = millis();
+        }
     } else {
         Serial.println("TSL2561 - Sensor overloaded");
     }
