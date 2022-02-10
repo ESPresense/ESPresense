@@ -343,9 +343,9 @@ void scanForDevices(void *parameter)
         while (updateInProgress || !mqttClient.connected())
             delay(1000);
 
-        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
-
         auto seen = fingerprints.getCopy();
+
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
         if (allowQuery)
         {
