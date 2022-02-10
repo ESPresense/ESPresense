@@ -10,7 +10,7 @@
 #include <ArduinoOTA.h>
 #include <AsyncMqttClient.h>
 #include <AsyncTCP.h>
-#include <DHTesp.h>
+
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <NimBLEDevice.h>
@@ -24,7 +24,8 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 
-//GY-302 lux sensor
+#ifdef SENSORS
+#include <DHTesp.h>
 #include <Wire.h>
 #include <hp_BH1750.h>
 hp_BH1750 BH1750;
@@ -33,6 +34,7 @@ float lux_BH1750;
 int lux_BH1750_MQTT;
 String BH1750_I2c;
 bool I2CDebug;
+#endif
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;

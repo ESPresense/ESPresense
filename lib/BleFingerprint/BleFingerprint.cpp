@@ -86,7 +86,7 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 didQuery = false;
                 shouldQuery = true;
                 qryAttempts = 0;
-                qryDelayMillis = 1;
+                qryDelayMillis = 3;
             }
         }
         else
@@ -440,10 +440,10 @@ bool BleFingerprint::query()
     Serial.printf("%d QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi, qryAttempts, qryDelayMillis);
 
     qryAttempts++;
-    if (qryDelayMillis < 60000)
-        qryDelayMillis *= 2;
+    if (qryDelayMillis < 30000)
+        qryDelayMillis *= qryAttempts;
     else
-        qryDelayMillis = 60000;
+        qryDelayMillis = 30000;
     didQuery = false;
 
     return true;

@@ -91,7 +91,7 @@ private:
     NimBLEAddress address;
     String id, name, disc;
     short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
-    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 1;
+    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 3;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t mv = 0;
