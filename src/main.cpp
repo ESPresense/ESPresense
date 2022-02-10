@@ -16,7 +16,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux()
 #endif

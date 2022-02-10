@@ -369,6 +369,26 @@ bool sendDiscoveryUptime()
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
+bool sendDiscoveryFreeMem()
+{
+    DynamicJsonDocument doc(1200);
+    commonDiscovery(&doc);
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Free Memory";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_free_mem", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/telemetry";
+    doc["entity_category"] = "diagnostic";
+    doc["value_template"] = "{{ value_json.maxAllocHeap }}";
+    doc["unit_of_measurement"] = "bytes";
+
+    char buffer[1200];
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/free_mem/config";
+
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
+
 bool sendDiscoveryMotion()
 {
     if (!pirPin && !radarPin) return true;
