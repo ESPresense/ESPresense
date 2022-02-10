@@ -69,11 +69,12 @@ int forgetMs;
 int skipMs;
 int pirPin;
 int radarPin;
-int dht11Pin;
-int dht22Pin;
-
 int lastPirValue = -1;
 int lastRadarValue = -1;
+
+#ifdef SENSORS
+int dht11Pin;
+int dht22Pin;
 
 /** Initialize DHT sensor 1 */
 DHTesp dhtSensor;
@@ -95,7 +96,7 @@ bool dhtTasksEnabled = false;
 
 /* update time */
 int dhtUpdateTime = 10; //ToDo: maybe make this a user choise via settings menu
-
+#endif
 BleFingerprintCollection fingerprints;
 
 String resetReason(RESET_REASON reason)
@@ -294,6 +295,17 @@ void spiffsInit()
     SPIFFS.begin(true);
 }
 
+bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
+{
+    for (int i = 0; i < 10; i++)
+    {
+        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
+            return true;
+        delay(50);
+    }
+    return false;
+}
+
 bool sendOnline()
 {
     return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, String(allowQuery ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
@@ -334,14 +346,27 @@ bool sendDiscoveryConnectivity()
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/connectivity/config";
 
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
 
-    return false;
+bool sendDiscoveryUptime()
+{
+    DynamicJsonDocument doc(1200);
+    commonDiscovery(&doc);
+    doc["~"] = roomsTopic;
+    doc["name"] = "ESPresense " + room + " Uptime";
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_uptime", ESP.getEfuseMac() >> 24);
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/telemetry";
+    doc["entity_category"] = "diagnostic";
+    doc["value_template"] = "{{ value_json.uptime }}";
+    doc["unit_of_measurement"] = "s";
+
+    char buffer[1200];
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/uptime/config";
+
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool sendDiscoveryMotion()
@@ -361,15 +386,10 @@ bool sendDiscoveryMotion()
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/motion/config";
 
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
+#ifdef SENSORS
 bool sendDiscoveryTemperature()
 {
     if (!dht11Pin && !dht22Pin) return true;
@@ -388,14 +408,7 @@ bool sendDiscoveryTemperature()
     char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/temperature/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool sendDiscoveryHumidity()
@@ -415,14 +428,7 @@ bool sendDiscoveryHumidity()
     char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/humidity/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool sendDiscoveryLux()
@@ -443,16 +449,9 @@ bool sendDiscoveryLux()
     char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/lux/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
+#endif
 
 bool sendSwitchDiscovery(String name, String entityCategory)
 {
@@ -471,15 +470,7 @@ bool sendSwitchDiscovery(String name, String entityCategory)
     char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/switch/espresense_" + ESPMAC + "/" + slug + "/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool sendNumberDiscovery(String name, String entityCategory)
@@ -500,15 +491,7 @@ bool sendNumberDiscovery(String name, String entityCategory)
     char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/number/espresense_" + ESPMAC + "/" + slug + "/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-
-    return false;
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool spurt(const String &fn, const String &content)

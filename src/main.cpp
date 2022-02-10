@@ -16,7 +16,11 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux())
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion()
+#ifdef SENSORS
+            && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux()
+#endif
+        )
         {
             sentDiscovery = true;
         }
@@ -142,12 +146,13 @@ void connectToWifi()
 
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
+#ifdef SENSORS
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
     BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "Ambient Light Sensor - I2C address of BH1750 Sensor, like 0x23 or 0x5C.");
     I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C address. Look at the serial log to get the correct address.");
-
+#endif
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
     if (!WiFiSettings.connect(true, 60))
@@ -177,13 +182,14 @@ void connectToWifi()
     Serial.println(pirPin ? "enabled" : "disabled");
     Serial.print("Radar Sensor: ");
     Serial.println(radarPin ? "enabled" : "disabled");
+#ifdef SENSORS
     Serial.print("DHT11 Sensor: ");
     Serial.println(dht11Pin ? "enabled" : "disabled");
     Serial.print("DHT22 Sensor: ");
     Serial.println(dht22Pin ? "enabled" : "disabled");
     Serial.print("BH1750_I2c Sensor: ");
     Serial.println(BH1750_I2c);
-
+#endif
     localIp = WiFi.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + "/rooms/" + id;
@@ -370,6 +376,7 @@ void scanForDevices(void *parameter)
     }
 }
 
+#ifdef SENSORS
 /**
  * Task to reads temperature from DHT11 sensor
  * @param pvParameters
@@ -404,6 +411,7 @@ void triggerGetTemp()
         xTaskResumeFromISR(dhtTempTaskHandle);
     }
 }
+#endif
 
 void setup()
 {
@@ -418,8 +426,13 @@ void setup()
 
     spiffsInit();
     connectToWifi();
+#if NTP
+    setClock();
+#endif
     if (pirPin) pinMode(pirPin, INPUT);
     if (radarPin) pinMode(radarPin, INPUT);
+
+#ifdef SENSORS
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
     if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
 
@@ -448,10 +461,6 @@ void setup()
         // Signal end of setup() to tasks
         dhtTasksEnabled = true;
     }
-
-#if NTP
-    setClock();
-#endif
 
     // BH1750_I2c
     // BH1750_updateFr
@@ -505,7 +514,7 @@ void setup()
         Wire.begin();
         Serial.println("\nI2C Scanner");
     }
-
+#endif
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
@@ -555,6 +564,7 @@ void radarLoop()
     }
 }
 
+#ifdef SENSORS
 void dhtLoop()
 {
     if (!dht11Pin && !dht22Pin) return;
@@ -666,6 +676,7 @@ void l2cScanner()
     }
     delay(5000);
 }
+#endif
 
 void loop()
 {
@@ -675,8 +686,10 @@ void loop()
     Display.blit();
     pirLoop();
     radarLoop();
+#ifdef SENSORS
     dhtLoop();
     luxLoop();
     l2cScanner();
+#endif
     WiFiSettings.httpLoop();
 }
