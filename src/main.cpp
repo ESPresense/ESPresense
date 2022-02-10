@@ -17,7 +17,11 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion() && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux())
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Query", "config") && sendDiscoveryMotion()
+#ifdef SENSORS
+            && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
+#endif
+        )
         {
             sentDiscovery = true;
         }
@@ -141,10 +145,11 @@ void connectToWifi()
 
     WiFiSettings.heading("Additional Sensors");
 
-    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 to disable)");
-    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 to disable)");
-    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 to disable)");
-    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 to disable)");
+    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
+    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
+#ifdef SENSORS
+    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
+    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
     WiFiSettings.heading("I2C Settings");
 
@@ -173,6 +178,7 @@ void connectToWifi()
     TSL2561_I2c_Bus = WiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     TSL2561_I2c = WiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
     TSL2561_I2c_Gain = WiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
+#endif
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
@@ -203,6 +209,7 @@ void connectToWifi()
     Serial.println(pirPin ? "enabled" : "disabled");
     Serial.print("Radar Sensor: ");
     Serial.println(radarPin ? "enabled" : "disabled");
+#ifdef SENSORS
     Serial.print("DHT11 Sensor: ");
     Serial.println(dht11Pin ? "enabled" : "disabled");
     Serial.print("DHT22 Sensor: ");
@@ -213,7 +220,9 @@ void connectToWifi()
     Serial.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
     Serial.print("TSL2561_I2c Sensor: ");
     Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
-
+    Serial.println(BH1750_I2c);
+#endif
+  
     localIp = WiFi.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + "/rooms/" + id;
@@ -367,9 +376,9 @@ void scanForDevices(void *parameter)
         while (updateInProgress || !mqttClient.connected())
             delay(1000);
 
-        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
-
         auto seen = fingerprints.getCopy();
+
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
         if (allowQuery)
         {
@@ -400,6 +409,7 @@ void scanForDevices(void *parameter)
     }
 }
 
+#ifdef SENSORS
 /**
  * Task to reads temperature from DHT11 sensor
  * @param pvParameters
@@ -434,6 +444,7 @@ void triggerGetTemp()
         xTaskResumeFromISR(dhtTempTaskHandle);
     }
 }
+#endif
 
 void setup()
 {
@@ -448,8 +459,13 @@ void setup()
 
     spiffsInit();
     connectToWifi();
+#if NTP
+    setClock();
+#endif
     if (pirPin) pinMode(pirPin, INPUT);
     if (radarPin) pinMode(radarPin, INPUT);
+
+#ifdef SENSORS
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
     if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
 
@@ -478,10 +494,6 @@ void setup()
         // Signal end of setup() to tasks
         dhtTasksEnabled = true;
     }
-
-#if NTP
-    setClock();
-#endif
 
     // BH1750_I2c
     // BH1750_updateFr
@@ -552,7 +564,7 @@ void setup()
     {
         Serial.println("\nI2C Scanner");
     }
-
+#endif
     connectToMqtt();
     xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 5120, nullptr, 1, &scannerTask, 1);
     configureOTA();
@@ -602,6 +614,7 @@ void radarLoop()
     }
 }
 
+#ifdef SENSORS
 void dhtLoop()
 {
     if (!dht11Pin && !dht22Pin) return;
@@ -836,6 +849,7 @@ void l2cScanner()
     }
     delay(5000);
 }
+#endif
 
 void loop()
 {
@@ -845,10 +859,12 @@ void loop()
     Display.blit();
     pirLoop();
     radarLoop();
+#ifdef SENSORS
     dhtLoop();
     luxLoop();
     bme280Loop();
     tsl2561Loop();
     l2cScanner();
+#endif
     WiFiSettings.httpLoop();
 }
