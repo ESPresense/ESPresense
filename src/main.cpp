@@ -132,7 +132,7 @@ void connectToWifi()
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     WiFiSettings.heading("Filtering");
-    query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:iphone10-6 apple:iphone13-2)");
+    query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
     include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
     exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sensing these ids to mqtt (eg. exp:20 apple:iphone10-6)");
 
