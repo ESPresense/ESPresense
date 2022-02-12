@@ -500,7 +500,6 @@ bool sendDiscoveryLux()
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/lux/config";
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
-#endif
 
 bool sendDiscoveryBME280Temperature()
 {
@@ -614,6 +613,7 @@ bool sendDiscoveryTSL2561Lux()
 
     return false;
 }
+#endif
 
 
 bool sendSwitchDiscovery(String name, String entityCategory)
