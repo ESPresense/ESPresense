@@ -59,8 +59,6 @@ String TSL2561_I2c;
 int TSL2561_I2c_Bus;
 String TSL2561_I2c_Gain;
 unsigned long tsl2561PreviousMillis = 0;
-
-bool I2CDebug;
 #endif
 
 AsyncMqttClient mqttClient;
