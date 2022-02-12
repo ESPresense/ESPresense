@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -221,11 +221,11 @@ void connectToWifi()
     Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     Serial.println(BH1750_I2c);
 #endif
-    Serial.print("Query: ");
+    Serial.print("Query:        ");
     Serial.println(query);
-    Serial.print("Include: ");
+    Serial.print("Include:      ");
     Serial.println(include);
-    Serial.print("Exclude: ");
+    Serial.print("Exclude:      ");
     Serial.println(exclude);
 
     localIp = WiFi.localIP().toString();
@@ -233,13 +233,14 @@ void connectToWifi()
     roomsTopic = CHANNEL + "/rooms/" + id;
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
-    subTopic = roomsTopic + "/+/set";
+    setTopic = roomsTopic + "/+/set";
 }
 
 void onMqttConnect(bool sessionPresent)
 {
     xTimerStop(reconnectTimer, 0);
-    mqttClient.subscribe(subTopic.c_str(), 2);
+    mqttClient.subscribe("espresense/rooms/*/+/set", 1);
+    mqttClient.subscribe(setTopic.c_str(), 1);
     Display.connected(true, true);
 }
 
@@ -260,42 +261,53 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
     String top = String(topic);
     String pay = String(new_payload);
-    if (top == roomsTopic + "/max_distance/set")
+
+    auto setPos = top.lastIndexOf("/set");
+    if (setPos <= 1) return;
+    auto commandPos = top.lastIndexOf("/", setPos - 1);
+    if (commandPos < 0) return;
+    auto command = top.substring(commandPos + 1, setPos);
+
+    if (command == "max_distance")
     {
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
         online = false;
     }
-    else if (top == roomsTopic + "/active_scan/set")
+    else if (command == "active_scan")
     {
         activeScan = pay == "ON";
         spurt("/active_scan", String(activeScan));
         online = false;
     }
-    else if (top == roomsTopic + "/query/set")
+    else if (command == "query")
     {
         query = pay;
         spurt("/query", String(query));
         online = false;
     }
-    else if (top == roomsTopic + "/include/set")
+    else if (command == "include")
     {
         include = pay;
         spurt("/include", String(include));
         online = false;
     }
-    else if (top == roomsTopic + "/exclude/set")
+    else if (command == "exclude")
     {
         exclude = pay;
         spurt("/exclude", String(exclude));
         online = false;
     }
-    else if (top == roomsTopic + "/status_led/set")
+    else if (command == "status_led")
     {
         statusLed = pay == "ON";
         spurt("/status_led", String(statusLed));
         Display.setStatusLed(statusLed);
         online = false;
+    }
+    else if (command == "restart")
+    {
+        ESP.restart();
     }
 
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);

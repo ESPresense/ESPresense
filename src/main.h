@@ -82,7 +82,7 @@ String id;
 String statusTopic;
 String teleTopic;
 String roomsTopic;
-String subTopic;
+String setTopic;
 String query;
 String include;
 String exclude;
@@ -616,6 +616,25 @@ bool sendDiscoveryTSL2561Lux()
 }
 #endif
 
+bool sendButtonDiscovery(String name, String entityCategory)
+{
+    auto slug = slugify(name);
+
+    DynamicJsonDocument doc(1200);
+    commonDiscovery(&doc);
+    doc["~"] = roomsTopic;
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/" + slug;
+    doc["cmd_t"] = "~/" + slug + "/set";
+    doc["entity_category"] = entityCategory;
+
+    char buffer[1200];
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/button/espresense_" + ESPMAC + "/" + slug + "/config";
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
 
 bool sendSwitchDiscovery(String name, String entityCategory)
 {
