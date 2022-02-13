@@ -80,6 +80,7 @@ public:
 
 private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
+    bool shouldHide(String newId);
 
     BleFingerprintCollection *_parent;
     bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, shouldQuery = false, didQuery = false, rmAsst = false, hidden = true;

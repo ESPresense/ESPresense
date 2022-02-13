@@ -19,32 +19,34 @@
         Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); \
     })
 
+bool prefixExists(String prefixes, String id)
+{
+    unsigned int start = 0;
+    unsigned int space = 0;
+
+    while ((space = prefixes.indexOf(" ", start)) != -1)
+    {
+        if (id.indexOf(id.substring(start, space)) != -1) return true;
+        start = space + 1;
+    }
+    if (id.indexOf(id.substring(start)) != -1) return true;
+}
+
+bool BleFingerprint::shouldHide(String id)
+{
+    auto include = _parent->getInclude();
+    if (include.length() > 0 && !prefixExists(include, id)) return true;
+
+    auto exclude = _parent->getExclude();
+    return (exclude.length() > 0 && prefixExists(exclude, id));
+}
+
 void BleFingerprint::setId(String newId, short int newIdType)
 {
     if (newIdType < idType) return;
-    auto include = _parent->getInclude();
-    auto exclude = _parent->getExclude();
-    auto query = _parent->getQuery();
-    if (include.length() > 0)
-    {
-        int posStr_wh = include.indexOf(newId);
-        hidden = (posStr_wh < 0);
-    }
-    else if (exclude.length() > 0)
-    {
-        int posStr_bl = exclude.indexOf(newId);
-        hidden = (posStr_bl > -1);
-    }
-    else
-        hidden = false;
 
-    if (query.length() > 0)
-    {
-        int posStr_bl = query.indexOf(newId);
-        allowQuery = (posStr_bl > -1);
-    }
-    else
-        allowQuery = false;
+    auto query = _parent->getQuery();
+    allowQuery = prefixExists(query, id);
 
     id = newId;
     idType = newIdType;
