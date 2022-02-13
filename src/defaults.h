@@ -43,6 +43,14 @@
 // Number of seconds between update checks
 #define CHECK_FOR_UPDATES_INTERVAL 300
 
+// I2C Defaults
+#define DEFAULT_I2C_BUS_1_SDA 21
+#define DEFAULT_I2C_BUS_1_SCL 22
+#define DEFAULT_I2C_BUS 1
+
+// TSL2561 Defaults
+#define DEFAULT_TSL2561_I2C_GAIN "auto"
+
 #ifdef VERSION
 #define DEFAULT_AUTO_UPDATE true
 #define DEFAULT_OTA_UPDATE false

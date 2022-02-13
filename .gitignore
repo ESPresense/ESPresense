@@ -11,3 +11,4 @@ Settings_*.h
 .scripts
 .DS_Store
 cmake-build-*
+build/
