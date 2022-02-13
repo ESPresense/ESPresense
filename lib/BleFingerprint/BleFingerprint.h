@@ -56,12 +56,7 @@ public:
         return getMac();
     }
 
-    void setId(String newId, short int newIdType)
-    {
-        if (newIdType < idType) return;
-        id = newId;
-        idType = newIdType;
-    }
+    void setId(String newId, short int newIdType);
 
     String getMac();
     int get1mRssi();
@@ -85,13 +80,14 @@ public:
 
 private:
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
+    bool shouldHide(String newId);
 
     BleFingerprintCollection *_parent;
-    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, shouldQuery = false, didQuery = false, rmAsst = false;
+    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
     NimBLEAddress address;
     String id, name, disc;
     short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
-    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 3;
+    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 0;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t mv = 0;

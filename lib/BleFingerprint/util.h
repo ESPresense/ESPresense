@@ -21,13 +21,13 @@ static BLEUUID meaterService(0xa75cc7fc, 0xc956, 0x488f, 0xac2a2dbc08b63a04);
 static BLEUUID meaterCharacteristic(0x7edda774, 0x045e, 0x4bbf, 0x909b45d1991a2876);
 
 static BLEUUID genericAccessService(uint16_t(0x1800));
-static BLEUUID deviceInformationService(uint16_t(0x180A));
-
 static BLEUUID nameChar(uint16_t(0x2A00));
-static BLEUUID manufChar(uint16_t(0x2A29));
+
+static BLEUUID deviceInformationService(uint16_t(0x180A));
 static BLEUUID modelChar(uint16_t(0x2A24));
-static BLEUUID hwRevChar(uint16_t(0x2A27));
 static BLEUUID fwRevChar(uint16_t(0x2A26));
+static BLEUUID hwRevChar(uint16_t(0x2A27));
+static BLEUUID manufChar(uint16_t(0x2A29));
 
 static int median_of_3(int a, int b, int c)
 {
