@@ -133,6 +133,7 @@ void connectToWifi()
 
     WiFiSettings.heading("Filtering");
     query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+    if (query == "1") query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
     include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
     exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sensing these ids to mqtt (eg. exp:20 apple:iphone10-6)");
 
@@ -409,22 +410,25 @@ void scanForDevices(void *parameter)
 
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
 
-        auto now = millis();
-
-        if (now - lastQueryMillis > 5000)
+        if (millis() - lastQueryMillis > 3000)
         {
+            auto started = millis();
             for (auto it = seen.begin(); it != seen.end(); ++it)
             {
                 auto f = (*it);
                 if (f->query())
                     totalFpQueried++;
+
+                if (millis() - started > 3000) break;
             }
 
             if (!pBLEScan->isScanning())
+            {
                 if (!pBLEScan->start(0, nullptr, false))
                     log_e("Error re-starting continuous ble scan");
 
-            lastQueryMillis = now;
+                lastQueryMillis = millis(); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
+            }
         }
 
         for (auto it = seen.begin(); it != seen.end(); ++it)

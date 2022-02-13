@@ -26,10 +26,18 @@ bool prefixExists(String prefixes, String id)
 
     while ((space = prefixes.indexOf(" ", start)) != -1)
     {
-        if (id.indexOf(id.substring(start, space)) != -1) return true;
+        if (space > start)
+        {
+            auto sub = prefixes.substring(start, space);
+#ifdef VERBOSE
+            Serial.printf("Verbose | %-58sSUB\n", sub.c_str());
+#endif
+            if (sub == "*" || id.indexOf(sub) != -1) return true;
+        }
         start = space + 1;
     }
-    if (id.indexOf(id.substring(start)) != -1) return true;
+    auto sub = prefixes.substring(start);
+    return (sub == "*" || id.indexOf(sub) != -1);
 }
 
 bool BleFingerprint::shouldHide(String id)
@@ -45,8 +53,22 @@ void BleFingerprint::setId(String newId, short int newIdType)
 {
     if (newIdType < idType) return;
 
-    auto query = _parent->getQuery();
-    allowQuery = prefixExists(query, id);
+    hidden = shouldHide(newId);
+
+    if (!allowQuery)
+    {
+        auto query = _parent->getQuery();
+        if (prefixExists(query, newId))
+        {
+            allowQuery = true;
+            qryAttempts = 0;
+            if (rssi < -60)
+            {
+                qryDelayMillis = 5000;
+                lastQryMillis = millis();
+            }
+        }
+    }
 
     id = newId;
     idType = newIdType;
@@ -76,6 +98,9 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 {
     if (advertisedDevice->haveName())
         name = String(advertisedDevice->getName().c_str());
+
+    if (advertisedDevice->getAdvType() > 0)
+        connectable = true;
 
     if (advertisedDevice->haveServiceUUID())
     {
@@ -116,10 +141,12 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             if (!rmAsst)
             {
                 rmAsst = true;
-                didQuery = false;
-                shouldQuery = true;
-                qryAttempts = 0;
-                qryDelayMillis = 3;
+                if (didQuery)
+                {
+                    qryDelayMillis = 0;
+                    qryAttempts = 0;
+                    didQuery = false;
+                }
             }
         }
         else
@@ -243,7 +270,6 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
                 }
                 else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
                 {
-                    shouldQuery = true;
                     ignore = false;
                     {
                         String pid;
@@ -413,7 +439,7 @@ bool BleFingerprint::report(JsonDocument *doc)
 
 bool BleFingerprint::query()
 {
-    if (!allowQuery || !shouldQuery || didQuery) return false;
+    if (!(allowQuery || rmAsst) || !connectable || didQuery) return false;
     if (rssi < -90) return false;
 
     auto now = millis();
@@ -423,58 +449,56 @@ bool BleFingerprint::query()
 
     bool success = false;
 
+    Serial.printf("%d Query | MAC: %s, ID: %-60s rssi %d\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi);
+
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
-    pClient->setConnectTimeout(5);
+    pClient->setConnectTimeout(1);
     if (pClient->connect(address))
     {
-        auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
-        if (!sRmAst.empty())
+        if (rmAsst)
         {
-            setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
-            Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
-            success = true;
+            auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
+            if (!sRmAst.empty())
+            {
+                setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
+                Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
+                success = true;
+            }
         }
-        else
+        else if (allowQuery)
         {
             auto sMdl = pClient->getValue(deviceInformationService, modelChar);
             auto sName = pClient->getValue(genericAccessService, nameChar);
             if (!sName.empty() && !sMdl.empty() && sMdl.find(sName) == std::string::npos && sName.compare("Apple Watch") != 0)
             {
-                setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_APPLE_NAME);
                 Serial.printf("%d Name  | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
-                success = !rmAsst; // Success only if we don't expect to get rootAssistantCharacteristic
+                setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_APPLE_NAME);
+                success = true;
             }
             else if (!sMdl.empty())
             {
-                setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_APPLE_MODEL);
                 if (name.isEmpty()) name = sMdl.c_str();
                 Serial.printf("%d Model | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
-                success = !rmAsst; // Success only if we don't expect to get rootAssistantCharacteristic
+                setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_APPLE_MODEL);
+                success = true;
             }
             else if (!sName.empty())
             {
                 if (name.isEmpty()) name = sName.c_str();
             }
         }
-
-        // auto sFwRevChar = pClient->getValue(deviceInformationService, fwRevChar);
-        // Serial.printf("%d FwRev | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sFwRevChar.c_str());
-
-        // auto sHwRevChar = pClient->getValue(deviceInformationService, hwRevChar);
-        // Serial.printf("%d HwRev | MAC: %s, ID: %-50s%s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sHwRevChar.c_str());
-
         pClient->disconnect();
     }
 
     if (success) return true;
 
+    qryAttempts++;
     Serial.printf("%d QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi, qryAttempts, qryDelayMillis);
 
-    qryAttempts++;
     if (qryDelayMillis < 30000)
-        qryDelayMillis *= qryAttempts;
+        qryDelayMillis += (1000 * qryAttempts * qryAttempts);
     else
         qryDelayMillis = 30000;
     didQuery = false;
