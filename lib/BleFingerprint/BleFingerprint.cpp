@@ -29,9 +29,6 @@ bool prefixExists(String prefixes, String id)
         if (space > start)
         {
             auto sub = prefixes.substring(start, space);
-#ifdef VERBOSE
-            Serial.printf("Verbose | %-58sSUB\n", sub.c_str());
-#endif
             if (sub == "*" || id.indexOf(sub) != -1) return true;
         }
         start = space + 1;
@@ -439,10 +436,12 @@ bool BleFingerprint::report(JsonDocument *doc)
 
 bool BleFingerprint::query()
 {
-    if (!(allowQuery || rmAsst) || !connectable || didQuery) return false;
+    if (!(allowQuery || rmAsst) || didQuery) return false;
     if (rssi < -90) return false;
-
     auto now = millis();
+
+    if (now - lastSeenMillis > 5) return false;
+
     if (now - lastQryMillis < qryDelayMillis) return false;
     didQuery = true;
     lastQryMillis = now;
@@ -454,7 +453,7 @@ bool BleFingerprint::query()
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
-    pClient->setConnectTimeout(1);
+    pClient->setConnectTimeout(5);
     if (pClient->connect(address))
     {
         if (rmAsst)
