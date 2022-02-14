@@ -55,7 +55,7 @@ void BleFingerprint::setId(String newId, short int newIdType)
     if (!allowQuery)
     {
         auto query = _parent->getQuery();
-        if (prefixExists(query, newId))
+        if (query.length() > 0 && prefixExists(query, newId))
         {
             allowQuery = true;
             qryAttempts = 0;
