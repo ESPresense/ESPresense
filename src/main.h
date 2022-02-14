@@ -33,6 +33,8 @@ int I2C_Bus_1_SCL;
 int I2C_Bus_2_SDA;
 int I2C_Bus_2_SCL;
 bool I2CDebug;
+bool I2C_Bus_1_Enabled;
+bool I2C_Bus_2_Enabled;
 
 unsigned long sensorInterval = 60000;
 
