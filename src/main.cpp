@@ -135,7 +135,7 @@ void connectToWifi()
     query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
     if (query == "1") query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
     include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
-    exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sensing these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
 
     WiFiSettings.heading("Calibration");
     maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
