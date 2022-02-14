@@ -456,20 +456,12 @@ bool BleFingerprint::query()
     pClient->setConnectTimeout(5);
     if (pClient->connect(address))
     {
-        if (rmAsst)
-        {
-            auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
-            if (!sRmAst.empty())
-            {
-                setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
-                Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
-                success = true;
-            }
-        }
-        else if (allowQuery)
+        bool iphone = true;
+        if (allowQuery)
         {
             auto sMdl = pClient->getValue(deviceInformationService, modelChar);
             auto sName = pClient->getValue(genericAccessService, nameChar);
+            iphone = sMdl.find("iPhone") == 0;
             if (!sName.empty() && !sMdl.empty() && sMdl.find(sName) == std::string::npos && sName.compare("Apple Watch") != 0)
             {
                 Serial.printf("%d Name  | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
@@ -486,6 +478,18 @@ bool BleFingerprint::query()
             else if (!sName.empty())
             {
                 if (name.isEmpty()) name = sName.c_str();
+            }
+        }
+
+        if (rmAsst || iphone) // For some reason we often don't get room asssistants service advertisement
+        {
+
+            auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
+            if (!sRmAst.empty())
+            {
+                setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
+                Serial.printf("%d RmAst | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
+                success = true;
             }
         }
     }

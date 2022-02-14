@@ -72,6 +72,7 @@ public:
     long getAge() { return millis() - lastSeenMillis; };
     bool getIgnore() { return ignore; };
     bool getAllowQuery() { return allowQuery; };
+    bool getRmAsst() { return rmAsst; };
     int getSeenCount()
     {
         auto sc = seenCount;
