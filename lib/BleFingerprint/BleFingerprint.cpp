@@ -488,8 +488,9 @@ bool BleFingerprint::query()
                 if (name.isEmpty()) name = sName.c_str();
             }
         }
-        pClient->disconnect();
     }
+
+    NimBLEDevice::deleteClient(pClient);
 
     if (success) return true;
 
