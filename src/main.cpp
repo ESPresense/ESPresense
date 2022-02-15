@@ -609,7 +609,7 @@ void setup()
     }
 #endif
     connectToMqtt();
-    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 8000, nullptr, 1, &scannerTask, 0);
+    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4000, nullptr, 1, &scannerTask, 0);
     configureOTA();
 }
 
