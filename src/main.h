@@ -67,6 +67,9 @@ AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
 
+DynamicJsonDocument doc(2048);
+char buffer[2048];
+
 bool updateInProgress = false;
 String localIp;
 unsigned long lastTeleMillis, lastQueryMillis;
@@ -237,6 +240,7 @@ void configureOTA()
 
 void firmwareUpdate()
 {
+#ifdef FIRMWARE
     if (!autoUpdate) return;
     static long lastFirmwareCheck = 0;
     long uptime = getUptimeSeconds();
@@ -291,6 +295,7 @@ void firmwareUpdate()
 
     updateInProgress = false;
     fingerprints.setDisable(updateInProgress);
+#endif
 }
 
 void spiffsInit()
@@ -345,6 +350,7 @@ bool sendOnline()
 
 void commonDiscovery(JsonDocument *doc)
 {
+    doc->clear();
     auto identifiers = (*doc)["dev"].createNestedArray("ids");
     identifiers.add(Sprintf("espresense_%06" PRIx64, ESP.getEfuseMac() >> 24));
     auto connections = (*doc)["dev"].createNestedArray("cns");
@@ -356,14 +362,15 @@ void commonDiscovery(JsonDocument *doc)
 #ifdef VERSION
     (*doc)["dev"]["sw"] = VERSION;
 #endif
+#ifdef FIRMWARE
     (*doc)["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
+#endif
     (*doc)["dev"]["cu"] = "http://" + localIp;
     (*doc)["dev"]["mdl"] = ESP.getChipModel();
 }
 
 bool sendDiscoveryConnectivity()
 {
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room;
@@ -383,7 +390,6 @@ bool sendDiscoveryConnectivity()
 
 bool sendDiscoveryUptime()
 {
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Uptime";
@@ -403,7 +409,6 @@ bool sendDiscoveryUptime()
 
 bool sendDiscoveryFreeMem()
 {
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Free Memory";
@@ -425,7 +430,6 @@ bool sendDiscoveryMotion()
 {
     if (!pirPin && !radarPin) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Motion";
@@ -446,7 +450,6 @@ bool sendDiscoveryTemperature()
 {
     if (!dht11Pin && !dht22Pin) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Temperature";
@@ -457,7 +460,6 @@ bool sendDiscoveryTemperature()
     doc["unit_of_meas"] = "°C";
     doc["frc_upd"] = true;
 
-    char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/temperature/config";
     return pub(discoveryTopic.c_str(), 0, true, buffer);
@@ -467,7 +469,6 @@ bool sendDiscoveryHumidity()
 {
     if (!dht11Pin && !dht22Pin) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Humidity";
@@ -477,7 +478,6 @@ bool sendDiscoveryHumidity()
     doc["dev_cla"] = "humidity";
     doc["frc_upd"] = true;
 
-    char buffer[1200];
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/humidity/config";
     return pub(discoveryTopic.c_str(), 0, true, buffer);
@@ -487,7 +487,6 @@ bool sendDiscoveryLux()
 {
     if (BH1750_I2c.isEmpty()) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " Lux";
@@ -508,7 +507,6 @@ bool sendDiscoveryBME280Temperature()
 {
     if (BME280_I2c.isEmpty()) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " BME280 Temperature";
@@ -536,7 +534,6 @@ bool sendDiscoveryBME280Humidity()
 {
     if (BME280_I2c.isEmpty()) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " BME280 Humidity";
@@ -564,7 +561,6 @@ bool sendDiscoveryBME280Pressure()
 {
     if (BME280_I2c.isEmpty()) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " BME280 Pressure";
@@ -592,7 +588,6 @@ bool sendDiscoveryTSL2561Lux()
 {
     if (TSL2561_I2c.isEmpty()) return true;
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room + " TSL2561 Lux";
@@ -622,7 +617,6 @@ bool sendButtonDiscovery(String name, String entityCategory)
 {
     auto slug = slugify(name);
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
@@ -642,7 +636,6 @@ bool sendSwitchDiscovery(String name, String entityCategory)
 {
     auto slug = slugify(name);
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
@@ -669,7 +662,6 @@ bool sendNumberDiscovery(String name, String entityCategory)
 {
     auto slug = slugify(name);
 
-    DynamicJsonDocument doc(1200);
     commonDiscovery(&doc);
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
