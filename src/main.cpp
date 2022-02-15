@@ -38,11 +38,11 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     lastTeleMillis = now;
 
-    StaticJsonDocument<512> tele;
-    tele["ip"] = localIp;
-    tele["uptime"] = getUptimeSeconds();
-    tele["firm"] = String(FIRMWARE);
-    tele["rssi"] = WiFi.RSSI();
+    doc.clear();
+    doc["ip"] = localIp;
+    doc["uptime"] = getUptimeSeconds();
+    doc["firm"] = String(FIRMWARE);
+    doc["rssi"] = WiFi.RSSI();
 #ifdef MACCHINA_A0
     tele["batt"] = a0_read_batt_mv() / 1000.0f;
 #endif
@@ -50,26 +50,26 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     tele["ver"] = String(VERSION);
 #endif
     if (totalSeen > 0)
-        tele["adverts"] = totalSeen;
+        doc["adverts"] = totalSeen;
     if (totalFpSeen > 0)
-        tele["seen"] = totalFpSeen;
+        doc["seen"] = totalFpSeen;
     if (totalFpQueried > 0)
-        tele["queried"] = totalFpQueried;
+        doc["queried"] = totalFpQueried;
     if (totalFpReported > 0)
-        tele["reported"] = totalFpReported;
+        doc["reported"] = totalFpReported;
 
     if (teleFails > 0)
-        tele["teleFails"] = teleFails;
+        doc["teleFails"] = teleFails;
     if (reconnectTries > 0)
-        tele["reconnectTries"] = reconnectTries;
+        doc["reconnectTries"] = reconnectTries;
 
-    tele["freeHeap"] = ESP.getFreeHeap();
-    tele["minFreeHeap"] = ESP.getMinFreeHeap();
-    tele["maxAllocHeap"] = ESP.getMaxAllocHeap();
-    tele["resetReason"] = resetReason(rtc_get_reset_reason(0));
+    doc["freeHeap"] = ESP.getFreeHeap();
+    doc["minFreeHeap"] = ESP.getMinFreeHeap();
+    doc["maxAllocHeap"] = ESP.getMaxAllocHeap();
+    doc["resetReason"] = resetReason(rtc_get_reset_reason(0));
 
     char teleMessageBuffer[512];
-    serializeJson(tele, teleMessageBuffer);
+    serializeJson(doc, teleMessageBuffer);
 
     for (int i = 0; i < 10; i++)
     {
@@ -351,7 +351,7 @@ void connectToMqtt()
 
 bool reportDevice(BleFingerprint *f)
 {
-    StaticJsonDocument<512> doc;
+    doc.clear();
     if (!f->report(&doc))
         return false;
 
@@ -407,6 +407,7 @@ void scanForDevices(void *parameter)
         while (updateInProgress || !mqttClient.connected())
             delay(1000);
 
+        yield();
         auto seen = fingerprints.getCopy();
 
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
@@ -432,6 +433,7 @@ void scanForDevices(void *parameter)
             }
         }
 
+        auto reported = 0;
         for (auto it = seen.begin(); it != seen.end(); ++it)
         {
             auto f = (*it);
@@ -442,7 +444,10 @@ void scanForDevices(void *parameter)
                 totalFpSeen++;
             }
             if (reportDevice(f))
+            {
                 totalFpReported++;
+                reported++;
+            }
         }
     }
 }
