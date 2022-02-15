@@ -459,8 +459,8 @@ bool BleFingerprint::query()
         bool iphone = true;
         if (allowQuery)
         {
-            auto sMdl = pClient->getValue(deviceInformationService, modelChar);
-            auto sName = pClient->getValue(genericAccessService, nameChar);
+            std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
+            std::string sName = pClient->getValue(genericAccessService, nameChar);
             iphone = sMdl.find("iPhone") == 0;
             if (!sName.empty() && !sMdl.empty() && sMdl.find(sName) == std::string::npos && sName.compare("Apple Watch") != 0)
             {
@@ -483,8 +483,7 @@ bool BleFingerprint::query()
 
         if (rmAsst || iphone) // For some reason we often don't get room asssistants service advertisement
         {
-
-            auto sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
+            std::string sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
             if (!sRmAst.empty())
             {
                 setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST);
