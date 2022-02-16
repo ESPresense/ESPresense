@@ -81,7 +81,7 @@ int BleFingerprint::get1mRssi()
     return _parent->getRefRssi() + DEFAULT_TX;
 }
 
-BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<double, unsigned long>(1, fcmin, beta, dcutoff)}
+BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)}
 {
     _parent = parent;
 

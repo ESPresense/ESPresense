@@ -94,10 +94,10 @@ private:
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t mv = 0;
 
-    Reading<Differential<double>> output;
+    Reading<Differential<float>> output;
 
-    OneEuroFilter<double, unsigned long> oneEuro;
-    DifferentialFilter<double, unsigned long> diffFilter;
+    OneEuroFilter<float, unsigned long> oneEuro;
+    DifferentialFilter<float, unsigned long> diffFilter;
 
     bool filter();
 };
