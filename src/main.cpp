@@ -44,10 +44,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     doc["firm"] = String(FIRMWARE);
     doc["rssi"] = WiFi.RSSI();
 #ifdef MACCHINA_A0
-    tele["batt"] = a0_read_batt_mv() / 1000.0f;
+    doc["batt"] = a0_read_batt_mv() / 1000.0f;
 #endif
 #ifdef VERSION
-    tele["ver"] = String(VERSION);
+    doc["ver"] = String(VERSION);
 #endif
     if (totalSeen > 0)
         doc["adverts"] = totalSeen;
@@ -186,7 +186,7 @@ void connectToWifi()
         ESP.restart();
 
 #ifdef VERSION
-    Serial.println("Version:     " + String(VERSION));
+    Serial.println("Version:    " + String(VERSION));
 #endif
     Serial.print("IP address:   ");
     Serial.println(WiFi.localIP());
@@ -196,6 +196,7 @@ void connectToWifi()
     Serial.println(WiFi.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
+    Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\n", maxDistance);
     Serial.print("Telemetry:    ");
     Serial.println(publishTele ? "enabled" : "disabled");
@@ -316,10 +317,11 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
 void reconnect(TimerHandle_t xTimer)
 {
+    Serial.printf("%d Reconnect timer\n", xPortGetCoreID());
     if (updateInProgress) return;
     if (WiFi.isConnected() && mqttClient.connected()) return;
 
-    if (reconnectTries++ > 10)
+    if (reconnectTries++ > 50)
     {
         log_e("Too many reconnect attempts; Restarting");
         ESP.restart();
@@ -327,19 +329,18 @@ void reconnect(TimerHandle_t xTimer)
 
     if (!WiFi.isConnected())
     {
-        Serial.println("Reconnecting to WiFi...");
+        Serial.printf("%d Reconnecting to WiFi...\n", xPortGetCoreID());
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
     }
 
-    Serial.println("Reconnecting to MQTT...");
+    Serial.printf("%d Reconnecting to MQTT...\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
 void connectToMqtt()
 {
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
-    Serial.printf("Connecting to MQTT %s %d\n", mqttHost.c_str(), mqttPort);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
@@ -382,6 +383,7 @@ bool reportDevice(BleFingerprint *f)
 
 void scanForDevices(void *parameter)
 {
+    connectToMqtt();
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
     BLEDevice::init(Stdprintf("ESPresense-%06" PRIx64, ESP.getEfuseMac() >> 24));
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
@@ -411,6 +413,7 @@ void scanForDevices(void *parameter)
         auto seen = fingerprints.getCopy();
 
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
+        yield();
 
         if (millis() - lastQueryMillis > 3000)
         {
@@ -613,8 +616,7 @@ void setup()
         }
     }
 #endif
-    connectToMqtt();
-    xTaskCreatePinnedToCore(scanForDevices, "BLE Scan", 4000, nullptr, 1, &scannerTask, 0);
+    xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 4000, nullptr, 1, &scannerTask, 1);
     configureOTA();
 }
 
