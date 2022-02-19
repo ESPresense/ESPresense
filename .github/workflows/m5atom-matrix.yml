@@ -41,4 +41,4 @@ jobs:
     - name: Run PlatformIO
       run: pio account login --username="${{secrets.PIO_USERNAME}}" --password="${{secrets.PIO_PASSWORD}}"
     - name: Run PlatformIO
-      run: pio remote run -e m5atom-matrix
+      run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB -e m5atom-matrix
