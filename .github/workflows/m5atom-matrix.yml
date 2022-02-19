@@ -43,4 +43,4 @@ jobs:
     - name: Remote Run
       run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB -e m5atom-matrix
     - name: Remote Monitor
-      run: pio remote device monitor --upload-port=/dev/ttyUSB
+      run: pio remote device monitor --port=/dev/ttyUSB
