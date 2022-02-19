@@ -1,5 +1,4 @@
 name: Remote run m5atom-matrix
-
 on:
   push:
     branches:
@@ -9,11 +8,6 @@ on:
   pull_request:
   release:
     types: [published]
-
-env:
-  PIO_USERNAME: ""
-  PIO_PASSWORD: ""
-  
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,16 +27,20 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
       uses: actions/setup-python@v2
+      with:
+          python-version: 3.8
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
         pio platform update
         pio run -t clean
-    - name: Set env
+    - name: Setup Versioning
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
-    - name: Run PlatformIO
-      run: pio account login --username="$PIO_USERNAME" --password="$PIO_PASSWORD"
-    - name: Run PlatformIO
-      run: pio remote run -e m5atom-matrix
+    - name: PlatformIO Login
+      run: pio account login --username="${{secrets.PIO_USERNAME}}" --password="${{secrets.PIO_PASSWORD}}"
+    - name: Remote Run
+      run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB -e m5atom-matrix
+    - name: Remote Monitor
+      run: pio remote device monitor --upload-port=/dev/ttyUSB
