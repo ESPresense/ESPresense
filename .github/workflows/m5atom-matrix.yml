@@ -35,10 +35,12 @@ jobs:
         pip install --upgrade platformio
         pio platform update
         pio run -t clean
-    - name: Set env
+    - name: Setup Versioning
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
-    - name: Run PlatformIO
+    - name: PlatformIO Login
       run: pio account login --username="${{secrets.PIO_USERNAME}}" --password="${{secrets.PIO_PASSWORD}}"
-    - name: Run PlatformIO
+    - name: Remote Run
       run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB -e m5atom-matrix
+    - name: Remote Monitor
+      run: pio remote device monitor --upload-port=/dev/ttyUSB
