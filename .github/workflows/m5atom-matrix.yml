@@ -1,4 +1,5 @@
 name: Remote run m5atom-matrix
+
 on:
   push:
     branches:
@@ -8,6 +9,11 @@ on:
   pull_request:
   release:
     types: [published]
+
+env:
+  PIO_USERNAME: ""
+  PIO_PASSWORD: ""
+  
 jobs:
   build:
     runs-on: ubuntu-latest
