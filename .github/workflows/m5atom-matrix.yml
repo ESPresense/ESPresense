@@ -32,7 +32,7 @@ jobs:
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
-        pip install --upgrade platformio platformio/contrib-pysite
+        pip install --upgrade platformio
         pio platform update
         pio run -t clean
     - name: Set env
