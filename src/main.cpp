@@ -751,7 +751,6 @@ void bme280Loop() {
         } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
             BME280_status = BME280.begin(0x77, &Wire1);
         } else {
-            Serial.println("[BME280] Invalid (or not configured) I2C address - Disabling integration");
             return;
         }
 
@@ -798,7 +797,6 @@ void tsl2561Loop() {
         } else if (TSL2561_I2c == "0x49") {
             tsl2561_address = 0x49;
         } else {
-            Serial.println("[TSL2561] Invalid (or not configured) I2C address - Disabling integration");
             return;
         }
 
