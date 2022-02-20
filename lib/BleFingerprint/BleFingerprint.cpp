@@ -394,7 +394,10 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc)
 {
-    if (ignore || (idType == 0 && !macPublic) || hidden || !hasValue)
+    if (ignore || (idType == 0 && !macPublic) || hidden)
+        return false;
+
+    if (reported || !hasValue)
         return false;
 
     auto maxDistance = _parent->getMaxDistance();
