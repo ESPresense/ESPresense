@@ -350,15 +350,13 @@ void connectToMqtt()
     mqttClient.connect();
 }
 
-bool reportDevice(BleFingerprint *f, int seenCount)
+bool reportDevice(BleFingerprint *f)
 {
     doc.clear();
     if (!f->report(&doc))
         return false;
 
     serializeJson(doc, buffer);
-    doc["seen"] = seenCount;
-
     String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + id;
 
     bool p1 = false, p2 = false;
@@ -446,7 +444,7 @@ void scanForDevices(void *parameter)
                 totalSeen += seen;
                 totalFpSeen++;
             }
-            if (reportDevice(f, seen))
+            if (reportDevice(f))
             {
                 totalFpReported++;
                 reported++;
