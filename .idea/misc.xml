@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CMakeWorkspace" PROJECT_DIR="$PROJECT_DIR$" />
+  <component name="CidrRootsConfiguration">
+    <sourceRoots>
+      <file path="$PROJECT_DIR$/lib" />
+      <file path="$PROJECT_DIR$/src" />
+    </sourceRoots>
+    <excludeRoots>
+      <file path="$PROJECT_DIR$/.github" />
+      <file path="$PROJECT_DIR$/.pio" />
+      <file path="$PROJECT_DIR$/.scripts" />
+      <file path="$PROJECT_DIR$/.vscode" />
+      <file path="$PROJECT_DIR$/cmake-build-adafruit-huzzah32" />
+      <file path="$PROJECT_DIR$/cmake-build-adafruit-huzzah32-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-debug" />
+      <file path="$PROJECT_DIR$/cmake-build-esp32" />
+      <file path="$PROJECT_DIR$/cmake-build-esp32-debug" />
+      <file path="$PROJECT_DIR$/cmake-build-esp32-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-esp32-verbose" />
+      <file path="$PROJECT_DIR$/cmake-build-esp32-verbose-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-m5atom-matrix" />
+      <file path="$PROJECT_DIR$/cmake-build-m5atom-matrix-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-m5stickc" />
+      <file path="$PROJECT_DIR$/cmake-build-m5stickc-plus" />
+      <file path="$PROJECT_DIR$/cmake-build-m5stickc-plus-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-m5stickc-sensors" />
+      <file path="$PROJECT_DIR$/cmake-build-macchina-a0" />
+    </excludeRoots>
+  </component>
+</project>

@@ -89,6 +89,7 @@ BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDe
     address = NimBLEAddress(advertisedDevice->getAddress());
     macPublic = advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC;
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
+    seenCount = 1;
 }
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
@@ -335,8 +336,8 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 bool BleFingerprint::filter()
 {
-    Reading<float, long long> inter1, inter2;
-    inter1.timestamp = esp_timer_get_time();
+    Reading<float, unsigned long> inter1, inter2;
+    inter1.timestamp = millis();
     inter1.value = raw;
 
     return oneEuro.push(&inter1, &inter2) && diffFilter.push(&inter2, &output);
@@ -345,6 +346,8 @@ bool BleFingerprint::filter()
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
     lastSeenMillis = millis();
+    reported = false;
+
     seenCount++;
 
     if (ignore) return false;
@@ -360,26 +363,23 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     float ratio = (get1mRssi() - rssi) / 35.0f;
     raw = pow(10, ratio);
+    if (filter()) hasValue = true;
 
-    bool hadValue = hasValue;
-
-    if (filter())
+    if (!close && newest > CLOSE_RSSI)
     {
-        hasValue = true;
-        reported = false;
+        Display.close(this);
+        close = true;
+    }
+    else if (close && newest < LEFT_RSSI)
+    {
+        Display.left(this);
+        close = false;
+    }
 
-        if (!close && newest > CLOSE_RSSI)
-        {
-            Display.close(this);
-            close = true;
-        }
-        else if (close && newest < LEFT_RSSI)
-        {
-            Display.left(this);
-            close = false;
-        }
-
-        if (!hadValue) return true;
+    if (!added)
+    {
+        added = true;
+        return true;
     }
 
     return false;
@@ -422,10 +422,10 @@ bool BleFingerprint::report(JsonDocument *doc)
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    (*doc)[F("mac")] = SMacf(address);
     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-    (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+    (*doc)[F("speed")] = round(output.value.speed * 1e4f) / 10.0f;
+    (*doc)[F("mac")] = SMacf(address);
 
     if (mv) (*doc)[F("mV")] = mv;
     if (temp) (*doc)[F("temp")] = temp;

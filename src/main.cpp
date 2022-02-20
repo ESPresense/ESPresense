@@ -139,7 +139,7 @@ void connectToWifi()
 
     WiFiSettings.heading("Calibration");
     maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
-    forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in miliiseconds)");
+    forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
     skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Update mqtt if this time has elapsed since last report (in ms)");
     refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
@@ -356,9 +356,7 @@ bool reportDevice(BleFingerprint *f)
     if (!f->report(&doc))
         return false;
 
-    char JSONmessageBuffer[512];
-    serializeJson(doc, JSONmessageBuffer);
-
+    serializeJson(doc, buffer);
     String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + id;
 
     bool p1 = false, p2 = false;
@@ -367,10 +365,10 @@ bool reportDevice(BleFingerprint *f)
         if (!mqttClient.connected())
             return false;
 
-        if (!p1 && (!publishRooms || mqttClient.publish((char *)roomsTopic.c_str(), 0, 0, JSONmessageBuffer)))
+        if (!p1 && (!publishRooms || mqttClient.publish((char *)roomsTopic.c_str(), 0, 0, buffer)))
             p1 = true;
 
-        if (!p2 && (!publishDevices || mqttClient.publish((char *)devicesTopic.c_str(), 0, 0, JSONmessageBuffer)))
+        if (!p2 && (!publishDevices || mqttClient.publish((char *)devicesTopic.c_str(), 0, 0, buffer)))
             p2 = true;
 
         if (p1 && p2)

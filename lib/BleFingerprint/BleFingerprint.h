@@ -71,6 +71,7 @@ public:
     NimBLEAddress getAddress() { return address; }
     long getAge() { return millis() - lastSeenMillis; };
     bool getIgnore() { return ignore; };
+    bool getAdded() { return added; };
     bool getAllowQuery() { return allowQuery; };
     bool getRmAsst() { return rmAsst; };
     int getSeenCount()
@@ -85,7 +86,7 @@ private:
     bool shouldHide(String newId);
 
     BleFingerprintCollection *_parent;
-    bool hasValue = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
+    bool hasValue = false, added = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
     NimBLEAddress address;
     String id, name, disc;
     short int idType = 0, rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;

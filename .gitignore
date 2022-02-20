@@ -2,7 +2,6 @@
 .piolibdeps
 .clang_complete
 .gcc-flags.json
-.idea
 .dblite
 include/
 Settings_*.h
@@ -12,3 +11,5 @@ Settings_*.h
 .DS_Store
 cmake-build-*
 build/
+CMakeLists.txt
+CMakeListsPrivate.txt
