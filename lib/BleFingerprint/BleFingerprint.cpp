@@ -89,6 +89,7 @@ BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDe
     address = NimBLEAddress(advertisedDevice->getAddress());
     macPublic = advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC;
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
+    seenCount = 1;
 }
 
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
@@ -396,10 +397,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc)
 {
-    if (ignore || (idType == 0 && !macPublic) || hidden)
-        return false;
-
-    if (reported || !hasValue)
+    if (ignore || (idType == 0 && !macPublic) || hidden || !hasValue)
         return false;
 
     auto maxDistance = _parent->getMaxDistance();
@@ -424,10 +422,10 @@ bool BleFingerprint::report(JsonDocument *doc)
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    (*doc)[F("mac")] = SMacf(address);
     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
     (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+    (*doc)[F("mac")] = SMacf(address);
 
     if (mv) (*doc)[F("mV")] = mv;
     if (temp) (*doc)[F("temp")] = temp;

@@ -71,6 +71,7 @@ public:
     NimBLEAddress getAddress() { return address; }
     long getAge() { return millis() - lastSeenMillis; };
     bool getIgnore() { return ignore; };
+    bool getAdded() { return added; };
     bool getAllowQuery() { return allowQuery; };
     bool getRmAsst() { return rmAsst; };
     int getSeenCount()

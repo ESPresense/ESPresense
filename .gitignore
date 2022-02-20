@@ -12,3 +12,5 @@ Settings_*.h
 .DS_Store
 cmake-build-*
 build/
+CMakeLists.txt
+CMakeListsPrivate.txt
