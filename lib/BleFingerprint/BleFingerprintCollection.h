@@ -4,9 +4,9 @@
 #include "BleFingerprint.h"
 #include <ArduinoJson.h>
 
-#define ONE_EURO_FCMIN 1e-8
-#define ONE_EURO_BETA 1e-10
-#define ONE_EURO_DCUTOFF 1e-8
+#define ONE_EURO_FCMIN 1e-5
+#define ONE_EURO_BETA 1e-7
+#define ONE_EURO_DCUTOFF 1e-5
 
 class BleFingerprintCollection : public BLEAdvertisedDeviceCallbacks
 {

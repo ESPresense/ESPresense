@@ -336,8 +336,8 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
 
 bool BleFingerprint::filter()
 {
-    Reading<float, long long> inter1, inter2;
-    inter1.timestamp = esp_timer_get_time();
+    Reading<float, unsigned long> inter1, inter2;
+    inter1.timestamp = millis();
     inter1.value = raw;
 
     return oneEuro.push(&inter1, &inter2) && diffFilter.push(&inter2, &output);
@@ -346,6 +346,8 @@ bool BleFingerprint::filter()
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 {
     lastSeenMillis = millis();
+    reported = false;
+
     seenCount++;
 
     if (ignore) return false;
@@ -361,28 +363,23 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     float ratio = (get1mRssi() - rssi) / 35.0f;
     raw = pow(10, ratio);
+    if (filter()) hasValue = true;
 
-    if (filter())
+    if (!close && newest > CLOSE_RSSI)
     {
-        hasValue = true;
-        reported = false;
+        Display.close(this);
+        close = true;
+    }
+    else if (close && newest < LEFT_RSSI)
+    {
+        Display.left(this);
+        close = false;
+    }
 
-        if (!close && newest > CLOSE_RSSI)
-        {
-            Display.close(this);
-            close = true;
-        }
-        else if (close && newest < LEFT_RSSI)
-        {
-            Display.left(this);
-            close = false;
-        }
-
-        if (!added)
-        {
-            added = true;
-            return true;
-        }
+    if (!added)
+    {
+        added = true;
+        return true;
     }
 
     return false;
