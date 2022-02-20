@@ -26,7 +26,6 @@
       <file path="$PROJECT_DIR$/cmake-build-m5stickc-plus-sensors" />
       <file path="$PROJECT_DIR$/cmake-build-m5stickc-sensors" />
       <file path="$PROJECT_DIR$/cmake-build-macchina-a0" />
-      <file path="$PROJECT_DIR$/include" />
     </excludeRoots>
   </component>
 </project>
