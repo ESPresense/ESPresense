@@ -2,7 +2,6 @@
 .piolibdeps
 .clang_complete
 .gcc-flags.json
-.idea
 .dblite
 include/
 Settings_*.h
