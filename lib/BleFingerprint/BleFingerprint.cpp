@@ -424,7 +424,7 @@ bool BleFingerprint::report(JsonDocument *doc)
 
     (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
     (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-    (*doc)[F("speed")] = round(output.value.speed * 1e7f) / 10.0f;
+    (*doc)[F("speed")] = round(output.value.speed * 1e4f) / 10.0f;
     (*doc)[F("mac")] = SMacf(address);
 
     if (mv) (*doc)[F("mV")] = mv;
