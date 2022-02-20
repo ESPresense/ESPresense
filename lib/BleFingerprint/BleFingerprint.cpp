@@ -86,7 +86,7 @@ BleFingerprint::BleFingerprint(BleFingerprintCollection *parent, BLEAdvertisedDe
     _parent = parent;
 
     firstSeenMillis = millis();
-    address = advertisedDevice->getAddress();
+    address = NimBLEAddress(advertisedDevice->getAddress());
     macPublic = advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC;
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
 }
