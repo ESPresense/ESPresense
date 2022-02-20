@@ -7,11 +7,7 @@ import time
 #I only have 1 ESP so I duplicate mDNS entry for testing
 esps = [
   #mDNS name of ESP   #path to ".bin" file
-    ['192.168.128.85', 'm5atom-matrix'],
-    ['192.168.128.172', 'm5atom-matrix'],
-    ['192.168.128.159', 'm5atom-matrix'],
-    ['192.168.128.64', 'm5atom-matrix'],
-    ['192.168.128.113', 'macchina-a0'],
+    ['192.168.128.114', 'macchina-a0'],
 ]
 esp_respond_sender_port = '3232'
 sender_to_esp_port = '3232'

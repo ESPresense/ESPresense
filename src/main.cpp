@@ -110,7 +110,7 @@ void connectToWifi()
 
     Display.connected(true, false);
 #ifdef VERSION
-    WiFiSettings.info("ESPResense Version: " + String(VERSION));
+    WiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
