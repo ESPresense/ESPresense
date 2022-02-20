@@ -48,5 +48,5 @@
 #define DEFAULT_OTA_UPDATE false
 #else
 #define DEFAULT_AUTO_UPDATE false
-#define DEFAULT_OTA_UPDATE true
+#define DEFAULT_OTA_UPDATE false
 #endif
