@@ -409,11 +409,17 @@ void setup()
 {
     Display.setup();
 
+#ifdef FAST_MONITOR
+    Serial.begin(1500000);
+#else
     Serial.begin(115200);
+#endif
     Serial.setDebugOutput(true);
 
 #ifdef VERBOSE
     esp_log_level_set("*", ESP_LOG_DEBUG);
+#else
+    esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
 
     spiffsInit();
