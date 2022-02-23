@@ -149,7 +149,7 @@ void GUI::begin()
         sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
         sprite.setSwapBytes(true);
 #elif defined M5ATOM
-        M5.begin(false, false, false);
+        M5.begin(false, false, true);
         M5.dis.drawpix(0, CRGB(64, 0, 0));
 #endif
         init = true;
