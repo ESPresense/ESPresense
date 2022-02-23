@@ -28,6 +28,7 @@
 #define ID_TYPE_TRACKR short(18)
 #define ID_TYPE_TILE short(19)
 #define ID_TYPE_MEATER short(20)
+#define ID_TYPE_VANMOOF short(21)
 #define ID_TYPE_APPLE_NEARBY short(35)
 #define ID_TYPE_APPLE_MODEL short(40)
 #define ID_TYPE_APPLE_NAME short(50)
