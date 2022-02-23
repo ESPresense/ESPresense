@@ -128,6 +128,11 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice)
             asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
             setId("trackr:" + getMac(), ID_TYPE_TRACKR);
         }
+        else if (advertisedDevice->isAdvertisingService(vanmoofUUID))
+        {
+            asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
+            setId("vanmoof:" + getMac(), ID_TYPE_VANMOOF);
+        }
         else if (advertisedDevice->isAdvertisingService(meaterService))
         {
             asRssi = advertisedDevice->haveTXPower() ? _parent->getRefRssi() + advertisedDevice->getTXPower() : NO_RSSI;
