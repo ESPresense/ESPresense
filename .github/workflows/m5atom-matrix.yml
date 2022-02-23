@@ -9,7 +9,7 @@ on:
   release:
     types: [published]
 jobs:
-  build:
+  remote-run:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
