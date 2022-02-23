@@ -311,6 +311,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         ESP.restart();
     }
+    else if (command == "dump_memory")
+    {
+        heap_caps_dump_all();
+    }
 
     fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
 }
