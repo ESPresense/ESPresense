@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -306,6 +306,24 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         statusLed = pay == "ON";
         spurt("/status_led", String(statusLed));
         Display.setStatusLed(statusLed);
+        online = false;
+    }
+    else if (command == "ota_update")
+    {
+        otaUpdate = pay == "ON";
+        spurt("/ota_update", String(otaUpdate));
+        online = false;
+    }
+    else if (command == "auto_update")
+    {
+        autoUpdate = pay == "ON";
+        spurt("/auto_update", String(autoUpdate));
+        online = false;
+    }
+    else if (command == "prerelease")
+    {
+        prerelease = pay == "ON";
+        spurt("/prerelease", String(prerelease));
         online = false;
     }
     else if (command == "restart")

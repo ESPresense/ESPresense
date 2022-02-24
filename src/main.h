@@ -347,7 +347,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool sendOnline()
 {
-    return mqttClient.publish(statusTopic.c_str(), 0, 1, "online") && mqttClient.publish((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && mqttClient.publish((roomsTopic + "/query").c_str(), 0, 1, query.c_str()) && mqttClient.publish((roomsTopic + "/include").c_str(), 0, 1, include.c_str()) && mqttClient.publish((roomsTopic + "/exclude").c_str(), 0, 1, exclude.c_str()) && mqttClient.publish((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && mqttClient.publish((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
+    return pub(statusTopic.c_str(), 0, 1, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, 1, String(maxDistance).c_str()) && pub((roomsTopic + "/query").c_str(), 0, 1, query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, 1, include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, 1, exclude.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, 1, String(statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/ota_update").c_str(), 0, 1, String(otaUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, 1, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, 1, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, 1, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery(JsonDocument *doc)
@@ -368,7 +368,7 @@ void commonDiscovery(JsonDocument *doc)
     (*doc)["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
 #endif
     (*doc)["dev"]["cu"] = "http://" + localIp;
-    (*doc)["dev"]["mdl"] = ESP.getChipModel();
+    (*doc)["dev"]["mdl"] = String(ESP.getChipModel());
 }
 
 bool sendDiscoveryConnectivity()
@@ -525,7 +525,7 @@ bool sendDiscoveryBME280Temperature()
 
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+        if (pub(discoveryTopic.c_str(), 0, true, buffer))
             return true;
         delay(50);
     }
@@ -552,7 +552,7 @@ bool sendDiscoveryBME280Humidity()
 
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+        if (pub(discoveryTopic.c_str(), 0, true, buffer))
             return true;
         delay(50);
     }
@@ -579,7 +579,7 @@ bool sendDiscoveryBME280Pressure()
 
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+        if (pub(discoveryTopic.c_str(), 0, true, buffer))
             return true;
         delay(50);
     }
@@ -606,7 +606,7 @@ bool sendDiscoveryTSL2561Lux()
 
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(discoveryTopic.c_str(), 0, true, buffer))
+        if (pub(discoveryTopic.c_str(), 0, true, buffer))
             return true;
         delay(50);
     }
