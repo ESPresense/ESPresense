@@ -254,8 +254,8 @@ void firmwareUpdate()
     client.setInsecure();
 
     String firmwareUrl = prerelease
-                             ? "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin"
-                             : "https://espresense.com/releases/prerelease/download/" FIRMWARE ".bin";
+                             ? "https://espresense.com/releases/latest-any/download/" FIRMWARE ".bin"
+                             : "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
     if (!http.begin(client, firmwareUrl))
         return;
 
