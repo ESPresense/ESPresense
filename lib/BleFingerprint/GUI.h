@@ -19,42 +19,38 @@ class BleFingerprint;
 class GUI
 {
 public:
-    void setup();
+    static void setup();
 
-    void added(BleFingerprint *f);
-    void removed(BleFingerprint *f, long age);
-    void close(BleFingerprint *f);
-    void left(BleFingerprint *f);
+    static void added(BleFingerprint *f);
+    static void removed(BleFingerprint *f);
+    static void close(BleFingerprint *f);
+    static void left(BleFingerprint *f);
 
-    void erasing();
-    void erased();
+    static void erasing();
+    static void erased();
 
-    void seenStart();
-    void seenEnd();
+    static void seenStart();
+    static void seenEnd();
 
-    void updateStart();
-    void updateProgress(unsigned int percent);
-    void updateEnd();
+    static void updateStart();
+    static void updateProgress(unsigned int percent);
+    static void updateEnd();
 
-    void connecting();
-    void connected(bool wifi, bool mqtt);
+    static void connecting();
+    static void connected(bool wifi, bool mqtt);
 
-    void status(const char *message, ...);
-    void blit();
+    static void status(const char *message, ...);
+    static void blit();
 
-    void setStatusLed(bool enabled) { _statusLed = enabled; }
+    static bool statusLed;
 
 private:
-    bool _statusLed = true;
-    void begin();
+    static void begin();
 
-    bool init;
+    static bool init;
 #ifdef M5STICK
-    bool dirty;
-    TFT_eSprite sprite = TFT_eSprite(&M5.Lcd);
+    static bool dirty;
+    static TFT_eSprite sprite;
 #endif
 };
-
-extern GUI Display;
-
 #endif
