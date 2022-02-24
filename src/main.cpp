@@ -124,6 +124,7 @@ void connectToWifi()
     statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
     Display.setStatusLed(statusLed);
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically Update");
+    prerelease = WiFiSettings.checkbox("prerelease", false, "Auto update to latest pre-released version");
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
@@ -919,7 +920,7 @@ void l2cScanner()
 
 void loop()
 {
-    if (otaUpdate)
+    if (otaUpdate && ESP.getFreeHeap() > 2048)
         ArduinoOTA.handle();
     firmwareUpdate();
     Display.blit();
