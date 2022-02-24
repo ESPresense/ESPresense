@@ -91,7 +91,7 @@ String setTopic;
 String query;
 String include;
 String exclude;
-bool autoUpdate, otaUpdate;
+bool autoUpdate, otaUpdate, prerelease;
 bool discovery, statusLed;
 bool activeScan;
 bool publishTele;
@@ -253,7 +253,9 @@ void firmwareUpdate()
     WiFiClientSecure client;
     client.setInsecure();
 
-    String firmwareUrl = Sprintf("https://github.com/ESPresense/ESPresense/releases/latest/download/%s.bin", FIRMWARE);
+    String firmwareUrl = prerelease
+                             ? "https://espresense.com/releases/latest-any/download/" FIRMWARE ".bin"
+                             : "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
     if (!http.begin(client, firmwareUrl))
         return;
 
