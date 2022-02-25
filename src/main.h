@@ -167,7 +167,7 @@ String resetReason(RESET_REASON reason)
 
 unsigned long getUptimeSeconds()
 {
-    return esp_timer_get_time() / int(1e6);
+    return (unsigned long)(esp_timer_get_time() / 1000000ULL);
 }
 
 void setClock()
@@ -355,7 +355,7 @@ void commonDiscovery()
     doc["dev"]["name"] = "ESPresense " + room;
     doc["dev"]["sa"] = room;
 #ifdef VERSION
-    (*doc)["dev"]["sw"] = VERSION;
+    doc["dev"]["sw"] = VERSION;
 #endif
 #ifdef FIRMWARE
     doc["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
