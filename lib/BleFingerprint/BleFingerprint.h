@@ -2,6 +2,8 @@
 #define _BLEFINGERPRINT_
 
 #include "GUI.h"
+#include "rssi.h"
+#include "strings.h"
 #include <ArduinoJson.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
@@ -49,7 +51,9 @@ public:
     BleFingerprint(const BleFingerprintCollection *parent, NimBLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
+
     bool report(JsonDocument *doc);
+
     bool query();
 
     String getId()
@@ -60,24 +64,34 @@ public:
         return getMac();
     }
 
-    bool setId(const String& newId, short int newIdType, const String& newName = "");
-
-    String getMac() const;
-    int get1mRssi() const;
-    String getDiscriminator() { return disc; }
-
-    float getDistance() const { return output.value.position; }
-    int getRssi() const { return rssi; }
-    int getNewestRssi() const { return newest; }
+    bool setId(const String &newId, short int newIdType, const String &newName = "");
 
     void setInitial(int rssi, float distance);
 
+    String getMac() const { return SMacf(address); }
+
+    String const getDiscriminator() { return disc; }
+
+    float getDistance() const { return output.value.position; }
+
+    int getRssi() const { return rssi; }
+
+    int getNewestRssi() const { return newest; }
+
+    int const get1mRssi();
+
     NimBLEAddress const getAddress() { return address; }
+
     long getAge() const { return millis() - lastSeenMillis; };
+
     bool getAdded() const { return added; };
+
     bool getIgnore() const { return ignore; };
-    bool getAllowQuery() const{ return allowQuery; };
+
+    bool getAllowQuery() const { return allowQuery; };
+
     bool getRmAsst() const { return rmAsst; };
+
     int getSeenCount()
     {
         auto sc = seenCount;
@@ -87,7 +101,8 @@ public:
 
 private:
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-    static bool shouldHide(const String& s);
+
+    static bool shouldHide(const String &s);
 
     bool hasValue = false, added = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
     NimBLEAddress address;
@@ -106,4 +121,5 @@ private:
 
     bool filter();
 };
+
 #endif

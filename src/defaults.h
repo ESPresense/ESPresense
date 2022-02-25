@@ -1,7 +1,3 @@
-#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
-#define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); std::string r = s; free(s); r; })
-#define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
-
 #ifdef VERBOSE
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #endif
