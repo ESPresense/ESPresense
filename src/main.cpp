@@ -64,8 +64,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
         doc["reconnectTries"] = reconnectTries;
 
     doc["freeHeap"] = ESP.getFreeHeap();
-    doc["minFreeHeap"] = ESP.getMinFreeHeap();
     doc["maxAllocHeap"] = ESP.getMaxAllocHeap();
+    doc["memFrag"] = 100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap());
     doc["resetReason"] = resetReason(rtc_get_reset_reason(0));
 
     char teleMessageBuffer[512];
