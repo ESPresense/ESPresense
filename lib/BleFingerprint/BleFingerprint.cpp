@@ -247,7 +247,7 @@ void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
                     BLEBeacon oBeacon = BLEBeacon();
                     oBeacon.setData(strManufacturerData);
                     setId(Sprintf("iBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_IBEACON);
-                    calRssi = (unsigned char)oBeacon.getSignalPower();
+                    calRssi = oBeacon.getSignalPower();
                 }
                 else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
                 {
@@ -303,7 +303,7 @@ void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
                 BLEBeacon oBeacon = BLEBeacon();
                 oBeacon.setData(strManufacturerData.substr(0, 25));
                 setId(Sprintf("altBeacon:%s-%d-%d", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
-                calRssi = (unsigned char)oBeacon.getSignalPower();
+                calRssi = oBeacon.getSignalPower();
             }
             else if (manuf != "0000")
             {
