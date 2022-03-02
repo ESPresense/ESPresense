@@ -7,7 +7,7 @@
 #define DEFAULT_TX (-6)
 
 #define APPLE_TX 0
-#define RM_ASST_TX (-8)
+#define RM_ASST_TX 0
 #define TILE_TX (-4)
 #define EXPOSURE_TX (-12)
 #define ITAG_TX (-10)
