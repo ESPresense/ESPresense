@@ -1,4 +1,4 @@
-name: Build and Attach Releases
+name: build
 on:
   push:
     branches:
