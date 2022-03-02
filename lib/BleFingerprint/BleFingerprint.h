@@ -78,7 +78,7 @@ public:
 
     int getNewestRssi() const { return newest; }
 
-    int const get1mRssi();
+    int get1mRssi() const;
 
     NimBLEAddress const getAddress() { return address; }
 
@@ -100,7 +100,6 @@ public:
     }
 
 private:
-    void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
 
     static bool shouldHide(const String &s);
 
@@ -120,6 +119,14 @@ private:
     DifferentialFilter<float, unsigned long> diffFilter;
 
     bool filter();
+
+    void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
+
+    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount);
+
+    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount);
+
+    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice);
 };
 
 #endif
