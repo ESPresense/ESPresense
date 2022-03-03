@@ -41,7 +41,9 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     doc.clear();
     doc["ip"] = localIp;
     doc["uptime"] = getUptimeSeconds();
+#ifdef FIRMWARE
     doc["firm"] = String(FIRMWARE);
+#endif
     doc["rssi"] = WiFi.RSSI();
 #ifdef MACCHINA_A0
     doc["batt"] = a0_read_batt_mv() / 1000.0f;
