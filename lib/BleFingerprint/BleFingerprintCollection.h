@@ -22,7 +22,7 @@ public:
     void setDisable(bool disable) { _disable = disable; }
 
     static String include, exclude, query;
-    static float skipDistance, maxDistance;
+    static float skipDistance, maxDistance, absorption;
     static int refRssi, forgetMs, skipMs;
 
 private:

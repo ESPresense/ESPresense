@@ -28,6 +28,7 @@
 #define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and Wi-Fi. Do not modify unless you are confident you know what you're doing
 
 #define DEFAULT_REF_RSSI (-65)
+#define DEFAULT_ABSORPTION (3.5)
 
 #define DEFAULT_FORGET_MS 300000 // Ms to remove fingerprint after not seeing it
 
