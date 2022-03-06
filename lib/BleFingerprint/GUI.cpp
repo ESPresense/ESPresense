@@ -25,15 +25,13 @@
 
 #endif
 
-GUI Display;
-
 void GUI::seenStart()
 {
     begin();
 #ifdef M5ATOM
     M5.dis.drawpix(0, CRGB(15, 15, 15));
 #else
-    if (_statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+    if (GUI::statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 #endif
 }
 
@@ -62,7 +60,7 @@ void GUI::connecting()
     status("Connecting...");
     connected(false, false);
 #ifdef LED_BUILTIN
-    if (_statusLed) digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
+    if (GUI::statusLed) digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 #endif
 }
 
@@ -90,27 +88,27 @@ void GUI::added(BleFingerprint *f)
     Serial.printf("%d New %s | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
-void GUI::removed(BleFingerprint *f, long age)
+ void GUI::removed(BleFingerprint *f)
 {
     if (f->getIgnore() || !f->getAdded()) return;
-    Serial.printf("\u001b[31m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
+    Serial.printf("\u001b[38;5;236m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
-void GUI::close(BleFingerprint *f)
+ void GUI::close(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
     Serial.printf("\u001b[32m%d Close | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("C: %s", f->getId().c_str());
 }
 
-void GUI::left(BleFingerprint *f)
+ void GUI::left(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
     Serial.printf("\u001b[33m%d Left  | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("L: %s", f->getId().c_str());
 }
 
-void GUI::status(const char *format, ...)
+ void GUI::status(const char *format, ...)
 {
     begin();
 #ifdef M5STICK
@@ -132,16 +130,16 @@ void GUI::status(const char *format, ...)
 #endif
 }
 
-void GUI::setup()
+ void GUI::setup()
 {
 #ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
 #endif
 }
 
-void GUI::begin()
+ void GUI::begin()
 {
-    if (!init)
+    if (!GUI::init)
     {
 #ifdef M5STICK
         M5.begin(true, true, false);
@@ -152,11 +150,11 @@ void GUI::begin()
         M5.begin(false, false, true);
         M5.dis.drawpix(0, CRGB(64, 0, 0));
 #endif
-        init = true;
+        GUI::init = true;
     }
 }
 
-void GUI::blit()
+ void GUI::blit()
 {
     begin();
 #ifdef M5STICK
@@ -169,23 +167,31 @@ void GUI::blit()
 #endif
 }
 
-void GUI::updateStart()
+ void GUI::updateStart()
 {
 #ifdef LED_BUILTIN
-    if (_statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
+    if (GUI::statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 #endif
 }
 
-void GUI::updateProgress(unsigned int percent)
+ void GUI::updateProgress(unsigned int percent)
 {
 #ifdef LED_BUILTIN
-    if (_statusLed) digitalWrite(LED_BUILTIN, percent % 2);
+    if (GUI::statusLed) digitalWrite(LED_BUILTIN, percent % 2);
 #endif
 }
 
-void GUI::updateEnd()
+ void GUI::updateEnd()
 {
 #ifdef LED_BUILTIN
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
 }
+
+bool GUI::init=false;
+bool GUI::statusLed=false;
+
+#ifdef M5STICK
+bool GUI::dirty = false;
+TFT_eSprite GUI::sprite(&M5.Lcd);
+#endif

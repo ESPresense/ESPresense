@@ -1,16 +1,6 @@
-#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
-#define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); std::string r = s; free(s); r; })
-#define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
-
 #ifdef VERBOSE
 #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 #endif
-
-//Replace with your Wifi SSID; example: #define ssid "MyWifi"
-#define DEFAULT_WIFI_SSID "$SSID$"
-
-//Replace with your Wifi password; example: #define password "12345678"
-#define DEFAULT_WIFI_PASSWORD "$WIFI_PASSWORD$"
 
 //Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
@@ -34,10 +24,11 @@
 #define DEFAULT_INCLUDE ""
 #define DEFAULT_EXCLUDE ""
 
-#define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
-#define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and WiFi. Do not modify unless you are confident you know what you're doing
+#define BLE_SCAN_INTERVAL 40 // Used to determine antenna sharing between Bluetooth and Wi-Fi. Do not modify unless you are confident you know what you're doing
+#define BLE_SCAN_WINDOW 30   // Used to determine antenna sharing between Bluetooth and Wi-Fi. Do not modify unless you are confident you know what you're doing
 
-#define DEFAULT_REF_RSSI -65
+#define DEFAULT_REF_RSSI (-65)
+#define DEFAULT_ABSORPTION (3.5)
 
 #define DEFAULT_FORGET_MS 300000 // Ms to remove fingerprint after not seeing it
 

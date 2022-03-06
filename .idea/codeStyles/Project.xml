@@ -1,0 +1,18 @@
+<component name="ProjectCodeStyleConfiguration">
+  <code_scheme name="Project" version="173">
+    <Objective-C>
+      <option name="NAMESPACE_BRACE_PLACEMENT" value="2" />
+      <option name="FUNCTION_BRACE_PLACEMENT" value="2" />
+      <option name="BLOCK_BRACE_PLACEMENT" value="5" />
+      <option name="SPACE_BEFORE_REFERENCE_IN_DECLARATION" value="false" />
+      <option name="SPACE_AFTER_REFERENCE_IN_DECLARATION" value="true" />
+    </Objective-C>
+    <codeStyleSettings language="ObjectiveC">
+      <option name="RIGHT_MARGIN" value="999" />
+      <option name="BRACE_STYLE" value="2" />
+      <option name="CLASS_BRACE_STYLE" value="2" />
+      <option name="ELSE_ON_NEW_LINE" value="true" />
+      <option name="WRAP_ON_TYPING" value="0" />
+    </codeStyleSettings>
+  </code_scheme>
+</component>

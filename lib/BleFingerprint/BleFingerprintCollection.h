@@ -20,46 +20,29 @@ public:
     void cleanupOldFingerprints();
     std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
-    void setParams(int rssiRef, int forgetMs, float skipDistance, int skipMs, float maxDistance, String include, String exclude, String query)
-    {
-        _refRssi = rssiRef;
-        _forgetMs = forgetMs;
-        _skipDistance = skipDistance;
-        _skipMs = skipMs;
-        _maxDistance = maxDistance;
-        _include = include;
-        _exclude = exclude;
-        _query = query;
-    }
-    int getSkipMs() { return _skipMs; }
-    float getSkipDistance() { return _skipDistance; }
-    int getRefRssi() { return _refRssi; }
-    float getMaxDistance() { return _maxDistance; }
-    String getInclude() { return _include; }
-    String getExclude() { return _exclude; }
-    String getQuery() { return _query; }
+
+    static String include, exclude, query;
+    static float skipDistance, maxDistance, absorption;
+    static int refRssi, forgetMs, skipMs;
 
 private:
     bool _disable = false;
 
-    float _maxDistance, _skipDistance;
-    int _refRssi, _forgetMs, _skipMs;
     unsigned long lastCleanup = 0;
-    String _include, _exclude, _query;
 
     SemaphoreHandle_t fingerprintSemaphore;
     std::list<BleFingerprint *> fingerprints;
     BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice);
 
-    void onResult(BLEAdvertisedDevice *advertisedDevice)
+    void onResult(BLEAdvertisedDevice *advertisedDevice) override
     {
         if (_disable) return;
 
-        Display.seenStart();
+        GUI::seenStart();
         BleFingerprint *f = getFingerprint(advertisedDevice);
         if (f->seen(advertisedDevice))
-            Display.added(f);
-        Display.seenEnd();
+            GUI::added(f);
+        GUI::seenEnd();
     }
 };
 

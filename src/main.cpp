@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendNumberDiscovery("Absorption", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -41,7 +41,9 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     doc.clear();
     doc["ip"] = localIp;
     doc["uptime"] = getUptimeSeconds();
+#ifdef FIRMWARE
     doc["firm"] = String(FIRMWARE);
+#endif
     doc["rssi"] = WiFi.RSSI();
 #ifdef MACCHINA_A0
     doc["batt"] = a0_read_batt_mv() / 1000.0f;
@@ -73,7 +75,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     for (int i = 0; i < 10; i++)
     {
-        if (!publishTele || mqttClient.publish(teleTopic.c_str(), 0, 0, teleMessageBuffer))
+        if (!publishTele || mqttClient.publish(teleTopic.c_str(), 0, false, teleMessageBuffer))
             return true;
         delay(50);
     }
@@ -86,20 +88,20 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
-    Display.blit();
+    GUI::blit();
 
     WiFiSettings.onConnect = []()
     {
-        Display.connected(false, false);
+        GUI::connected(false, false);
     };
 
     WiFiSettings.onFailure = []()
     {
-        Display.status("WiFi Portal...");
+        GUI::status("WiFi Portal...");
     };
     WiFiSettings.onWaitLoop = []()
     {
-        Display.connecting();
+        GUI::connecting();
         return 150;
     };
     WiFiSettings.onPortalWaitLoop = []()
@@ -108,7 +110,7 @@ void connectToWifi()
             ESP.restart();
     };
 
-    Display.connected(true, false);
+    GUI::connected(true, false);
 #ifdef VERSION
     WiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
@@ -121,10 +123,11 @@ void connectToWifi()
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
 
     WiFiSettings.heading("Preferences");
-    statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
-    Display.setStatusLed(statusLed);
+    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
+
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
     prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+
     otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
     discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
     activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
@@ -133,17 +136,18 @@ void connectToWifi()
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     WiFiSettings.heading("Filtering");
-    query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
-    if (query == "1") query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
-    include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
-    exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+    if (BleFingerprintCollection::query == "1") BleFingerprintCollection::query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
+    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    BleFingerprintCollection::skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
+    BleFingerprintCollection::skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
 
     WiFiSettings.heading("Calibration");
-    maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
-    forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
-    skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Update mqtt if beacon has moved more than this distance since last report (in meters)");
-    skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Update mqtt if this time has elapsed since last report (in ms)");
-    refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
+    BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
+    BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
+    BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
 
     WiFiSettings.heading("Additional Sensors");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
@@ -198,7 +202,7 @@ void connectToWifi()
     Serial.print("Room:         ");
     Serial.println(room);
     Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
-    Serial.printf("Max Distance: %.2f\n", maxDistance);
+    Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     Serial.print("Telemetry:    ");
     Serial.println(publishTele ? "enabled" : "disabled");
     Serial.print("Rooms:        ");
@@ -225,11 +229,11 @@ void connectToWifi()
     Serial.println(BH1750_I2c);
 #endif
     Serial.print("Query:        ");
-    Serial.println(query);
+    Serial.println(BleFingerprintCollection::query);
     Serial.print("Include:      ");
-    Serial.println(include);
+    Serial.println(BleFingerprintCollection::include);
     Serial.print("Exclude:      ");
-    Serial.println(exclude);
+    Serial.println(BleFingerprintCollection::exclude);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -244,12 +248,12 @@ void onMqttConnect(bool sessionPresent)
     xTimerStop(reconnectTimer, 0);
     mqttClient.subscribe("espresense/rooms/*/+/set", 1);
     mqttClient.subscribe(setTopic.c_str(), 1);
-    Display.connected(true, true);
+    GUI::connected(true, true);
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
-    Display.connected(true, false);
+    GUI::connected(true, false);
     log_e("Disconnected from MQTT; reason %d\n", reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
@@ -273,8 +277,14 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
     if (command == "max_distance")
     {
-        maxDistance = pay.toFloat();
+        BleFingerprintCollection::maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
+        online = false;
+    }
+    else if (command == "absorption")
+    {
+        BleFingerprintCollection::absorption = pay.toFloat();
+        spurt("/absorption", pay);
         online = false;
     }
     else if (command == "active_scan")
@@ -285,27 +295,26 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     }
     else if (command == "query")
     {
-        query = pay;
-        spurt("/query", String(query));
+        BleFingerprintCollection::query = pay;
+        spurt("/query", pay);
         online = false;
     }
     else if (command == "include")
     {
-        include = pay;
-        spurt("/include", String(include));
+        BleFingerprintCollection::include = pay;
+        spurt("/include", pay);
         online = false;
     }
     else if (command == "exclude")
     {
-        exclude = pay;
-        spurt("/exclude", String(exclude));
+        BleFingerprintCollection::exclude = pay;
+        spurt("/exclude", pay);
         online = false;
     }
     else if (command == "status_led")
     {
-        statusLed = pay == "ON";
-        spurt("/status_led", String(statusLed));
-        Display.setStatusLed(statusLed);
+        GUI::statusLed = pay == "ON";
+        spurt("/status_led", String(GUI::statusLed));
         online = false;
     }
     else if (command == "ota_update")
@@ -334,8 +343,6 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         heap_caps_dump_all();
     }
-
-    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -363,12 +370,12 @@ void reconnect(TimerHandle_t xTimer)
 
 void connectToMqtt()
 {
-    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)0, reconnect);
+    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill(statusTopic.c_str(), 0, 1, offline.c_str());
+    mqttClient.setWill(statusTopic.c_str(), 0, true, offline.c_str());
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
@@ -388,10 +395,10 @@ bool reportDevice(BleFingerprint *f)
         if (!mqttClient.connected())
             return false;
 
-        if (!p1 && (!publishRooms || mqttClient.publish((char *)roomsTopic.c_str(), 0, 0, buffer)))
+        if (!p1 && (!publishRooms || mqttClient.publish(roomsTopic.c_str(), 0, false, buffer)))
             p1 = true;
 
-        if (!p2 && (!publishDevices || mqttClient.publish((char *)devicesTopic.c_str(), 0, 0, buffer)))
+        if (!p2 && (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer)))
             p2 = true;
 
         if (p1 && p2)
@@ -405,7 +412,6 @@ bool reportDevice(BleFingerprint *f)
 void scanForDevices(void *parameter)
 {
     connectToMqtt();
-    fingerprints.setParams(refRssi, forgetMs, skipDistance, skipMs, maxDistance, include, exclude, query);
     BLEDevice::init(Stdprintf("ESPresense-%06" PRIx64, ESP.getEfuseMac() >> 24));
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
@@ -416,7 +422,9 @@ void scanForDevices(void *parameter)
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
     pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
     if (activeScan) pBLEScan->setActiveScan(true);
-    pBLEScan->setMaxResults(0);
+    pBLEScan->setDuplicateFilter(false);
+    pBLEScan->setMaxResults(0xFF);
+    // pBLEScan->setFilterPolicy(BLE_HCI_SCAN_FILT_NO_WL_INITA);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
 
@@ -425,13 +433,13 @@ void scanForDevices(void *parameter)
     int totalFpQueried = 0;
     int totalFpReported = 0;
 
-    while (1)
+    while (true)
     {
         while (updateInProgress || !mqttClient.connected())
             delay(1000);
 
         yield();
-        auto seen = fingerprints.getCopy();
+        auto copy = fingerprints.getCopy();
 
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
         yield();
@@ -439,9 +447,8 @@ void scanForDevices(void *parameter)
         if (millis() - lastQueryMillis > 3000)
         {
             auto started = millis();
-            for (auto it = seen.begin(); it != seen.end(); ++it)
+            for (auto f : copy)
             {
-                auto f = (*it);
                 if (f->query())
                     totalFpQueried++;
 
@@ -450,7 +457,7 @@ void scanForDevices(void *parameter)
 
             if (!pBLEScan->isScanning())
             {
-                if (!pBLEScan->start(0, nullptr, false))
+                if (!pBLEScan->start(0, nullptr, true))
                     log_e("Error re-starting continuous ble scan");
 
                 lastQueryMillis = millis(); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
@@ -458,9 +465,8 @@ void scanForDevices(void *parameter)
         }
 
         auto reported = 0;
-        for (auto it = seen.begin(); it != seen.end(); ++it)
+        for (auto f : copy)
         {
-            auto f = (*it);
             auto seen = f->getSeenCount();
             if (seen)
             {
@@ -515,7 +521,7 @@ void triggerGetTemp()
 
 void setup()
 {
-    Display.setup();
+    GUI::setup();
 
 #ifdef FAST_MONITOR
     Serial.begin(1500000);
@@ -643,7 +649,7 @@ void setup()
         }
     }
 #endif
-    xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 4000, nullptr, 1, &scannerTask, 1);
+    xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 6000, nullptr, 1, &scannerTask, 1);
     configureOTA();
 }
 
@@ -656,12 +662,12 @@ void pirLoop()
     {
         if (pirValue == HIGH)
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "ON");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "ON");
             Serial.println("PIR MOTION DETECTED!!!");
         }
         else
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "OFF");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "OFF");
             Serial.println("NO PIR MOTION DETECTED!!!");
         }
 
@@ -678,12 +684,12 @@ void radarLoop()
     {
         if (radarValue == HIGH)
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "ON");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "ON");
             Serial.println("Radar MOTION DETECTED!!!");
         }
         else
         {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, 1, "OFF");
+            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "OFF");
             Serial.println("NO Radar MOTION DETECTED!!!");
         }
 
@@ -943,7 +949,7 @@ void loop()
         ArduinoOTA.handle();
     if (freeHeap < 10000) Serial.printf("Low memory: %d bytes free", freeHeap);
     firmwareUpdate();
-    Display.blit();
+    GUI::blit();
     pirLoop();
     radarLoop();
 #ifdef SENSORS
