@@ -8,7 +8,7 @@ void BleFingerprintCollection::cleanupOldFingerprints()
     auto it = fingerprints.begin();
     while (it != fingerprints.end())
     {
-        long age = (*it)->getAge();
+        long age = (*it)->getMsSinceLastSeen();
         if (age > forgetMs)
         {
             GUI::removed((*it));
@@ -64,6 +64,6 @@ std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
         log_e("Couldn't give semaphore!");
     return copy;
 }
-String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{};
-float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f;
-int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0;
+String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::countIds{};
+float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
+int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;

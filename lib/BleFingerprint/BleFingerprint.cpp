@@ -4,24 +4,6 @@
 #include "strings.h"
 #include "util.h"
 
-bool prefixExists(const String& prefixes, const String& id)
-{
-    unsigned int start = 0;
-    unsigned int space = 0;
-
-    while ((space = prefixes.indexOf(" ", start)) != -1)
-    {
-        if (space > start)
-        {
-            auto sub = prefixes.substring(start, space);
-            if (sub == "*" || id.indexOf(sub) != -1) return true;
-        }
-        start = space + 1;
-    }
-    auto sub = prefixes.substring(start);
-    return (sub == "*" || id.indexOf(sub) != -1);
-}
-
 bool BleFingerprint::shouldHide(const String& s)
 {
     if (BleFingerprintCollection::include.length() > 0 && !prefixExists(BleFingerprintCollection::include, s)) return true;
@@ -36,7 +18,7 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
 
     if (!allowQuery)
     {
-        if (BleFingerprintCollection::query.length() > 0 && prefixExists(BleFingerprintCollection::query, newId))
+        if (!BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId))
         {
             allowQuery = true;
             qryAttempts = 0;
@@ -47,6 +29,8 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
             }
         }
     }
+
+    countable = !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
 
     id = newId;
     idType = newIdType;
@@ -66,9 +50,25 @@ BleFingerprint::BleFingerprint(const BleFingerprintCollection *parent, BLEAdvert
 {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
-    macPublic = advertisedDevice->getAddressType() == BLE_ADDR_PUBLIC;
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
     seenCount = 1;
+
+    auto mac = getMac();
+    if (!BleFingerprintCollection::knownMacs.isEmpty() && prefixExists(BleFingerprintCollection::knownMacs, mac))
+        setId("known:" + mac, ID_TYPE_KNOWN_MAC);
+    else
+    {
+        switch (advertisedDevice->getAddressType())
+        {
+        case BLE_ADDR_PUBLIC:
+        case BLE_ADDR_PUBLIC_ID:
+            setId(mac, ID_TYPE_PUBLIC_MAC);
+            break;
+        default:
+            setId(mac, ID_TYPE_MAC);
+            break;
+        }
+    }
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
@@ -392,7 +392,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
 
 bool BleFingerprint::report(JsonDocument *doc)
 {
-    if (ignore || (idType == 0 && !macPublic) || hidden)
+    if (ignore || idType == 0 || hidden)
         return false;
 
     if (reported || !hasValue)
@@ -410,7 +410,7 @@ bool BleFingerprint::report(JsonDocument *doc)
     lastReported = output.value.position;
     reported = true;
 
-    (*doc)[F("id")] = getId();
+    (*doc)[F("id")] = id;
     if (!name.isEmpty()) (*doc)[F("name")] = name;
     if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
     if (idType) (*doc)[F("idType")] = idType;
@@ -444,7 +444,7 @@ bool BleFingerprint::query()
 
     bool success = false;
 
-    Serial.printf("%d Query | MAC: %s, ID: %-60s rssi %d\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi);
+    Serial.printf("%d Query | MAC: %s, ID: %-60s rssi %d\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -461,14 +461,18 @@ bool BleFingerprint::query()
             if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch")
             {
                 if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str())))
-                    Serial.printf("\u001b[38;5;104m%d Name  | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sName.c_str());
+                {
+                    Serial.printf("\u001b[38;5;104m%d Name  | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), sName.c_str());
+                }
                 success = true;
             }
 
             if (!sMdl.empty())
             {
                 if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str())))
-                    Serial.printf("\u001b[38;5;136m%d Model | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sMdl.c_str());
+                {
+                    Serial.printf("\u001b[38;5;136m%d Model | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), sMdl.c_str());
+                }
                 success = true;
             }
         }
@@ -479,7 +483,9 @@ bool BleFingerprint::query()
             if (!sRmAst.empty())
             {
                 if (setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST))
-                    Serial.printf("\u001b[38;5;129m%d RmAst | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), sRmAst.c_str());
+                {
+                    Serial.printf("\u001b[38;5;129m%d RmAst | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), sRmAst.c_str());
+                }
                 success = true;
             }
         }
@@ -490,7 +496,7 @@ bool BleFingerprint::query()
     if (success) return true;
 
     qryAttempts++;
-    Serial.printf("%d QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), getId().c_str(), rssi, qryAttempts, qryDelayMillis);
+    Serial.printf("%d QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
 
     if (qryDelayMillis < 30000)
         qryDelayMillis += (1000 * qryAttempts * qryAttempts);
@@ -499,4 +505,17 @@ bool BleFingerprint::query()
     didQuery = false;
 
     return true;
+}
+
+bool BleFingerprint::shouldCount()
+{
+    if (!countable || getMsSinceFirstSeen() <= BleFingerprintCollection::countMs || getMsSinceLastSeen() > BleFingerprintCollection::countMs)
+        return false;
+
+    if (counting && output.value.position > BleFingerprintCollection::countExit)
+        counting = false;
+    else if (!counting && output.value.position <= BleFingerprintCollection::countEnter)
+        counting = true;
+
+    return counting;
 }

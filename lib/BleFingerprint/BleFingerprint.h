@@ -41,6 +41,7 @@
 #define ID_TYPE_ABEACON short(170)
 #define ID_TYPE_IBEACON short(175)
 #define ID_TYPE_RM_ASST short(180)
+#define ID_TYPE_KNOWN_MAC short(185)
 
 class BleFingerprintCollection;
 
@@ -56,13 +57,7 @@ public:
 
     bool query();
 
-    String getId()
-    {
-        if (!id.isEmpty() && idType > 10) return id;
-        if (macPublic) return getMac();
-        if (!id.isEmpty()) return id;
-        return getMac();
-    }
+    String getId() { return id; }
 
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
@@ -82,7 +77,9 @@ public:
 
     NimBLEAddress const getAddress() { return address; }
 
-    long getAge() const { return millis() - lastSeenMillis; };
+    long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
+
+    long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
     bool getAdded() const { return added; };
 
@@ -99,11 +96,13 @@ public:
         return sc;
     }
 
+    bool shouldCount();
+
 private:
 
     static bool shouldHide(const String &s);
 
-    bool hasValue = false, added = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
+    bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false, countable = false, counting = false;
     NimBLEAddress address;
     String id, name, disc;
     short int idType = 0;
