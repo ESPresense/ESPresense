@@ -41,6 +41,6 @@ jobs:
     - name: PlatformIO Login
       run: pio account login --username="${{secrets.PIO_USERNAME}}" --password="${{secrets.PIO_PASSWORD}}"
     - name: Remote Run
-      run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB -e m5atom-matrix
+      run: pio remote run -t upload -t monitor --upload-port=/dev/ttyUSB0 -e m5atom-matrix
     - name: Remote Monitor
       run: pio remote device monitor --port=/dev/ttyUSB
