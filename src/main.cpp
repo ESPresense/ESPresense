@@ -119,54 +119,54 @@ void connectToWifi()
 #endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
-    WiFiSettings.heading("MQTT Connection");
+    WiFiSettings.heading("MQTT <a href='https://espresense.com/settings#mqtt' target='_blank'>ℹ️</a>", false);
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
-
-    WiFiSettings.heading("Preferences");
-    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
-
-    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-
-    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
-    discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
-    activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
+    discovery = WiFiSettings.checkbox("discovery", true, "Send to discovery topic");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.heading("Filtering");
-    BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
-    if (BleFingerprintCollection::query == "1") BleFingerprintCollection::query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
-    BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known ble macs (no colons, space seperated)");
-    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
-    BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
-    BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
-    BleFingerprintCollection::skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
-    BleFingerprintCollection::skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
-
-    WiFiSettings.heading("Calibration");
-    BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
-    BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
-    BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
-
-    WiFiSettings.heading("Count of devices present in room");
+    WiFiSettings.heading("Room Count <a href='https://espresense.com/settings#room-count' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::countIds = WiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
     BleFingerprintCollection::countEnter = WiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
     BleFingerprintCollection::countExit = WiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
     BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 10000, "Include devices with age less than (in ms)");
 
-    WiFiSettings.heading("Additional Sensors");
+    WiFiSettings.heading("Updating <a href='https://espresense.com/settings#updating' target='_blank'>ℹ️</a>", false);
+    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
+    prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
+
+    WiFiSettings.heading("Scanning <a href='https://espresense.com/settings#scanning' target='_blank'>ℹ️</a>", false);
+    activeScan = WiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
+    BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
+    BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+
+    WiFiSettings.heading("Filtering <a href='https://espresense.com/settings#filtering' target='_blank'>ℹ️</a>", false);
+    if (BleFingerprintCollection::query == "1") BleFingerprintCollection::query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
+    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    BleFingerprintCollection::skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
+    BleFingerprintCollection::skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
+
+    WiFiSettings.heading("Calibration <a href='https://espresense.com/settings#calibration' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
+    BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
+    BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+
+    WiFiSettings.heading("Misc <a href='https://espresense.com/settings#misc' target='_blank'>ℹ️</a>", false);
+    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
 #ifdef SENSORS
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
 
-    WiFiSettings.heading("I2C Settings");
+    WiFiSettings.heading("I2C Settings <a href='https://espresense.com/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
     I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
@@ -179,7 +179,7 @@ void connectToWifi()
     I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", 0, "SDA pin (0 to disable)");
     I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", 0, "SCL pin (0 to disable)");
 
-    WiFiSettings.heading("I2C Sensors");
+    WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
     WiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
     BH1750_I2c_Bus = WiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
