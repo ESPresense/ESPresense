@@ -18,4 +18,5 @@ std::string kebabify(const std::string& text);
 String kebabify(const String& text);
 std::string hexStr(const char *data, int len);
 std::string hexStr(const std::string& s);
+bool prefixExists(const String& prefixes, const String& s);
 #endif

@@ -20,10 +20,12 @@ public:
     void cleanupOldFingerprints();
     std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
-
-    static String include, exclude, query;
+    static String knownMacs, include, exclude, query;
     static float skipDistance, maxDistance, absorption;
     static int refRssi, forgetMs, skipMs;
+    static String countIds;
+    static float countEnter, countExit;
+    static int countMs;
 
 private:
     bool _disable = false;

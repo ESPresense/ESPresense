@@ -2,7 +2,7 @@
 
 #include "MotionSensors.h"
 
-bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
+bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported, int count)
 {
     if (!online)
     {
@@ -53,6 +53,9 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #ifdef VERSION
     doc["ver"] = String(VERSION);
 #endif
+
+    if (!BleFingerprintCollection::countIds.isEmpty())
+        doc["count"] = count;
     if (totalSeen > 0)
         doc["adverts"] = totalSeen;
     if (totalFpSeen > 0)
@@ -140,6 +143,7 @@ void connectToWifi()
     WiFiSettings.heading("Filtering");
     BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
     if (BleFingerprintCollection::query == "1") BleFingerprintCollection::query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
+    BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known ble macs (no colons, space seperated)");
     BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
     BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
     BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
@@ -150,6 +154,12 @@ void connectToWifi()
     BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
     BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+
+    WiFiSettings.heading("Count of devices present in room");
+    BleFingerprintCollection::countIds = WiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
+    BleFingerprintCollection::countEnter = WiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
+    BleFingerprintCollection::countExit = WiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
+    BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 10000, "Include devices with age less than (in ms)");
 
     WiFiSettings.heading("Additional Sensors");
     Motion::ConnectToWifi();
@@ -407,7 +417,7 @@ bool reportDevice(BleFingerprint *f)
     return false;
 }
 
-void scanForDevices(void *parameter)
+void scanTask(void *parameter)
 {
     connectToMqtt();
     BLEDevice::init("");
@@ -439,7 +449,12 @@ void scanForDevices(void *parameter)
         yield();
         auto copy = fingerprints.getCopy();
 
-        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
+        int count = 0;
+        for (auto i : copy)
+            if (i->shouldCount())
+                count++;
+
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
         yield();
 
         if (millis() - lastQueryMillis > 3000)
@@ -646,7 +661,7 @@ void setup()
         }
     }
 #endif
-    xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 6000, nullptr, 1, &scannerTask, 1);
+    xTaskCreatePinnedToCore(scanTask, "scanTask", 6000, nullptr, 1, &scannerTask, 1);
     configureOTA();
 }
 

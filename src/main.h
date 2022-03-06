@@ -78,22 +78,13 @@ int teleFails = 0;
 bool online = false;        // Have we successfully sent status=online
 bool sentDiscovery = false; // Have we successfully sent discovery
 String offline = "offline";
-String mqttHost;
+
+String mqttHost, mqttUser, mqttPass;
 int mqttPort;
-String mqttUser;
-String mqttPass;
-String room;
-String id;
-String statusTopic;
-String teleTopic;
-String roomsTopic;
-String setTopic;
+String room, id, statusTopic, teleTopic, roomsTopic, setTopic;
+
 bool autoUpdate, otaUpdate, prerelease;
-bool discovery;
-bool activeScan;
-bool publishTele;
-bool publishRooms;
-bool publishDevices;
+bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 
 #ifdef SENSORS
 int dht11Pin;

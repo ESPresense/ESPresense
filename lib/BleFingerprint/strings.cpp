@@ -74,3 +74,21 @@ std::string hexStr(const std::string& s)
 {
     return hexStr(s.c_str(), s.length());
 }
+
+bool prefixExists(const String& prefixes, const String& s)
+{
+    unsigned int start = 0;
+    unsigned int space = 0;
+
+    while ((space = prefixes.indexOf(" ", start)) != -1)
+    {
+        if (space > start)
+        {
+            auto sub = prefixes.substring(start, space);
+            if (sub == "*" || s.indexOf(sub) != -1) return true;
+        }
+        start = space + 1;
+    }
+    auto sub = prefixes.substring(start);
+    return (sub == "*" || s.indexOf(sub) != -1);
+}
