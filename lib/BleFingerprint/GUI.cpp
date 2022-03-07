@@ -94,6 +94,16 @@ void GUI::added(BleFingerprint *f)
     Serial.printf("\u001b[38;5;236m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
+void GUI::plusOne(BleFingerprint *f)
+{
+    Serial.printf("\u001b[36m%d C# +1 | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
+}
+
+void GUI::minusOne(BleFingerprint *f)
+{
+    Serial.printf("\u001b[35m%d C# -1 | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
+}
+
  void GUI::close(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
