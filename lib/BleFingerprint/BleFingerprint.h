@@ -77,9 +77,9 @@ public:
 
     NimBLEAddress const getAddress() { return address; }
 
-    long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
+    unsigned long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
 
-    long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
+    unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
     bool getAdded() const { return added; };
 
