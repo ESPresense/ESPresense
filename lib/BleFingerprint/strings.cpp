@@ -75,6 +75,34 @@ std::string hexStr(const std::string& s)
     return hexStr(s.c_str(), s.length());
 }
 
+std::string hexStr(const uint8_t *&s, unsigned int len)
+{
+    return hexStr(reinterpret_cast<const char *>(s), len);
+}
+
+std::string hexStrRev(const char *data, unsigned int len)
+{
+    constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+    std::string s(len * 2, ' ');
+    for (int i = 0; i < len; ++i)
+    {
+        s[len - (2 * i + 1)] = hexmap[(data[i] & 0xF0) >> 4];
+        s[len - (2 * i + 2)] = hexmap[data[i] & 0x0F];
+    }
+    return s;
+}
+
+std::string hexStrRev(const uint8_t *&s, unsigned int len)
+{
+    return hexStrRev(reinterpret_cast<const char *>(s), len);
+}
+
+std::string hexStrRev(const std::string &s)
+{
+    return hexStrRev(s.c_str(), s.length());
+}
+
 bool prefixExists(const String& prefixes, const String& s)
 {
     unsigned int start = 0;

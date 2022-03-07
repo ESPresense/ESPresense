@@ -16,7 +16,11 @@ std::string slugify(const std::string& text);
 String slugify(const String& text);
 std::string kebabify(const std::string& text);
 String kebabify(const String& text);
+std::string hexStr(const uint8_t *data, int len);
 std::string hexStr(const char *data, int len);
 std::string hexStr(const std::string& s);
+std::string hexStrRev(const uint8_t *data, int len);
+std::string hexStrRev(const char *data, int len);
+std::string hexStrRev(const std::string &s);
 bool prefixExists(const String& prefixes, const String& s);
 #endif

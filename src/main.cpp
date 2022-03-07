@@ -133,7 +133,7 @@ void connectToWifi()
     BleFingerprintCollection::countIds = WiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
     BleFingerprintCollection::countEnter = WiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
     BleFingerprintCollection::countExit = WiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
-    BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 15000, "Include devices with age less than (in ms)");
+    BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
 
     WiFiSettings.heading("Updating <a href='https://espresense.com/settings#updating' target='_blank'>ℹ️</a>", false);
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
