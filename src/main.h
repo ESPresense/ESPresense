@@ -68,14 +68,14 @@ static const char *const EC_CONFIG = "config";
 
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
-TaskHandle_t scannerTask;
+TaskHandle_t scanTaskHandle, reportTaskHandle;
 
 DynamicJsonDocument doc(2048);
 char buffer[2048];
 
 bool updateInProgress = false;
 String localIp;
-unsigned long lastTeleMillis, lastQueryMillis;
+unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online = false;        // Have we successfully sent status=online

@@ -106,7 +106,7 @@ std::string hexStrRev(const std::string &s)
 bool prefixExists(const String& prefixes, const String& s)
 {
     unsigned int start = 0;
-    unsigned int space = 0;
+    unsigned int space;
 
     while ((space = prefixes.indexOf(" ", start)) != -1)
     {

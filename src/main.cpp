@@ -419,29 +419,14 @@ bool reportDevice(BleFingerprint *f)
     return false;
 }
 
-void scanTask(void *parameter)
+int totalFpReported = 0;
+int totalSeen = 0;
+int totalFpSeen = 0;
+int totalFpQueried = 0;
+
+void reportTask(void *parameter)
 {
     connectToMqtt();
-    BLEDevice::init("");
-    for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
-        NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
-    NimBLEDevice::setSecurityAuth(false, false, false);
-
-    auto pBLEScan = BLEDevice::getScan();
-    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
-    pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
-    if (activeScan) pBLEScan->setActiveScan(true);
-    pBLEScan->setDuplicateFilter(false);
-    pBLEScan->setMaxResults(0);
-    // pBLEScan->setFilterPolicy(BLE_HCI_SCAN_FILT_NO_WL_INITA);
-    if (!pBLEScan->start(0, nullptr, false))
-        log_e("Error starting continuous ble scan");
-
-    int totalSeen = 0;
-    int totalFpSeen = 0;
-    int totalFpQueried = 0;
-    int totalFpReported = 0;
 
     while (true)
     {
@@ -452,32 +437,13 @@ void scanTask(void *parameter)
         auto copy = fingerprints.getCopy();
 
         int count = 0;
-        for (auto i : copy)
+        for (auto i: copy)
             if (i->shouldCount())
                 count++;
 
+        yield();
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
         yield();
-
-        if (millis() - lastQueryMillis > 3000)
-        {
-            auto started = millis();
-            for (auto f : copy)
-            {
-                if (f->query())
-                    totalFpQueried++;
-
-                if (millis() - started > 3000) break;
-            }
-
-            if (!pBLEScan->isScanning())
-            {
-                if (!pBLEScan->start(0, nullptr, true))
-                    log_e("Error re-starting continuous ble scan");
-
-                lastQueryMillis = millis(); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
-            }
-        }
 
         auto reported = 0;
         for (auto f : copy)
@@ -493,6 +459,43 @@ void scanTask(void *parameter)
                 totalFpReported++;
                 reported++;
             }
+            yield();
+        }
+    }
+}
+
+void scanTask(void *parameter)
+{
+    BLEDevice::init("");
+    for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
+        NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
+    NimBLEDevice::setSecurityAuth(false, false, false);
+
+    auto pBLEScan = BLEDevice::getScan();
+    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
+    pBLEScan->setWindow(BLE_SCAN_WINDOW);
+    pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
+    if (activeScan) pBLEScan->setActiveScan(true);
+    pBLEScan->setDuplicateFilter(false);
+    pBLEScan->setMaxResults(0);
+    if (!pBLEScan->start(0, nullptr, false))
+        log_e("Error starting continuous ble scan");
+
+    while (true)
+    {
+        for (auto f : *fingerprints.getNative())
+            if (f->query())
+                totalFpQueried++;
+
+        if (!pBLEScan->isScanning())
+        {
+            if (!pBLEScan->start(0, nullptr, true))
+                log_e("Error re-starting continuous ble scan");
+            delay(3000); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
+        }
+        else
+        {
+            delay(500);
         }
     }
 }
@@ -664,7 +667,8 @@ void setup()
         }
     }
 #endif
-    xTaskCreatePinnedToCore(scanTask, "scanTask", 6500, nullptr, 1, &scannerTask, 1);
+    xTaskCreatePinnedToCore(scanTask, "scanTask", 4000, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", 6500, nullptr, 1, &reportTaskHandle, 1);
     configureOTA();
 }
 
@@ -959,7 +963,7 @@ void l2cScanner()
 
 void loop()
 {
-    int freeHeap = ESP.getFreeHeap();
+    uint32_t freeHeap = ESP.getFreeHeap();
     if (otaUpdate && freeHeap > 4096)
         ArduinoOTA.handle();
     if (freeHeap < 10000) Serial.printf("Low memory: %d bytes free", freeHeap);

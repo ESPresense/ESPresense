@@ -307,7 +307,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
             setId("samsung:" + getMac(), ID_TYPE_MISC);
         }
-        else if (strManufacturerData.length() == 26 && strManufacturerData[2] == 0xBE && strManufacturerData[3] == 0xAC)
+        else if (manuf == "beac" && strManufacturerData.length() == 26)
         {
             BLEBeacon oBeacon = BLEBeacon();
             oBeacon.setData(strManufacturerData.substr(0, 25));
@@ -429,7 +429,7 @@ bool BleFingerprint::query()
     if (rssi < -90) return false;
     auto now = millis();
 
-    if (now - lastSeenMillis > 5) return false;
+    if (now - lastSeenMillis > 2) return false;
 
     if (now - lastQryMillis < qryDelayMillis) return false;
     didQuery = true;
@@ -437,7 +437,7 @@ bool BleFingerprint::query()
 
     bool success = false;
 
-    Serial.printf("%d Query | MAC: %s, ID: %-60s rssi %d\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
+    Serial.printf("%d Query | MAC: %s, ID: %-60s %lums\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
