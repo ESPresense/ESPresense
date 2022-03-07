@@ -509,13 +509,21 @@ bool BleFingerprint::query()
 
 bool BleFingerprint::shouldCount()
 {
-    if (!countable || getMsSinceFirstSeen() <= BleFingerprintCollection::countMs || getMsSinceLastSeen() > BleFingerprintCollection::countMs)
-        return false;
+    bool prevCounting = counting;
 
-    if (counting && output.value.position > BleFingerprintCollection::countExit)
+    if (!countable)
+        counting = false;
+    else if (getMsSinceFirstSeen() <= BleFingerprintCollection::countMs || getMsSinceLastSeen() > BleFingerprintCollection::countMs)
+        counting = false;
+    else if (counting && output.value.position > BleFingerprintCollection::countExit)
         counting = false;
     else if (!counting && output.value.position <= BleFingerprintCollection::countEnter)
         counting = true;
+
+    if (prevCounting != counting)
+    {
+        counting ? GUI::plusOne(this) : GUI::minusOne(this);
+    }
 
     return counting;
 }
