@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendNumberDiscovery("Absorption", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s") && sendTeleSensorDiscovery("Free Memory", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes") && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", "")) && sendButtonDiscovery("Restart", EC_DIAGNOSTIC) && sendSwitchDiscovery("Status LED", EC_CONFIG) && sendNumberDiscovery("Max Distance", EC_CONFIG) && sendNumberDiscovery("Absorption", EC_CONFIG) && sendSwitchDiscovery("Active Scan", EC_CONFIG) && sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("OTA Update", EC_CONFIG) && sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif

@@ -63,6 +63,9 @@ String TSL2561_I2c_Gain;
 unsigned long tsl2561PreviousMillis = 0;
 #endif
 
+static const char *const EC_DIAGNOSTIC = "diagnostic";
+static const char *const EC_CONFIG = "config";
+
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scannerTask;
@@ -371,38 +374,21 @@ bool sendDiscoveryConnectivity()
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendDiscoveryUptime()
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units)
 {
+    auto slug = slugify(name);
+
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Uptime";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_uptime", ESP.getEfuseMac() >> 24);
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
-    doc["entity_category"] = "diagnostic";
-    doc["value_template"] = "{{ value_json.uptime }}";
-    doc["unit_of_measurement"] = "s";
-
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
+    doc["value_template"] = temp;
+    if (!units.isEmpty()) doc["unit_of_measurement"] = units;
     serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/uptime/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryFreeMem()
-{
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Free Memory";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_free_mem", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/telemetry";
-    doc["entity_category"] = "diagnostic";
-    doc["value_template"] = "{{ value_json.maxAllocHeap }}";
-    doc["unit_of_measurement"] = "bytes";
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/free_mem/config";
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/" + slug + "/config";
 
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
