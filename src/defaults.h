@@ -32,7 +32,7 @@
 
 #define DEFAULT_FORGET_MS 300000 // Ms to remove fingerprint after not seeing it
 
-#define DEFAULT_SKIP_DISTANCE 0.1 // If beacon has moved less than this skip update
+#define DEFAULT_SKIP_DISTANCE 0.5 // If beacon has moved less than this skip update
 #define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
 
 // Number of seconds between update checks
