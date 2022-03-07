@@ -41,7 +41,7 @@ unsigned long sensorInterval = 60000;
 //GY-302 lux sensor
 #include <hp_BH1750.h>
 hp_BH1750 BH1750;
-long ms_BH1750;
+unsigned long ms_BH1750;
 float lux_BH1750;
 int lux_BH1750_MQTT;
 String BH1750_I2c;
@@ -292,7 +292,7 @@ void spiffsInit()
     int flashes = 0;
     unsigned long debounceDelay = 250;
 
-    long lastDebounceTime = millis();
+    unsigned long lastDebounceTime = millis();
     while (digitalRead(BUTTON) == BUTTON_PRESSED)
     {
         if ((millis() - lastDebounceTime) > debounceDelay)

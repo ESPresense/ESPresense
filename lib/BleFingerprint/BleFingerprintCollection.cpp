@@ -8,7 +8,7 @@ void BleFingerprintCollection::cleanupOldFingerprints()
     auto it = fingerprints.begin();
     while (it != fingerprints.end())
     {
-        long age = (*it)->getMsSinceLastSeen();
+        auto age = (*it)->getMsSinceLastSeen();
         if (age > forgetMs)
         {
             GUI::removed((*it));

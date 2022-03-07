@@ -614,7 +614,7 @@ void setup()
         {
             // Init BH1750 (witch default l2c adres)
             int rc; // Returncode
-            long m; // milli for calibration
+            unsigned long m; // milli for calibration
             bool state = false;
 
             // if (! BH1750.begin(BH1750_TO_GROUND))
