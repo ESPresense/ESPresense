@@ -54,7 +54,7 @@ BleFingerprint *BleFingerprintCollection::getFingerprint(BLEAdvertisedDevice *ad
     return f;
 }
 
-std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
+const std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
 {
     if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
         log_e("Couldn't take semaphore!");
@@ -62,8 +62,13 @@ std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
     std::list<BleFingerprint *> copy(fingerprints);
     if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
         log_e("Couldn't give semaphore!");
-    return copy;
+    return std::move(copy);
 }
 String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::countIds{};
 float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
 int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
+
+const std::list<BleFingerprint *>* const BleFingerprintCollection::getNative()
+{
+    return &fingerprints;
+}

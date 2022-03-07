@@ -18,7 +18,8 @@ public:
     }
     BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice);
     void cleanupOldFingerprints();
-    std::list<BleFingerprint *> getCopy();
+    const std::list<BleFingerprint *>* const getNative();
+    const std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
     static String knownMacs, include, exclude, query;
     static float skipDistance, maxDistance, absorption;
