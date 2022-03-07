@@ -15,12 +15,12 @@
 #define NO_RSSI (-32768)
 
 #define ID_TYPE_TX_POW short(1)
+#define ID_TYPE_MISC_APPLE short(-5)
 
 #define ID_TYPE_MAC short(0)
 #define ID_TYPE_AD short(10)
 #define ID_TYPE_SD short(15)
 #define ID_TYPE_MD short(20)
-#define ID_TYPE_MISC_APPLE short(25)
 #define ID_TYPE_MISC short(30)
 #define ID_TYPE_NAME short(35)
 #define ID_TYPE_PUBLIC_MAC short(50)
@@ -121,11 +121,11 @@ private:
 
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
 
-    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount);
+    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
 
-    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount);
+    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
 
-    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice);
+    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
 };
 
 #endif
