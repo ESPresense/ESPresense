@@ -102,6 +102,7 @@ int lastRadarValue = -1;
 #ifdef SENSORS
 int dht11Pin;
 int dht22Pin;
+float dhtTempOffset;
 
 /** Initialize DHT sensor 1 */
 DHTesp dhtSensor;

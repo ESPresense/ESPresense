@@ -155,6 +155,7 @@ void connectToWifi()
 #ifdef SENSORS
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
+    dhtTempOffset = WiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
 
     WiFiSettings.heading("I2C Settings");
 
@@ -220,6 +221,8 @@ void connectToWifi()
     Serial.println(dht11Pin ? "enabled" : "disabled");
     Serial.print("DHT22 Sensor: ");
     Serial.println(dht22Pin ? "enabled" : "disabled");
+    Serial.print("DHT Temp Offset: ");
+    Serial.println(dhtTempOffset ? "enabled" : "disabled");
     Serial.print("BH1750_I2c Sensor: ");
     Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
     Serial.print("BME280_I2c Sensor: ");
@@ -705,7 +708,7 @@ void dhtLoop()
     if (gotNewTemperature)
     {
         float humidity = dhtSensorData.humidity;
-        float temperature = dhtSensorData.temperature;
+        float temperature = dhtSensorData.temperature + dhtTempOffset;  
         Serial.println("Temp: " + String(temperature, 2) + "'C Humidity: " + String(humidity, 1) + "%");
 
         mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
