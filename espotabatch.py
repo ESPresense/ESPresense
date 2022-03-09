@@ -8,11 +8,14 @@ import time
 esps = [
   #mDNS name of ESP   #path to ".bin" file
     ['192.168.128.114', 'macchina-a0'],
+    ['192.168.128.124', 'm5stickc'],
+    ['192.168.128.64', 'm5atom-matrix'],
+    ['192.168.128.84', 'm5atom-matrix']
 ]
 esp_respond_sender_port = '3232'
 sender_to_esp_port = '3232'
 
-cmd = 'pio run -e m5atom-matrix -e macchina-a0'
+cmd = 'pio run -e m5atom-matrix -e macchina-a0 -e m5stickc'
 p = subprocess.call(cmd, shell=True)
 
 for esp in esps:

@@ -412,7 +412,7 @@ bool reportDevice(BleFingerprint *f)
 void scanForDevices(void *parameter)
 {
     connectToMqtt();
-    BLEDevice::init(Stdprintf("ESPresense-%06" PRIx64, ESP.getEfuseMac() >> 24));
+    BLEDevice::init("");
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
     NimBLEDevice::setSecurityAuth(false, false, false);
@@ -423,7 +423,7 @@ void scanForDevices(void *parameter)
     pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
     if (activeScan) pBLEScan->setActiveScan(true);
     pBLEScan->setDuplicateFilter(false);
-    pBLEScan->setMaxResults(0xFF);
+    pBLEScan->setMaxResults(0);
     // pBLEScan->setFilterPolicy(BLE_HCI_SCAN_FILT_NO_WL_INITA);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
