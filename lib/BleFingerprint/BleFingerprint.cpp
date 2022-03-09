@@ -4,6 +4,16 @@
 #include "strings.h"
 #include "util.h"
 
+class ClientCallbacks : public BLEClientCallbacks
+{
+    bool onConnParamsUpdateRequest(NimBLEClient *pClient, const ble_gap_upd_params *params)
+    {
+        return true;
+    };
+};
+
+static ClientCallbacks clientCB;
+
 bool BleFingerprint::shouldHide(const String& s)
 {
     if (BleFingerprintCollection::include.length() > 0 && !prefixExists(BleFingerprintCollection::include, s)) return true;
@@ -429,7 +439,7 @@ bool BleFingerprint::query()
     if (rssi < -90) return false;
     auto now = millis();
 
-    if (now - lastSeenMillis > 2) return false;
+    if (now - lastSeenMillis > 10) return false;
 
     if (now - lastQryMillis < qryDelayMillis) return false;
     didQuery = true;
@@ -442,9 +452,13 @@ bool BleFingerprint::query()
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
+    pClient->setClientCallbacks(&clientCB, false);
+    pClient->setConnectionParams(12, 12, 0, 200);
     pClient->setConnectTimeout(5);
+    NimBLEDevice::getScan()->stop();
     if (pClient->connect(address))
     {
+        delay(100);
         bool iphone = true;
         if (allowQuery)
         {
