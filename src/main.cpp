@@ -709,10 +709,10 @@ void dhtLoop()
     {
         float humidity = dhtSensorData.humidity;
         float temperature = dhtSensorData.temperature + dhtTempOffset;  
-        Serial.println("Temp: " + String(temperature, 2) + "'C Humidity: " + String(humidity, 1) + "%");
+        Serial.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
 
-        mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity).c_str());
-        mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature).c_str());
+        mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity, 1).c_str());
+        mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature, 1).c_str());
 
         gotNewTemperature = false;
     }
