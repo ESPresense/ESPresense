@@ -673,8 +673,8 @@ void setup()
         }
     }
 #endif
-    xTaskCreatePinnedToCore(scanTask, "scanTask", 4000, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
-    xTaskCreatePinnedToCore(reportTask, "reportTask", 6500, nullptr, 1, &reportTaskHandle, 1);
+    xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, 1);
     configureOTA();
 }
 
