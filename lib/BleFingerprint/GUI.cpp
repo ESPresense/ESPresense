@@ -85,36 +85,36 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
 void GUI::added(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
-    Serial.printf("%d New %s | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
+    Serial.printf("%u New %s | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
  void GUI::removed(BleFingerprint *f)
 {
     if (f->getIgnore() || !f->getAdded()) return;
-    Serial.printf("\u001b[38;5;236m%d Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
+    Serial.printf("\u001b[38;5;236m%u Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
 void GUI::plusOne(BleFingerprint *f)
 {
-    Serial.printf("\u001b[36m%d C# +1 | MAC: %s, ID: %-60s (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getMsSinceLastSeen());
+    Serial.printf("\u001b[36m%u C# +1 | MAC: %s, ID: %-60s (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
 void GUI::minusOne(BleFingerprint *f)
 {
-    Serial.printf("\u001b[35m%d C# -1 | MAC: %s, ID: %-60s (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getMsSinceLastSeen());
+    Serial.printf("\u001b[35m%u C# -1 | MAC: %s, ID: %-60s (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
  void GUI::close(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
-    Serial.printf("\u001b[32m%d Close | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
+    Serial.printf("\u001b[32m%u Close | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("C: %s", f->getId().c_str());
 }
 
  void GUI::left(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
-    Serial.printf("\u001b[33m%d Left  | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
+    Serial.printf("\u001b[33m%u Left  | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("L: %s", f->getId().c_str());
 }
 
