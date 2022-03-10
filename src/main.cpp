@@ -319,6 +319,18 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         spurt("/exclude", pay);
         online = false;
     }
+    else if (command == "known_macs")
+    {
+        BleFingerprintCollection::knownMacs = pay;
+        spurt("/known_macs", pay);
+        online = false;
+    }
+    else if (command == "count_ids")
+    {
+        BleFingerprintCollection::countIds = pay;
+        spurt("/count_ids", pay);
+        online = false;
+    }
     else if (command == "status_led")
     {
         GUI::statusLed = pay == "ON";
