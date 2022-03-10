@@ -285,10 +285,9 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             }
             else if (strManufacturerData.length() >= 4)
             {
-                if (haveTxPower)
-                    setId(Sprintf("apple:%02x%02x:%d%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length(), -txPower), ID_TYPE_MISC_APPLE);
-                else
-                    setId(Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length()), ID_TYPE_MISC_APPLE);
+                String pid = Sprintf("apple:%02x%02x:%d", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                if (haveTxPower) pid += -txPower;
+                setId(pid, ID_TYPE_MISC_APPLE);
                 mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
             }
         }
