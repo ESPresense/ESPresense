@@ -214,14 +214,6 @@ void connectToWifi()
     Serial.println(room);
     Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
-    Serial.print("Telemetry:    ");
-    Serial.println(publishTele ? "enabled" : "disabled");
-    Serial.print("Rooms:        ");
-    Serial.println(publishRooms ? "enabled" : "disabled");
-    Serial.print("Devices:      ");
-    Serial.println(publishDevices ? "enabled" : "disabled");
-    Serial.print("Discovery:    ");
-    Serial.println(discovery ? "enabled" : "disabled");
     Motion::SerialReport();
 #ifdef SENSORS
     Serial.print("DHT11 Sensor: ");
@@ -242,6 +234,10 @@ void connectToWifi()
     Serial.println(BleFingerprintCollection::include);
     Serial.print("Exclude:      ");
     Serial.println(BleFingerprintCollection::exclude);
+    Serial.print("Known Macs:   ");
+    Serial.println(BleFingerprintCollection::knownMacs);
+    Serial.print("Count Ids:    ");
+    Serial.println(BleFingerprintCollection::countIds);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -367,7 +363,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
 void reconnect(TimerHandle_t xTimer)
 {
-    Serial.printf("%d Reconnect timer\n", xPortGetCoreID());
+    Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
     if (updateInProgress) return;
     if (WiFi.isConnected() && mqttClient.connected()) return;
 
@@ -379,12 +375,12 @@ void reconnect(TimerHandle_t xTimer)
 
     if (!WiFi.isConnected())
     {
-        Serial.printf("%d Reconnecting to WiFi...\n", xPortGetCoreID());
+        Serial.printf("%u Reconnecting to WiFi...\n", xPortGetCoreID());
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
     }
 
-    Serial.printf("%d Reconnecting to MQTT...\n", xPortGetCoreID());
+    Serial.printf("%u Reconnecting to MQTT...\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
@@ -933,7 +929,7 @@ void loop()
     uint32_t freeHeap = ESP.getFreeHeap();
     if (otaUpdate && freeHeap > 4096)
         ArduinoOTA.handle();
-    if (freeHeap < 10000) Serial.printf("Low memory: %d bytes free", freeHeap);
+    if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
     GUI::blit();
     Motion::Loop(mqttClient);

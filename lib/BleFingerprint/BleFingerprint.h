@@ -111,6 +111,7 @@ private:
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     uint16_t mv = 0;
+    uint8_t battery = 0xFF;
 
     Reading<Differential<float>> output;
 

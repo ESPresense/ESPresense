@@ -83,15 +83,15 @@ bool sentDiscovery = false; // Have we successfully sent discovery
 String offline = "offline";
 
 String mqttHost, mqttUser, mqttPass;
-int mqttPort;
+uint16_t mqttPort;
 String room, id, statusTopic, teleTopic, roomsTopic, setTopic;
 
 bool autoUpdate, otaUpdate, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 
 #ifdef SENSORS
-int dht11Pin;
-int dht22Pin;
+uint8_t dht11Pin;
+uint8_t dht22Pin;
 
 /** Initialize DHT sensor 1 */
 DHTesp dhtSensor;
