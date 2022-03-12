@@ -1,4 +1,5 @@
 #include "GUI.h"
+#include "tb_display.h"
 
 #if defined M5STICK
 
@@ -122,18 +123,18 @@ void GUI::minusOne(BleFingerprint *f)
 {
     begin();
 #ifdef M5STICK
-    sprite.fillSprite(TFT_BLACK);
-    sprite.setTextDatum(MC_DATUM);
-
     char *message;
     va_list args;
     va_start(args, format);
     vasprintf(&message, format, args);
     va_end(args);
+    tb_display_print_String(message);
+    tb_display_print_String("\n");
 #ifdef PLUS
-    sprite.drawString(message, sprite.width() / 2, sprite.height() / 2, 4);
+    //drawString(message, sprite.width() / 2, sprite.height() / 2, 4);
 #else
-    sprite.drawString(message, sprite.width() / 2, sprite.height() / 2, 1);
+
+    //sprite.drawString(message, sprite.width() / 2, sprite.height() / 2, 1);
 #endif
     free(message);
     dirty = true;
@@ -153,12 +154,9 @@ void GUI::minusOne(BleFingerprint *f)
     {
 #ifdef M5STICK
         M5.begin(true, true, false);
-        M5.Lcd.setRotation(3);
-        sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
-        sprite.setSwapBytes(true);
+        tb_display_init(3);
 #elif defined M5ATOM
         M5.begin(false, false, true);
-        M5.dis.drawpix(0, CRGB(64, 0, 0));
 #endif
         GUI::init = true;
     }
@@ -170,7 +168,6 @@ void GUI::minusOne(BleFingerprint *f)
 #ifdef M5STICK
     if (dirty)
     {
-        sprite.pushSprite(0, 0);
         M5.Axp.ScreenBreath(12);
         dirty = false;
     }
@@ -203,5 +200,4 @@ bool GUI::statusLed=false;
 
 #ifdef M5STICK
 bool GUI::dirty = false;
-TFT_eSprite GUI::sprite(&M5.Lcd);
 #endif
