@@ -86,7 +86,7 @@ String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 String room, id, statusTopic, teleTopic, roomsTopic, setTopic;
 
-bool autoUpdate, otaUpdate, prerelease;
+bool autoUpdate, arduinoOta, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 uint8_t pirPin, radarPin;
 int lastPirValue = -1, lastRadarValue = -1;
@@ -183,7 +183,7 @@ void setClock()
 
 void configureOTA()
 {
-    if (!otaUpdate) return;
+    if (!arduinoOta) return;
     ArduinoOTA
         .onStart([]()
                  {
@@ -334,7 +334,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool sendOnline()
 {
-    return pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/ota_update").c_str(), 0, true, String(otaUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str());
+    return pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery()
@@ -372,6 +372,25 @@ bool sendDiscoveryConnectivity()
 
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/connectivity/config";
+
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
+
+bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass)
+{
+    auto slug = slugify(name);
+
+    commonDiscovery();
+    doc["~"] = roomsTopic;
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/telemetry";
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
+    doc["value_template"] = temp;
+    doc["dev_cla"] = devClass;
+    serializeJson(doc, buffer);
+    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/" + slug + "/config";
 
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
