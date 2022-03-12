@@ -7,6 +7,7 @@
 static BLEUUID eddystoneUUID((uint16_t)0xFEAA);
 static BLEUUID tileUUID((uint16_t)0xFEED);
 static BLEUUID exposureUUID((uint16_t)0xFD6F);
+static BLEUUID smartTagUUID((uint16_t)0xFD5A);
 static BLEUUID sonosUUID((uint16_t)0xFE07);
 static BLEUUID itagUUID((uint16_t)0xffe0);
 static BLEUUID miThermUUID(uint16_t(0x181A));
