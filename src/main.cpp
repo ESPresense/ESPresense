@@ -46,7 +46,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #endif
     doc["rssi"] = WiFi.RSSI();
 #ifdef MACCHINA_A0
-    doc["batt"] = a0_read_batt_mv() / 1000.0f;
+    auto mv = a0_read_batt_mv();
+    doc["mV"] = mv;
+    auto soc = round(11897.04 + (3.649569 * mv) + (0.04347647 * mv * mv));
+    doc["batt"] = min(0, max(100, soc));
 #endif
 #ifdef VERSION
     doc["ver"] = String(VERSION);
@@ -730,7 +733,7 @@ void dhtLoop()
     if (gotNewTemperature)
     {
         float humidity = dhtSensorData.humidity;
-        float temperature = dhtSensorData.temperature + dhtTempOffset;  
+        float temperature = dhtSensorData.temperature + dhtTempOffset;
         Serial.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
 
         mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity, 1).c_str());
