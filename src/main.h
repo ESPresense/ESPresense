@@ -92,8 +92,10 @@ uint8_t pirPin, radarPin;
 int lastPirValue = -1, lastRadarValue = -1;
 
 #ifdef SENSORS
+
 uint8_t dht11Pin;
 uint8_t dht22Pin;
+float dhtTempOffset;
 
 /** Initialize DHT sensor 1 */
 DHTesp dhtSensor;
