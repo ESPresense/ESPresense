@@ -433,10 +433,12 @@ bool BleFingerprint::report(JsonDocument *doc)
     (*doc)[F("speed")] = round(output.value.speed * 1e5f) / 100.0f;
     (*doc)[F("mac")] = SMacf(address);
 
+    (*doc)[F("interval")] = (now - firstSeenMillis) / seenCount;
+
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
-    if (temp) (*doc)[F("temp")] = temp;
-    if (humidity) (*doc)[F("rh")] = humidity;
+    if (temp) (*doc)[F("temp")] = round(temp*10)/10;
+    if (humidity) (*doc)[F("rh")] = round(humidity*10)/10;
 
     return true;
 }
