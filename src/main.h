@@ -90,8 +90,10 @@ bool autoUpdate, otaUpdate, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 
 #ifdef SENSORS
+
 uint8_t dht11Pin;
 uint8_t dht22Pin;
+float dhtTempOffset;
 
 /** Initialize DHT sensor 1 */
 DHTesp dhtSensor;
