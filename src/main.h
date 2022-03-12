@@ -653,8 +653,15 @@ bool spurt(const String &fn, const String &content)
 }
 
 #ifdef MACCHINA_A0
+
+int smoothMilliVolts;
 int a0_read_batt_mv()
 {
-    return round(((float)analogRead(GPIO_NUM_35) + 35) / 0.215);
+    int mv = round(((float)analogRead(GPIO_NUM_35) + 35) / 0.215);
+    if (smoothMilliVolts)
+        smoothMilliVolts = round(0.1 * (mv - smoothMilliVolts) + smoothMilliVolts);
+    else
+        smoothMilliVolts = mv;
+    return smoothMilliVolts;
 }
 #endif
