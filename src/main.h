@@ -635,7 +635,6 @@ bool spurt(const String &fn, const String &content)
 #ifdef MACCHINA_A0
 int a0_read_batt_mv()
 {
-    float vout = ((float)analogRead(GPIO_NUM_35) + 35) / 215.0;
-    return vout * 1100; // V to mV with +10% correction
+    return round(((float)analogRead(GPIO_NUM_35) + 35) / 0.215);
 }
 #endif
