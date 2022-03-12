@@ -93,12 +93,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
-    GUI::blit();
-
-    WiFiSettings.onConnect = []()
-    {
-        GUI::connected(false, false);
-    };
+    GUI::connected(false, false);
 
     WiFiSettings.onFailure = []()
     {
@@ -931,7 +926,6 @@ void loop()
         ArduinoOTA.handle();
     if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
-    GUI::blit();
     Motion::Loop(mqttClient);
 #ifdef SENSORS
     dhtLoop();
