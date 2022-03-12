@@ -90,10 +90,10 @@ public:
 
     bool getRmAsst() const { return rmAsst; };
 
-    int getSeenCount()
+    unsigned int getSeenCount()
     {
-        auto sc = seenCount;
-        seenCount = 0;
+        auto sc = seenCount - lastSeenCount;
+        lastSeenCount = seenCount;
         return sc;
     }
 
@@ -108,9 +108,10 @@ private:
     String id, name, disc;
     short int idType = 0;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
-    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 0;
+    unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
+    unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF;
 
