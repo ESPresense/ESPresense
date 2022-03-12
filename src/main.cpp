@@ -1,6 +1,6 @@
 #include "main.h"
 
-bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
+bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported, int count)
 {
     if (!online)
     {
@@ -17,7 +17,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendNumberDiscovery("Absorption", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s") && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes") && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", "")) && sendButtonDiscovery("Restart", EC_DIAGNOSTIC) && sendSwitchDiscovery("Status LED", EC_CONFIG) && sendNumberDiscovery("Max Distance", EC_CONFIG) && sendNumberDiscovery("Absorption", EC_CONFIG) && sendSwitchDiscovery("Active Scan", EC_CONFIG) && sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("OTA Update", EC_CONFIG) && sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -51,6 +51,9 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #ifdef VERSION
     doc["ver"] = String(VERSION);
 #endif
+
+    if (!BleFingerprintCollection::countIds.isEmpty())
+        doc["count"] = count;
     if (totalSeen > 0)
         doc["adverts"] = totalSeen;
     if (totalFpSeen > 0)
@@ -88,12 +91,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 void connectToWifi()
 {
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
-    GUI::blit();
-
-    WiFiSettings.onConnect = []()
-    {
-        GUI::connected(false, false);
-    };
+    GUI::connected(false, false);
 
     WiFiSettings.onFailure = []()
     {
@@ -116,40 +114,47 @@ void connectToWifi()
 #endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
 
-    WiFiSettings.heading("MQTT Connection");
+    WiFiSettings.heading("MQTT <a href='https://espresense.com/settings#mqtt' target='_blank'>ℹ️</a>", false);
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
-
-    WiFiSettings.heading("Preferences");
-    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
-
-    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-
-    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
-    discovery = WiFiSettings.checkbox("discovery", true, "Home Assistant Discovery");
-    activeScan = WiFiSettings.checkbox("active_scan", false, "Active scanning (uses more battery but more results)");
+    discovery = WiFiSettings.checkbox("discovery", true, "Send to discovery topic");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.heading("Filtering");
+    WiFiSettings.heading("Room Count <a href='https://espresense.com/settings#room-count' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::countIds = WiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
+    BleFingerprintCollection::countEnter = WiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
+    BleFingerprintCollection::countExit = WiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
+    BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
+
+    WiFiSettings.heading("Updating <a href='https://espresense.com/settings#updating' target='_blank'>ℹ️</a>", false);
+    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
+    prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
+
+    WiFiSettings.heading("Scanning <a href='https://espresense.com/settings#scanning' target='_blank'>ℹ️</a>", false);
+    activeScan = WiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
+    BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
     BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+
+    WiFiSettings.heading("Filtering <a href='https://espresense.com/settings#filtering' target='_blank'>ℹ️</a>", false);
     if (BleFingerprintCollection::query == "1") BleFingerprintCollection::query = "apple:10"; // This is to keep query=true doing the same thing as older firmwares
-    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "If set will only send matching to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
     BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
     BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     BleFingerprintCollection::skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     BleFingerprintCollection::skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
 
-    WiFiSettings.heading("Calibration");
+    WiFiSettings.heading("Calibration <a href='https://espresense.com/settings#calibration' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter");
     BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
 
-    WiFiSettings.heading("Additional Sensors");
+    WiFiSettings.heading("Misc <a href='https://espresense.com/settings#misc' target='_blank'>ℹ️</a>", false);
+    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
     pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
     radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
 #ifdef SENSORS
@@ -157,7 +162,7 @@ void connectToWifi()
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
     dhtTempOffset = WiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
 
-    WiFiSettings.heading("I2C Settings");
+    WiFiSettings.heading("I2C Settings <a href='https://espresense.com/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
     I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
@@ -170,7 +175,7 @@ void connectToWifi()
     I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", 0, "SDA pin (0 to disable)");
     I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", 0, "SCL pin (0 to disable)");
 
-    WiFiSettings.heading("I2C Sensors");
+    WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
     WiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
     BH1750_I2c_Bus = WiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
@@ -190,9 +195,11 @@ void connectToWifi()
 
     if (!WiFiSettings.connect(true, 60))
         ESP.restart();
-
+#ifdef FIRMWARE
+    Serial.println("Firmware:     " + String(FIRMWARE));
+#endif
 #ifdef VERSION
-    Serial.println("Version:    " + String(VERSION));
+    Serial.println("Version:      " + String(VERSION));
 #endif
     Serial.print("IP address:   ");
     Serial.println(WiFi.localIP());
@@ -202,20 +209,8 @@ void connectToWifi()
     Serial.println(WiFi.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
-    Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
-    Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
-    Serial.print("Telemetry:    ");
-    Serial.println(publishTele ? "enabled" : "disabled");
-    Serial.print("Rooms:        ");
-    Serial.println(publishRooms ? "enabled" : "disabled");
-    Serial.print("Devices:      ");
-    Serial.println(publishDevices ? "enabled" : "disabled");
-    Serial.print("Discovery:    ");
-    Serial.println(discovery ? "enabled" : "disabled");
-    Serial.print("PIR Sensor:   ");
-    Serial.println(pirPin ? "enabled" : "disabled");
-    Serial.print("Radar Sensor: ");
-    Serial.println(radarPin ? "enabled" : "disabled");
+    Serial.printf("MQTT server:  %s:%hu\n", mqttHost.c_str(), mqttPort);
+    Serial.printf("Max Distance: %.1f\n", BleFingerprintCollection::maxDistance);
 #ifdef SENSORS
     Serial.print("DHT11 Sensor: ");
     Serial.println(dht11Pin ? "enabled" : "disabled");
@@ -237,6 +232,10 @@ void connectToWifi()
     Serial.println(BleFingerprintCollection::include);
     Serial.print("Exclude:      ");
     Serial.println(BleFingerprintCollection::exclude);
+    Serial.print("Known Macs:   ");
+    Serial.println(BleFingerprintCollection::knownMacs);
+    Serial.print("Count Ids:    ");
+    Serial.println(BleFingerprintCollection::countIds);
 
     localIp = WiFi.localIP().toString();
     id = slugify(room);
@@ -314,6 +313,18 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         spurt("/exclude", pay);
         online = false;
     }
+    else if (command == "known_macs")
+    {
+        BleFingerprintCollection::knownMacs = pay;
+        spurt("/known_macs", pay);
+        online = false;
+    }
+    else if (command == "count_ids")
+    {
+        BleFingerprintCollection::countIds = pay;
+        spurt("/count_ids", pay);
+        online = false;
+    }
     else if (command == "status_led")
     {
         GUI::statusLed = pay == "ON";
@@ -350,7 +361,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 
 void reconnect(TimerHandle_t xTimer)
 {
-    Serial.printf("%d Reconnect timer\n", xPortGetCoreID());
+    Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
     if (updateInProgress) return;
     if (WiFi.isConnected() && mqttClient.connected()) return;
 
@@ -362,12 +373,12 @@ void reconnect(TimerHandle_t xTimer)
 
     if (!WiFi.isConnected())
     {
-        Serial.printf("%d Reconnecting to WiFi...\n", xPortGetCoreID());
+        Serial.printf("%u Reconnecting to WiFi...\n", xPortGetCoreID());
         if (!WiFiSettings.connect(true, 60))
             ESP.restart();
     }
 
-    Serial.printf("%d Reconnecting to MQTT...\n", xPortGetCoreID());
+    Serial.printf("%u Reconnecting to MQTT...\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
@@ -412,29 +423,14 @@ bool reportDevice(BleFingerprint *f)
     return false;
 }
 
-void scanForDevices(void *parameter)
+int totalFpReported = 0;
+int totalSeen = 0;
+int totalFpSeen = 0;
+int totalFpQueried = 0;
+
+void reportTask(void *parameter)
 {
     connectToMqtt();
-    BLEDevice::init("");
-    for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
-        NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
-    NimBLEDevice::setSecurityAuth(false, false, false);
-
-    auto pBLEScan = BLEDevice::getScan();
-    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
-    pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
-    if (activeScan) pBLEScan->setActiveScan(true);
-    pBLEScan->setDuplicateFilter(false);
-    pBLEScan->setMaxResults(0);
-    // pBLEScan->setFilterPolicy(BLE_HCI_SCAN_FILT_NO_WL_INITA);
-    if (!pBLEScan->start(0, nullptr, false))
-        log_e("Error starting continuous ble scan");
-
-    int totalSeen = 0;
-    int totalFpSeen = 0;
-    int totalFpQueried = 0;
-    int totalFpReported = 0;
 
     while (true)
     {
@@ -444,28 +440,14 @@ void scanForDevices(void *parameter)
         yield();
         auto copy = fingerprints.getCopy();
 
-        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported);
+        int count = 0;
+        for (auto i: copy)
+            if (i->shouldCount())
+                count++;
+
         yield();
-
-        if (millis() - lastQueryMillis > 3000)
-        {
-            auto started = millis();
-            for (auto f : copy)
-            {
-                if (f->query())
-                    totalFpQueried++;
-
-                if (millis() - started > 3000) break;
-            }
-
-            if (!pBLEScan->isScanning())
-            {
-                if (!pBLEScan->start(0, nullptr, true))
-                    log_e("Error re-starting continuous ble scan");
-
-                lastQueryMillis = millis(); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
-            }
-        }
+        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
+        yield();
 
         auto reported = 0;
         for (auto f : copy)
@@ -481,6 +463,45 @@ void scanForDevices(void *parameter)
                 totalFpReported++;
                 reported++;
             }
+            yield();
+        }
+    }
+}
+
+void scanTask(void *parameter)
+{
+    NimBLEDevice::init("");
+    for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
+        NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
+    NimBLEDevice::setSecurityAuth(true, true, true);
+    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    NimBLEDevice::setMTU(255);
+
+    auto pBLEScan = NimBLEDevice::getScan();
+    pBLEScan->setInterval(BLE_SCAN_INTERVAL);
+    pBLEScan->setWindow(BLE_SCAN_WINDOW);
+    pBLEScan->setAdvertisedDeviceCallbacks(&fingerprints, true);
+    pBLEScan->setActiveScan(activeScan);
+    pBLEScan->setDuplicateFilter(false);
+    pBLEScan->setMaxResults(0);
+    if (!pBLEScan->start(0, nullptr, false))
+        log_e("Error starting continuous ble scan");
+
+    while (true)
+    {
+        for (auto f : *fingerprints.getNative())
+            if (f->query())
+                totalFpQueried++;
+
+        if (!pBLEScan->isScanning())
+        {
+            if (!pBLEScan->start(0, nullptr, true))
+                log_e("Error re-starting continuous ble scan");
+            delay(3000); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
+        }
+        else
+        {
+            delay(100);
         }
     }
 }
@@ -602,7 +623,7 @@ void setup()
         {
             // Init BH1750 (witch default l2c adres)
             int rc; // Returncode
-            long m; // milli for calibration
+            unsigned long m; // milli for calibration
             bool state = false;
 
             // if (! BH1750.begin(BH1750_TO_GROUND))
@@ -652,14 +673,15 @@ void setup()
         }
     }
 #endif
-    xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 6000, nullptr, 1, &scannerTask, 1);
+    xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, 1);
     configureOTA();
 }
 
 void pirLoop()
 {
     if (!pirPin) return;
-    int pirValue = digitalRead(pirPin);
+    auto pirValue = digitalRead(pirPin);
 
     if (pirValue != lastPirValue)
     {
@@ -681,7 +703,7 @@ void pirLoop()
 void radarLoop()
 {
     if (!radarPin) return;
-    int radarValue = digitalRead(radarPin);
+    auto radarValue = digitalRead(radarPin);
 
     if (radarValue != lastRadarValue)
     {
@@ -947,12 +969,11 @@ void l2cScanner()
 
 void loop()
 {
-    int freeHeap = ESP.getFreeHeap();
+    uint32_t freeHeap = ESP.getFreeHeap();
     if (otaUpdate && freeHeap > 4096)
         ArduinoOTA.handle();
-    if (freeHeap < 10000) Serial.printf("Low memory: %d bytes free", freeHeap);
+    if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
-    GUI::blit();
     pirLoop();
     radarLoop();
 #ifdef SENSORS

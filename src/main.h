@@ -41,7 +41,7 @@ unsigned long sensorInterval = 60000;
 //GY-302 lux sensor
 #include <hp_BH1750.h>
 hp_BH1750 BH1750;
-long ms_BH1750;
+unsigned long ms_BH1750;
 float lux_BH1750;
 int lux_BH1750_MQTT;
 String BH1750_I2c;
@@ -63,45 +63,38 @@ String TSL2561_I2c_Gain;
 unsigned long tsl2561PreviousMillis = 0;
 #endif
 
+static const char *const EC_DIAGNOSTIC = "diagnostic";
+static const char *const EC_CONFIG = "config";
+
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
-TaskHandle_t scannerTask;
+TaskHandle_t scanTaskHandle, reportTaskHandle;
 
 DynamicJsonDocument doc(2048);
 char buffer[2048];
 
 bool updateInProgress = false;
 String localIp;
-unsigned long lastTeleMillis, lastQueryMillis;
+unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online = false;        // Have we successfully sent status=online
 bool sentDiscovery = false; // Have we successfully sent discovery
 String offline = "offline";
-String mqttHost;
-int mqttPort;
-String mqttUser;
-String mqttPass;
-String room;
-String id;
-String statusTopic;
-String teleTopic;
-String roomsTopic;
-String setTopic;
+
+String mqttHost, mqttUser, mqttPass;
+uint16_t mqttPort;
+String room, id, statusTopic, teleTopic, roomsTopic, setTopic;
+
 bool autoUpdate, otaUpdate, prerelease;
-bool discovery;
-bool activeScan;
-bool publishTele;
-bool publishRooms;
-bool publishDevices;
-int pirPin;
-int radarPin;
-int lastPirValue = -1;
-int lastRadarValue = -1;
+bool discovery, activeScan, publishTele, publishRooms, publishDevices;
+uint8_t pirPin, radarPin;
+int lastPirValue = -1, lastRadarValue = -1;
 
 #ifdef SENSORS
-int dht11Pin;
-int dht22Pin;
+
+uint8_t dht11Pin;
+uint8_t dht22Pin;
 float dhtTempOffset;
 
 /** Initialize DHT sensor 1 */
@@ -301,7 +294,7 @@ void spiffsInit()
     int flashes = 0;
     unsigned long debounceDelay = 250;
 
-    long lastDebounceTime = millis();
+    unsigned long lastDebounceTime = millis();
     while (digitalRead(BUTTON) == BUTTON_PRESSED)
     {
         if ((millis() - lastDebounceTime) > debounceDelay)
@@ -341,7 +334,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool sendOnline()
 {
-    return pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/ota_update").c_str(), 0, true, String(otaUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str());
+    return pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/ota_update").c_str(), 0, true, String(otaUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str());
 }
 
 void commonDiscovery()
@@ -383,38 +376,21 @@ bool sendDiscoveryConnectivity()
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendDiscoveryUptime()
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units)
 {
+    auto slug = slugify(name);
+
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Uptime";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_uptime", ESP.getEfuseMac() >> 24);
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_%s", ESP.getEfuseMac() >> 24, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
-    doc["entity_category"] = "diagnostic";
-    doc["value_template"] = "{{ value_json.uptime }}";
-    doc["unit_of_measurement"] = "s";
-
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
+    doc["value_template"] = temp;
+    if (!units.isEmpty()) doc["unit_of_measurement"] = units;
     serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/uptime/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryFreeMem()
-{
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Free Memory";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_free_mem", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/telemetry";
-    doc["entity_category"] = "diagnostic";
-    doc["value_template"] = "{{ value_json.maxAllocHeap }}";
-    doc["unit_of_measurement"] = "bytes";
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/free_mem/config";
+    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/" + slug + "/config";
 
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
