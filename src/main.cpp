@@ -48,8 +48,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #ifdef MACCHINA_A0
     auto mv = a0_read_batt_mv();
     doc["mV"] = mv;
-    auto soc = round(11897.04 + (3.649569 * mv) + (0.04347647 * mv * mv));
-    doc["batt"] = min(0, max(100, soc));
+    int soc = round(-13275.04 + 2.049731*mv - 0.00007847975*mv*mv);
+    doc["batt"] = max(0, min(100, soc));
 #endif
 #ifdef VERSION
     doc["ver"] = String(VERSION);
@@ -570,7 +570,9 @@ void setup()
 #endif
     if (pirPin) pinMode(pirPin, INPUT);
     if (radarPin) pinMode(radarPin, INPUT);
-
+#if MACCHINA_A0
+    pinMode(GPIO_NUM_35, INPUT);
+#endif
 #ifdef SENSORS
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
     if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)

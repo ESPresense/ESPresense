@@ -4,10 +4,9 @@ import time
 
 #this list contains array of esp32 clients,
 # and each client contains mDNS name and the path to .bin file
-#I only have 1 ESP so I duplicate mDNS entry for testing
 esps = [
   #mDNS name of ESP   #path to ".bin" file
-    ['192.168.128.114', 'macchina-a0'],
+    ['192.168.128.112', 'macchina-a0'],
     ['192.168.128.124', 'm5stickc'],
     ['192.168.128.64', 'm5atom-matrix'],
     ['192.168.128.84', 'm5atom-matrix']
