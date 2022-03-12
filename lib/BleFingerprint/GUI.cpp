@@ -60,8 +60,6 @@ void GUI::erased()
 
 void GUI::connecting()
 {
-    status("Connecting...");
-    connected(false, false);
 #ifdef LED_BUILTIN
     if (GUI::statusLed) digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
 #endif
@@ -156,6 +154,7 @@ void GUI::minusOne(BleFingerprint *f)
     {
 #ifdef M5STICK
         M5.begin(true, true, false);
+        M5.Axp.ScreenBreath(12);
         tb_display_init(3);
 #elif defined M5ATOM
         M5.begin(false, false, true);
@@ -164,17 +163,6 @@ void GUI::minusOne(BleFingerprint *f)
     }
 }
 
- void GUI::blit()
-{
-    begin();
-#ifdef M5STICK
-    if (dirty)
-    {
-        M5.Axp.ScreenBreath(12);
-        dirty = false;
-    }
-#endif
-}
 
  void GUI::updateStart()
 {
