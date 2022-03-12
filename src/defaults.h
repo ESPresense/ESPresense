@@ -44,8 +44,8 @@
 
 #ifdef VERSION
 #define DEFAULT_AUTO_UPDATE true
-#define DEFAULT_OTA_UPDATE false
+#define DEFAULT_ARDUINO_OTA false
 #else
 #define DEFAULT_AUTO_UPDATE false
-#define DEFAULT_OTA_UPDATE true
+#define DEFAULT_ARDUINO_OTA true
 #endif

@@ -19,9 +19,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s") && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes") && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", "")) && sendButtonDiscovery("Restart", EC_DIAGNOSTIC) && sendSwitchDiscovery("Status LED", EC_CONFIG) && sendNumberDiscovery("Max Distance", EC_CONFIG) && sendNumberDiscovery("Absorption", EC_CONFIG) && sendSwitchDiscovery("Active Scan", EC_CONFIG) && sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("Arduino OTA", EC_CONFIG) && sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendDeleteDiscovery("switch", "Query") && Motion::SendDiscovery(doc)
+        if (sendDiscoveryConnectivity() && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s") && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes") && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", "")) && sendButtonDiscovery("Restart", EC_DIAGNOSTIC) && sendSwitchDiscovery("Status LED", EC_CONFIG) && sendNumberDiscovery("Max Distance", EC_CONFIG) && sendNumberDiscovery("Absorption", EC_CONFIG) && sendSwitchDiscovery("Active Scan", EC_CONFIG) && sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("Arduino OTA", EC_CONFIG) && sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendDeleteDiscovery("switch", "OTA Update") && Motion::SendDiscovery(doc)
 #ifdef MACCHINA_A0
             && sendTeleSensorDiscovery("Battery", "", "{{ value_json.batt }}", "%")
+            && sendTeleBinarySensorDiscovery("Running", "", "{{ value_json.run }}", "running")
 #endif
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
@@ -53,8 +54,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #ifdef MACCHINA_A0
     auto mv = a0_read_batt_mv();
     doc["mV"] = mv;
-    int soc = round(-13275.04 + 2.049731*mv - 0.00007847975*mv*mv);
-    doc["batt"] = max(0, min(100, soc));
+    bool run = (mv > 13200);
+    unsigned int soc = round(-13275.04 + 2.049731 * mv - (0.00007847975 * mv) * mv);
+    doc["batt"] = run ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc));
+    doc["run"] = run ? "ON" : "OFF";
 #endif
 #ifdef VERSION
     doc["ver"] = String(VERSION);
@@ -141,7 +144,7 @@ void connectToWifi()
     WiFiSettings.heading("Updating <a href='https://espresense.com/settings#updating' target='_blank'>ℹ️</a>", false);
     autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
     prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-    otaUpdate = WiFiSettings.checkbox("ota_update", DEFAULT_OTA_UPDATE, "Arduino OTA Update");
+    arduinoOta = WiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
 
     WiFiSettings.heading("Scanning <a href='https://espresense.com/settings#scanning' target='_blank'>ℹ️</a>", false);
     activeScan = WiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
@@ -339,10 +342,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         spurt("/status_led", String(GUI::statusLed));
         online = false;
     }
-    else if (command == "ota_update")
+    else if (command == "arduino_ota")
     {
-        otaUpdate = pay == "ON";
-        spurt("/ota_update", String(otaUpdate));
+        arduinoOta = pay == "ON";
+        spurt("/arduino_ota", String(arduinoOta));
         online = false;
     }
     else if (command == "auto_update")
@@ -935,7 +938,7 @@ void l2cScanner()
 void loop()
 {
     uint32_t freeHeap = ESP.getFreeHeap();
-    if (otaUpdate && freeHeap > 4096)
+    if (arduinoOta && freeHeap > 4096)
         ArduinoOTA.handle();
     if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
