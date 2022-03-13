@@ -3,11 +3,6 @@ on:
   push:
     branches:
       - master
-    tags:
-      - v*
-  pull_request:
-  release:
-    types: [published]
 jobs:
   remote-run:
     runs-on: ubuntu-latest
