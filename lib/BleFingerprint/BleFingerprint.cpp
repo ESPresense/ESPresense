@@ -305,6 +305,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
         }
+        else if (manuf == "0087") // Garmin
+        {
+            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            setId("garmin:" + getMac(), ID_TYPE_GARMIN);
+        }
         else if (manuf == "0157") // Mi-fit
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
