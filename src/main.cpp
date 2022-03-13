@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include "MotionSensors.h"
+
 bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported)
 {
     if (!online)
@@ -17,7 +19,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendNumberDiscovery("Absorption", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && sendDiscoveryMotion()
+        if (sendDiscoveryConnectivity() && sendDiscoveryUptime() && sendDiscoveryFreeMem() && sendButtonDiscovery("Restart", "diagnostic") && sendSwitchDiscovery("Status LED", "config") && sendNumberDiscovery("Max Distance", "config") && sendNumberDiscovery("Absorption", "config") && sendSwitchDiscovery("Active Scan", "config") && sendSwitchDiscovery("Auto Update", "config") && sendSwitchDiscovery("OTA Update", "config") && sendSwitchDiscovery("Prerelease", "config") && sendDeleteDiscovery("switch", "Query") && Motion::SendDiscovery(doc)
 #ifdef SENSORS
             && sendDiscoveryHumidity() && sendDiscoveryTemperature() && sendDiscoveryLux() && sendDiscoveryBME280Temperature() && sendDiscoveryBME280Humidity() && sendDiscoveryBME280Pressure() && sendDiscoveryTSL2561Lux()
 #endif
@@ -150,8 +152,7 @@ void connectToWifi()
     BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
 
     WiFiSettings.heading("Additional Sensors");
-    pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
-    radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
+    Motion::ConnectToWifi();
 #ifdef SENSORS
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
     dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
@@ -211,10 +212,7 @@ void connectToWifi()
     Serial.println(publishDevices ? "enabled" : "disabled");
     Serial.print("Discovery:    ");
     Serial.println(discovery ? "enabled" : "disabled");
-    Serial.print("PIR Sensor:   ");
-    Serial.println(pirPin ? "enabled" : "disabled");
-    Serial.print("Radar Sensor: ");
-    Serial.println(radarPin ? "enabled" : "disabled");
+    Motion::SerialReport();
 #ifdef SENSORS
     Serial.print("DHT11 Sensor: ");
     Serial.println(dht11Pin ? "enabled" : "disabled");
@@ -541,8 +539,7 @@ void setup()
 #if NTP
     setClock();
 #endif
-    if (pirPin) pinMode(pirPin, INPUT);
-    if (radarPin) pinMode(radarPin, INPUT);
+    Motion::Setup();
 
 #ifdef SENSORS
     if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
@@ -651,50 +648,6 @@ void setup()
 #endif
     xTaskCreatePinnedToCore(scanForDevices, "scanForDevices", 6000, nullptr, 1, &scannerTask, 1);
     configureOTA();
-}
-
-void pirLoop()
-{
-    if (!pirPin) return;
-    int pirValue = digitalRead(pirPin);
-
-    if (pirValue != lastPirValue)
-    {
-        if (pirValue == HIGH)
-        {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "ON");
-            Serial.println("PIR MOTION DETECTED!!!");
-        }
-        else
-        {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "OFF");
-            Serial.println("NO PIR MOTION DETECTED!!!");
-        }
-
-        lastPirValue = pirValue;
-    }
-}
-
-void radarLoop()
-{
-    if (!radarPin) return;
-    int radarValue = digitalRead(radarPin);
-
-    if (radarValue != lastRadarValue)
-    {
-        if (radarValue == HIGH)
-        {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "ON");
-            Serial.println("Radar MOTION DETECTED!!!");
-        }
-        else
-        {
-            mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, "OFF");
-            Serial.println("NO Radar MOTION DETECTED!!!");
-        }
-
-        lastRadarValue = radarValue;
-    }
 }
 
 #ifdef SENSORS
@@ -950,8 +903,7 @@ void loop()
     if (freeHeap < 10000) Serial.printf("Low memory: %d bytes free", freeHeap);
     firmwareUpdate();
     GUI::blit();
-    pirLoop();
-    radarLoop();
+    Motion::Loop(mqttClient);
 #ifdef SENSORS
     dhtLoop();
     luxLoop();

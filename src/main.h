@@ -94,10 +94,6 @@ bool activeScan;
 bool publishTele;
 bool publishRooms;
 bool publishDevices;
-int pirPin;
-int radarPin;
-int lastPirValue = -1;
-int lastRadarValue = -1;
 
 #ifdef SENSORS
 int dht11Pin;
@@ -414,24 +410,6 @@ bool sendDiscoveryFreeMem()
 
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/free_mem/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryMotion()
-{
-    if (!pirPin && !radarPin) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Motion";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_motion", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/motion";
-    doc["dev_cla"] = "motion";
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/motion/config";
 
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
