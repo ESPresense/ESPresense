@@ -40,9 +40,11 @@ public:
     static void connected(bool wifi, bool mqtt);
 
     static void status(const char *message, ...);
-    static void blit();
 
     static bool statusLed;
+
+    static void plusOne(BleFingerprint *f);
+    static void minusOne(BleFingerprint *f);
 
 private:
     static void begin();

@@ -15,17 +15,18 @@
 #define NO_RSSI (-32768)
 
 #define ID_TYPE_TX_POW short(1)
+#define ID_TYPE_MISC_APPLE short(-5)
 
 #define ID_TYPE_MAC short(0)
 #define ID_TYPE_AD short(10)
 #define ID_TYPE_SD short(15)
 #define ID_TYPE_MD short(20)
-#define ID_TYPE_MISC_APPLE short(25)
 #define ID_TYPE_MISC short(30)
 #define ID_TYPE_NAME short(35)
 #define ID_TYPE_PUBLIC_MAC short(50)
 #define ID_TYPE_MSFT short(100)
 #define ID_TYPE_SONOS short(105)
+#define ID_TYPE_GARMIN short(107)
 #define ID_TYPE_MITHERM short(110)
 #define ID_TYPE_MIFIT short(115)
 #define ID_TYPE_EXPOSURE short(120)
@@ -34,6 +35,7 @@
 #define ID_TYPE_TILE short( 135)
 #define ID_TYPE_MEATER short(140)
 #define ID_TYPE_VANMOOF short(145)
+#define ID_TYPE_SMARTTAG short(146)
 #define ID_TYPE_APPLE_NEARBY short(150)
 #define ID_TYPE_QUERY_MODEL short(155)
 #define ID_TYPE_QUERY_NAME short(160)
@@ -41,6 +43,7 @@
 #define ID_TYPE_ABEACON short(170)
 #define ID_TYPE_IBEACON short(175)
 #define ID_TYPE_RM_ASST short(180)
+#define ID_TYPE_KNOWN_MAC short(185)
 
 class BleFingerprintCollection;
 
@@ -56,13 +59,7 @@ public:
 
     bool query();
 
-    String getId()
-    {
-        if (!id.isEmpty() && idType > 10) return id;
-        if (macPublic) return getMac();
-        if (!id.isEmpty()) return id;
-        return getMac();
-    }
+    String getId() { return id; }
 
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
@@ -82,7 +79,9 @@ public:
 
     NimBLEAddress const getAddress() { return address; }
 
-    long getAge() const { return millis() - lastSeenMillis; };
+    unsigned long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
+
+    unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
     bool getAdded() const { return added; };
 
@@ -92,26 +91,30 @@ public:
 
     bool getRmAsst() const { return rmAsst; };
 
-    int getSeenCount()
+    unsigned int getSeenCount()
     {
-        auto sc = seenCount;
-        seenCount = 0;
+        auto sc = seenCount - lastSeenCount;
+        lastSeenCount = seenCount;
         return sc;
     }
+
+    bool shouldCount();
 
 private:
 
     static bool shouldHide(const String &s);
 
-    bool hasValue = false, added = false, close = false, reported = false, macPublic = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false;
+    bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false, countable = false, counting = false;
     NimBLEAddress address;
     String id, name, disc;
     short int idType = 0;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
-    int qryAttempts = 0, seenCount = 1, qryDelayMillis = 0;
+    unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
+    unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
+    uint8_t battery = 0xFF;
 
     Reading<Differential<float>> output;
 
@@ -122,11 +125,11 @@ private:
 
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
 
-    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount);
+    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
 
-    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount);
+    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
 
-    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice);
+    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
 };
 
 #endif
