@@ -443,6 +443,7 @@ bool sendDiscoveryHumidity()
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/humidity";
     doc["dev_cla"] = "humidity";
+    doc["unit_of_meas"] = "%";
     doc["frc_upd"] = true;
 
     serializeJson(doc, buffer);
