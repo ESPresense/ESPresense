@@ -1,57 +1,43 @@
 #include <regex>
 #include <strings.h>
 
-std::string lowertrim(std::string str, char c)
+std::string ltrim(const std::string &s, char toTrim)
 {
-    unsigned int atstart = 0, atend = str.size() - 1;
-    for (unsigned int i = 0; i < str.size(); i++)
-    {
-        if (str[i] != c)
-        {
-            atstart = i;
-            break;
-        }
-    }
-    for (unsigned int i = str.size() - 1; i >= 0; i--)
-    {
-        if (str[i] != c)
-        {
-            atend = i;
-            break;
-        }
-    }
+    size_t start = s.find_first_not_of(toTrim);
+    return (start == std::string::npos) ? "" : s.substr(start);
+}
 
-    char diff = 'a' - 'A';
-    std::string fistr;
-    for (unsigned int i = atstart; i <= atend; i++)
-    {
-        if ((str[i] >= 'A') && (str[i] <= 'Z'))
-            fistr += char(str[i] + diff);
-        else
-            fistr += str[i];
-    }
+std::string rtrim(const std::string &s, char toTrim)
+{
+    size_t end = s.find_last_not_of(toTrim);
+    return (end == std::string::npos) ? "" : s.substr(0, end + 1);
+}
 
-    return fistr;
+std::string lowertrim(std::string str, char toTrim)
+{
+    std::transform(str.begin(), str.end(), str.begin(), [](unsigned char c)
+                   { return std::tolower(c); });
+    return rtrim(ltrim(str, toTrim), toTrim);
 }
 
 std::regex whitespace_re("[\\s\\W-]+");
-std::string slugify(const std::string& text)
+std::string slugify(const std::string &text)
 {
     return lowertrim(std::regex_replace(text, whitespace_re, "_"), '_');
 }
 
-String slugify(const String& text)
+String slugify(const String &text)
 {
     std::string s = std::string(text.c_str());
     return slugify(s).c_str();
 }
 
-std::string kebabify(const std::string& text)
+std::string kebabify(const std::string &text)
 {
     return lowertrim(std::regex_replace(text, whitespace_re, "-"), '-');
 }
 
-String kebabify(const String& text)
+String kebabify(const String &text)
 {
     std::string s = std::string(text.c_str());
     return kebabify(s).c_str();
@@ -70,7 +56,7 @@ std::string hexStr(const char *data, unsigned int len)
     return s;
 }
 
-std::string hexStr(const std::string& s)
+std::string hexStr(const std::string &s)
 {
     return hexStr(s.c_str(), s.length());
 }
@@ -103,7 +89,7 @@ std::string hexStrRev(const std::string &s)
     return hexStrRev(s.c_str(), s.length());
 }
 
-bool prefixExists(const String& prefixes, const String& s)
+bool prefixExists(const String &prefixes, const String &s)
 {
     unsigned int start = 0;
     unsigned int space;
