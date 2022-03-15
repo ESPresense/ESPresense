@@ -48,13 +48,9 @@ String BH1750_I2c;
 int BH1750_I2c_Bus;
 
 //I2C BME280 sensor
-#include <Adafruit_BME280.h>
-Adafruit_BME280 BME280;
-long BME280_status;
-String BME280_I2c;
-int BME280_I2c_Bus;
-unsigned long bme280PreviousMillis = 0;
+#include "BME280Sensor.h"
 
+//I2C TSL2561 sensor
 #include "TSL2561Sensor.h"
 #endif
 
@@ -464,87 +460,6 @@ bool sendDiscoveryLux()
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/lux/config";
     return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryBME280Temperature()
-{
-    if (BME280_I2c.isEmpty()) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " BME280 Temperature";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_temperature", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/bme280_temperature";
-    doc["dev_cla"] = "temperature";
-    doc["unit_of_meas"] = "°C";
-    doc["frc_upd"] = true;
-
-    char buffer[1200];
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/bme280_temperature/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (pub(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
-}
-
-bool sendDiscoveryBME280Humidity()
-{
-    if (BME280_I2c.isEmpty()) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " BME280 Humidity";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_humidity", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/bme280_humidity";
-    doc["dev_cla"] = "humidity";
-    doc["unit_of_meas"] = "%";
-    doc["frc_upd"] = true;
-
-    char buffer[1200];
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/bme280_humidity/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (pub(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
-}
-
-bool sendDiscoveryBME280Pressure()
-{
-    if (BME280_I2c.isEmpty()) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " BME280 Pressure";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_pressure", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/bme280_pressure";
-    doc["dev_cla"] = "pressure";
-    doc["unit_of_meas"] = "hPa";
-    doc["frc_upd"] = true;
-
-    char buffer[1200];
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/bme280_pressure/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (pub(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-    return false;
 }
 #endif
 
