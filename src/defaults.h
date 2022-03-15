@@ -1,3 +1,5 @@
+#pragma once
+
 // Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
 

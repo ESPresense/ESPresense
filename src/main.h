@@ -55,12 +55,7 @@ String BME280_I2c;
 int BME280_I2c_Bus;
 unsigned long bme280PreviousMillis = 0;
 
-//I2C TSL2561 sensor
-#include <Adafruit_TSL2561_U.h>
-String TSL2561_I2c;
-int TSL2561_I2c_Bus;
-String TSL2561_I2c_Gain;
-unsigned long tsl2561PreviousMillis = 0;
+#include "TSL2561Sensor.h"
 #endif
 
 static const char *const EC_DIAGNOSTIC = "diagnostic";
@@ -549,34 +544,6 @@ bool sendDiscoveryBME280Pressure()
             return true;
         delay(50);
     }
-    return false;
-}
-
-bool sendDiscoveryTSL2561Lux()
-{
-    if (TSL2561_I2c.isEmpty()) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " TSL2561 Lux";
-    doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_tsl2561_lux", ESP.getEfuseMac() >> 24);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/tsl2561_lux";
-    doc["dev_cla"] = "illuminance";
-    doc["unit_of_meas"] = "lx";
-    doc["frc_upd"] = true;
-
-    char buffer[1200];
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/tsl2561_lux/config";
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (pub(discoveryTopic.c_str(), 0, true, buffer))
-            return true;
-        delay(50);
-    }
-
     return false;
 }
 #endif
