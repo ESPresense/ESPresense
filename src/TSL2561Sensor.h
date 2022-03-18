@@ -1,3 +1,5 @@
+#ifdef SENSORS
+
 #pragma  once
 
 #include <ArduinoJson.h>
@@ -13,3 +15,5 @@ namespace TSL2561
     void Loop(AsyncMqttClient& mqttClient);
     bool SendDiscovery(DynamicJsonDocument& doc);
 }
+
+#endif

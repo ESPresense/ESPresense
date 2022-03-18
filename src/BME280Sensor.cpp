@@ -1,3 +1,5 @@
+#ifdef SENSORS
+
 #include "defaults.h"
 #include "TSL2561Sensor.h"
 #include <WiFiSettings.h>
@@ -150,3 +152,5 @@ namespace BME280
         return SendTemperature(doc) && SendHumidity(doc) && SendPressure(doc);
     }
 }
+
+#endif

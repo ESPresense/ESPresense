@@ -1,3 +1,5 @@
+#ifdef SENSORS
+
 #include "defaults.h"
 #include "TSL2561Sensor.h"
 #include <WiFiSettings.h>
@@ -116,3 +118,5 @@ namespace TSL2561
         return pub(discoveryTopic.c_str(), 0, true, buffer);
     }
 }
+
+#endif
