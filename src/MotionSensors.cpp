@@ -21,8 +21,8 @@ namespace Motion
 
     void Setup()
     {
-        if (pirPin) pinMode(pirPin, INPUT);
-        if (radarPin) pinMode(radarPin, INPUT);
+        if (pirPin) pinMode(pirPin, INPUT_PULLUP);
+        if (radarPin) pinMode(radarPin, INPUT_PULLUP);
     }
 
     void ConnectToWifi()
