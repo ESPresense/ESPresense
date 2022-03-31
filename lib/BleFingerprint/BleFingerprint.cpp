@@ -189,10 +189,10 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
             setId("exp:" + String(strServiceData.length()), ID_TYPE_EXPOSURE);
             disc = hexStr(strServiceData).c_str();
         }
-        else if (uuid == smartTagUUID)
+        else if (uuid == smartTagUUID && strServiceData.length() == 20)
         { // found Samsung smart tag
             asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
-            setId(String("smarttag:") + hexStr(strServiceData).c_str(), ID_TYPE_SMARTTAG);
+            setId(String("smarttag:") + hexStr(strServiceData).substr(8, 16).c_str(), ID_TYPE_SMARTTAG);
         }
         else if (uuid == miThermUUID)
         {
