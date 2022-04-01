@@ -43,6 +43,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendDiscoveryLux()
             && BME280::SendDiscovery(doc)
             && TSL2561::SendDiscovery(doc)
+            && HX711::SendDiscovery(doc)
 #endif
         )
         {
@@ -212,6 +213,8 @@ void connectToWifi()
     BME280::ConnectToWifi();
 
     TSL2561::ConnectToWifi();
+
+    HX711::ConnectToWifi();
 #endif
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
@@ -246,6 +249,7 @@ void connectToWifi()
     Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
     BME280::SerialReport();
     TSL2561::SerialReport();
+    HX711::SerialReport();
 #endif
     Serial.print("Query:        ");
     Serial.println(BleFingerprintCollection::query);
@@ -697,6 +701,7 @@ void setup()
 
     //BME280::Setup();
     //TSL2561::Setup();
+    HX711::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, 1);
@@ -863,6 +868,7 @@ void loop()
     luxLoop();
     BME280::Loop(mqttClient);
     TSL2561::Loop(mqttClient);
+    HX711::Loop(mqttClient);
     l2cScanner();
 #endif
     WiFiSettings.httpLoop();
