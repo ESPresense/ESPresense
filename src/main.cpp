@@ -118,6 +118,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
 void connectToWifi()
 {
+    WiFi.persistent(false);
     Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
     GUI::connected(false, false);
 
@@ -693,7 +694,7 @@ void setup()
             }
         }
     }
-    
+
     //BME280::Setup();
     //TSL2561::Setup();
 #endif
