@@ -52,6 +52,8 @@ int BH1750_I2c_Bus;
 
 //I2C TSL2561 sensor
 #include "TSL2561Sensor.h"
+
+#include "HX711.h"
 #endif
 
 static const char *const EC_DIAGNOSTIC = "diagnostic";
