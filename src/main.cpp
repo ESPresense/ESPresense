@@ -34,8 +34,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendDeleteDiscovery("switch", "OTA Update")
             && Motion::SendDiscovery(doc)
 #ifdef MACCHINA_A0
-            && sendTeleSensorDiscovery("Battery", "", "{{ value_json.batt }}", "%")
-            && sendTeleBinarySensorDiscovery("Running", "", "{{ value_json.run }}", "running")
+            && sendTeleSensorDiscovery("Battery", "", "{{ value_json.batt }}", "%", "battery")
+            && sendTeleBinarySensorDiscovery("Charging", "", "{{ value_json.charging }}", "battery_charging")
 #endif
 #ifdef SENSORS
             && sendDiscoveryHumidity()
@@ -72,10 +72,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 #ifdef MACCHINA_A0
     auto mv = a0_read_batt_mv();
     doc["mV"] = mv;
-    bool run = (mv > 13200);
+    bool charging = (mv > 13200);
     unsigned int soc = round(-13275.04 + 2.049731 * mv - (0.00007847975 * mv) * mv);
-    doc["batt"] = run ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc));
-    doc["run"] = run ? "ON" : "OFF";
+    doc["batt"] = charging ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc));
+    doc["charging"] = charging ? "ON" : "OFF";
 #endif
 #ifdef VERSION
     doc["ver"] = String(VERSION);

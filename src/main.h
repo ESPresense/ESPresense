@@ -379,14 +379,14 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     doc["stat_t"] = "~/telemetry";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     doc["value_template"] = temp;
-    doc["dev_cla"] = devClass;
+    if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/" + slug + "/config";
 
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units)
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units, const String &devClass = "")
 {
     auto slug = slugify(name);
 
@@ -399,6 +399,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     doc["value_template"] = temp;
     if (!units.isEmpty()) doc["unit_of_measurement"] = units;
+    if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
     serializeJson(doc, buffer);
     String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/" + slug + "/config";
 
