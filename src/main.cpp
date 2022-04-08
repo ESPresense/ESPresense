@@ -144,7 +144,8 @@ void setupNetwork()
     WiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
-    ethernetType = WiFiSettings.integer("eth", 0, "Ethernet Type");
+    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
+    ethernetType = WiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
     WiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
