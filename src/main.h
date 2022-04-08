@@ -75,6 +75,7 @@ bool online = false;        // Have we successfully sent status=online
 bool sentDiscovery = false; // Have we successfully sent discovery
 String offline = "offline";
 
+int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 String room, id, statusTopic, teleTopic, roomsTopic, setTopic;

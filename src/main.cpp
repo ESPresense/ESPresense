@@ -1,5 +1,6 @@
 #include "main.h"
 
+#include "Network.h"
 #include "MotionSensors.h"
 
 bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported, int count)
@@ -117,10 +118,10 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     return false;
 }
 
-void connectToWifi()
+void setupNetwork()
 {
+    Serial.println("Setup network");
     WiFi.persistent(false);
-    Serial.printf("Connecting to WiFi (%s)...\n", WiFi.macAddress().c_str());
     GUI::connected(false, false);
 
     WiFiSettings.onFailure = []()
@@ -143,6 +144,8 @@ void connectToWifi()
     WiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = WiFiSettings.string("room", ESPMAC, "Room");
+    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
+    ethernetType = WiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
     WiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
@@ -219,7 +222,9 @@ void connectToWifi()
 
     WiFiSettings.hostname = "espresense-" + kebabify(room);
 
-    if (!WiFiSettings.connect(true, 60))
+    bool success = false;
+    if (ethernetType > 0) success = Network.connect(ethernetType, 20, WiFiSettings.hostname.c_str());
+    if (!success && !WiFiSettings.connect(true, 40))
         ESP.restart();
 #ifdef FIRMWARE
     Serial.println("Firmware:     " + String(FIRMWARE));
@@ -228,11 +233,11 @@ void connectToWifi()
     Serial.println("Version:      " + String(VERSION));
 #endif
     Serial.print("IP address:   ");
-    Serial.println(WiFi.localIP());
+    Serial.println(Network.localIP());
     Serial.print("DNS address:  ");
-    Serial.println(WiFi.dnsIP());
+    Serial.println(Network.dnsIP());
     Serial.print("Hostname:     ");
-    Serial.println(WiFi.getHostname());
+    Serial.println(Network.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
     Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
@@ -262,7 +267,7 @@ void connectToWifi()
     Serial.print("Count Ids:    ");
     Serial.println(BleFingerprintCollection::countIds);
 
-    localIp = WiFi.localIP().toString();
+    localIp = Network.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + "/rooms/" + id;
     statusTopic = roomsTopic + "/status";
@@ -388,7 +393,7 @@ void reconnect(TimerHandle_t xTimer)
 {
     Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
     if (updateInProgress) return;
-    if (WiFi.isConnected() && mqttClient.connected()) return;
+    if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50)
     {
@@ -396,10 +401,13 @@ void reconnect(TimerHandle_t xTimer)
         ESP.restart();
     }
 
-    if (!WiFi.isConnected())
+    if (!Network.isConnected())
     {
-        Serial.printf("%u Reconnecting to WiFi...\n", xPortGetCoreID());
-        if (!WiFiSettings.connect(true, 60))
+        Serial.printf("%u Reconnecting to Network...\n", xPortGetCoreID());
+
+        bool success = false;
+        if (ethernetType > 0) success = Network.connect(ethernetType, 2, WiFiSettings.hostname.c_str());
+        if (!success && !WiFiSettings.connect(true, 40))
             ESP.restart();
     }
 
@@ -586,7 +594,7 @@ void setup()
 #endif
 
     spiffsInit();
-    connectToWifi();
+    setupNetwork();
 #if NTP
     setClock();
 #endif
