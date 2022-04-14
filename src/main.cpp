@@ -102,6 +102,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     doc["maxAllocHeap"] = ESP.getMaxAllocHeap();
     doc["memFrag"] = 100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap());
     doc["resetReason"] = resetReason(rtc_get_reset_reason(0));
+    doc["scanHighWater"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
+    doc["reportHighWater"] = uxTaskGetStackHighWaterMark(reportTaskHandle);
 
     char teleMessageBuffer[512];
     serializeJson(doc, teleMessageBuffer);
