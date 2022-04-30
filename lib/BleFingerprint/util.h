@@ -13,6 +13,7 @@ static BLEUUID itagUUID((uint16_t)0xffe0);
 static BLEUUID miThermUUID(uint16_t(0x181A));
 static BLEUUID trackrUUID((uint16_t)0x0F3E);
 static BLEUUID vanmoofUUID(0x6acc5540, 0xe631, 0x4069, 0x944db8ca7598ad50);
+static BLEUUID tractiveUUID(0x20130001, 0x0719, 0x4b6e, 0xbe5d158ab92fa5a4);
 
 static BLEUUID fitbitUUID(0xadabfb00, 0x6e7d, 0x4601, 0xbda2bffaa68956ba);
 

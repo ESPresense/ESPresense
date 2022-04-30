@@ -146,6 +146,12 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
             setId("trackr:" + getMac(), ID_TYPE_TRACKR);
             return;
         }
+        else if (uuid == tractiveUUID)
+        {
+            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            setId("tractive:" + getMac(), ID_TYPE_TRACTIVE);
+            return;
+        }
         else if (uuid == vanmoofUUID)
         {
             asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
