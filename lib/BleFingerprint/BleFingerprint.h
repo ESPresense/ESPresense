@@ -44,6 +44,7 @@
 #define ID_TYPE_IBEACON short(175)
 #define ID_TYPE_RM_ASST short(180)
 #define ID_TYPE_KNOWN_MAC short(185)
+#define ID_TYPE_NUT short(190)
 
 class BleFingerprintCollection;
 

@@ -158,6 +158,12 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
             setId("meater:" + getMac(), ID_TYPE_MEATER);
             return;
         }
+        else if (uuid == nutUUID)
+        {
+            asRssi = BleFingerprintCollection::refRssi + (haveTxPower ? txPower : NUT_TX);
+            setId("nut:" + getMac(), ID_TYPE_NUT);
+            return;
+        }
     }
 
     String fingerprint = "ad:";
