@@ -12,5 +12,7 @@
 #define EXPOSURE_TX (-12)
 #define ITAG_TX (-10)
 
+#define NUT_TX (-12)
+
 #define EDDYSTONE_ADD_1M (-41)
 #endif
