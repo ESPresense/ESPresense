@@ -35,6 +35,7 @@
 #define ID_TYPE_TRACKR short(130)
 #define ID_TYPE_TILE short( 135)
 #define ID_TYPE_MEATER short(140)
+#define ID_TYPE_TRACTIVE short(142)
 #define ID_TYPE_VANMOOF short(145)
 #define ID_TYPE_APPLE_NEARBY short(150)
 #define ID_TYPE_QUERY_MODEL short(155)
