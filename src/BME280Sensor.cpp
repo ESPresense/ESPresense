@@ -68,13 +68,13 @@ namespace BME280
         }
 
         BME280.setSampling(
-            Adafruit_BME280::MODE_NORMAL,
-            Adafruit_BME280::SAMPLING_X16,  // Temperature
-            Adafruit_BME280::SAMPLING_X16,  // Pressure
-            Adafruit_BME280::SAMPLING_X16,  // Humidity
-            Adafruit_BME280::FILTER_X16,
-            //Adafruit_BME280::FILTER_OFF,
-            Adafruit_BME280::STANDBY_MS_1000
+            Adafruit_BME280::MODE_FORCED,
+            Adafruit_BME280::SAMPLING_X1,  // Temperature
+            Adafruit_BME280::SAMPLING_X1,  // Pressure
+            Adafruit_BME280::SAMPLING_X1,  // Humidity
+            //Adafruit_BME280::FILTER_X16,
+            Adafruit_BME280::FILTER_OFF,
+            Adafruit_BME280::STANDBY_MS_60000
         );
 
         float temperature = BME280.readTemperature();
