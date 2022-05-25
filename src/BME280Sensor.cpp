@@ -1,7 +1,7 @@
 #ifdef SENSORS
 
 #include "defaults.h"
-#include "TSL2561Sensor.h"
+#include "BME280Sensor.h"
 #include <WiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include <Adafruit_BME280.h>
