@@ -1,7 +1,7 @@
 #ifdef SENSORS
 
 #include "defaults.h"
-#include "TSL2561Sensor.h"
+#include "HX711.h"
 #include <WiFiSettings.h>
 #include <AsyncMqttClient.h>
 
