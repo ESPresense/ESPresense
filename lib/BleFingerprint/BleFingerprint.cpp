@@ -298,7 +298,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             }
             else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
             {
-                String pid = Sprintf("apple:%02x%02x:%zu", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                String pid = Sprintf("apple:%02x%02x:%u", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_APPLE_NEARBY);
                 disc = hexStr(strManufacturerData.substr(4)).c_str();
@@ -306,7 +306,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             }
             else if (strManufacturerData.length() >= 4)
             {
-                String pid = Sprintf("apple:%02x%02x:%zu", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
+                String pid = Sprintf("apple:%02x%02x:%u", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_MISC_APPLE);
                 mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
@@ -352,7 +352,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         else if (manuf != "0000")
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
-            String fingerprint = Sprintf("md:%s:%zu", manuf.c_str(), strManufacturerData.length());
+            String fingerprint = Sprintf("md:%s:%u", manuf.c_str(), strManufacturerData.length());
             if (haveTxPower) fingerprint = fingerprint + String(-txPower);
             setId(fingerprint, ID_TYPE_MD);
         }
