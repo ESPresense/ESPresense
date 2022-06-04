@@ -1,5 +1,5 @@
 #include <regex>
-#include <strings.h>
+#include <string_utils.h>
 
 std::string ltrim(const std::string &s, char toTrim)
 {

@@ -7,7 +7,7 @@
 #include <Adafruit_TSL2561_U.h>
 
 // for #define ESPMAC
-#include "strings.h"
+#include "string_utils.h"
 
 // TODO: Not a fan of externs, but this helps refactoring for now
 extern bool I2C_Bus_1_Enabled;
@@ -29,7 +29,6 @@ namespace TSL2561
 
     void Setup()
     {
-        
     }
 
     void ConnectToWifi()

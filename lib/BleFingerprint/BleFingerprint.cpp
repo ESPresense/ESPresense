@@ -1,7 +1,7 @@
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
 #include "rssi.h"
-#include "strings.h"
+#include "string_utils.h"
 #include "util.h"
 
 class ClientCallbacks : public BLEClientCallbacks
