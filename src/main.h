@@ -3,7 +3,7 @@
 
 #include "GUI.h"
 #include "defaults.h"
-#include "strings.h"
+#include "string_utils.h"
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -114,6 +114,9 @@ BleFingerprintCollection fingerprints;
 
 String resetReason(RESET_REASON reason)
 {
+#ifdef ARDUINO_ARCH_ESP32C3
+    return "";
+#else
     switch (reason)
     {
     case POWERON_RESET:
@@ -149,6 +152,7 @@ String resetReason(RESET_REASON reason)
     default:
         return "Unknown";
     }
+#endif
 }
 
 unsigned long getUptimeSeconds()

@@ -3,7 +3,7 @@
 #include <AsyncMqttClient.h>
 
 // for #define ESPMAC
-#include "strings.h"
+#include "string_utils.h"
 
 // TODO: Not a fan of externs, but this helps refactoring for now
 extern char buffer[2048];

@@ -3,7 +3,7 @@
 
 #include "GUI.h"
 #include "rssi.h"
-#include "strings.h"
+#include "string_utils.h"
 #include <ArduinoJson.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>

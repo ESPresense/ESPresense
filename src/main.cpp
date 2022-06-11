@@ -128,20 +128,26 @@ void setupNetwork()
 
     WiFiSettings.onFailure = []()
     {
-        GUI::status("WiFi Portal...");
+        GUI::status("WiFi Failed");
     };
     WiFiSettings.onWaitLoop = []()
     {
         GUI::connecting();
         return 150;
     };
+    static bool inPortal = false;
     WiFiSettings.onPortalWaitLoop = []()
     {
+        if (!inPortal)
+        {
+            inPortal = true;
+            GUI::status("WiFi Portal...");
+        }
+
         if (getUptimeSeconds() > 600)
             ESP.restart();
     };
 
-    GUI::connected(true, false);
 #ifdef VERSION
     WiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
@@ -228,6 +234,9 @@ void setupNetwork()
     if (ethernetType > 0) success = Network.connect(ethernetType, 20, WiFiSettings.hostname.c_str());
     if (!success && !WiFiSettings.connect(true, 40))
         ESP.restart();
+
+    GUI::connected(true, false);
+
 #ifdef FIRMWARE
     Serial.println("Firmware:     " + String(FIRMWARE));
 #endif
@@ -714,7 +723,7 @@ void setup()
     HX711::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 2, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
-    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, 1);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
     configureOTA();
 }
 
