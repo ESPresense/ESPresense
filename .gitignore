@@ -13,3 +13,4 @@ cmake-build-*
 build/
 CMakeLists.txt
 CMakeListsPrivate.txt
+platformio_override.ini
