@@ -12,4 +12,6 @@ namespace Motion
     void SerialReport();
     void Loop(AsyncMqttClient& mqttClient);
     bool SendDiscovery(DynamicJsonDocument& doc);
+    bool SendOnline(DynamicJsonDocument& doc);
+    bool Command(String& command, String& pay);
 }

@@ -1,4 +1,5 @@
 #include "GUI.h"
+
 #ifdef M5STICK
 #include "tb_display.h"
 #endif
@@ -79,7 +80,7 @@ void GUI::connected(bool wifi = false, bool mqtt = false)
 #ifdef LED_BUILTIN
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
-    status("Wifi: %s Mqtt: %s", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    status("Wifi:%s Mqtt:%s", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
 #endif
 }
 
@@ -89,7 +90,7 @@ void GUI::added(BleFingerprint *f)
     Serial.printf("%u New %s | MAC: %s, ID: %-60s %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
 }
 
- void GUI::removed(BleFingerprint *f)
+void GUI::removed(BleFingerprint *f)
 {
     if (f->getIgnore() || !f->getAdded()) return;
     Serial.printf("\u001b[38;5;236m%u Del   | MAC: %s, ID: %-60s %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDiscriminator().c_str());
@@ -105,21 +106,33 @@ void GUI::minusOne(BleFingerprint *f)
     Serial.printf("\u001b[35m%u C# -1 | MAC: %s, ID: %-60s (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
- void GUI::close(BleFingerprint *f)
+void GUI::close(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
     Serial.printf("\u001b[32m%u Close | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
-    status("C: %s", f->getId().c_str());
+    status("C:%s", f->getId().c_str());
 }
 
- void GUI::left(BleFingerprint *f)
+void GUI::left(BleFingerprint *f)
 {
     if (f->getIgnore()) return;
     Serial.printf("\u001b[33m%u Left  | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
-    status("L: %s", f->getId().c_str());
+    status("L:%s", f->getId().c_str());
 }
 
- void GUI::status(const char *format, ...)
+void GUI::radar(bool value)
+{
+    Serial.printf("%u Radar | %s\n", xPortGetCoreID(), value ? "detected" : "cleared");
+    status("Radar:%s", value ? "detected" : "cleared");
+}
+
+void GUI::pir(bool value)
+{
+    Serial.printf("%u Pir   | %s\n", xPortGetCoreID(), value ? "detected" : "cleared");
+    status("Pir:%s", value ? "detected" : "cleared");
+}
+
+void GUI::status(const char *format, ...)
 {
     begin();
 #ifdef M5STICK
@@ -141,14 +154,14 @@ void GUI::minusOne(BleFingerprint *f)
 #endif
 }
 
- void GUI::setup()
+void GUI::setup()
 {
 #ifdef LED_BUILTIN
     pinMode(LED_BUILTIN, OUTPUT);
 #endif
 }
 
- void GUI::begin()
+void GUI::begin()
 {
     if (!GUI::init)
     {
@@ -163,30 +176,29 @@ void GUI::minusOne(BleFingerprint *f)
     }
 }
 
-
- void GUI::updateStart()
+void GUI::updateStart()
 {
 #ifdef LED_BUILTIN
     if (GUI::statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 #endif
 }
 
- void GUI::updateProgress(unsigned int percent)
+void GUI::updateProgress(unsigned int percent)
 {
 #ifdef LED_BUILTIN
     if (GUI::statusLed) digitalWrite(LED_BUILTIN, percent % 2);
 #endif
 }
 
- void GUI::updateEnd()
+void GUI::updateEnd()
 {
 #ifdef LED_BUILTIN
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
 }
 
-bool GUI::init=false;
-bool GUI::statusLed=false;
+bool GUI::init = false;
+bool GUI::statusLed = false;
 
 #ifdef M5STICK
 bool GUI::dirty = false;

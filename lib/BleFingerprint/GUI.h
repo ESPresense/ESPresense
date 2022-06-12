@@ -26,6 +26,9 @@ public:
     static void close(BleFingerprint *f);
     static void left(BleFingerprint *f);
 
+    static void pir(bool value);
+    static void radar(bool value);
+
     static void erasing();
     static void erased();
 
@@ -55,4 +58,5 @@ private:
     static TFT_eSprite sprite;
 #endif
 };
+
 #endif
