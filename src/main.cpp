@@ -7,7 +7,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 {
     if (!online)
     {
-        if (sendOnline())
+        if (pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str()) &&
+            pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str()) && Motion::SendOnline(doc))
         {
             online = true;
             reconnectTries = 0;
@@ -196,6 +197,7 @@ void setupNetwork()
 
     WiFiSettings.heading("Misc <a href='https://espresense.com/configuration/settings#misc' target='_blank'>ℹ️</a>", false);
     GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
+
     Motion::ConnectToWifi();
 #ifdef SENSORS
     dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
@@ -318,77 +320,66 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     if (commandPos < 0) return;
     auto command = top.substring(commandPos + 1, setPos);
 
+    bool changed = true;
     if (command == "max_distance")
     {
         BleFingerprintCollection::maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
-        online = false;
     }
     else if (command == "absorption")
     {
         BleFingerprintCollection::absorption = pay.toFloat();
         spurt("/absorption", pay);
-        online = false;
     }
     else if (command == "active_scan")
     {
         activeScan = pay == "ON";
         spurt("/active_scan", String(activeScan));
-        online = false;
     }
     else if (command == "query")
     {
         BleFingerprintCollection::query = pay;
         spurt("/query", pay);
-        online = false;
     }
     else if (command == "include")
     {
         BleFingerprintCollection::include = pay;
         spurt("/include", pay);
-        online = false;
     }
     else if (command == "exclude")
     {
         BleFingerprintCollection::exclude = pay;
         spurt("/exclude", pay);
-        online = false;
     }
     else if (command == "known_macs")
     {
         BleFingerprintCollection::knownMacs = pay;
         spurt("/known_macs", pay);
-        online = false;
     }
     else if (command == "count_ids")
     {
         BleFingerprintCollection::countIds = pay;
         spurt("/count_ids", pay);
-        online = false;
     }
     else if (command == "status_led")
     {
         GUI::statusLed = pay == "ON";
         spurt("/status_led", String(GUI::statusLed));
-        online = false;
     }
     else if (command == "arduino_ota")
     {
         arduinoOta = pay == "ON";
         spurt("/arduino_ota", String(arduinoOta));
-        online = false;
     }
     else if (command == "auto_update")
     {
         autoUpdate = pay == "ON";
         spurt("/auto_update", String(autoUpdate));
-        online = false;
     }
     else if (command == "prerelease")
     {
         prerelease = pay == "ON";
         spurt("/prerelease", String(prerelease));
-        online = false;
     }
     else if (command == "restart")
     {
@@ -398,6 +389,9 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         heap_caps_dump_all();
     }
+    else if (Motion::Command(command, pay)){}
+    else changed = false;
+    if (changed) online = false;
 }
 
 void reconnect(TimerHandle_t xTimer)

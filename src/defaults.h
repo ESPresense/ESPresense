@@ -15,6 +15,9 @@
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define DEFAULT_MAX_DISTANCE 16
 
+// Seconds before reporting radar/motion cleared
+#define DEFAULT_DEBOUNCE_TIMEOUT 0.5
+
 // Define the base topic for room detection. Usually "espresense"
 #define CHANNEL String("espresense")
 
@@ -51,3 +54,6 @@
 #define DEFAULT_AUTO_UPDATE false
 #define DEFAULT_ARDUINO_OTA true
 #endif
+
+static const char *const EC_DIAGNOSTIC = "diagnostic";
+static const char *const EC_CONFIG = "config";

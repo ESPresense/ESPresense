@@ -56,9 +56,6 @@ int BH1750_I2c_Bus;
 #include "HX711.h"
 #endif
 
-static const char *const EC_DIAGNOSTIC = "diagnostic";
-static const char *const EC_CONFIG = "config";
-
 AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle, reportTaskHandle;
@@ -328,11 +325,6 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
     return false;
 }
 
-bool sendOnline()
-{
-    return pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str());
-}
-
 void commonDiscovery()
 {
     doc.clear();
@@ -525,7 +517,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
-    doc["step"] = "0.01";
+    doc["step"] = "0.1";
     doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
