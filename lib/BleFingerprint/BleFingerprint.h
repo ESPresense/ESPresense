@@ -32,6 +32,7 @@
 #define ID_TYPE_EXPOSURE short(120)
 #define ID_TYPE_SMARTTAG short(121)
 #define ID_TYPE_ITAG short(125)
+#define ID_TYPE_ITRACK short(127)
 #define ID_TYPE_TRACKR short(130)
 #define ID_TYPE_TILE short( 135)
 #define ID_TYPE_MEATER short(140)
