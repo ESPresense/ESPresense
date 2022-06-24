@@ -33,7 +33,7 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
         {
             allowQuery = true;
             qryAttempts = 0;
-            if (rssi < -60)
+            if (rssi < -70)
             {
                 qryDelayMillis = 5000;
                 lastQryMillis = millis();
@@ -105,7 +105,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %-58sAD: %s\n", getId().c_str(), advertisedDevice->getServiceUUID(i).toString().c_str());
+        Serial.printf("Verbose | MAC: %s, ID: %-58sAD: %s\n", getMac().c_str(), getId().c_str(), advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
         if (uuid == roomAssistantService)
         {
@@ -192,7 +192,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %-58sSD: %s/%s\n", getId().c_str(), uuid.toString().c_str(), hexStr(strServiceData).c_str());
+        Serial.printf("Verbose | MAC: %s, ID: %-58sSD: %s/%s\n", getMac().c_str(), getId().c_str(), uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
 
         if (uuid == exposureUUID)
@@ -281,7 +281,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
 {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Serial.printf("Verbose | %-58sMD: %s\n", getId().c_str(), hexStr(strManufacturerData).c_str());
+    Serial.printf("Verbose | MAC: %s, ID: %-58sMD: %s\n", getMac().c_str(), getId().c_str(), hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2)
     {
@@ -302,6 +302,12 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_APPLE_NEARBY);
                 disc = hexStr(strManufacturerData.substr(4)).c_str();
+                mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
+            }
+            else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x12 && strManufacturerData.length() == 29)
+            {
+                String pid = "apple:findmy";
+                setId(pid, ID_TYPE_FINDMY);
                 mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
             }
             else if (strManufacturerData.length() >= 4)
@@ -380,6 +386,8 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     seenCount++;
 
+    fingerprint(advertisedDevice);
+
     if (ignore) return false;
 
     oldest = recent;
@@ -387,9 +395,6 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     newest = advertisedDevice->getRSSI();
     rssi = median_of_3(oldest, recent, newest);
 
-    fingerprint(advertisedDevice);
-
-    if (ignore) return false;
 
     float ratio = (get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption);
     raw = pow(10, ratio);

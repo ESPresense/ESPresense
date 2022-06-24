@@ -108,14 +108,12 @@ void GUI::minusOne(BleFingerprint *f)
 
 void GUI::close(BleFingerprint *f)
 {
-    if (f->getIgnore()) return;
     Serial.printf("\u001b[32m%u Close | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("C:%s", f->getId().c_str());
 }
 
 void GUI::left(BleFingerprint *f)
 {
-    if (f->getIgnore()) return;
     Serial.printf("\u001b[33m%u Left  | MAC: %s, ID: %-60s (%.2fm) %ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getDistance(), f->getNewestRssi());
     status("L:%s", f->getId().c_str());
 }
