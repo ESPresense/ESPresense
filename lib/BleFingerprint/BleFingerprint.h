@@ -22,6 +22,7 @@
 #define ID_TYPE_SD short(15)
 #define ID_TYPE_MD short(20)
 #define ID_TYPE_MISC short(30)
+#define ID_TYPE_FINDMY short(32)
 #define ID_TYPE_NAME short(35)
 #define ID_TYPE_PUBLIC_MAC short(50)
 #define ID_TYPE_MSFT short(100)
