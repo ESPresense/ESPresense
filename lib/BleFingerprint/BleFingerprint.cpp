@@ -29,7 +29,7 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
 
     if (!allowQuery && !ignore)
     {
-        if (!BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId))
+        if (rssi > -80 && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId))
         {
             allowQuery = true;
             qryAttempts = 0;
@@ -84,7 +84,11 @@ BleFingerprint::BleFingerprint(const BleFingerprintCollection *parent, BLEAdvert
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
 {
     if (advertisedDevice->haveName())
-        setId(String("name:") + kebabify(advertisedDevice->getName()).c_str(), ID_TYPE_NAME, String(advertisedDevice->getName().c_str()));
+    {
+        std::string name = advertisedDevice->getName();
+        if (name.empty()) return;
+        setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
+    }
 
     if (advertisedDevice->getAdvType() > 0)
         connectable = true;
