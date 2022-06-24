@@ -544,12 +544,9 @@ bool BleFingerprint::query()
     if (success) return true;
 
     qryAttempts++;
+    qryDelayMillis = min(int(pow(100, qryAttempts)), 60000);
     Serial.printf("%u QryErr| MAC: %s, ID: %-60s rssi %d, try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
 
-    if (qryDelayMillis < 30000)
-        qryDelayMillis += (1000 * qryAttempts * qryAttempts);
-    else
-        qryDelayMillis = 30000;
     didQuery = false;
 
     return true;
