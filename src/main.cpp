@@ -513,7 +513,7 @@ void scanTask(void *parameter)
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
     NimBLEDevice::setSecurityAuth(true, true, true);
     NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
-    NimBLEDevice::setMTU(255);
+    NimBLEDevice::setMTU(23);
 
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);

@@ -41,9 +41,11 @@ private:
     {
         if (_disable) return;
 
+        BLEAdvertisedDevice copy = *advertisedDevice;
+
         GUI::seenStart();
-        BleFingerprint *f = getFingerprint(advertisedDevice);
-        if (f->seen(advertisedDevice))
+        BleFingerprint *f = getFingerprint(&copy);
+        if (f->seen(&copy))
             GUI::added(f);
         GUI::seenEnd();
     }
