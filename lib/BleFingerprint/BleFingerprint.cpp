@@ -479,7 +479,7 @@ bool BleFingerprint::query()
     if (rssi < -90) return false;
     auto now = millis();
 
-    if (now - lastSeenMillis > 10) return false;
+    if (now - lastSeenMillis > 5) return false;
 
     if (now - lastQryMillis < qryDelayMillis) return false;
     didQuery = true;
@@ -493,7 +493,7 @@ bool BleFingerprint::query()
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
     pClient->setClientCallbacks(&clientCB, false);
-    pClient->setConnectionParams(12, 12, 0, 200);
+    pClient->setConnectionParams(12, 12, 0, 48);
     pClient->setConnectTimeout(5);
     NimBLEDevice::getScan()->stop();
     if (pClient->connect(address))
@@ -542,7 +542,7 @@ bool BleFingerprint::query()
     if (success) return true;
 
     qryAttempts++;
-    qryDelayMillis = min(int(pow(100, qryAttempts)), 60000);
+    qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
     Serial.printf("%u QryErr| MAC: %s, ID: %-58s%ddBm Try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
 
     didQuery = false;
