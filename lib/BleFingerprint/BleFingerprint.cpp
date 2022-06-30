@@ -331,7 +331,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
             setId("garmin:" + getMac(), ID_TYPE_GARMIN);
         }
-        else if (manuf == "4D4B") // iTrack
+        else if (manuf == "4d4b") // iTrack
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
             setId("iTrack:" + getMac(), ID_TYPE_ITRACK);
