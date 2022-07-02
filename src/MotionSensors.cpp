@@ -100,7 +100,7 @@ namespace Motion
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " Motion";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_motion", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_motion", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/motion";
         doc["dev_cla"] = "motion";

@@ -5,11 +5,8 @@
 #include <string>
 #include <cstring>
 
-#ifdef CONFIG_IDF_TARGET_ESP32C3
-#define ESPMAC (Sprintf("%06x", (uint32_t)ESP.getEfuseMac()))
-#else
-#define ESPMAC (Sprintf("%06" PRIx64, ESP.getEfuseMac() >> 24))
-#endif
+#define CHIPID (uint32_t)(ESP.getEfuseMac() >> 24)
+#define ESPMAC (Sprintf("%06lx", CHIPID))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); String r = s; free(s); r; })
 #define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); std::string r = s; free(s); r; })
 #define SMacf(f) (                                                                                                                                       \

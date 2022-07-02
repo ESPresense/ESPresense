@@ -125,7 +125,6 @@ void setupNetwork()
 {
     Serial.println("Setup network");
     WiFi.persistent(false);
-    WiFi.setSleep(false);
     GUI::connected(false, false);
 
     WiFiSettings.onFailure = []()

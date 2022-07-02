@@ -95,7 +95,7 @@ namespace BME280
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " BME280 Temperature";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_temperature", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_bme280_temperature", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/bme280_temperature";
         doc["dev_cla"] = "temperature";
@@ -113,7 +113,7 @@ namespace BME280
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " BME280 Humidity";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_humidity", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_bme280_humidity", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/bme280_humidity";
         doc["dev_cla"] = "humidity";
@@ -131,7 +131,7 @@ namespace BME280
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " BME280 Pressure";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_bme280_pressure", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_bme280_pressure", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/bme280_pressure";
         doc["dev_cla"] = "pressure";
