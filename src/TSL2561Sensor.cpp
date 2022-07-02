@@ -104,7 +104,7 @@ namespace TSL2561
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " TSL2561 Lux";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_tsl2561_lux", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_tsl2561_lux", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/tsl2561_lux";
         doc["dev_cla"] = "illuminance";

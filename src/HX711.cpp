@@ -88,7 +88,7 @@ namespace HX711
         commonDiscovery();
         doc["~"] = roomsTopic;
         doc["name"] = "ESPresense " + room + " Raw Weight";
-        doc["uniq_id"] = Sprintf("espresense_%06" PRIx64 "_raw_weight", ESP.getEfuseMac() >> 24);
+        doc["uniq_id"] = Sprintf("espresense_%06lx_raw_weight", CHIPID);
         doc["avty_t"] = "~/status";
         doc["stat_t"] = "~/raw_weight";
         doc["frc_upd"] = true;
