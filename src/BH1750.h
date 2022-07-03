@@ -2,7 +2,10 @@
 #ifdef SENSORS
 #include <ArduinoJson.h>
 
-namespace HX711
+// Forward declares
+class AsyncMqttClient;
+
+namespace BH1750
 {
     void Setup();
     void ConnectToWifi();

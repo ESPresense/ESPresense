@@ -1,70 +1,44 @@
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
 
+#include "globals.h"
+#include "mqtt.h"
 #include "GUI.h"
 #include "defaults.h"
 #include "string_utils.h"
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <ArduinoOTA.h>
-#include <AsyncMqttClient.h>
 #include <AsyncTCP.h>
-
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <NimBLEDevice.h>
 #include <SPIFFS.h>
-#include <Ticker.h>
 #include <WebServer.h>
+
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <WiFiSettings.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 #include <rom/rtc.h>
+#include "Network.h"
 
+#include "MotionSensors.h"
 #ifdef SENSORS
-#include <DHTesp.h>
 #include <Wire.h>
-// I2C
-int I2C_Bus_1_SDA;
-int I2C_Bus_1_SCL;
-int I2C_Bus_2_SDA;
-int I2C_Bus_2_SCL;
-bool I2CDebug;
-bool I2C_Bus_1_Enabled;
-bool I2C_Bus_2_Enabled;
 
-unsigned long sensorInterval = 60000;
-
-//GY-302 lux sensor
-#include <hp_BH1750.h>
-hp_BH1750 BH1750;
-unsigned long ms_BH1750;
-float lux_BH1750;
-int lux_BH1750_MQTT;
-String BH1750_I2c;
-int BH1750_I2c_Bus;
-
-//I2C BME280 sensor
 #include "BME280Sensor.h"
-
-//I2C TSL2561 sensor
 #include "TSL2561Sensor.h"
-
 #include "HX711.h"
+#include "DHT.h"
+#include "BH1750.h"
 #endif
 
-AsyncMqttClient mqttClient;
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle, reportTaskHandle;
 
-DynamicJsonDocument doc(2048);
-char buffer[2048];
-
 bool updateInProgress = false;
-String localIp;
 unsigned long lastTeleMillis;
 int reconnectTries = 0;
 int teleFails = 0;
@@ -75,38 +49,10 @@ String offline = "offline";
 int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
-String room, id, statusTopic, teleTopic, roomsTopic, setTopic;
 
 bool autoUpdate, arduinoOta, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 
-#ifdef SENSORS
-
-uint8_t dht11Pin;
-uint8_t dht22Pin;
-float dhtTempOffset;
-
-/** Initialize DHT sensor 1 */
-DHTesp dhtSensor;
-
-/** Task handle for the light value read task */
-TaskHandle_t dhtTempTaskHandle = NULL;
-
-/** Ticker for temperature reading */
-Ticker tempTicker;
-
-/** Flags for temperature readings finished */
-bool gotNewTemperature = false;
-
-/** Data from dht sensor 1 */
-TempAndHumidity dhtSensorData;
-
-/* Flag if main loop is running */
-bool dhtTasksEnabled = false;
-
-/* update time */
-int dhtUpdateTime = 10; //ToDo: maybe make this a user choise via settings menu
-#endif
 BleFingerprintCollection fingerprints;
 
 String resetReason(RESET_REASON reason)
@@ -312,226 +258,6 @@ void spiffsInit()
 #endif
 
     SPIFFS.begin(true);
-}
-
-bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
-{
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
-            return true;
-        delay(50);
-    }
-    return false;
-}
-
-void commonDiscovery()
-{
-    doc.clear();
-    auto identifiers = doc["dev"].createNestedArray("ids");
-    identifiers.add(Sprintf("espresense_%06" PRIx64, CHIPID));
-    auto connections = doc["dev"].createNestedArray("cns");
-    auto mac = connections.createNestedArray();
-    mac.add("mac");
-    mac.add(WiFi.macAddress());
-    doc["dev"]["name"] = "ESPresense " + room;
-    doc["dev"]["sa"] = room;
-#ifdef VERSION
-    doc["dev"]["sw"] = VERSION;
-#endif
-#ifdef FIRMWARE
-    doc["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
-#endif
-    doc["dev"]["cu"] = "http://" + localIp;
-    doc["dev"]["mdl"] = String(ESP.getChipModel());
-}
-
-bool sendDiscoveryConnectivity()
-{
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room;
-    doc["uniq_id"] = Sprintf("espresense_%06lx_connectivity", CHIPID);
-    doc["json_attr_t"] = "~/telemetry";
-    doc["stat_t"] = "~/status";
-    doc["dev_cla"] = "connectivity";
-    doc["pl_on"] = "online";
-    doc["pl_off"] = "offline";
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/connectivity/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass)
-{
-    auto slug = slugify(name);
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/telemetry";
-    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
-    doc["value_template"] = temp;
-    if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/" + slug + "/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units, const String &devClass = "")
-{
-    auto slug = slugify(name);
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/telemetry";
-    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
-    doc["value_template"] = temp;
-    if (!units.isEmpty()) doc["unit_of_measurement"] = units;
-    if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/" + slug + "/config";
-
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-#ifdef SENSORS
-bool sendDiscoveryTemperature()
-{
-    if (!dht11Pin && !dht22Pin) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Temperature";
-    doc["uniq_id"] = Sprintf("espresense_%06lx_temperature", CHIPID);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/temperature";
-    doc["dev_cla"] = "temperature";
-    doc["unit_of_meas"] = "°C";
-    doc["frc_upd"] = true;
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/temperature/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryHumidity()
-{
-    if (!dht11Pin && !dht22Pin) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Humidity";
-    doc["uniq_id"] = Sprintf("espresense_%06lx_humidity", CHIPID);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/humidity";
-    doc["dev_cla"] = "humidity";
-    doc["unit_of_meas"] = "%";
-    doc["frc_upd"] = true;
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/humidity/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDiscoveryLux()
-{
-    if (BH1750_I2c.isEmpty()) return true;
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = "ESPresense " + room + " Lux";
-    doc["uniq_id"] = Sprintf("espresense_%06lx_lux", CHIPID);
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/lux";
-    doc["dev_cla"] = "illuminance";
-    doc["unit_of_meas"] = "lx";
-    doc["frc_upd"] = true;
-
-    char buffer[1200];
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/lux/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-#endif
-
-bool sendButtonDiscovery(const String &name, const String &entityCategory)
-{
-    auto slug = slugify(name);
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/" + slug;
-    doc["cmd_t"] = "~/" + slug + "/set";
-    doc["entity_category"] = entityCategory;
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/button/espresense_" + ESPMAC + "/" + slug + "/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendSwitchDiscovery(const String &name, const String &entityCategory)
-{
-    auto slug = slugify(name);
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/" + slug;
-    doc["cmd_t"] = "~/" + slug + "/set";
-    doc["entity_category"] = entityCategory;
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/switch/espresense_" + ESPMAC + "/" + slug + "/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool sendDeleteDiscovery(const String &domain, const String &name)
-{
-    auto slug = slugify(name);
-    String discoveryTopic = "homeassistant/" + domain + "/espresense_" + ESPMAC + "/" + slug + "/config";
-    return pub(discoveryTopic.c_str(), 0, false, "");
-}
-
-bool sendNumberDiscovery(const String &name, const String &entityCategory)
-{
-    auto slug = slugify(name);
-
-    commonDiscovery();
-    doc["~"] = roomsTopic;
-    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
-    doc["avty_t"] = "~/status";
-    doc["stat_t"] = "~/" + slug;
-    doc["cmd_t"] = "~/" + slug + "/set";
-    doc["step"] = "0.1";
-    doc["entity_category"] = entityCategory;
-
-    serializeJson(doc, buffer);
-    String discoveryTopic = "homeassistant/number/espresense_" + ESPMAC + "/" + slug + "/config";
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
-}
-
-bool spurt(const String &fn, const String &content)
-{
-    File f = SPIFFS.open(fn, "w");
-    if (!f) return false;
-    auto w = f.print(content);
-    f.close();
-    return w == content.length();
 }
 
 #ifdef MACCHINA_A0

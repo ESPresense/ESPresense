@@ -1,24 +1,13 @@
 #ifdef SENSORS
 
+#include "globals.h"
 #include "defaults.h"
+#include "mqtt.h"
 #include "TSL2561Sensor.h"
 #include <WiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include <Adafruit_TSL2561_U.h>
-
-// for #define ESPMAC
 #include "string_utils.h"
-
-// TODO: Not a fan of externs, but this helps refactoring for now
-extern bool I2C_Bus_1_Enabled;
-extern bool I2C_Bus_2_Enabled;
-extern unsigned long sensorInterval;
-
-extern char buffer[2048];
-extern String room;
-extern String roomsTopic;
-extern void commonDiscovery();
-extern bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0);
 
 namespace TSL2561
 {
@@ -26,6 +15,7 @@ namespace TSL2561
     int TSL2561_I2c_Bus;
     String TSL2561_I2c_Gain;
     unsigned long tsl2561PreviousMillis = 0;
+    int sensorInterval = 60000;
 
     void Setup()
     {
@@ -45,7 +35,7 @@ namespace TSL2561
         Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     }
 
-    void Loop(AsyncMqttClient& mqttClient)
+    void Loop()
     {
         if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
 
@@ -97,24 +87,11 @@ namespace TSL2561
         }
     }
 
-    bool SendDiscovery(DynamicJsonDocument& doc)
+    bool SendDiscovery()
     {
         if (TSL2561_I2c.isEmpty()) return true;
 
-        commonDiscovery();
-        doc["~"] = roomsTopic;
-        doc["name"] = "ESPresense " + room + " TSL2561 Lux";
-        doc["uniq_id"] = Sprintf("espresense_%06lx_tsl2561_lux", CHIPID);
-        doc["avty_t"] = "~/status";
-        doc["stat_t"] = "~/tsl2561_lux";
-        doc["dev_cla"] = "illuminance";
-        doc["unit_of_meas"] = "lx";
-        doc["frc_upd"] = true;
-
-        serializeJson(doc, buffer);
-        String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/tsl2561_lux/config";
-
-        return pub(discoveryTopic.c_str(), 0, true, buffer);
+        return sendSensorDiscovery("TSL2561 Lux", "", "illuminance", "lx");
     }
 }
 

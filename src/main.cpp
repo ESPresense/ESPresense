@@ -1,14 +1,12 @@
+#define VAR_DECLS
 #include "main.h"
-
-#include "Network.h"
-#include "MotionSensors.h"
 
 bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported, int count)
 {
     if (!online)
     {
         if (pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str()) &&
-            pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str()) && Motion::SendOnline(doc))
+            pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str()) && Motion::SendOnline())
         {
             online = true;
             reconnectTries = 0;
@@ -21,7 +19,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 
     if (discovery && !sentDiscovery)
     {
-        if (sendDiscoveryConnectivity()
+        if (sendConnectivityDiscovery()
             && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s")
             && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes")
             && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", ""))
@@ -33,19 +31,17 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendSwitchDiscovery("Auto Update", EC_CONFIG)
             && sendSwitchDiscovery("Arduino OTA", EC_CONFIG)
             && sendSwitchDiscovery("Prerelease", EC_CONFIG)
-            && sendDeleteDiscovery("switch", "OTA Update")
-            && Motion::SendDiscovery(doc)
+            && Motion::SendDiscovery()
 #ifdef MACCHINA_A0
             && sendTeleSensorDiscovery("Battery", "", "{{ value_json.batt }}", "%", "battery")
             && sendTeleBinarySensorDiscovery("Charging", "", "{{ value_json.charging }}", "battery_charging")
 #endif
 #ifdef SENSORS
-            && sendDiscoveryHumidity()
-            && sendDiscoveryTemperature()
-            && sendDiscoveryLux()
-            && BME280::SendDiscovery(doc)
-            && TSL2561::SendDiscovery(doc)
-            && HX711::SendDiscovery(doc)
+            && DHT::SendDiscovery()
+            && BH1750::SendDiscovery()
+            && BME280::SendDiscovery()
+            && TSL2561::SendDiscovery()
+            && HX711::SendDiscovery()
 #endif
         )
         {
@@ -199,10 +195,9 @@ void setupNetwork()
     GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
 
     Motion::ConnectToWifi();
+
 #ifdef SENSORS
-    dht11Pin = WiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
-    dht22Pin = WiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
-    dhtTempOffset = WiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
+    DHT::ConnectToWifi();
 
     WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
@@ -219,14 +214,9 @@ void setupNetwork()
 
     WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
-    WiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
-    BH1750_I2c_Bus = WiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-    BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
-
+    BH1750::ConnectToWifi();
     BME280::ConnectToWifi();
-
     TSL2561::ConnectToWifi();
-
     HX711::ConnectToWifi();
 #endif
 
@@ -257,14 +247,8 @@ void setupNetwork()
     Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     Motion::SerialReport();
 #ifdef SENSORS
-    Serial.print("DHT11 Sensor: ");
-    Serial.println(dht11Pin ? "enabled" : "disabled");
-    Serial.print("DHT22 Sensor: ");
-    Serial.println(dht22Pin ? "enabled" : "disabled");
-    Serial.print("DHT Temp Offset: ");
-    Serial.println(dhtTempOffset ? "enabled" : "disabled");
-    Serial.print("BH1750_I2c Sensor: ");
-    Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
+    DHT::SerialReport();
+    BH1750::SerialReport();
     BME280::SerialReport();
     TSL2561::SerialReport();
     HX711::SerialReport();
@@ -546,40 +530,7 @@ void scanTask(void *parameter)
 }
 
 #ifdef SENSORS
-/**
- * Task to reads temperature from DHT11 sensor
- * @param pvParameters
- *		pointer to task parameters
- */
-void tempTask(void *pvParameters)
-{
-    Serial.println("tempTask loop started");
-    while (1) // tempTask loop
-    {
-        if (dhtTasksEnabled && !gotNewTemperature)
-        {
-            // Read temperature only if old data was processed already
-            // Reading temperature for humidity takes about 250 milliseconds!
-            // Sensor readings may also be up to 2 seconds 'old' (it's a very slow sensor)
-            dhtSensorData = dhtSensor.getTempAndHumidity(); // Read values from sensor 1
-            gotNewTemperature = true;
-        }
-        vTaskSuspend(NULL);
-    }
-}
 
-/**
- * triggerGetTemp
- * Sets flag dhtUpdated to true for handling in loop()
- * called by Ticker tempTicker
- */
-void triggerGetTemp()
-{
-    if (dhtTempTaskHandle != NULL)
-    {
-        xTaskResumeFromISR(dhtTempTaskHandle);
-    }
-}
 #endif
 
 void setup()
@@ -609,34 +560,7 @@ void setup()
     pinMode(GPIO_NUM_35, INPUT);
 #endif
 #ifdef SENSORS
-    if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
-    if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
-
-    if (dht11Pin || dht22Pin)
-    {
-        // Start task to get temperature
-        xTaskCreatePinnedToCore(
-            tempTask,           /* Function to implement the task */
-            "tempTask ",        /* Name of the task */
-            4000,               /* Stack size in words */
-            NULL,               /* Task input parameter */
-            5,                  /* Priority of the task */
-            &dhtTempTaskHandle, /* Task handle. */
-            1);                 /* Core where the task should run */
-
-        if (dhtTempTaskHandle == NULL)
-        {
-            Serial.println("[ERROR] Failed to start task for temperature update");
-        }
-        else
-        {
-            // Start update of environment data every 10 seconds
-            tempTicker.attach(dhtUpdateTime, triggerGetTemp);
-        }
-
-        // Signal end of setup() to tasks
-        dhtTasksEnabled = true;
-    }
+    DHT::Setup();
 
     if (I2C_Bus_1_SDA != 0 && I2C_Bus_1_SDA != 0) {
         Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
@@ -655,64 +579,7 @@ void setup()
         Serial.println("\nI2C Scanner");
     }
 
-
-    if (I2C_Bus_1_Enabled || I2C_Bus_2_Enabled) {
-        // BH1750_I2c
-        // BH1750_updateFr
-        if (BH1750_I2c == "0x23" || BH1750_I2c == "0x5C")
-        {
-            // Init BH1750 (witch default l2c adres)
-            int rc; // Returncode
-            unsigned long m; // milli for calibration
-            bool state = false;
-
-            // if (! BH1750.begin(BH1750_TO_GROUND))
-            if (BH1750_I2c == "0x23" && BH1750_I2c_Bus == 1)
-            {
-                state = BH1750.begin(BH1750_TO_GROUND, &Wire);
-            }
-            else if (BH1750_I2c == "0x5C" && BH1750_I2c_Bus == 1)
-            {
-                state = BH1750.begin(BH1750_TO_VCC, &Wire);
-            }
-            else if (BH1750_I2c == "0x23" && BH1750_I2c_Bus == 2)
-            {
-                state = BH1750.begin(BH1750_TO_GROUND, &Wire1);
-            }
-            else if (BH1750_I2c == "0x5C" && BH1750_I2c_Bus == 2)
-            {
-                state = BH1750.begin(BH1750_TO_VCC, &Wire1);
-            }
-
-            if (!state)
-            {
-                Serial.println("Error on initialisation BH1750 GY-302");
-            }
-            else
-            {
-                sendDiscoveryLux();
-                Serial.println("initialisation BH1750 GY-302 success");
-                m = millis();
-                rc = BH1750.calibrateTiming();
-                m = millis() - m;
-                Serial.print("Lux Sensor BH1750 GY-302 calibrated (Time: ");
-                Serial.print(m);
-                Serial.print(" ms)");
-                if (rc != 0)
-                {
-                    Serial.print(" - Lux Sensor Error code ");
-                    Serial.print(rc);
-                }
-                Serial.println();
-
-                // start first measure and timecount
-                lux_BH1750 = -1; // nothing to compare
-                BH1750.start(BH1750_QUALITY_HIGH, 1);
-                ms_BH1750 = millis();
-            }
-        }
-    }
-
+   BH1750::Setup();
     //BME280::Setup();
     //TSL2561::Setup();
     HX711::Setup();
@@ -723,72 +590,9 @@ void setup()
 }
 
 #ifdef SENSORS
-void dhtLoop()
-{
-    if (!dht11Pin && !dht22Pin) return;
 
-    if (gotNewTemperature)
-    {
-        float humidity = dhtSensorData.humidity;
-        float temperature = dhtSensorData.temperature + dhtTempOffset;
-        Serial.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
-
-        mqttClient.publish((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity, 1).c_str());
-        mqttClient.publish((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature, 1).c_str());
-
-        gotNewTemperature = false;
-    }
-}
 
 //non blocking ambient sensor
-void luxLoop()
-{
-    if (I2C_Bus_1_Enabled || I2C_Bus_2_Enabled) {
-
-        if (BH1750_I2c == "0x23" || BH1750_I2c == "0x5C")
-        {
-
-            float lux;
-            int lux_mqtt;
-
-            if (BH1750.hasValue())
-            {
-                ms_BH1750 = millis() - ms_BH1750;
-                if (!BH1750.saturated())
-                {
-                    lux = BH1750.getLux();
-                    lux_mqtt = int(lux);
-
-                    if (lux != lux_BH1750)
-                    {
-                        lux_BH1750 = lux;
-                        // Serial.print("BH1750 (");
-                        // Serial.print(ms_BH1750);
-                        // Serial.print(" ms): ");
-                        // Serial.print(lux);
-                        // Serial.println(" lx");
-                    }
-
-                    //convert lx to integer to reduce mqtt traffic, send only if lx changed
-                    if (lux_mqtt != lux_BH1750_MQTT)
-                    {
-                        lux_BH1750_MQTT = lux_mqtt;
-                        Serial.print("BH1750 (");
-                        Serial.print(ms_BH1750);
-                        Serial.print(" ms): ");
-                        Serial.print(lux_mqtt);
-                        Serial.println(" lx");
-                        mqttClient.publish((roomsTopic + "/lux").c_str(), 0, 1, String(lux_mqtt).c_str());
-                    }
-                }
-
-                BH1750.adjustSettings(90);
-                BH1750.start();
-                ms_BH1750 = millis();
-            }
-        }
-    }
-}
 
 void l2cScanner()
 {
@@ -876,13 +680,13 @@ void loop()
         ArduinoOTA.handle();
     if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
-    Motion::Loop(mqttClient);
+    Motion::Loop();
 #ifdef SENSORS
-    dhtLoop();
-    luxLoop();
-    BME280::Loop(mqttClient);
-    TSL2561::Loop(mqttClient);
-    HX711::Loop(mqttClient);
+    DHT::Loop();
+    BH1750::Loop();
+    BME280::Loop();
+    TSL2561::Loop();
+    HX711::Loop();
     l2cScanner();
 #endif
     WiFiSettings.httpLoop();
