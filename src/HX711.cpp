@@ -1,19 +1,12 @@
 #ifdef SENSORS
-
-#include "defaults.h"
 #include "HX711.h"
+
+#include "globals.h"
+#include "mqtt.h"
+#include "defaults.h"
 #include <WiFiSettings.h>
 #include <AsyncMqttClient.h>
-
-// for #define ESPMAC
 #include "string_utils.h"
-
-// TODO: Not a fan of externs, but this helps refactoring for now
-extern char buffer[2048];
-extern String room;
-extern String roomsTopic;
-extern void commonDiscovery();
-extern bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0);
 
 namespace HX711
 {
@@ -45,7 +38,7 @@ namespace HX711
         Serial.println(String(sckPin) + "/" + String(doutPin));
     }
 
-    void Loop(AsyncMqttClient& mqttClient)
+    void Loop()
     {
         if (!sckPin && !doutPin) return;
         if (millis() - lastMillis < sensorInterval) return;
@@ -83,26 +76,10 @@ namespace HX711
         pub((roomsTopic + "/raw_weight").c_str(), 0, true, String(data).c_str());
     }
 
-    static bool SendWeight(DynamicJsonDocument& doc)
-    {
-        commonDiscovery();
-        doc["~"] = roomsTopic;
-        doc["name"] = "ESPresense " + room + " Raw Weight";
-        doc["uniq_id"] = Sprintf("espresense_%06lx_raw_weight", CHIPID);
-        doc["avty_t"] = "~/status";
-        doc["stat_t"] = "~/raw_weight";
-        doc["frc_upd"] = true;
-
-        serializeJson(doc, buffer);
-        String discoveryTopic = "homeassistant/sensor/espresense_" + ESPMAC + "/raw_weight/config";
-
-        return pub(discoveryTopic.c_str(), 0, true, buffer);
-    }
-
-    bool SendDiscovery(DynamicJsonDocument& doc)
+    bool SendDiscovery()
     {
         if (!sckPin && !doutPin) return true;
-        return SendWeight(doc);
+        return sendSensorDiscovery("Raw Weight", "", "", "");
     }
 }
 

@@ -1,5 +1,6 @@
 #include <regex>
 #include <string_utils.h>
+#include <SPIFFS.h>
 
 std::string ltrim(const std::string &s, char toTrim)
 {
@@ -105,4 +106,13 @@ bool prefixExists(const String &prefixes, const String &s)
     }
     auto sub = prefixes.substring(start);
     return !sub.isEmpty() && s.indexOf(sub) != -1;
+}
+
+bool spurt(const String &fn, const String &content)
+{
+    File f = SPIFFS.open(fn, "w");
+    if (!f) return false;
+    auto w = f.print(content);
+    f.close();
+    return w == content.length();
 }

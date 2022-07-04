@@ -1,20 +1,11 @@
 #include "MotionSensors.h"
 #include <WiFiSettings.h>
 #include <AsyncMqttClient.h>
-
-// for #define ESPMAC
+#include "globals.h"
+#include "mqtt.h"
 #include "string_utils.h"
 #include "defaults.h"
 #include "GUI.h"
-
-// TODO: Not a fan of externs, but this helps refactoring for now
-extern char buffer[2048];
-extern String room;
-extern String roomsTopic;
-extern void commonDiscovery();
-extern bool sendNumberDiscovery(const String& name, const String& entityCategory);
-extern bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0);
-extern bool spurt(const String& fn, const String& content);
 
 namespace Motion
 {
@@ -54,7 +45,7 @@ namespace Motion
         Serial.println(radarPin ? "enabled" : "disabled");
     }
 
-    static void PirLoop(AsyncMqttClient& mqttClient)
+    static void pirLoop()
     {
         if (!pirPin) return;
         bool detected = digitalRead(pirPin) == HIGH;
@@ -68,7 +59,7 @@ namespace Motion
         lastPirValue = pirValue;
     }
 
-    static void RadarLoop(AsyncMqttClient& mqttClient)
+    static void radarLoop()
     {
         if (!radarPin) return;
         bool detected = digitalRead(radarPin) == HIGH;
@@ -82,34 +73,23 @@ namespace Motion
         lastRadarValue = radarValue;
     }
 
-    void Loop(AsyncMqttClient& mqttClient)
+    void Loop()
     {
-        PirLoop(mqttClient);
-        RadarLoop(mqttClient);
+        pirLoop();
+        radarLoop();
         int motionValue = (lastRadarValue == HIGH || lastPirValue == HIGH) ? HIGH : LOW;
         if (lastMotionValue == motionValue) return;
         mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, motionValue == HIGH ? "ON" : "OFF");
         lastMotionValue = motionValue;
     }
 
-    bool SendDiscovery(DynamicJsonDocument& doc)
+    bool SendDiscovery()
     {
-        if (!pirPin && !radarPin)
-            return true;
+        if (!pirPin && !radarPin) return true;
 
-        commonDiscovery();
-        doc["~"] = roomsTopic;
-        doc["name"] = "ESPresense " + room + " Motion";
-        doc["uniq_id"] = Sprintf("espresense_%06lx_motion", CHIPID);
-        doc["avty_t"] = "~/status";
-        doc["stat_t"] = "~/motion";
-        doc["dev_cla"] = "motion";
-
-        serializeJson(doc, buffer);
-        String discoveryTopic = "homeassistant/binary_sensor/espresense_" + ESPMAC + "/motion/config";
-
-        if (!pub(discoveryTopic.c_str(), 0, true, buffer)) return false;
-        return (!pirPin || sendNumberDiscovery("Pir Timeout", EC_CONFIG)) && (!radarPin || sendNumberDiscovery("Radar Timeout", EC_CONFIG));
+        if (pirPin && !sendNumberDiscovery("Pir Timeout", EC_CONFIG)) return false;
+        if (radarPin && !sendNumberDiscovery("Radar Timeout", EC_CONFIG)) return false;
+        return sendSensorDiscovery("Motion", "", "", "motion");
     }
 
     bool Command(String& command, String& pay)
@@ -128,7 +108,7 @@ namespace Motion
         return true;
     }
 
-    bool SendOnline(DynamicJsonDocument& doc)
+    bool SendOnline()
     {
         return pub((roomsTopic + "/pir_timeout").c_str(), 0, true, String(pirTimeout).c_str())
                && pub((roomsTopic + "/radar_timeout").c_str(), 0, true, String(radarTimeout).c_str());

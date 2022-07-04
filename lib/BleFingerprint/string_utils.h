@@ -1,5 +1,4 @@
-#pragma  once
-
+#pragma once
 #include <Arduino.h>
 #include <WString.h>
 #include <string>
@@ -26,3 +25,4 @@ std::string hexStrRev(const uint8_t *data, int len);
 std::string hexStrRev(const char *data, int len);
 std::string hexStrRev(const std::string &s);
 bool prefixExists(const String& prefixes, const String& s);
+bool spurt(const String &fn, const String &content);
