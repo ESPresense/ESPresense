@@ -155,8 +155,8 @@ void setupNetwork()
     WiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
     mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
-    mqttUser = WiFiSettings.string("mqtt_user", DEFAULT_MQTT_USER, "Username");
-    mqttPass = WiFiSettings.string("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
+    mqttUser = WiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
+    mqttPass = WiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
     discovery = WiFiSettings.checkbox("discovery", true, "Send to discovery topic");
     publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
