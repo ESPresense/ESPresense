@@ -37,7 +37,9 @@
 #define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
 
 // Number of seconds between update checks
-#define CHECK_FOR_UPDATES_INTERVAL 300
+#ifndef CHECK_FOR_UPDATES_INTERVAL
+#define CHECK_FOR_UPDATES_INTERVAL 900
+#endif
 
 // I2C Defaults
 #define DEFAULT_I2C_BUS_1_SDA 21

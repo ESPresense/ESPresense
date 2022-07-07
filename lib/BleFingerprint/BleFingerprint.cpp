@@ -458,17 +458,17 @@ bool BleFingerprint::report(JsonDocument *doc)
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    (*doc)[F("raw")] = round(raw * 100.0f) / 100.0f;
-    (*doc)[F("distance")] = round(output.value.position * 100.0f) / 100.0f;
-    (*doc)[F("speed")] = round(output.value.speed * 1e5f) / 100.0f;
+    (*doc)[F("raw")] = serialized(String(raw, 2));
+    (*doc)[F("distance")] = serialized(String(output.value.position, 2));
+    (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
     (*doc)[F("mac")] = SMacf(address);
 
     (*doc)[F("interval")] = (now - firstSeenMillis) / seenCount;
 
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
-    if (temp) (*doc)[F("temp")] = round(temp*10)/10;
-    if (humidity) (*doc)[F("rh")] = round(humidity*10)/10;
+    if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
+    if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
 
     return true;
 }

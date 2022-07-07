@@ -179,12 +179,15 @@ void GUI::updateStart()
 #ifdef LED_BUILTIN
     if (GUI::statusLed) digitalWrite(LED_BUILTIN, LED_BUILTIN_ON);
 #endif
+    Serial.printf("%u Update| %s\n", xPortGetCoreID(), "started");
+    status("Update:%s", "started");
 }
 
 void GUI::updateProgress(unsigned int percent)
 {
 #ifdef LED_BUILTIN
     if (GUI::statusLed) digitalWrite(LED_BUILTIN, percent % 2);
+    Serial.printf("%u Update| %d%%\n", xPortGetCoreID(), percent);
 #endif
 }
 
@@ -193,6 +196,8 @@ void GUI::updateEnd()
 #ifdef LED_BUILTIN
     digitalWrite(LED_BUILTIN, !LED_BUILTIN_ON);
 #endif
+    Serial.printf("%u Update| %s\n", xPortGetCoreID(), "finished");
+    status("Update:%s", "finished");
 }
 
 bool GUI::init = false;
