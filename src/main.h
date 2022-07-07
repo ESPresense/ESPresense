@@ -139,9 +139,7 @@ void configureOTA()
                })
         .onProgress([](unsigned int progress, unsigned int total)
                     {
-                        byte percent = (progress / (total / 100));
-                        Serial.printf("Progress: %u\r\n", percent);
-                        GUI::updateProgress(progress);
+                        GUI::updateProgress((progress / (total / 100)));
                     })
         .onError([](ota_error_t error)
                  {
