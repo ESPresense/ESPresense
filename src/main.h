@@ -198,6 +198,7 @@ void firmwareUpdate()
 #endif
 
     updateInProgress = true;
+    mqttClient.disconnect();
     NimBLEDevice::getScan()->stop();
     fingerprints.setDisable(updateInProgress);
     GUI::updateStart();

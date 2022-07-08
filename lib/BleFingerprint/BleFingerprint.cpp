@@ -189,7 +189,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
 void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower)
 {
     asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
-    String fingerprint = "sd:";
+    String fingerprint = "";
     for (int i = 0; i < serviceDataCount; i++)
     {
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
@@ -275,9 +275,11 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
             fingerprint = fingerprint + uuid.toString().c_str();
         }
     }
-    if (haveTxPower)
-        fingerprint = fingerprint + String(-txPower);
-    setId(fingerprint, ID_TYPE_SD);
+    if (!fingerprint.isEmpty())
+    {
+        if (haveTxPower) fingerprint = fingerprint + String(-txPower);
+        setId("sd:" + fingerprint, ID_TYPE_SD);
+    }
 }
 
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower)
