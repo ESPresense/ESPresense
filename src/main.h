@@ -198,9 +198,14 @@ void firmwareUpdate()
 #endif
 
     updateInProgress = true;
+    NimBLEDevice::getScan()->stop();
     fingerprints.setDisable(updateInProgress);
     GUI::updateStart();
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+    httpUpdate.onProgress([](int progress, int total)
+                            {
+                                GUI::updateProgress((progress / (total / 100)));
+                            });
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
     GUI::updateEnd();
 
