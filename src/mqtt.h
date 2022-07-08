@@ -1,15 +1,23 @@
 #pragma once
 #include <Arduino.h>
 
+static const char *const EC_DIAGNOSTIC = "diagnostic";
+static const char *const EC_CONFIG = "config";
+static const char *const EC_NONE = "";
+
+static const char *const DEVICE_CLASS_NONE = "";
+
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0);
 void commonDiscovery();
 
 bool sendConnectivityDiscovery();
 
-bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass);
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units, const String &devClass = "");
+bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = DEVICE_CLASS_NONE);
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = DEVICE_CLASS_NONE, const String &units = "");
 
-bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &units, const String &devClass);
+bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass = DEVICE_CLASS_NONE);
+bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass = DEVICE_CLASS_NONE, const String &units = "", bool frcUpdate = false);
+
 bool sendButtonDiscovery(const String &name, const String &entityCategory);
 bool sendSwitchDiscovery(const String &name, const String &entityCategory);
 bool sendNumberDiscovery(const String &name, const String &entityCategory);

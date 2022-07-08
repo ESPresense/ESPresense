@@ -56,6 +56,3 @@
 #define DEFAULT_AUTO_UPDATE false
 #define DEFAULT_ARDUINO_OTA true
 #endif
-
-static const char *const EC_DIAGNOSTIC = "diagnostic";
-static const char *const EC_CONFIG = "config";

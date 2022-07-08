@@ -139,7 +139,7 @@ namespace BH1750
     {
         if (BH1750_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("Lux", "", "illuminance", "lx");
+        return sendSensorDiscovery("Lux", EC_NONE, "illuminance", "lx");
     }
 }
 

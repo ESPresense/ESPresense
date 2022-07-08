@@ -91,7 +91,7 @@ namespace TSL2561
     {
         if (TSL2561_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("TSL2561 Lux", "", "illuminance", "lx");
+        return sendSensorDiscovery("TSL2561 Lux", EC_NONE, "illuminance", "lx");
     }
 }
 

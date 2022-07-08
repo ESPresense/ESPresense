@@ -20,9 +20,9 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
     if (discovery && !sentDiscovery)
     {
         if (sendConnectivityDiscovery()
-            && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", "s")
-            && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", "bytes")
-            && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", "", "{{ value_json.count }}", ""))
+            && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", DEVICE_CLASS_NONE, "s")
+            && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", DEVICE_CLASS_NONE, "bytes")
+            && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", EC_NONE, "{{ value_json.count }}"))
             && sendButtonDiscovery("Restart", EC_DIAGNOSTIC)
             && sendSwitchDiscovery("Status LED", EC_CONFIG)
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
@@ -33,8 +33,8 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendSwitchDiscovery("Prerelease", EC_CONFIG)
             && Motion::SendDiscovery()
 #ifdef MACCHINA_A0
-            && sendTeleSensorDiscovery("Battery", "", "{{ value_json.batt }}", "%", "battery")
-            && sendTeleBinarySensorDiscovery("Charging", "", "{{ value_json.charging }}", "battery_charging")
+            && sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
+            && sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
 #endif
 #ifdef SENSORS
             && DHT::SendDiscovery()

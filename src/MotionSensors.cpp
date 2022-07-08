@@ -89,7 +89,7 @@ namespace Motion
 
         if (pirPin) if (!sendNumberDiscovery("Pir Timeout", EC_CONFIG)) return false;
         if (radarPin) if (!sendNumberDiscovery("Radar Timeout", EC_CONFIG)) return false;
-        return sendSensorDiscovery("Motion", "", "", "motion");
+        return sendBinarySensorDiscovery("Motion", EC_NONE, "motion");
     }
 
     bool Command(String& command, String& pay)

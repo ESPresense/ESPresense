@@ -79,7 +79,7 @@ namespace HX711
     bool SendDiscovery()
     {
         if (!sckPin && !doutPin) return true;
-        return sendSensorDiscovery("Raw Weight", "", "", "");
+        return sendSensorDiscovery("Raw Weight", EC_NONE);
     }
 }
 

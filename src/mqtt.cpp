@@ -51,7 +51,7 @@ bool sendConnectivityDiscovery()
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass)
+bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "")
 {
     auto slug = slugify(name);
 
@@ -70,7 +70,7 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &units, const String &devClass)
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "", const String &units = "")
 {
     auto slug = slugify(name);
 
@@ -90,7 +90,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &units, const String &devClass)
+bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "", const String &units = "", bool frcUpdate = true)
 {
     auto slug = slugify(name);
 
@@ -103,10 +103,28 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!units.isEmpty()) doc["unit_of_meas"] = units;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
-    doc["frc_upd"] = true;
+    doc["frc_upd"] = frcUpdate;
 
     serializeJson(doc, buffer);
     String discoveryTopic = Sprintf("homeassistant/sensor/espresense_%06lx/%s/config", CHIPID, slug.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
+
+bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "")
+{
+    auto slug = slugify(name);
+
+    commonDiscovery();
+    doc["~"] = roomsTopic;
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["avty_t"] = "~/status";
+    doc["stat_t"] = "~/" + slug;
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
+    if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
+
+    serializeJson(doc, buffer);
+    String discoveryTopic = Sprintf("homeassistant/binary_sensor/espresense_%06lx/%s/config", CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 

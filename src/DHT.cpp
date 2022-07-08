@@ -143,7 +143,7 @@ namespace DHT
     {
         if (!dht11Pin && !dht22Pin) return true;
 
-        return sendSensorDiscovery("Temperature", "", "temperature", "°C") && sendSensorDiscovery("Humidity", "", "humidity", "%");
+        return sendSensorDiscovery("Temperature", EC_NONE, "temperature", "°C") && sendSensorDiscovery("Humidity", EC_NONE, "humidity", "%");
     }
 
     bool Command(String& command, String& pay)
