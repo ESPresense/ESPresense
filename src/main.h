@@ -38,8 +38,8 @@
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle, reportTaskHandle;
 
-bool updateInProgress = false;
-unsigned long lastTeleMillis;
+unsigned long updateStartedMillis = 0;
+unsigned long lastTeleMillis = 0;
 int reconnectTries = 0;
 int teleFails = 0;
 bool online = false;        // Have we successfully sent status=online
@@ -54,6 +54,10 @@ bool autoUpdate, arduinoOta, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
 
 BleFingerprintCollection fingerprints;
+
+bool updateInProgress() {
+  return updateStartedMillis > 0 && millis() - updateStartedMillis < 60000;
+}
 
 String resetReason(RESET_REASON reason)
 {
@@ -127,13 +131,11 @@ void configureOTA()
         .onStart([]()
                  {
                      Serial.println("OTA Start");
-                     updateInProgress = true;
-                     fingerprints.setDisable(updateInProgress);
+                     updateStartedMillis = millis();
                  })
         .onEnd([]()
                {
-                   updateInProgress = false;
-                   fingerprints.setDisable(updateInProgress);
+                   updateStartedMillis = 0;
                    GUI::updateEnd();
                    Serial.println("\n\rEnd");
                })
@@ -154,7 +156,7 @@ void configureOTA()
                          Serial.println("Receive Failed");
                      else if (error == OTA_END_ERROR)
                          Serial.println("End Failed");
-                     updateInProgress = false;
+                     updateStartedMillis = 0;
                  });
     ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPort(3232);
@@ -197,10 +199,9 @@ void firmwareUpdate()
     }
 #endif
 
-    updateInProgress = true;
+    updateStartedMillis = millis();
     mqttClient.disconnect();
     NimBLEDevice::getScan()->stop();
-    fingerprints.setDisable(updateInProgress);
     GUI::updateStart();
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     httpUpdate.onProgress([](int progress, int total)
@@ -225,8 +226,7 @@ void firmwareUpdate()
         break;
     }
 
-    updateInProgress = false;
-    fingerprints.setDisable(updateInProgress);
+    updateStartedMillis = 0;
 #endif
 }
 

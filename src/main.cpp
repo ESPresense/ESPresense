@@ -381,7 +381,7 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
 void reconnect(TimerHandle_t xTimer)
 {
     Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
-    if (updateInProgress) return;
+    if (updateInProgress()) return;
     if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50)
@@ -457,7 +457,7 @@ void reportTask(void *parameter)
 
     while (true)
     {
-        while (updateInProgress || !mqttClient.connected())
+        while (updateInProgress() || !mqttClient.connected())
             delay(1000);
 
         yield();
@@ -516,9 +516,13 @@ void scanTask(void *parameter)
             if (f->query())
                 totalFpQueried++;
 
-        while (updateInProgress)
-            delay(1000);
-
+        if (updateInProgress())
+        {
+            fingerprints.setDisable(true);
+            while (updateInProgress())
+                delay(1000);
+            fingerprints.setDisable(false);
+        }
         if (!pBLEScan->isScanning())
         {
             if (!pBLEScan->start(0, nullptr, true))
