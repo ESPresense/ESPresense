@@ -36,6 +36,5 @@ _DECL int I2C_Bus_1_SDA;
 _DECL int I2C_Bus_1_SCL;
 _DECL int I2C_Bus_2_SDA;
 _DECL int I2C_Bus_2_SCL;
-_DECL bool I2CDebug;
 _DECL bool I2C_Bus_1_Enabled;
 _DECL bool I2C_Bus_2_Enabled;
