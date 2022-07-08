@@ -582,9 +582,9 @@ void setup()
         Serial.println("\nI2C Scanner");
     }
 
-   BH1750::Setup();
-    //BME280::Setup();
-    //TSL2561::Setup();
+    BH1750::Setup();
+    BME280::Setup();
+    TSL2561::Setup();
     HX711::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
