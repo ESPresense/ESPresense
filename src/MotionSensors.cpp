@@ -87,8 +87,8 @@ namespace Motion
     {
         if (!pirPin && !radarPin) return true;
 
-        if (pirPin && !sendNumberDiscovery("Pir Timeout", EC_CONFIG)) return false;
-        if (radarPin && !sendNumberDiscovery("Radar Timeout", EC_CONFIG)) return false;
+        if (pirPin) if (!sendNumberDiscovery("Pir Timeout", EC_CONFIG)) return false;
+        if (radarPin) if (!sendNumberDiscovery("Radar Timeout", EC_CONFIG)) return false;
         return sendSensorDiscovery("Motion", "", "", "motion");
     }
 
