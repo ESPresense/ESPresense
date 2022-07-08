@@ -25,6 +25,7 @@
 #include "Network.h"
 
 #include "MotionSensors.h"
+#include "I2CScanner.h"
 #ifdef SENSORS
 #include <Wire.h>
 

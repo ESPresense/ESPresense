@@ -201,8 +201,6 @@ void setupNetwork()
 
     WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
-    I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
-
     WiFiSettings.html("h4", "Bus 1:");
     I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (0 to disable)");
     I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (0 to disable)");
@@ -211,6 +209,8 @@ void setupNetwork()
 
     I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", 0, "SDA pin (0 to disable)");
     I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", 0, "SCL pin (0 to disable)");
+
+    I2CScanner::ConnectToWifi();
 
     WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
@@ -568,24 +568,6 @@ void setup()
 #endif
 #ifdef SENSORS
     DHT::Setup();
-
-    if (I2C_Bus_1_SDA != 0 && I2C_Bus_1_SDA != 0) {
-        Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
-        I2C_Bus_1_Enabled = true;
-        Serial.println("\nInitialized I2C Bus 1");
-    }
-
-    if (I2C_Bus_2_SDA != 0 && I2C_Bus_2_SDA != 0) {
-        Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
-        I2C_Bus_2_Enabled = true;
-        Serial.println("\nInitialized I2C Bus 2");
-    }
-
-    if (I2CDebug)
-    {
-        Serial.println("\nI2C Scanner");
-    }
-
     BH1750::Setup();
     BME280::Setup();
     TSL2561::Setup();
@@ -601,83 +583,6 @@ void setup()
 
 //non blocking ambient sensor
 
-void l2cScanner()
-{
-    if (I2C_Bus_1_Enabled || I2C_Bus_2_Enabled) {
-
-        if (!I2CDebug) return;
-
-        byte error, address;
-        int nDevices;
-        Serial.println("Scanning I2C device...");
-        nDevices = 0;
-
-        for (address = 1; address < 127; address++)
-        {
-            Wire.beginTransmission(address);
-            error = Wire.endTransmission();
-            if (error == 0)
-            {
-                Serial.print("I2C device found on bus 1 at address 0x");
-
-                if (address < 16)
-                {
-                    Serial.print("0");
-                }
-
-                Serial.println(address, HEX);
-                nDevices++;
-            }
-            else if (error == 4)
-            {
-                Serial.print("Unknow error on bus 1 at address 0x");
-                if (address < 16)
-                {
-                    Serial.print("0");
-                }
-                Serial.println(address, HEX);
-            }
-        }
-
-        for (address = 1; address < 127; address++)
-        {
-            Wire1.beginTransmission(address);
-            error = Wire1.endTransmission();
-            if (error == 0)
-            {
-                Serial.print("I2C device found on bus 2 at address 0x");
-
-                if (address < 16)
-                {
-                    Serial.print("0");
-                }
-
-                Serial.println(address, HEX);
-                nDevices++;
-            }
-            else if (error == 4)
-            {
-                Serial.print("Unknow error on bus 2 at address 0x");
-                if (address < 16)
-                {
-                    Serial.print("0");
-                }
-                Serial.println(address, HEX);
-            }
-        }
-
-        if (nDevices == 0)
-        {
-            Serial.println("No I2C devices found\n");
-        }
-        else
-        {
-            Serial.println("done\n");
-            I2CDebug = false;
-        }
-        delay(5000);
-    }
-}
 #endif
 
 void loop()
@@ -694,7 +599,7 @@ void loop()
     BME280::Loop();
     TSL2561::Loop();
     HX711::Loop();
-    l2cScanner();
+    I2CScanner::Loop();
 #endif
     WiFiSettings.httpLoop();
 }
