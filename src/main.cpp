@@ -516,6 +516,9 @@ void scanTask(void *parameter)
             if (f->query())
                 totalFpQueried++;
 
+        while (updateInProgress)
+            delay(1000);
+
         if (!pBLEScan->isScanning())
         {
             if (!pBLEScan->start(0, nullptr, true))
