@@ -86,9 +86,9 @@ namespace BME280
     {
         if (BME280_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("BME Temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("BME Humidity", EC_NONE, "humidity", "%")
-            && sendSensorDiscovery("BME Pressure", EC_NONE, "pressure", "hPa");
+        return sendSensorDiscovery("BME280 Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("BME280 Humidity", EC_NONE, "humidity", "%")
+            && sendSensorDiscovery("BME280 Pressure", EC_NONE, "pressure", "hPa");
     }
 }
 
