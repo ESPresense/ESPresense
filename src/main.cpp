@@ -198,19 +198,7 @@ void setupNetwork()
 
 #ifdef SENSORS
     DHT::ConnectToWifi();
-
-    WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
-
-    WiFiSettings.html("h4", "Bus 1:");
-    I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (0 to disable)");
-    I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (0 to disable)");
-
-    WiFiSettings.html("h4", "Bus 2:");
-
-    I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", 0, "SDA pin (0 to disable)");
-    I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", 0, "SCL pin (0 to disable)");
-
-    I2CScanner::ConnectToWifi();
+    I2C::ConnectToWifi();
 
     WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
@@ -568,6 +556,7 @@ void setup()
 #endif
 #ifdef SENSORS
     DHT::Setup();
+    I2C::Setup();
     BH1750::Setup();
     BME280::Setup();
     TSL2561::Setup();
@@ -599,7 +588,7 @@ void loop()
     BME280::Loop();
     TSL2561::Loop();
     HX711::Loop();
-    I2CScanner::Loop();
+    I2C::Loop();
 #endif
     WiFiSettings.httpLoop();
 }

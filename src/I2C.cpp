@@ -1,6 +1,6 @@
 #ifdef SENSORS
 
-#include "I2CScanner.h"
+#include "I2C.h"
 
 #include "globals.h"
 #include "mqtt.h"
@@ -10,28 +10,50 @@
 
 #include <Adafruit_BME280.h>
 
-namespace I2CScanner
+namespace I2C
 {
-    bool enabled = false;
-
-    void Setup()
-    {
-    }
+    bool I2CDebug = false;
 
     void ConnectToWifi()
     {
-        enabled = WiFiSettings.checkbox("enabled", false, "Debug I2C addreses. Look at the serial log to get the correct address");
+        WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
+
+        WiFiSettings.html("h4", "Bus 1:");
+        I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
+        I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
+
+        WiFiSettings.html("h4", "Bus 2:");
+
+        I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", -1, "SDA pin (-1 to disable)");
+        I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", -1, "SCL pin (-1 to disable)");
+
+        I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
     }
 
     void SerialReport()
     {
     }
 
+    void Setup()
+    {
+        if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SDA != -1) {
+            Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
+            I2C_Bus_1_Enabled = true;
+            Serial.println("\nInitialized I2C Bus 1");
+        }
+
+        if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SDA != -1) {
+            Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
+            I2C_Bus_2_Enabled = true;
+            Serial.println("\nInitialized I2C Bus 2");
+        }
+    }
+
     void Loop()
     {
         if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
-        if (!enabled) return;
-        enabled = false;
+        if (!I2CDebug) return;
+        I2CDebug = false;
 
         byte error, address;
         int nDevices;
@@ -58,7 +80,7 @@ namespace I2CScanner
                 }
                 else if (error == 4)
                 {
-                    Serial.print("Unknow error on bus 1 at address 0x");
+                    Serial.print("Unknown error on bus 1 at address 0x");
                     if (address < 16)
                     {
                         Serial.print("0");
@@ -90,7 +112,7 @@ namespace I2CScanner
                 }
                 else if (error == 4)
                 {
-                    Serial.print("Unknow error on bus 2 at address 0x");
+                    Serial.print("Unknown error on bus 2 at address 0x");
                     if (address < 16)
                     {
                         Serial.print("0");
@@ -108,6 +130,7 @@ namespace I2CScanner
 
     bool SendDiscovery()
     {
+        return true;
     }
 }
 
