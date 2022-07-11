@@ -19,6 +19,7 @@ namespace I2C
         WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
         WiFiSettings.html("h4", "Bus 1:");
+
         I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
         I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
 
@@ -39,13 +40,13 @@ namespace I2C
         if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SDA != -1) {
             Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
             I2C_Bus_1_Enabled = true;
-            Serial.println("\nInitialized I2C Bus 1");
+            Serial.println("Initialized I2C Bus 1 (SDA: " + String(I2C_Bus_1_SDA) + ", SCL: " + String(I2C_Bus_1_SCL) + ")");
         }
 
         if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SDA != -1) {
             Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
             I2C_Bus_2_Enabled = true;
-            Serial.println("\nInitialized I2C Bus 2");
+            Serial.println("Initialized I2C Bus 2 (SDA: " + String(I2C_Bus_2_SDA) + ", SCL: " + String(I2C_Bus_2_SCL) + ")");
         }
     }
 

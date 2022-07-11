@@ -68,11 +68,12 @@ namespace BME280
         if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
         if (!initialized) return;
 
-        float temperature = BME280.readTemperature();
-        float humidity = BME280.readHumidity();
-        float pressure = BME280.readPressure() / 100.0F;
-
         if (millis() - bme280PreviousMillis >= sensorInterval) {
+
+            BME280.takeForcedMeasurement();
+            float temperature = BME280.readTemperature();
+            float humidity = BME280.readHumidity();
+            float pressure = BME280.readPressure() / 100.0F;
 
             mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
             mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
