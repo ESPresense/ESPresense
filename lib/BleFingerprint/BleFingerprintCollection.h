@@ -21,6 +21,9 @@ public:
     const std::list<BleFingerprint *>* const getNative();
     const std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
+    bool command(String& command, String& pay);
+    bool config(String& id, String& json);
+    static std::vector<std::pair<uint8_t*,String>> knownIrks;
     static String knownMacs, include, exclude, query;
     static float skipDistance, maxDistance, absorption;
     static int refRssi, forgetMs, skipMs;

@@ -258,6 +258,7 @@ void setupNetwork()
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
+    configTopic = CHANNEL + "/settings/+/config";
 }
 
 void onMqttConnect(bool sessionPresent)
@@ -265,6 +266,7 @@ void onMqttConnect(bool sessionPresent)
     xTimerStop(reconnectTimer, 0);
     mqttClient.subscribe("espresense/rooms/*/+/set", 1);
     mqttClient.subscribe(setTopic.c_str(), 1);
+    mqttClient.subscribe(configTopic.c_str(), 1);
     GUI::connected(true, true);
 }
 
@@ -276,62 +278,12 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
     online = false;
 }
 
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-    char new_payload[len + 1];
-    new_payload[len] = '\0';
-    strncpy(new_payload, payload, len);
-    Serial.printf("%s: %s\n", topic, new_payload);
+bool Command(String& command, String& pay) {
 
-    String top = String(topic);
-    String pay = String(new_payload);
-
-    auto setPos = top.lastIndexOf("/set");
-    if (setPos <= 1) return;
-    auto commandPos = top.lastIndexOf("/", setPos - 1);
-    if (commandPos < 0) return;
-    auto command = top.substring(commandPos + 1, setPos);
-
-    bool changed = true;
-    if (command == "max_distance")
-    {
-        BleFingerprintCollection::maxDistance = pay.toFloat();
-        spurt("/max_dist", pay);
-    }
-    else if (command == "absorption")
-    {
-        BleFingerprintCollection::absorption = pay.toFloat();
-        spurt("/absorption", pay);
-    }
-    else if (command == "active_scan")
+    if (command == "active_scan")
     {
         activeScan = pay == "ON";
         spurt("/active_scan", String(activeScan));
-    }
-    else if (command == "query")
-    {
-        BleFingerprintCollection::query = pay;
-        spurt("/query", pay);
-    }
-    else if (command == "include")
-    {
-        BleFingerprintCollection::include = pay;
-        spurt("/include", pay);
-    }
-    else if (command == "exclude")
-    {
-        BleFingerprintCollection::exclude = pay;
-        spurt("/exclude", pay);
-    }
-    else if (command == "known_macs")
-    {
-        BleFingerprintCollection::knownMacs = pay;
-        spurt("/known_macs", pay);
-    }
-    else if (command == "count_ids")
-    {
-        BleFingerprintCollection::countIds = pay;
-        spurt("/count_ids", pay);
     }
     else if (command == "status_led")
     {
@@ -357,13 +309,49 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         ESP.restart();
     }
-    else if (command == "dump_memory")
-    {
-        heap_caps_dump_all();
+    else
+        return false;
+    return true;
+}
+
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+    char new_payload[len + 1];
+    new_payload[len] = '\0';
+    strncpy(new_payload, payload, len);
+
+    String top = String(topic);
+    String pay = String(new_payload);
+
+    auto setPos = top.lastIndexOf("/set");
+    auto configPos = top.lastIndexOf("/config");
+    if (configPos > 1) {
+        auto idPos = top.lastIndexOf("/", configPos - 1);
+        if (idPos < 0) goto skip;
+        auto id = top.substring(idPos + 1, configPos);
+        Serial.printf("Config %s: %s\n", id.c_str(), pay.c_str());
+        fingerprints.config(id, pay);
+    } else if (setPos > 1) {
+
+        auto commandPos = top.lastIndexOf("/", setPos - 1);
+        if (commandPos < 0) goto skip;
+        auto command = top.substring(commandPos + 1, setPos);
+        Serial.printf("Set %s: %s\n", command.c_str(), pay.c_str());
+
+        bool changed = false;
+        if (Command(command, pay))
+            changed = true;
+        else if (fingerprints.command(command, pay))
+            changed = true;
+        else if (Enrollment::Command(command, pay))
+            changed = true;
+        else if (Motion::Command(command, pay))
+            changed = true;
+        if (changed) online = false;
+    } else {
+skip:
+        Serial.printf("Unknown %s: %s\n", topic, new_payload);
     }
-    else if (Motion::Command(command, pay)){}
-    else changed = false;
-    if (changed) online = false;
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -481,11 +469,10 @@ void reportTask(void *parameter)
 
 void scanTask(void *parameter)
 {
-    NimBLEDevice::init("");
+    NimBLEDevice::init("ESPresense");
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
-    NimBLEDevice::setSecurityAuth(true, true, true);
-    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    Enrollment::Setup();
     NimBLEDevice::setMTU(23);
 
     auto pBLEScan = NimBLEDevice::getScan();
@@ -503,6 +490,9 @@ void scanTask(void *parameter)
         for (auto f : *fingerprints.getNative())
             if (f->query())
                 totalFpQueried++;
+
+        while (Enrollment::Busy())
+            Enrollment::Loop();
 
         if (updateInProgress())
         {

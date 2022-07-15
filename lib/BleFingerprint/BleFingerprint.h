@@ -34,6 +34,7 @@
 #define ID_TYPE_SMARTTAG short(121)
 #define ID_TYPE_ITAG short(125)
 #define ID_TYPE_ITRACK short(127)
+#define ID_TYPE_NUT short(128)
 #define ID_TYPE_TRACKR short(130)
 #define ID_TYPE_TILE short( 135)
 #define ID_TYPE_MEATER short(140)
@@ -47,7 +48,7 @@
 #define ID_TYPE_IBEACON short(175)
 #define ID_TYPE_RM_ASST short(180)
 #define ID_TYPE_KNOWN_MAC short(185)
-#define ID_TYPE_NUT short(190)
+#define ID_TYPE_KNOWN_IRK short(190)
 
 class BleFingerprintCollection;
 
@@ -103,6 +104,7 @@ public:
     }
 
     bool shouldCount();
+    void fingerprintAddress();
 
 private:
 
@@ -118,7 +120,7 @@ private:
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
-    uint8_t battery = 0xFF;
+    uint8_t battery = 0xFF, addressType = 0xFF;
 
     Reading<Differential<float>> output;
 

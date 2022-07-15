@@ -1,5 +1,71 @@
 #include "BleFingerprintCollection.h"
 
+/* Static variables */
+String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::countIds{};
+float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
+int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
+std::vector<std::pair<uint8_t*,String>> BleFingerprintCollection::knownIrks;
+
+bool BleFingerprintCollection::config(String& id, String& json) {
+    Serial.println("BleFingerprintCollection::config");
+
+    DynamicJsonDocument doc(1024);
+    deserializeJson(doc, json);
+    auto p = id.indexOf("irk:");
+    if (p == 0) {
+        auto irk_hex = id.substring(4);
+        uint8_t* irk = new uint8_t[16];
+        if (!hextostr(irk_hex, irk, 16))
+            return false;
+        knownIrks.push_back({irk,doc["id"]});
+
+        for(auto it = std::begin(fingerprints); it != std::end(fingerprints); ++it)
+            (*it)->fingerprintAddress();
+    }
+    return true;
+}
+
+bool BleFingerprintCollection::command(String& command, String& pay) {
+
+    if (command == "max_distance")
+    {
+        BleFingerprintCollection::maxDistance = pay.toFloat();
+        spurt("/max_dist", pay);
+    }
+    else if (command == "absorption")
+    {
+        BleFingerprintCollection::absorption = pay.toFloat();
+        spurt("/absorption", pay);
+    }
+    else if (command == "query")
+    {
+        BleFingerprintCollection::query = pay;
+        spurt("/query", pay);
+    }
+    else if (command == "include")
+    {
+        BleFingerprintCollection::include = pay;
+        spurt("/include", pay);
+    }
+    else if (command == "exclude")
+    {
+        BleFingerprintCollection::exclude = pay;
+        spurt("/exclude", pay);
+    }
+    else if (command == "known_macs")
+    {
+        BleFingerprintCollection::knownMacs = pay;
+        spurt("/known_macs", pay);
+    }
+    else if (command == "count_ids")
+    {
+        BleFingerprintCollection::countIds = pay;
+        spurt("/count_ids", pay);
+    } else
+        return false;
+    return true;
+}
+
 void BleFingerprintCollection::cleanupOldFingerprints()
 {
     auto now = millis();
@@ -64,9 +130,6 @@ const std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
         log_e("Couldn't give semaphore!");
     return std::move(copy);
 }
-String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::countIds{};
-float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
-int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
 
 const std::list<BleFingerprint *>* const BleFingerprintCollection::getNative()
 {

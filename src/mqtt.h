@@ -23,3 +23,5 @@ bool sendSwitchDiscovery(const String &name, const String &entityCategory);
 bool sendNumberDiscovery(const String &name, const String &entityCategory);
 
 bool sendDeleteDiscovery(const String &domain, const String &name);
+
+bool alias(const String &alias, const String &id);

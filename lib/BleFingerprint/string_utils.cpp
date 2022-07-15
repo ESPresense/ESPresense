@@ -2,6 +2,8 @@
 #include <string_utils.h>
 #include <SPIFFS.h>
 
+static constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
 std::string ltrim(const std::string &s, char toTrim)
 {
     size_t start = s.find_first_not_of(toTrim);
@@ -46,8 +48,6 @@ String kebabify(const String &text)
 
 std::string hexStr(const char *data, unsigned int len)
 {
-    constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
     std::string s(len * 2, ' ');
     for (int i = 0; i < len; ++i)
     {
@@ -69,8 +69,6 @@ std::string hexStr(const uint8_t *&s, unsigned int len)
 
 std::string hexStrRev(const char *data, unsigned int len)
 {
-    constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
-
     std::string s(len * 2, ' ');
     for (int i = 0; i < len; ++i)
     {
@@ -88,6 +86,24 @@ std::string hexStrRev(const uint8_t *&s, unsigned int len)
 std::string hexStrRev(const std::string &s)
 {
     return hexStrRev(s.c_str(), s.length());
+}
+
+uint8_t hextob(char ch)
+{
+    if (ch >= '0' && ch <= '9') return ch - '0';
+    if (ch >= 'A' && ch <= 'F') return ch - 'A' + 10;
+    if (ch >= 'a' && ch <= 'f') return ch - 'a' + 10;
+    return 0;
+}
+
+bool hextostr(const String &hexStr, uint8_t* output, size_t len)
+{
+    if (len & 1) return false;
+    if (hexStr.length() < len*2) return false;
+    int k = 0;
+    for (size_t i = 0; i < len*2; i+=2)
+        output[k++] = (hextob(hexStr[i]) << 4) | hextob(hexStr[i+1]);
+    return true;
 }
 
 bool prefixExists(const String &prefixes, const String &s)
