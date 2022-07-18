@@ -21,7 +21,11 @@ public:
     const std::list<BleFingerprint *>* const getNative();
     const std::list<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
-    static String knownMacs, include, exclude, query;
+    void connectToWifi();
+    bool command(String& command, String& pay);
+    bool config(String& id, String& json);
+    static std::vector<std::pair<uint8_t*,String>> irks;
+    static String knownMacs, knownIrks, include, exclude, query;
     static float skipDistance, maxDistance, absorption;
     static int refRssi, forgetMs, skipMs;
     static String countIds;

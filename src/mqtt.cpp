@@ -1,4 +1,5 @@
 #include "globals.h"
+#include "defaults.h"
 #include "string_utils.h"
 #include <WiFi.h>
 
@@ -188,4 +189,14 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     auto slug = slugify(name);
     String discoveryTopic = Sprintf("homeassistant/%s/espresense_%06lx/%s/config", domain, CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, false, "");
+}
+
+bool alias(const String &alias, const String &id)
+{
+    Serial.printf("Setting %s->%s\n", alias.c_str(), id.c_str());
+    doc.clear();
+    doc["id"] = id;
+    serializeJson(doc, buffer);
+    String settingsTopic = CHANNEL + "/settings/" + alias + "/config";
+    return pub(settingsTopic.c_str(), 0, true, buffer);
 }

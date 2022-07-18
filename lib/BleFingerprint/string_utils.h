@@ -24,5 +24,6 @@ std::string hexStr(const std::string& s);
 std::string hexStrRev(const uint8_t *data, int len);
 std::string hexStrRev(const char *data, int len);
 std::string hexStrRev(const std::string &s);
-bool prefixExists(const String& prefixes, const String& s);
+bool hextostr(const String &hexStr, uint8_t* output, size_t len);
+bool prefixExists(const String &prefixes, const String &s);
 bool spurt(const String &fn, const String &content);

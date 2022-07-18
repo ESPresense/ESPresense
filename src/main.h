@@ -23,6 +23,7 @@
 #include <freertos/timers.h>
 #include <rom/rtc.h>
 #include "Network.h"
+#include "Enrollment.h"
 
 #include "MotionSensors.h"
 #include "I2C.h"

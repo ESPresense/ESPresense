@@ -3,6 +3,7 @@
 #include "rssi.h"
 #include "string_utils.h"
 #include "util.h"
+#include "mbedtls/aes.h"
 
 class ClientCallbacks : public BLEClientCallbacks
 {
@@ -42,9 +43,12 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
     }
 
     countable = !ignore && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
-    id = newId;
-    idType = newIdType;
-    if (!newName.isEmpty()) name = newName;
+    if ((idType != newIdType) || !id.equals(newId)) {
+        id = newId;
+        idType = newIdType;
+        added = false;
+    }
+    if (!newName.isEmpty() && !name.equals(newName)) name = newName;
     return true;
 }
 
@@ -60,25 +64,11 @@ BleFingerprint::BleFingerprint(const BleFingerprintCollection *parent, BLEAdvert
 {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
+    addressType = advertisedDevice->getAddressType();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
     seenCount = 1;
 
-    auto mac = getMac();
-    if (!BleFingerprintCollection::knownMacs.isEmpty() && prefixExists(BleFingerprintCollection::knownMacs, mac))
-        setId("known:" + mac, ID_TYPE_KNOWN_MAC);
-    else
-    {
-        switch (advertisedDevice->getAddressType())
-        {
-        case BLE_ADDR_PUBLIC:
-        case BLE_ADDR_PUBLIC_ID:
-            setId(mac, ID_TYPE_PUBLIC_MAC);
-            break;
-        default:
-            setId(mac, ID_TYPE_MAC);
-            break;
-        }
-    }
+    fingerprintAddress();
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
@@ -100,6 +90,104 @@ void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice)
     if (serviceAdvCount > 0) fingerprintServiceAdvertisements(advertisedDevice, serviceAdvCount, haveTxPower, txPower);
     if (serviceDataCount > 0) fingerprintServiceData(advertisedDevice, serviceDataCount, haveTxPower, txPower);
     if (advertisedDevice->haveManufacturerData()) fingerprintManufactureData(advertisedDevice, haveTxPower, txPower);
+}
+
+int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data)
+{
+    mbedtls_aes_context s = {0};
+    mbedtls_aes_init(&s);
+
+    if (mbedtls_aes_setkey_enc(&s, key, 128) != 0) {
+        mbedtls_aes_free(&s);
+        return BLE_HS_EUNKNOWN;
+    }
+
+    if (mbedtls_aes_crypt_ecb(&s, MBEDTLS_AES_ENCRYPT, plaintext, enc_data) != 0) {
+        mbedtls_aes_free(&s);
+        return BLE_HS_EUNKNOWN;
+    }
+
+    mbedtls_aes_free(&s);
+    return 0;
+}
+
+struct encryption_block
+{
+    uint8_t     key[16];
+    uint8_t     plain_text[16];
+    uint8_t     cipher_text[16];
+};
+
+int ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
+{
+    int rc;
+    struct encryption_block ecb;
+
+    auto irk32 = (const uint32_t *)irk;
+    auto key32 = (uint32_t *)&ecb.key[0];
+    auto pt32 = (uint32_t *)&ecb.plain_text[0];
+
+    key32[0] = irk32[0];
+    key32[1] = irk32[1];
+    key32[2] = irk32[2];
+    key32[3] = irk32[3];
+
+
+    pt32[0] = 0;
+    pt32[1] = 0;
+    pt32[2] = 0;
+    pt32[3] = 0;
+
+    ecb.plain_text[15] = rpa[3];
+    ecb.plain_text[14] = rpa[4];
+    ecb.plain_text[13] = rpa[5];
+
+    auto err = bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
+
+    if ((ecb.cipher_text[15] == rpa[0]) && (ecb.cipher_text[14] == rpa[1]) &&
+        (ecb.cipher_text[13] == rpa[2])) {
+
+        rc = 1;
+    } else {
+        rc = 0;
+    }
+
+    //Serial.printf("RPA resolved %d %d %02x%02x%02x %02x%02x%02x\n", rc, err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
+
+    return rc;
+}
+
+void BleFingerprint::fingerprintAddress()
+{
+    auto mac = getMac();
+    if (!BleFingerprintCollection::knownMacs.isEmpty() && prefixExists(BleFingerprintCollection::knownMacs, mac))
+        setId("known:" + mac, ID_TYPE_KNOWN_MAC);
+    else
+    {
+        switch (addressType)
+        {
+            case BLE_ADDR_PUBLIC:
+            case BLE_ADDR_PUBLIC_ID:
+                setId(mac, ID_TYPE_PUBLIC_MAC);
+                break;
+            case BLE_ADDR_RANDOM:
+            {
+                auto naddress = address.getNative();
+                auto irks = BleFingerprintCollection::irks;
+                auto it = std::find_if(irks.begin(), irks.end(), [naddress](std::pair<uint8_t *, String> &p) {
+                    auto irk = std::get<0>(p);
+                    return ble_ll_resolv_rpa(naddress, irk);
+                });
+                if (it != irks.end()) {
+                    setId(std::get<1>(*it), ID_TYPE_KNOWN_IRK);
+                    break;
+                }
+            }
+            default:
+                setId(mac, ID_TYPE_MAC);
+                break;
+        }
+    }
 }
 
 void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower)

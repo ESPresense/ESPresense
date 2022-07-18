@@ -5,8 +5,21 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
 {
     if (!online)
     {
-        if (pub(statusTopic.c_str(), 0, true, "online") && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str()) && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str()) && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str()) && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str()) && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str()) && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str()) && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str()) && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str()) &&
-            pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str()) && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str()) && Motion::SendOnline())
+        if (pub(statusTopic.c_str(), 0, true, "online")
+        && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str())
+        && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str())
+        && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str())
+        && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str())
+        && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str())
+        && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str())
+        && pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str())
+        && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
+        && pub((roomsTopic + "/status_led").c_str(), 0, true, String(GUI::statusLed ? "ON" : "OFF").c_str())
+        && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, String(arduinoOta ? "ON" : "OFF").c_str())
+        && pub((roomsTopic + "/auto_update").c_str(), 0, true, String(autoUpdate ? "ON" : "OFF").c_str())
+        && pub((roomsTopic + "/prerelease").c_str(), 0, true, String(prerelease ? "ON" : "OFF").c_str())
+        && pub((roomsTopic + "/active_scan").c_str(), 0, true, String(activeScan ? "ON" : "OFF").c_str())
+        && Motion::SendOnline())
         {
             online = true;
             reconnectTries = 0;
@@ -32,6 +45,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendSwitchDiscovery("Arduino OTA", EC_CONFIG)
             && sendSwitchDiscovery("Prerelease", EC_CONFIG)
             && Motion::SendDiscovery()
+            && Enrollment::SendDiscovery()
 #ifdef MACCHINA_A0
             && sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
             && sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
@@ -170,6 +184,7 @@ void setupNetwork()
     WiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
     activeScan = WiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
     BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
+    BleFingerprintCollection::knownIrks = WiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
     BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
 
     WiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
@@ -194,6 +209,7 @@ void setupNetwork()
     WiFiSettings.heading("Misc <a href='https://espresense.com/configuration/settings#misc' target='_blank'>ℹ️</a>", false);
     GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
 
+    fingerprints.connectToWifi();
     Motion::ConnectToWifi();
 
 #ifdef SENSORS
@@ -258,6 +274,7 @@ void setupNetwork()
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
+    configTopic = CHANNEL + "/settings/+/config";
 }
 
 void onMqttConnect(bool sessionPresent)
@@ -265,6 +282,7 @@ void onMqttConnect(bool sessionPresent)
     xTimerStop(reconnectTimer, 0);
     mqttClient.subscribe("espresense/rooms/*/+/set", 1);
     mqttClient.subscribe(setTopic.c_str(), 1);
+    mqttClient.subscribe(configTopic.c_str(), 1);
     GUI::connected(true, true);
 }
 
@@ -276,62 +294,12 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
     online = false;
 }
 
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
-    char new_payload[len + 1];
-    new_payload[len] = '\0';
-    strncpy(new_payload, payload, len);
-    Serial.printf("%s: %s\n", topic, new_payload);
+bool Command(String& command, String& pay) {
 
-    String top = String(topic);
-    String pay = String(new_payload);
-
-    auto setPos = top.lastIndexOf("/set");
-    if (setPos <= 1) return;
-    auto commandPos = top.lastIndexOf("/", setPos - 1);
-    if (commandPos < 0) return;
-    auto command = top.substring(commandPos + 1, setPos);
-
-    bool changed = true;
-    if (command == "max_distance")
-    {
-        BleFingerprintCollection::maxDistance = pay.toFloat();
-        spurt("/max_dist", pay);
-    }
-    else if (command == "absorption")
-    {
-        BleFingerprintCollection::absorption = pay.toFloat();
-        spurt("/absorption", pay);
-    }
-    else if (command == "active_scan")
+    if (command == "active_scan")
     {
         activeScan = pay == "ON";
         spurt("/active_scan", String(activeScan));
-    }
-    else if (command == "query")
-    {
-        BleFingerprintCollection::query = pay;
-        spurt("/query", pay);
-    }
-    else if (command == "include")
-    {
-        BleFingerprintCollection::include = pay;
-        spurt("/include", pay);
-    }
-    else if (command == "exclude")
-    {
-        BleFingerprintCollection::exclude = pay;
-        spurt("/exclude", pay);
-    }
-    else if (command == "known_macs")
-    {
-        BleFingerprintCollection::knownMacs = pay;
-        spurt("/known_macs", pay);
-    }
-    else if (command == "count_ids")
-    {
-        BleFingerprintCollection::countIds = pay;
-        spurt("/count_ids", pay);
     }
     else if (command == "status_led")
     {
@@ -357,13 +325,49 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         ESP.restart();
     }
-    else if (command == "dump_memory")
-    {
-        heap_caps_dump_all();
+    else
+        return false;
+    return true;
+}
+
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
+{
+    char new_payload[len + 1];
+    new_payload[len] = '\0';
+    strncpy(new_payload, payload, len);
+
+    String top = String(topic);
+    String pay = String(new_payload);
+
+    auto setPos = top.lastIndexOf("/set");
+    auto configPos = top.lastIndexOf("/config");
+    if (configPos > 1) {
+        auto idPos = top.lastIndexOf("/", configPos - 1);
+        if (idPos < 0) goto skip;
+        auto id = top.substring(idPos + 1, configPos);
+        Serial.printf("%d MQTT  | Config %s: %s\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        fingerprints.config(id, pay);
+    } else if (setPos > 1) {
+
+        auto commandPos = top.lastIndexOf("/", setPos - 1);
+        if (commandPos < 0) goto skip;
+        auto command = top.substring(commandPos + 1, setPos);
+        Serial.printf("%d MQTT  | Set %s: %s\n", xPortGetCoreID(), command.c_str(), pay.c_str());
+
+        bool changed = false;
+        if (Command(command, pay))
+            changed = true;
+        else if (fingerprints.command(command, pay))
+            changed = true;
+        else if (Enrollment::Command(command, pay))
+            changed = true;
+        else if (Motion::Command(command, pay))
+            changed = true;
+        if (changed) online = false;
+    } else {
+skip:
+        Serial.printf("%d MQTT  | Unknown: %s: %s\n", xPortGetCoreID(), topic, new_payload);
     }
-    else if (Motion::Command(command, pay)){}
-    else changed = false;
-    if (changed) online = false;
 }
 
 void reconnect(TimerHandle_t xTimer)
@@ -481,11 +485,10 @@ void reportTask(void *parameter)
 
 void scanTask(void *parameter)
 {
-    NimBLEDevice::init("");
+    NimBLEDevice::init("ESPresense");
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
-    NimBLEDevice::setSecurityAuth(true, true, true);
-    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    Enrollment::Setup();
     NimBLEDevice::setMTU(23);
 
     auto pBLEScan = NimBLEDevice::getScan();
@@ -503,6 +506,9 @@ void scanTask(void *parameter)
         for (auto f : *fingerprints.getNative())
             if (f->query())
                 totalFpQueried++;
+
+        while (Enrollment::Busy())
+            Enrollment::Loop();
 
         if (updateInProgress())
         {
