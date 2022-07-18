@@ -43,12 +43,13 @@
 #define ID_TYPE_APPLE_NEARBY short(150)
 #define ID_TYPE_QUERY_MODEL short(155)
 #define ID_TYPE_QUERY_NAME short(160)
-#define ID_TYPE_EBEACON short(165)
-#define ID_TYPE_ABEACON short(170)
-#define ID_TYPE_IBEACON short(175)
-#define ID_TYPE_RM_ASST short(180)
-#define ID_TYPE_KNOWN_MAC short(185)
-#define ID_TYPE_KNOWN_IRK short(190)
+#define ID_TYPE_RM_ASST short(165)
+#define ID_TYPE_KNOWN_IRK short(200)
+#define ID_TYPE_KNOWN_MAC short(210)
+#define ID_TYPE_EBEACON short(220)
+#define ID_TYPE_ABEACON short(230)
+#define ID_TYPE_IBEACON short(240)
+
 
 class BleFingerprintCollection;
 
