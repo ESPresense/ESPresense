@@ -1,14 +1,13 @@
 #include "BleFingerprintCollection.h"
+#include <sstream>
 
 /* Static variables */
-String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::countIds{};
+String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::knownIrks{}, BleFingerprintCollection::countIds{};
 float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
 int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
-std::vector<std::pair<uint8_t*,String>> BleFingerprintCollection::knownIrks;
+std::vector<std::pair<uint8_t*,String>> BleFingerprintCollection::irks;
 
 bool BleFingerprintCollection::config(String& id, String& json) {
-    Serial.println("BleFingerprintCollection::config");
-
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, json);
     auto p = id.indexOf("irk:");
@@ -17,12 +16,23 @@ bool BleFingerprintCollection::config(String& id, String& json) {
         uint8_t* irk = new uint8_t[16];
         if (!hextostr(irk_hex, irk, 16))
             return false;
-        knownIrks.push_back({irk,doc["id"]});
+        irks.push_back({irk, doc["id"]});
 
         for(auto it = std::begin(fingerprints); it != std::end(fingerprints); ++it)
             (*it)->fingerprintAddress();
     }
     return true;
+}
+
+void BleFingerprintCollection::connectToWifi() {
+    std::istringstream iss(BleFingerprintCollection::knownIrks.c_str());
+    std::string irk_hex;
+    while (iss >> irk_hex) {
+        uint8_t* irk = new uint8_t[16];
+        if (!hextostr(irk_hex.c_str(), irk, 16))
+            continue;
+        irks.push_back({irk, String("irk:") + irk_hex.c_str()});
+    }
 }
 
 bool BleFingerprintCollection::command(String& command, String& pay) {
@@ -56,6 +66,11 @@ bool BleFingerprintCollection::command(String& command, String& pay) {
     {
         BleFingerprintCollection::knownMacs = pay;
         spurt("/known_macs", pay);
+    }
+    else if (command == "known_irks")
+    {
+        BleFingerprintCollection::knownIrks = pay;
+        spurt("/known_irks", pay);
     }
     else if (command == "count_ids")
     {

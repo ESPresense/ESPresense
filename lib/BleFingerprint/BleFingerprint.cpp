@@ -43,9 +43,12 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
     }
 
     countable = !ignore && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
-    id = newId;
-    idType = newIdType;
-    if (!newName.isEmpty()) name = newName;
+    if ((idType != newIdType) || !id.equals(newId)) {
+        id = newId;
+        idType = newIdType;
+        added = false;
+    }
+    if (!newName.isEmpty() && !name.equals(newName)) name = newName;
     return true;
 }
 
@@ -170,7 +173,7 @@ void BleFingerprint::fingerprintAddress()
             case BLE_ADDR_RANDOM:
             {
                 auto naddress = address.getNative();
-                auto irks = BleFingerprintCollection::knownIrks;
+                auto irks = BleFingerprintCollection::irks;
                 auto it = std::find_if(irks.begin(), irks.end(), [naddress](std::pair<uint8_t *, String> &p) {
                     auto irk = std::get<0>(p);
                     return ble_ll_resolv_rpa(naddress, irk);

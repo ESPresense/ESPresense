@@ -250,10 +250,15 @@ namespace Enrollment
     {
         if (command == "enroll")
         {
-            id = pay;
+            id = pay.equals("PRESS") ? "" : pay;
             enrolling = true;
             return true;
         }
         return false;
+    }
+
+    bool SendDiscovery()
+    {
+        return sendButtonDiscovery("Enroll", EC_CONFIG);
     }
 }
