@@ -1,4 +1,5 @@
 #include "Enrollment.h"
+#include "globals.h"
 #include "mqtt.h"
 
 #include <NimBLEDevice.h>
@@ -18,18 +19,18 @@ namespace Enrollment
         void onConnect(NimBLEServer* pServer) {
             Serial.println("Client connected");
             Serial.println("Multi-connect support: start advertising");
-            NimBLEDevice::startAdvertising();
+            if (enrolling) NimBLEDevice::startAdvertising();
         };
 
         void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) {
             Serial.print("Client address: ");
             Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
-            NimBLEDevice::startSecurity(desc->conn_handle);
+            if (enrolling) NimBLEDevice::startSecurity(desc->conn_handle);
         };
 
         void onDisconnect(NimBLEServer* pServer) {
             Serial.println("Client disconnected - start advertising");
-            NimBLEDevice::startAdvertising();
+            if (enrolling) NimBLEDevice::startAdvertising();
         };
 
         void onMTUChange(uint16_t MTU, ble_gap_conn_desc* desc) {
@@ -37,8 +38,8 @@ namespace Enrollment
         };
 
         void onAuthenticationComplete(ble_gap_conn_desc* desc){
-            if(!desc->sec_state.encrypted) Serial.println("Encrypt connection failed!");
-            else Serial.println("Encrypt connection success!");
+            if(!desc->sec_state.encrypted) Serial.printf("Encrypt connection failed conn: %d!\n", desc->conn_handle);
+            else Serial.printf("Encrypt connection success conn: %d!\n", desc->conn_handle);
         };
     };
 
@@ -54,17 +55,11 @@ namespace Enrollment
             Serial.print(": onWrite(), value: ");
             Serial.println(pCharacteristic->getValue().c_str());
         };
-        /** Called before notification or indication is sent,
-         *  the value can be changed here before sending if desired.
-         */
+
         void onNotify(NimBLECharacteristic* pCharacteristic) {
             Serial.println("Sending notification to clients");
         };
 
-
-        /** The status returned in status is defined in NimBLECharacteristic.h.
-         *  The value returned in code is the NimBLE host return code.
-         */
         void onStatus(NimBLECharacteristic* pCharacteristic, Status status, int code) {
             String str = ("Notification/Indication status code: ");
             str += status;
@@ -90,7 +85,6 @@ namespace Enrollment
                 str += " Subscribed to notifications and indications for ";
             }
             str += std::string(pCharacteristic->getUUID()).c_str();
-
             Serial.println(str);
         };
     };
@@ -117,8 +111,8 @@ namespace Enrollment
     }
 
     void Setup() {
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO);
-        NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+        NimBLEDevice::setSecurityAuth(true, true, true);
         NimBLEDevice::setSecurityPasskey(123456);
     }
 
@@ -153,84 +147,52 @@ namespace Enrollment
 
         NimBLEDevice::getScan()->stop();
         NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
+        auto appearanceValue = NimBLEAttValue(2, 2);
 
         if (!pServer) {
             pServer = NimBLEDevice::createServer();
             pServer->setCallbacks(new ServerCallbacks());
 
-            NimBLEService* pDeadService = pServer->createService("DEAD");
-            NimBLECharacteristic* pBeefCharacteristic = pDeadService->createCharacteristic(
-                                                    "BEEF",
-                                                    NIMBLE_PROPERTY::READ |
-                                                    NIMBLE_PROPERTY::WRITE |
-                                                    NIMBLE_PROPERTY::READ_ENC |  // only allow reading if paired / encrypted
-                                                    NIMBLE_PROPERTY::WRITE_ENC   // only allow writing if paired / encrypted
-                                                    );
+            NimBLEService* heartRate = pServer->createService("180D");
+            NimBLECharacteristic* bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY, 2);
+            bpm->setCallbacks(&chrCallbacks);
 
-            pBeefCharacteristic->setValue("Burger");
-            pBeefCharacteristic->setCallbacks(&chrCallbacks);
+            NimBLEService* deviceInfo = pServer->createService("180A");
+            NimBLECharacteristic* manufName = deviceInfo->createCharacteristic("2A29", NIMBLE_PROPERTY::READ);
+            manufName->setValue("ESPresense");
+            manufName->setCallbacks(&chrCallbacks);
+            NimBLECharacteristic* appearance = deviceInfo->createCharacteristic("2A01", NIMBLE_PROPERTY::READ, 2);
+            appearanceValue.setValue(0x4142);
+            appearance->setValue(appearanceValue);
+            appearance->setCallbacks(&chrCallbacks);
+            NimBLECharacteristic* modelNum = deviceInfo->createCharacteristic("2A24", NIMBLE_PROPERTY::READ);
+            modelNum->setValue(std::string(room.c_str()));
+            modelNum->setCallbacks(&chrCallbacks);
 
-            /** 2904 descriptors are a special case, when createDescriptor is called with
-             *  0x2904 a NimBLE2904 class is created with the correct properties and sizes.
-             *  However we must cast the returned reference to the correct type as the method
-             *  only returns a pointer to the base NimBLEDescriptor class.
-             */
-            NimBLE2904* pBeef2904 = (NimBLE2904*)pBeefCharacteristic->createDescriptor("2904");
-            pBeef2904->setFormat(NimBLE2904::FORMAT_UTF8);
-            pBeef2904->setCallbacks(&dscCallbacks);
+            heartRate->start();
+            deviceInfo->start();
 
-
-            NimBLEService* pBaadService = pServer->createService("BAAD");
-            NimBLECharacteristic* pFoodCharacteristic = pBaadService->createCharacteristic(
-                                                    "F00D",
-                                                    NIMBLE_PROPERTY::READ |
-                                                    NIMBLE_PROPERTY::WRITE |
-                                                    NIMBLE_PROPERTY::NOTIFY
-                                                    );
-
-            pFoodCharacteristic->setValue("Fries");
-            pFoodCharacteristic->setCallbacks(&chrCallbacks);
-
-            /** Note a 0x2902 descriptor MUST NOT be created as NimBLE will create one automatically
-             *  if notification or indication properties are assigned to a characteristic.
-             */
-
-            /** Custom descriptor: Arguments are UUID, Properties, max length in bytes of the value */
-            NimBLEDescriptor* pC01Ddsc = pFoodCharacteristic->createDescriptor(
-                                                    "C01D",
-                                                    NIMBLE_PROPERTY::READ |
-                                                    NIMBLE_PROPERTY::WRITE|
-                                                    NIMBLE_PROPERTY::WRITE_ENC, // only allow writing if paired / encrypted
-                                                    20
-                                                    );
-            pC01Ddsc->setValue("Send it back!");
-            pC01Ddsc->setCallbacks(&dscCallbacks);
-
-            /** Start the services when finished creating all Characteristics and Descriptors */
-            pDeadService->start();
-            pBaadService->start();
-
-            pAdvertising->addServiceUUID(pDeadService->getUUID());
-            pAdvertising->addServiceUUID(pBaadService->getUUID());
+            pAdvertising->addServiceUUID(heartRate->getUUID());
         }
 
         pAdvertising->setScanResponse(true);
         pAdvertising->start();
-
         Serial.println("Advertising Started");
-        if(pServer->getConnectedCount()) {
-            NimBLEService* pSvc = pServer->getServiceByUUID("BAAD");
-            if(pSvc) {
-                NimBLECharacteristic* pChr = pSvc->getCharacteristic("F00D");
-                if(pChr) {
-                    pChr->notify(true);
-                }
-            }
-        }
 
         auto started = millis();
         while (millis() - started < 60000)
         {
+            if(pServer->getConnectedCount()) {
+                NimBLEService* pSvc = pServer->getServiceByUUID("180D");
+                if(pSvc) {
+                    NimBLECharacteristic* pChr = pSvc->getCharacteristic("2A37");
+                    if(pChr) {
+                        pChr->setValue((short)(micros() && 0xFF));
+                        pChr->notify(true);
+                    }
+                }
+            }
+
             auto rc = ble_store_iterate(BLE_STORE_OBJ_TYPE_PEER_SEC, iter_irk, NULL);
             if (!irk.isEmpty()) {
                 alias(String("irk:") + irk, id.isEmpty() ? (String("irk:") + irk) : id);
