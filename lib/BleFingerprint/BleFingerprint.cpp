@@ -28,22 +28,27 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
     hidden = shouldHide(newId);
     ignore = newIdType < 0;
 
-    if (!allowQuery && !ignore)
-    {
-        if (rssi > -80 && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId))
+    if ((idType != newIdType) || !id.equals(newId)) {
+
+        countable = !ignore && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
+        bool newQuery = !ignore && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
+        if (newQuery != allowQuery)
         {
-            allowQuery = true;
-            qryAttempts = 0;
-            if (rssi < -70)
-            {
-                qryDelayMillis = 5000;
-                lastQryMillis = millis();
+            allowQuery = newQuery;
+            if (allowQuery) {
+                qryAttempts = 0;
+                if (rssi < -80)
+                {
+                    qryDelayMillis = 30000;
+                    lastQryMillis = millis();
+                } else if (rssi < -70)
+                {
+                    qryDelayMillis = 5000;
+                    lastQryMillis = millis();
+                }
             }
         }
-    }
 
-    countable = !ignore && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
-    if ((idType != newIdType) || !id.equals(newId)) {
         id = newId;
         idType = newIdType;
         added = false;
