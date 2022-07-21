@@ -10,78 +10,107 @@
 
 namespace Enrollment
 {
-    static bool enrolling = false;
-    static NimBLEServer* pServer;
-    static String irk, id;
+    static const char hex_digits[] = "0123456789abcdef";
+    static bool enrolling = false, lastEnrolling = false;
+    static NimBLEServer *pServer;
+    static String id;
+    static unsigned long lastLoop = 0;
+    static int connectionToEnroll = -1;
 
-    class ServerCallbacks : public NimBLEServerCallbacks {
-
-        void onConnect(NimBLEServer* pServer) {
+    class ServerCallbacks : public NimBLEServerCallbacks
+    {
+        void onConnect(NimBLEServer *pServer)
+        {
             Serial.println("Client connected");
-            Serial.println("Multi-connect support: start advertising");
-            if (enrolling) NimBLEDevice::startAdvertising();
+            if (enrolling)
+            {
+                Serial.println("Multi-connect support: start advertising");
+                NimBLEDevice::startAdvertising();
+            }
         };
 
-        void onConnect(NimBLEServer* pServer, ble_gap_conn_desc* desc) {
+        void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc)
+        {
             Serial.print("Client address: ");
             Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
-            if (enrolling) NimBLEDevice::startSecurity(desc->conn_handle);
+            if (enrolling) {
+                NimBLEDevice::startSecurity(desc->conn_handle);
+                connectionToEnroll = desc->conn_handle;
+            }
         };
 
-        void onDisconnect(NimBLEServer* pServer) {
-            Serial.println("Client disconnected - start advertising");
-            if (enrolling) NimBLEDevice::startAdvertising();
+        void onDisconnect(NimBLEServer *pServer)
+        {
+            if (enrolling) {
+                Serial.println("Client disconnected - start advertising");
+                NimBLEDevice::startAdvertising();
+            }
         };
 
-        void onMTUChange(uint16_t MTU, ble_gap_conn_desc* desc) {
+        void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc)
+        {
             Serial.printf("MTU updated: %u for connection ID: %u\n", MTU, desc->conn_handle);
         };
 
-        void onAuthenticationComplete(ble_gap_conn_desc* desc){
-            if(!desc->sec_state.encrypted) Serial.printf("Encrypt connection failed conn: %d!\n", desc->conn_handle);
+        void onAuthenticationComplete(ble_gap_conn_desc *desc)
+        {
+            if (!desc->sec_state.encrypted) Serial.printf("Encrypt connection failed conn: %d!\n", desc->conn_handle);
             else Serial.printf("Encrypt connection success conn: %d!\n", desc->conn_handle);
         };
     };
 
-    class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
-        void onRead(NimBLECharacteristic* pCharacteristic){
+    class CharacteristicCallbacks : public NimBLECharacteristicCallbacks
+    {
+        void onRead(NimBLECharacteristic *pCharacteristic)
+        {
             Serial.print(pCharacteristic->getUUID().toString().c_str());
             Serial.print(": onRead(), value: ");
             Serial.println(pCharacteristic->getValue().c_str());
         };
 
-        void onWrite(NimBLECharacteristic* pCharacteristic) {
+        void onWrite(NimBLECharacteristic *pCharacteristic)
+        {
             Serial.print(pCharacteristic->getUUID().toString().c_str());
             Serial.print(": onWrite(), value: ");
             Serial.println(pCharacteristic->getValue().c_str());
         };
 
-        void onNotify(NimBLECharacteristic* pCharacteristic) {
-            Serial.println("Sending notification to clients");
+        void onNotify(NimBLECharacteristic *pCharacteristic)
+        {
+            //Serial.println("Sending notification to clients");
         };
 
-        void onStatus(NimBLECharacteristic* pCharacteristic, Status status, int code) {
-            String str = ("Notification/Indication status code: ");
+        void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code)
+        {
+/*             String str = ("Notification/Indication status code: ");
             str += status;
             str += ", return code: ";
             str += code;
             str += ", ";
             str += NimBLEUtils::returnCodeToString(code);
-            Serial.println(str);
+            Serial.println(str); */
         };
 
-        void onSubscribe(NimBLECharacteristic* pCharacteristic, ble_gap_conn_desc* desc, uint16_t subValue) {
+        void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue)
+        {
             String str = "Client ID: ";
             str += desc->conn_handle;
             str += " Address: ";
             str += std::string(NimBLEAddress(desc->peer_ota_addr)).c_str();
-            if(subValue == 0) {
+            if (subValue == 0)
+            {
                 str += " Unsubscribed to ";
-            }else if(subValue == 1) {
+            }
+            else if (subValue == 1)
+            {
                 str += " Subscribed to notfications for ";
-            } else if(subValue == 2) {
+            }
+            else if (subValue == 2)
+            {
                 str += " Subscribed to indications for ";
-            } else if(subValue == 3) {
+            }
+            else if (subValue == 3)
+            {
                 str += " Subscribed to notifications and indications for ";
             }
             str += std::string(pCharacteristic->getUUID()).c_str();
@@ -89,14 +118,17 @@ namespace Enrollment
         };
     };
 
-    class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
-        void onWrite(NimBLEDescriptor* pDescriptor) {
+    class DescriptorCallbacks : public NimBLEDescriptorCallbacks
+    {
+        void onWrite(NimBLEDescriptor *pDescriptor)
+        {
             std::string dscVal = pDescriptor->getValue();
             Serial.print("Descriptor witten value:");
             Serial.println(dscVal.c_str());
         };
 
-        void onRead(NimBLEDescriptor* pDescriptor) {
+        void onRead(NimBLEDescriptor *pDescriptor)
+        {
             Serial.print(pDescriptor->getUUID().toString().c_str());
             Serial.println(" Descriptor read");
         };
@@ -106,105 +138,132 @@ namespace Enrollment
     static DescriptorCallbacks dscCallbacks;
     static CharacteristicCallbacks chrCallbacks;
 
-    bool Busy() {
-        return enrolling;
-    }
-
-    void Setup() {
-        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
-        NimBLEDevice::setSecurityAuth(true, true, true);
-        NimBLEDevice::setSecurityPasskey(123456);
-    }
-
-    static int iter_irk(int obj_type, union ble_store_value *val, void *cookie)
+    static int ble_sm_read_bond(uint16_t conn_handle, struct ble_store_value_sec *out_bond)
     {
-        static const char hex_digits[] = "0123456789abcdef";
-        const struct ble_store_value_sec *sec;
+        struct ble_store_key_sec key_sec;
+        struct ble_gap_conn_desc desc;
         int rc;
 
-        sec = &val->sec;
-        if (sec->irk_present) {
-            std::string output;
-            output.reserve(32);
-            for(int i = 0; i < 16; i++) {
-                auto c = sec->irk[15 - i];
-                output.push_back(hex_digits[c >> 4]);
-                output.push_back(hex_digits[c & 15]);
-            }
-            printf("IRK found: %s\n", output.c_str());
-            irk = output.c_str();
+        rc = ble_gap_conn_find(conn_handle, &desc);
+        if (rc != 0)
+        {
+            return rc;
         }
 
-        return 0;
+        memset(&key_sec, 0, sizeof key_sec);
+        key_sec.peer_addr = desc.peer_id_addr;
+
+        rc = ble_store_read_peer_sec(&key_sec, out_bond);
+        return rc;
     }
 
-    bool Loop() {
+    bool tryGetIrkFromConnection(uint16_t conn_handle, std::string &irk)
+    {
+        struct ble_store_value_sec bond;
+        int rc;
 
-        if (!enrolling) {
+        rc = ble_sm_read_bond(conn_handle, &bond);
+        if (rc != 0)
             return false;
-        }
-        irk = "";
 
-        NimBLEDevice::getScan()->stop();
-        NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
-        auto appearanceValue = NimBLEAttValue(2, 2);
+        if (!bond.irk_present)
+            return false;
 
-        if (!pServer) {
-            pServer = NimBLEDevice::createServer();
-            pServer->setCallbacks(new ServerCallbacks());
-
-            NimBLEService* heartRate = pServer->createService("180D");
-            NimBLECharacteristic* bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY, 2);
-            bpm->setCallbacks(&chrCallbacks);
-
-            NimBLEService* deviceInfo = pServer->createService("180A");
-            NimBLECharacteristic* manufName = deviceInfo->createCharacteristic("2A29", NIMBLE_PROPERTY::READ);
-            manufName->setValue("ESPresense");
-            manufName->setCallbacks(&chrCallbacks);
-            NimBLECharacteristic* appearance = deviceInfo->createCharacteristic("2A01", NIMBLE_PROPERTY::READ, 2);
-            appearanceValue.setValue(0x4142);
-            appearance->setValue(appearanceValue);
-            appearance->setCallbacks(&chrCallbacks);
-            NimBLECharacteristic* modelNum = deviceInfo->createCharacteristic("2A24", NIMBLE_PROPERTY::READ);
-            modelNum->setValue(std::string(room.c_str()));
-            modelNum->setCallbacks(&chrCallbacks);
-
-            heartRate->start();
-            deviceInfo->start();
-
-            pAdvertising->addServiceUUID(heartRate->getUUID());
-        }
-
-        pAdvertising->setScanResponse(true);
-        pAdvertising->start();
-        Serial.println("Advertising Started");
-
-        auto started = millis();
-        while (millis() - started < 60000)
+        std::string output;
+        output.reserve(32);
+        for (int i = 0; i < 16; i++)
         {
-            if(pServer->getConnectedCount()) {
-                NimBLEService* pSvc = pServer->getServiceByUUID("180D");
-                if(pSvc) {
-                    NimBLECharacteristic* pChr = pSvc->getCharacteristic("2A37");
-                    if(pChr) {
-                        pChr->setValue((short)(micros() && 0xFF));
+            auto c = bond.irk[15 - i];
+            output.push_back(hex_digits[c >> 4]);
+            output.push_back(hex_digits[c & 15]);
+        }
+        irk = output;
+        return true;
+    }
+
+    void Setup()
+    {
+        //NimBLEDevice::setOwnAddrType(BLE_ADDR_RANDOM, true);
+        NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
+        NimBLEDevice::setSecurityAuth(true, true, true);
+
+        pServer = NimBLEDevice::createServer();
+        pServer->setCallbacks(new ServerCallbacks());
+
+        NimBLEService *heartRate = pServer->createService("180D");
+        NimBLECharacteristic *bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY, 2);
+        bpm->setCallbacks(&chrCallbacks);
+
+        NimBLEService *deviceInfo = pServer->createService("180A");
+        NimBLECharacteristic *manufName = deviceInfo->createCharacteristic("2A29", NIMBLE_PROPERTY::READ);
+        manufName->setValue("ESPresense");
+        manufName->setCallbacks(&chrCallbacks);
+        NimBLECharacteristic *appearance = deviceInfo->createCharacteristic("2A01", NIMBLE_PROPERTY::READ, 2);
+        appearance->setValue((int16_t) 0x4142);
+        appearance->setCallbacks(&chrCallbacks);
+        NimBLECharacteristic *modelNum = deviceInfo->createCharacteristic("2A24", NIMBLE_PROPERTY::READ);
+        modelNum->setValue(std::string(room.c_str()));
+        modelNum->setCallbacks(&chrCallbacks);
+
+        heartRate->start();
+        deviceInfo->start();
+
+        NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
+        pAdvertising->addServiceUUID(heartRate->getUUID());
+        pAdvertising->setScanResponse(true);
+
+        pServer->start();
+    }
+
+    bool Loop()
+    {
+        if (enrolling != lastEnrolling)
+        {
+            auto pAdvertising = NimBLEDevice::getAdvertising();
+            if (enrolling)
+            {
+                pAdvertising->start();
+                Serial.println("Advertising started");
+            }
+            else
+            {
+                pAdvertising->stop();
+                Serial.println("Advertising stopped");
+            }
+            lastEnrolling = enrolling;
+        }
+
+        if (millis() - lastLoop > 1000)
+        {
+            lastLoop = millis();
+
+            if (pServer->getConnectedCount())
+            {
+                NimBLEService *pSvc = pServer->getServiceByUUID("180D");
+                if (pSvc)
+                {
+                    NimBLECharacteristic *pChr = pSvc->getCharacteristic("2A37");
+                    if (pChr)
+                    {
+                        pChr->setValue((short) (micros() && 0x00FF));
                         pChr->notify(true);
                     }
                 }
-            }
 
-            auto rc = ble_store_iterate(BLE_STORE_OBJ_TYPE_PEER_SEC, iter_irk, NULL);
-            if (!irk.isEmpty()) {
-                alias(String("irk:") + irk, id.isEmpty() ? (String("irk:") + irk) : id);
-                NimBLEDevice::deleteAllBonds();
-                break;
+                if (enrolling && connectionToEnroll > -1)
+                {
+                    std::string irk;
+                    if (tryGetIrkFromConnection(connectionToEnroll, irk))
+                    {
+                        alias(String("irk:") + irk.c_str(), id.isEmpty() ? (String("irk:") + irk.c_str()) : id);
+                        enrolling = false;
+                        pServer->disconnect(connectionToEnroll);
+                        connectionToEnroll = -1;
+                    }
+                }
             }
-            printf("%d num bonds\n", NimBLEDevice::getNumBonds());
-            delay(1000);
         }
 
-        pAdvertising->stop();
-        enrolling = false;
         return true;
     }
 
@@ -213,7 +272,7 @@ namespace Enrollment
         if (command == "enroll")
         {
             id = pay.equals("PRESS") ? "" : pay;
-            enrolling = true;
+            enrolling = !enrolling;
             return true;
         }
         return false;

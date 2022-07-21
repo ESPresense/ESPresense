@@ -506,9 +506,6 @@ void scanTask(void *parameter)
             if (f->query())
                 totalFpQueried++;
 
-        while (Enrollment::Busy())
-            Enrollment::Loop();
-
         if (updateInProgress())
         {
             fingerprints.setDisable(true);
@@ -516,6 +513,11 @@ void scanTask(void *parameter)
                 delay(1000);
             fingerprints.setDisable(false);
         }
+        else
+        {
+            Enrollment::Loop();
+        }
+
         if (!pBLEScan->isScanning())
         {
             if (!pBLEScan->start(0, nullptr, true))
