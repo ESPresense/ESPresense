@@ -30,6 +30,7 @@
 #ifdef SENSORS
 #include <Wire.h>
 
+#include "BMP280.h"
 #include "BME280Sensor.h"
 #include "TSL2561Sensor.h"
 #include "HX711.h"
