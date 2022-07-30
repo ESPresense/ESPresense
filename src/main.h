@@ -24,6 +24,7 @@
 #include <rom/rtc.h>
 #include "Network.h"
 #include "Enrollment.h"
+#include "HttpServer.h"
 
 #include "MotionSensors.h"
 #include "I2C.h"
@@ -54,8 +55,6 @@ uint16_t mqttPort;
 
 bool autoUpdate, arduinoOta, prerelease;
 bool discovery, activeScan, publishTele, publishRooms, publishDevices;
-
-BleFingerprintCollection fingerprints;
 
 bool updateInProgress() {
   return updateStartedMillis > 0 && millis() - updateStartedMillis < 60000;

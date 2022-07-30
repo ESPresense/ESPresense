@@ -61,11 +61,15 @@ public:
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
 
-    bool report(JsonDocument *doc);
+    void fill(JsonObject *doc);
+
+    bool report(JsonObject *doc);
 
     bool query();
 
     String getId() { return id; }
+
+    String getName() { return name; }
 
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
@@ -88,6 +92,8 @@ public:
     unsigned long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
 
     unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
+
+    bool getVisible() const { return !ignore && !hidden && hasValue; }
 
     bool getAdded() const { return added; };
 

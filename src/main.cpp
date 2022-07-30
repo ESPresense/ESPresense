@@ -158,7 +158,7 @@ void setupNetwork()
         if (getUptimeSeconds() > 600)
             ESP.restart();
     };
-
+    AsyncWiFiSettings.onHttpSetup = HttpServer::Init;
 
 #ifdef VERSION
     AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
@@ -413,7 +413,8 @@ void connectToMqtt()
 bool reportDevice(BleFingerprint *f)
 {
     doc.clear();
-    if (!f->report(&doc))
+    JsonObject obj = doc.to<JsonObject>();
+    if (!f->report(&obj))
         return false;
 
     serializeJson(doc, buffer);

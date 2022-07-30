@@ -1,5 +1,7 @@
 #pragma once
 
+#define JSON_BUFFER_SIZE 20480
+
 // Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
 
