@@ -4,7 +4,7 @@
 #include "defaults.h"
 #include "mqtt.h"
 #include "TSL2561Sensor.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include <Adafruit_TSL2561_U.h>
 #include "string_utils.h"
@@ -23,10 +23,10 @@ namespace TSL2561
 
     void ConnectToWifi()
     {
-        WiFiSettings.html("h4", "TSL2561 - Ambient Light Sensor:");
-        TSL2561_I2c_Bus = WiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        TSL2561_I2c = WiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
-        TSL2561_I2c_Gain = WiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
+        AsyncWiFiSettings.html("h4", "TSL2561 - Ambient Light Sensor:");
+        TSL2561_I2c_Bus = AsyncWiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+        TSL2561_I2c = AsyncWiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
+        TSL2561_I2c_Gain = AsyncWiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
     }
 
     void SerialReport()

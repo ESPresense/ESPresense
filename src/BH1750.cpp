@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -76,9 +76,9 @@ namespace BH1750
 
     void ConnectToWifi()
     {
-        WiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
-        BH1750_I2c_Bus = WiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BH1750_I2c = WiFiSettings.string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
+        AsyncWiFiSettings.html("h4", "BH1750 - Ambient Light Sensor:");
+        BH1750_I2c_Bus = AsyncWiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+        BH1750_I2c = AsyncWiFiSettings.string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
     }
 
     void SerialReport()

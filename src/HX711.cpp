@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -26,9 +26,9 @@ namespace HX711
 
     void ConnectToWifi()
     {
-        WiFiSettings.html("h4", "HX711 - Weight Sensor:");
-        sckPin = WiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
-        doutPin = WiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
+        AsyncWiFiSettings.html("h4", "HX711 - Weight Sensor:");
+        sckPin = AsyncWiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
+        doutPin = AsyncWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
     }
 
     void SerialReport()

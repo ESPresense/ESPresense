@@ -14,11 +14,11 @@
 #include <HTTPUpdate.h>
 #include <NimBLEDevice.h>
 #include <SPIFFS.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 #include <rom/rtc.h>

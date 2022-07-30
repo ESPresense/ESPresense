@@ -1,5 +1,5 @@
 #include "MotionSensors.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "globals.h"
 #include "mqtt.h"
@@ -31,10 +31,10 @@ namespace Motion
 
     void ConnectToWifi()
     {
-        pirPin = WiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
-        pirTimeout = WiFiSettings.floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
-        radarPin = WiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
-        radarTimeout = WiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
+        pirPin = AsyncWiFiSettings.integer("pir_pin", 0, "PIR motion pin (0 for disable)");
+        pirTimeout = AsyncWiFiSettings.floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
+        radarPin = AsyncWiFiSettings.integer("radar_pin", 0, "Radar motion pin (0 for disable)");
+        radarTimeout = AsyncWiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
     }
 
     void SerialReport()

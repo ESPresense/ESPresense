@@ -5,7 +5,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include "string_utils.h"
 
 #include <Adafruit_BME280.h>
@@ -16,19 +16,19 @@ namespace I2C
 
     void ConnectToWifi()
     {
-        WiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
+        AsyncWiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
 
-        WiFiSettings.html("h4", "Bus 1:");
+        AsyncWiFiSettings.html("h4", "Bus 1:");
 
-        I2C_Bus_1_SDA = WiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
-        I2C_Bus_1_SCL = WiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
+        I2C_Bus_1_SDA = AsyncWiFiSettings.integer("I2C_Bus_1_SDA", 0, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
+        I2C_Bus_1_SCL = AsyncWiFiSettings.integer("I2C_Bus_1_SCL", 0, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
 
-        WiFiSettings.html("h4", "Bus 2:");
+        AsyncWiFiSettings.html("h4", "Bus 2:");
 
-        I2C_Bus_2_SDA = WiFiSettings.integer("I2C_Bus_2_SDA", -1, "SDA pin (-1 to disable)");
-        I2C_Bus_2_SCL = WiFiSettings.integer("I2C_Bus_2_SCL", -1, "SCL pin (-1 to disable)");
+        I2C_Bus_2_SDA = AsyncWiFiSettings.integer("I2C_Bus_2_SDA", -1, "SDA pin (-1 to disable)");
+        I2C_Bus_2_SCL = AsyncWiFiSettings.integer("I2C_Bus_2_SCL", -1, "SCL pin (-1 to disable)");
 
-        I2CDebug = WiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
+        I2CDebug = AsyncWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
     }
 
     void SerialReport()

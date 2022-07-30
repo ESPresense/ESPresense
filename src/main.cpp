@@ -137,17 +137,17 @@ void setupNetwork()
     WiFi.persistent(false);
     GUI::connected(false, false);
 
-    WiFiSettings.onFailure = []()
+    AsyncWiFiSettings.onFailure = []()
     {
         GUI::status("WiFi Failed");
     };
-    WiFiSettings.onWaitLoop = []()
+    AsyncWiFiSettings.onWaitLoop = []()
     {
         GUI::connecting();
         return 150;
     };
     static bool inPortal = false;
-    WiFiSettings.onPortalWaitLoop = []()
+    AsyncWiFiSettings.onPortalWaitLoop = []()
     {
         if (!inPortal)
         {
@@ -159,54 +159,55 @@ void setupNetwork()
             ESP.restart();
     };
 
+
 #ifdef VERSION
-    WiFiSettings.info("ESPresense Version: " + String(VERSION));
+    AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
-    room = WiFiSettings.string("room", ESPMAC, "Room");
+    room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
-    ethernetType = WiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
-    WiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
-    mqttHost = WiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
-    mqttPort = WiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
-    mqttUser = WiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
-    mqttPass = WiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
-    discovery = WiFiSettings.checkbox("discovery", true, "Send to discovery topic");
-    publishTele = WiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
-    publishRooms = WiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
-    publishDevices = WiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+    AsyncWiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
+    mqttHost = AsyncWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
+    mqttPort = AsyncWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
+    mqttUser = AsyncWiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
+    mqttPass = AsyncWiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
+    discovery = AsyncWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
+    publishTele = AsyncWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
+    publishRooms = AsyncWiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
+    publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    WiFiSettings.heading("Updating <a href='https://espresense.com/configuration/settings#updating' target='_blank'>ℹ️</a>", false);
-    autoUpdate = WiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = WiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-    arduinoOta = WiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
+    AsyncWiFiSettings.heading("Updating <a href='https://espresense.com/configuration/settings#updating' target='_blank'>ℹ️</a>", false);
+    autoUpdate = AsyncWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
+    prerelease = AsyncWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    arduinoOta = AsyncWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
 
-    WiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
-    activeScan = WiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
-    BleFingerprintCollection::knownMacs = WiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
-    BleFingerprintCollection::knownIrks = WiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
-    BleFingerprintCollection::query = WiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+    AsyncWiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
+    activeScan = AsyncWiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)");
+    BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
+    BleFingerprintCollection::knownIrks = AsyncWiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
+    BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
 
-    WiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
-    BleFingerprintCollection::countIds = WiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
-    BleFingerprintCollection::countEnter = WiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
-    BleFingerprintCollection::countExit = WiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
-    BleFingerprintCollection::countMs = WiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
+    AsyncWiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
+    BleFingerprintCollection::countEnter = AsyncWiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
+    BleFingerprintCollection::countExit = AsyncWiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
+    BleFingerprintCollection::countMs = AsyncWiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
 
-    WiFiSettings.heading("Filtering <a href='https://espresense.com/configuration/settings#filtering' target='_blank'>ℹ️</a>", false);
-    BleFingerprintCollection::include = WiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
-    BleFingerprintCollection::exclude = WiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
-    BleFingerprintCollection::maxDistance = WiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
-    BleFingerprintCollection::skipDistance = WiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
-    BleFingerprintCollection::skipMs = WiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
+    AsyncWiFiSettings.heading("Filtering <a href='https://espresense.com/configuration/settings#filtering' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::include = AsyncWiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    BleFingerprintCollection::exclude = AsyncWiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    BleFingerprintCollection::maxDistance = AsyncWiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    BleFingerprintCollection::skipDistance = AsyncWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
+    BleFingerprintCollection::skipMs = AsyncWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
 
-    WiFiSettings.heading("Calibration <a href='https://espresense.com/configuration/settings#calibration' target='_blank'>ℹ️</a>", false);
-    BleFingerprintCollection::refRssi = WiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBecons or Eddystone)");
-    BleFingerprintCollection::absorption = WiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
-    BleFingerprintCollection::forgetMs = WiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+    AsyncWiFiSettings.heading("Calibration <a href='https://espresense.com/configuration/settings#calibration' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::refRssi = AsyncWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBecons or Eddystone)");
+    BleFingerprintCollection::absorption = AsyncWiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
+    BleFingerprintCollection::forgetMs = AsyncWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
 
-    WiFiSettings.heading("Misc <a href='https://espresense.com/configuration/settings#misc' target='_blank'>ℹ️</a>", false);
-    GUI::statusLed = WiFiSettings.checkbox("status_led", true, "Status LED");
+    AsyncWiFiSettings.heading("Misc <a href='https://espresense.com/configuration/settings#misc' target='_blank'>ℹ️</a>", false);
+    GUI::statusLed = AsyncWiFiSettings.checkbox("status_led", true, "Status LED");
 
     fingerprints.connectToWifi();
     Motion::ConnectToWifi();
@@ -215,7 +216,7 @@ void setupNetwork()
     DHT::ConnectToWifi();
     I2C::ConnectToWifi();
 
-    WiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
     BH1750::ConnectToWifi();
     BME280::ConnectToWifi();
@@ -223,11 +224,11 @@ void setupNetwork()
     HX711::ConnectToWifi();
 #endif
 
-    WiFiSettings.hostname = "espresense-" + kebabify(room);
+    AsyncWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, WiFiSettings.hostname.c_str());
-    if (!success && !WiFiSettings.connect(true, 40))
+    if (ethernetType > 0) success = Network.connect(ethernetType, 20, AsyncWiFiSettings.hostname.c_str());
+    if (!success && !AsyncWiFiSettings.connect(true, 40))
         ESP.restart();
 
     GUI::connected(true, false);
@@ -274,6 +275,7 @@ void setupNetwork()
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
     configTopic = CHANNEL + "/settings/+/config";
+    AsyncWiFiSettings.httpSetup();
 }
 
 void onMqttConnect(bool sessionPresent)
@@ -386,8 +388,8 @@ void reconnect(TimerHandle_t xTimer)
         Serial.printf("%u Reconnecting to Network...\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, WiFiSettings.hostname.c_str());
-        if (!success && !WiFiSettings.connect(true, 40))
+        if (ethernetType > 0) success = Network.connect(ethernetType, 2, AsyncWiFiSettings.hostname.c_str());
+        if (!success && !AsyncWiFiSettings.connect(true, 40))
             ESP.restart();
     }
 
@@ -401,7 +403,7 @@ void connectToMqtt()
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
-    mqttClient.setClientId(WiFiSettings.hostname.c_str());
+    mqttClient.setClientId(AsyncWiFiSettings.hostname.c_str());
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(statusTopic.c_str(), 0, true, offline.c_str());
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
@@ -574,13 +576,6 @@ void setup()
     configureOTA();
 }
 
-#ifdef SENSORS
-
-
-//non blocking ambient sensor
-
-#endif
-
 void loop()
 {
     uint32_t freeHeap = ESP.getFreeHeap();
@@ -597,5 +592,4 @@ void loop()
     HX711::Loop();
     I2C::Loop();
 #endif
-    WiFiSettings.httpLoop();
 }
