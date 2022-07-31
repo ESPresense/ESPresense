@@ -14,3 +14,4 @@ build/
 CMakeLists.txt
 CMakeListsPrivate.txt
 platformio_override.ini
+node_modules

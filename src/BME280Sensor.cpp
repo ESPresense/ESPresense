@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <WiFiSettings.h>
+#include <AsyncWiFiSettings.h>
 #include "string_utils.h"
 
 #include <Adafruit_BME280.h>
@@ -52,9 +52,9 @@ namespace BME280
 
     void ConnectToWifi()
     {
-        WiFiSettings.html("h4", "BME280 - Weather Sensor:");
-        BME280_I2c_Bus = WiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BME280_I2c = WiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
+        AsyncWiFiSettings.html("h4", "BME280 - Weather Sensor:");
+        BME280_I2c_Bus = AsyncWiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+        BME280_I2c = AsyncWiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
     }
 
     void SerialReport()
