@@ -17,11 +17,6 @@
 #define BUTTON 39
 #define BUTTON_PRESSED 0
 
-#elif defined HUZZAH32
-
-#define LED_BUILTIN 13
-#define LED_BUILTIN_ON 1
-
 #else //DevKit / generic
 
 #define LED_BUILTIN 2
