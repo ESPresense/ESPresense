@@ -30,7 +30,7 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
 
     if ((idType != newIdType) || !id.equals(newId)) {
 
-        countable = !ignore && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
+        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
         bool newQuery = !ignore && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
         if (newQuery != allowQuery)
         {
@@ -493,7 +493,6 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
     newest = advertisedDevice->getRSSI();
     rssi = median_of_3(oldest, recent, newest);
 
-
     float ratio = (get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption);
     raw = pow(10, ratio);
     if (filter()) hasValue = true;
@@ -525,7 +524,30 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance)
     hasValue = filter() || filter();
 }
 
-bool BleFingerprint::report(JsonDocument *doc)
+void BleFingerprint::fill(JsonObject *doc)
+{
+    (*doc)[F("id")] = id;
+    if (!name.isEmpty()) (*doc)[F("name")] = name;
+    if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
+    if (idType) (*doc)[F("idType")] = idType;
+
+    (*doc)[F("rssi@1m")] = get1mRssi();
+    (*doc)[F("rssi")] = rssi;
+
+    (*doc)[F("raw")] = serialized(String(raw, 2));
+    (*doc)[F("distance")] = serialized(String(output.value.position, 2));
+    (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
+    (*doc)[F("mac")] = SMacf(address);
+
+    (*doc)[F("interval")] = (millis() - firstSeenMillis) / seenCount;
+
+    if (mv) (*doc)[F("mV")] = mv;
+    if (battery != 0xFF) (*doc)[F("batt")] = battery;
+    if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
+    if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
+}
+
+bool BleFingerprint::report(JsonObject *doc)
 {
     if (ignore || idType == 0 || hidden)
         return false;
@@ -544,27 +566,7 @@ bool BleFingerprint::report(JsonDocument *doc)
     lastReportedMillis = now;
     lastReported = output.value.position;
     reported = true;
-
-    (*doc)[F("id")] = id;
-    if (!name.isEmpty()) (*doc)[F("name")] = name;
-    if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
-    if (idType) (*doc)[F("idType")] = idType;
-
-    (*doc)[F("rssi@1m")] = get1mRssi();
-    (*doc)[F("rssi")] = rssi;
-
-    (*doc)[F("raw")] = serialized(String(raw, 2));
-    (*doc)[F("distance")] = serialized(String(output.value.position, 2));
-    (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
-    (*doc)[F("mac")] = SMacf(address);
-
-    (*doc)[F("interval")] = (now - firstSeenMillis) / seenCount;
-
-    if (mv) (*doc)[F("mV")] = mv;
-    if (battery != 0xFF) (*doc)[F("batt")] = battery;
-    if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
-    if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
-
+    fill(doc);
     return true;
 }
 
@@ -648,7 +650,7 @@ bool BleFingerprint::query()
 bool BleFingerprint::shouldCount()
 {
     bool prevCounting = counting;
-    if (ignore || !countable)
+    if (ignore || !countable || !hasValue)
         counting = false;
     else if (getMsSinceFirstSeen() <= BleFingerprintCollection::countMs || getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
