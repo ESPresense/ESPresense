@@ -391,8 +391,8 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             {
                 BLEBeacon oBeacon = BLEBeacon();
                 oBeacon.setData(strManufacturerData);
-                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_IBEACON);
                 calRssi = oBeacon.getSignalPower();
+                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), calRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST );
             }
             else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
             {

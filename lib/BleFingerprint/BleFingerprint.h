@@ -15,6 +15,8 @@
 #define NO_RSSI (-32768)
 
 #define ID_TYPE_TX_POW short(1)
+
+#define ID_TYPE_ECHO_LOST short(-10)
 #define ID_TYPE_MISC_APPLE short(-5)
 
 #define ID_TYPE_MAC short(0)
