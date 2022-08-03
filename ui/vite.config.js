@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       '^/json': {
-        target: 'http://192.168.128.134/',
+        target: 'http://192.168.128.180/',
         changeOrigin: true,
         rewrite: (path) => path
       },
