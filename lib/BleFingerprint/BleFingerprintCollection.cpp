@@ -87,6 +87,7 @@ void BleFingerprintCollection::cleanupOldFingerprints()
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
     auto it = fingerprints.begin();
+    bool any = false;
     while (it != fingerprints.end())
     {
         auto age = (*it)->getMsSinceLastSeen();
@@ -98,7 +99,15 @@ void BleFingerprintCollection::cleanupOldFingerprints()
         }
         else
         {
+            any = true;
             ++it;
+        }
+    }
+    if (!any) {
+        auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
+        if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
+            Serial.println("Bluetooth controller seems stuck, restarting");
+            ESP.restart();
         }
     }
 }
