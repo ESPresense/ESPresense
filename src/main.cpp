@@ -155,7 +155,7 @@ void setupNetwork()
             GUI::status("WiFi Portal...");
         }
 
-        if (getUptimeSeconds() > 600)
+        if (getUptimeSeconds() > CAPTIVE_PORTAL_TIMEOUT)
             ESP.restart();
     };
     AsyncWiFiSettings.onHttpSetup = HttpServer::Init;
@@ -379,7 +379,7 @@ void reconnect(TimerHandle_t xTimer)
 
     if (reconnectTries++ > 50)
     {
-        log_e("Too many reconnect attempts; Restarting");
+        Serial.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 

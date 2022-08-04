@@ -33,7 +33,7 @@
 #define DEFAULT_REF_RSSI (-65)
 #define DEFAULT_ABSORPTION (3.5)
 
-#define DEFAULT_FORGET_MS 300000 // Ms to remove fingerprint after not seeing it
+#define DEFAULT_FORGET_MS 150000 // Ms to remove fingerprint after not seeing it
 
 #define DEFAULT_SKIP_DISTANCE 0.5 // If beacon has moved less than this skip update
 #define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
@@ -41,6 +41,11 @@
 // Number of seconds between update checks
 #ifndef CHECK_FOR_UPDATES_INTERVAL
 #define CHECK_FOR_UPDATES_INTERVAL 900
+#endif
+
+// Number of seconds before attempting to reconnect to MQTT broker
+#ifndef CAPTIVE_PORTAL_TIMEOUT
+#define CAPTIVE_PORTAL_TIMEOUT 300
 #endif
 
 // I2C Defaults
