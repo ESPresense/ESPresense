@@ -285,12 +285,13 @@ void onMqttConnect(bool sessionPresent)
     mqttClient.subscribe(setTopic.c_str(), 1);
     mqttClient.subscribe(configTopic.c_str(), 1);
     GUI::connected(true, true);
+    Serial.println("Connected to MQTT");
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason)
 {
     GUI::connected(true, false);
-    log_e("Disconnected from MQTT; reason %d\n", reason);
+    Serial.printf("Disconnected from MQTT; reason %d\n", reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
 }
