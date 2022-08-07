@@ -1,9 +1,9 @@
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
+#include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
 #include "util.h"
-#include "mbedtls/aes.h"
 
 class ClientCallbacks : public BLEClientCallbacks
 {
@@ -15,21 +15,33 @@ class ClientCallbacks : public BLEClientCallbacks
 
 static ClientCallbacks clientCB;
 
-bool BleFingerprint::shouldHide(const String& s)
-{
+bool BleFingerprint::shouldHide(const String &s) {
     if (BleFingerprintCollection::include.length() > 0 && !prefixExists(BleFingerprintCollection::include, s)) return true;
     return (BleFingerprintCollection::exclude.length() > 0 && prefixExists(BleFingerprintCollection::exclude, s));
 }
 
-bool BleFingerprint::setId(const String& newId, short newIdType, const String& newName)
-{
-    if (newIdType < idType && idType > 0) return false;
+bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
 
-    hidden = shouldHide(newId);
+    if ((idType < 0 || newIdType < 0) ? newIdType >= idType : newIdType <= idType) return false;
+    //Serial.printf("setId: %s %d %s\n", newId.c_str(), newIdType, newName.c_str());
+
     ignore = newIdType < 0;
+    idType = newIdType;
 
-    if ((idType != newIdType) || !id.equals(newId)) {
+    DeviceConfig dc;
+    if (BleFingerprintCollection::findDeviceConfig(newId, dc))
+    {
+        if (!dc.alias.isEmpty())
+            return setId(dc.alias, ID_TYPE_ALIAS, dc.name);
+        if (!dc.name.isEmpty())
+            name = dc.name;
+    } else
+        if (!newName.isEmpty() && name!=newName)
+            name = newName;
 
+    if (id != newId) {
+
+        hidden = shouldHide(newId);
         countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
         bool newQuery = !ignore && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
         if (newQuery != allowQuery)
@@ -41,19 +53,16 @@ bool BleFingerprint::setId(const String& newId, short newIdType, const String& n
                 {
                     qryDelayMillis = 30000;
                     lastQryMillis = millis();
-                } else if (rssi < -70)
-                {
+                } else if (rssi < -70) {
                     qryDelayMillis = 5000;
                     lastQryMillis = millis();
                 }
             }
         }
-
         id = newId;
-        idType = newIdType;
         added = false;
     }
-    if (!newName.isEmpty() && !name.equals(newName)) name = newName;
+
     return true;
 }
 
@@ -118,14 +127,12 @@ int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_dat
 
 struct encryption_block
 {
-    uint8_t     key[16];
-    uint8_t     plain_text[16];
-    uint8_t     cipher_text[16];
+    uint8_t key[16];
+    uint8_t plain_text[16];
+    uint8_t cipher_text[16];
 };
 
-int ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
-{
-    int rc;
+bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
     struct encryption_block ecb;
 
     auto irk32 = (const uint32_t *)irk;
@@ -136,7 +143,6 @@ int ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
     key32[1] = irk32[1];
     key32[2] = irk32[2];
     key32[3] = irk32[3];
-
 
     pt32[0] = 0;
     pt32[1] = 0;
@@ -149,17 +155,11 @@ int ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk)
 
     auto err = bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
 
-    if ((ecb.cipher_text[15] == rpa[0]) && (ecb.cipher_text[14] == rpa[1]) &&
-        (ecb.cipher_text[13] == rpa[2])) {
+    if (ecb.cipher_text[15] != rpa[0] || ecb.cipher_text[14] != rpa[1] || ecb.cipher_text[13] != rpa[2]) return false;
 
-        rc = 1;
-    } else {
-        rc = 0;
-    }
+    // Serial.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
 
-    //Serial.printf("RPA resolved %d %d %02x%02x%02x %02x%02x%02x\n", rc, err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
-
-    return rc;
+    return true;
 }
 
 void BleFingerprint::fingerprintAddress()
@@ -171,26 +171,23 @@ void BleFingerprint::fingerprintAddress()
     {
         switch (addressType)
         {
-            case BLE_ADDR_PUBLIC:
-            case BLE_ADDR_PUBLIC_ID:
-                setId(mac, ID_TYPE_PUBLIC_MAC);
+        case BLE_ADDR_PUBLIC:
+        case BLE_ADDR_PUBLIC_ID:
+            setId(mac, ID_TYPE_PUBLIC_MAC);
+            break;
+        case BLE_ADDR_RANDOM: {
+            auto naddress = address.getNative();
+            auto irks = BleFingerprintCollection::getIrks();
+            auto it = std::find_if(irks.begin(), irks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
+            if (it != irks.end()) {
+                auto irk_hex = hexStr(*it, 16);
+                setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
                 break;
-            case BLE_ADDR_RANDOM:
-            {
-                auto naddress = address.getNative();
-                auto irks = BleFingerprintCollection::irks;
-                auto it = std::find_if(irks.begin(), irks.end(), [naddress](std::pair<uint8_t *, String> &p) {
-                    auto irk = std::get<0>(p);
-                    return ble_ll_resolv_rpa(naddress, irk);
-                });
-                if (it != irks.end()) {
-                    setId(std::get<1>(*it), ID_TYPE_KNOWN_IRK);
-                    break;
-                }
             }
-            default:
-                setId(mac, ID_TYPE_MAC);
-                break;
+        }
+        default:
+            setId(mac, ID_TYPE_RAND_MAC);
+            break;
         }
     }
 }
@@ -295,7 +292,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         { // found COVID-19 exposure tracker
             calRssi = BleFingerprintCollection::refRssi + EXPOSURE_TX;
             setId("exp:" + String(strServiceData.length()), ID_TYPE_EXPOSURE);
-            disc = hexStr(strServiceData).c_str();
+            //disc = hexStr(strServiceData).c_str();
         }
         else if (uuid == smartTagUUID)
         { // found Samsung smart tag
@@ -392,7 +389,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
                 BLEBeacon oBeacon = BLEBeacon();
                 oBeacon.setData(strManufacturerData);
                 calRssi = oBeacon.getSignalPower();
-                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), calRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST );
+                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), calRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
             }
             else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10)
             {
@@ -440,11 +437,12 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
             setId(Sprintf("msft:cdp:%02x%02x", strManufacturerData[3], strManufacturerData[5]), ID_TYPE_MSFT);
-            disc = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+            /*disc = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                            strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10],
                            strManufacturerData[11], strManufacturerData[12], strManufacturerData[13], strManufacturerData[14], strManufacturerData[15],
                            strManufacturerData[16], strManufacturerData[17], strManufacturerData[18], strManufacturerData[19], strManufacturerData[20],
                            strManufacturerData[21], strManufacturerData[22], strManufacturerData[23], strManufacturerData[24], strManufacturerData[25]);
+                           */
         }
         else if (manuf == "0075") // samsung
         {
@@ -549,7 +547,7 @@ void BleFingerprint::fill(JsonObject *doc)
 
 bool BleFingerprint::report(JsonObject *doc)
 {
-    if (ignore || idType == 0 || hidden)
+    if (ignore || idType <= ID_TYPE_RAND_MAC || hidden)
         return false;
 
     if (reported || !hasValue)
@@ -665,4 +663,9 @@ bool BleFingerprint::shouldCount()
     }
 
     return counting;
+}
+
+void BleFingerprint::expire()
+{
+    lastSeenMillis = 0;
 }

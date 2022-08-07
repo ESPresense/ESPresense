@@ -5,22 +5,33 @@
 String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::knownIrks{}, BleFingerprintCollection::countIds{};
 float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
 int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
-std::vector<std::pair<uint8_t*,String>> BleFingerprintCollection::irks;
+std::vector<DeviceConfig> BleFingerprintCollection::deviceConfigs;
+std::vector<uint8_t *> BleFingerprintCollection::irks;
 
-bool BleFingerprintCollection::config(String& id, String& json) {
+bool BleFingerprintCollection::config(String &id, String &json) {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, json);
+
+    DeviceConfig config = {};
+    config.id = id;
+    auto alias = doc["id"].as<String>();
+    if (alias != id) config.alias = alias;
+    config.calRssi = doc["rssi@1m"];
+    config.name = doc["name"].as<String>();
+    deviceConfigs.push_back(config);
+
     auto p = id.indexOf("irk:");
     if (p == 0) {
         auto irk_hex = id.substring(4);
-        uint8_t* irk = new uint8_t[16];
+        uint8_t *irk = new uint8_t[16];
         if (!hextostr(irk_hex, irk, 16))
             return false;
-        irks.push_back({irk, doc["id"]});
+        irks.push_back(irk);
 
-        for(auto it = std::begin(fingerprints); it != std::end(fingerprints); ++it)
+        for (auto it = std::begin(fingerprints); it != std::end(fingerprints); ++it)
             (*it)->fingerprintAddress();
     }
+
     return true;
 }
 
@@ -28,14 +39,14 @@ void BleFingerprintCollection::connectToWifi() {
     std::istringstream iss(BleFingerprintCollection::knownIrks.c_str());
     std::string irk_hex;
     while (iss >> irk_hex) {
-        uint8_t* irk = new uint8_t[16];
+        uint8_t *irk = new uint8_t[16];
         if (!hextostr(irk_hex.c_str(), irk, 16))
             continue;
-        irks.push_back({irk, String("irk:") + irk_hex.c_str()});
+        irks.push_back(irk);
     }
 }
 
-bool BleFingerprintCollection::command(String& command, String& pay) {
+bool BleFingerprintCollection::command(String &command, String &pay) {
 
     if (command == "max_distance")
     {
@@ -116,21 +127,22 @@ BleFingerprint *BleFingerprintCollection::getFingerprintInternal(BLEAdvertisedDe
 {
     auto mac = advertisedDevice->getAddress();
 
-    auto it = std::find_if(fingerprints.begin(), fingerprints.end(), [mac](BleFingerprint *f)
-                           { return f->getAddress() == mac; });
-    if (it != fingerprints.end())
+    auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
+    if (it != fingerprints.rend())
         return *it;
 
     auto created = new BleFingerprint(this, advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
-    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f)
-                            { return f->getId() == created->getId(); });
+    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end())
     {
         auto found = *it2;
+        //Serial.printf("Detected mac switch for fingerprint id %s\n", found->getId().c_str());
         created->setInitial(found->getRssi(), found->getDistance());
+        if (found->getIdType()>ID_TYPE_UNIQUE)
+            found->expire();
     }
 
-    fingerprints.push_front(created);
+    fingerprints.push_back(created);
     return created;
 }
 
@@ -144,18 +156,28 @@ BleFingerprint *BleFingerprintCollection::getFingerprint(BLEAdvertisedDevice *ad
     return f;
 }
 
-const std::list<BleFingerprint *> BleFingerprintCollection::getCopy()
-{
+const std::vector<BleFingerprint *> BleFingerprintCollection::getCopy() {
     if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
         log_e("Couldn't take semaphore!");
     cleanupOldFingerprints();
-    std::list<BleFingerprint *> copy(fingerprints);
+    std::vector<BleFingerprint *> copy(fingerprints);
     if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
         log_e("Couldn't give semaphore!");
     return std::move(copy);
 }
 
-const std::list<BleFingerprint *>* const BleFingerprintCollection::getNative()
+const std::vector<BleFingerprint *> *const BleFingerprintCollection::getNative() { return &fingerprints; }
+
+std::vector<uint8_t *> BleFingerprintCollection::getIrks() { return irks; }
+
+bool BleFingerprintCollection::findDeviceConfig(const String &id, DeviceConfig &config) {
+    auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [id](DeviceConfig dc) { return dc.id == id; });
+    if (it == deviceConfigs.end()) return false;
+    config = (*it);
+    return true;
+}
+
+std::vector<DeviceConfig> BleFingerprintCollection::getConfigs()
 {
-    return &fingerprints;
+    return deviceConfigs;
 }

@@ -12,6 +12,13 @@
 #define ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS 1800
 #endif
 
+struct DeviceConfig {
+    String id;
+    String alias;
+    String name;
+    uint8_t calRssi = 127;
+};
+
 class BleFingerprintCollection : public BLEAdvertisedDeviceCallbacks
 {
 public:
@@ -22,13 +29,12 @@ public:
     }
     BleFingerprint *getFingerprint(BLEAdvertisedDevice *advertisedDevice);
     void cleanupOldFingerprints();
-    const std::list<BleFingerprint *>* const getNative();
-    const std::list<BleFingerprint *> getCopy();
+    const std::vector<BleFingerprint *> *const getNative();
+    const std::vector<BleFingerprint *> getCopy();
     void setDisable(bool disable) { _disable = disable; }
     void connectToWifi();
     bool command(String& command, String& pay);
-    bool config(String& id, String& json);
-    static std::vector<std::pair<uint8_t*,String>> irks;
+    bool config(String &id, String &json);
     static String knownMacs, knownIrks, include, exclude, query;
     static float skipDistance, maxDistance, absorption;
     static int refRssi, forgetMs, skipMs;
@@ -36,13 +42,20 @@ public:
     static float countEnter, countExit;
     static int countMs;
 
+    static std::vector<uint8_t *> getIrks();
+    static bool findDeviceConfig(const String &id, DeviceConfig &config);
+
+    static std::vector<DeviceConfig> getConfigs();
+
 private:
+    static std::vector<DeviceConfig> deviceConfigs;
+    static std::vector<uint8_t *> irks;
     bool _disable = false;
 
     unsigned long lastCleanup = 0;
 
     SemaphoreHandle_t fingerprintSemaphore;
-    std::list<BleFingerprint *> fingerprints;
+    std::vector<BleFingerprint *> fingerprints;
     BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice);
 
     void onResult(BLEAdvertisedDevice *advertisedDevice) override
