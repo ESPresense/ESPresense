@@ -181,9 +181,7 @@ namespace Enrollment
         return true;
     }
 
-    void Setup()
-    {
-        //NimBLEDevice::setOwnAddrType(BLE_ADDR_RANDOM, true);
+    void Setup() {
         NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
         NimBLEDevice::setSecurityAuth(true, true, true);
 
@@ -272,7 +270,7 @@ namespace Enrollment
         if (command == "enroll")
         {
             id = pay.equals("PRESS") ? "" : pay;
-            enrolling = !enrolling;
+            enrolling = true;
             return true;
         }
         return false;

@@ -15,8 +15,21 @@
 
 namespace HttpServer
 {
-    bool deserializeState(JsonObject root ){return false;}
-    bool deserializeConfig(JsonObject doc, bool fromFS = false){return false;}
+    void serializeConfigs(JsonObject& root)
+    {
+        JsonArray devices = root.createNestedArray("configs");
+
+        auto f = BleFingerprintCollection::getConfigs();
+        for (auto it = f.begin(); it != f.end(); ++it)
+        {
+            JsonObject node = devices.createNestedObject();
+            node["id"]=it->id;
+            node["alias"] = it->alias;
+            node["name"]=it->name;
+            node["rss@1m"]=it->calRssi;
+        }
+    }
+
     void serializeDevices(JsonObject& root)
     {
         JsonArray devices = root.createNestedArray("devices");
@@ -31,20 +44,30 @@ namespace HttpServer
         }
     }
 
+    bool servingJson = false;
     void serveJson(AsyncWebServerRequest* request) {
-        byte subJson = 0;
+        if (servingJson) request->send(429, "Too Many Requests", "Too Many Requests");
+        servingJson = true;
         const String& url = request->url();
+        short subJson = 0;
         if (url.indexOf("devices") > 0) subJson = 1;
+        if (url.indexOf("configs") > 0) subJson = 2;
+
         AsyncJsonResponse* response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
         JsonObject root = response->getRoot();
-        //root["room"] = room;
+        root["room"] = room;
         switch (subJson)
         {
             case 1:
-                serializeDevices(root); break;
+                serializeDevices(root);
+                break;
+            case 2:
+                serializeConfigs(root);
+                break;
         }
         response->setLength();
         request->send(response);
+        servingJson = false;
     }
 
     void serializeConfig(){};
@@ -60,14 +83,10 @@ namespace HttpServer
             request->send(response);
         });
 
-        server->on("/devices", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { serveIndexHtml(request); });
-        server->on("/bundle.css", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { serveBundleCss(request); });
-        server->on("/index.js", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { serveIndexJs(request); });
-        server->on("/json", HTTP_GET, [](AsyncWebServerRequest *request)
-                    { serveJson(request); });
+        server->on("/devices", HTTP_GET, serveIndexHtml);
+        server->on("/bundle.css", HTTP_GET, serveBundleCss);
+        server->on("/index.js", HTTP_GET, serveIndexJs);
+        server->on("/json", HTTP_GET, serveJson);
 
         AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler("/json", [](AsyncWebServerRequest *request, JsonVariant &json)
         {
@@ -83,25 +102,9 @@ namespace HttpServer
                     return;
                 }
                 const String& url = request->url();
-                isConfig = url.indexOf("cfg") > -1;
-                if (!isConfig)
-                    verboseResponse = deserializeState(root);
-                else
-                    verboseResponse = deserializeConfig(root);
             }
-            if (verboseResponse)
-            {
-                if (!isConfig)
-                {
-                    serveJson(request);
-                    return; //if JSON contains "v"
-                }
-                else
-                {
-                    serializeConfig(); //Save new settings to FS
-                }
-            }
-        request->send(200, "application/json", F("{\"success\":true}")); });
+            request->send(200, "application/json", F("{\"success\":true}"));
+        });
         server->addHandler(handler);
     }
 }

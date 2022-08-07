@@ -16,18 +16,21 @@
 
 #define ID_TYPE_TX_POW short(1)
 
+#define NO_ID_TYPE short(0)
+
 #define ID_TYPE_ECHO_LOST short(-10)
 #define ID_TYPE_MISC_APPLE short(-5)
 
-#define ID_TYPE_MAC short(0)
+#define ID_TYPE_RAND_MAC short(1)
 #define ID_TYPE_AD short(10)
 #define ID_TYPE_SD short(15)
 #define ID_TYPE_MD short(20)
 #define ID_TYPE_MISC short(30)
 #define ID_TYPE_FINDMY short(32)
 #define ID_TYPE_NAME short(35)
-#define ID_TYPE_PUBLIC_MAC short(50)
-#define ID_TYPE_MSFT short(100)
+#define ID_TYPE_MSFT short(40)
+#define ID_TYPE_UNIQUE short(50)
+#define ID_TYPE_PUBLIC_MAC short(55)
 #define ID_TYPE_SONOS short(105)
 #define ID_TYPE_GARMIN short(107)
 #define ID_TYPE_MITHERM short(110)
@@ -38,7 +41,7 @@
 #define ID_TYPE_ITRACK short(127)
 #define ID_TYPE_NUT short(128)
 #define ID_TYPE_TRACKR short(130)
-#define ID_TYPE_TILE short( 135)
+#define ID_TYPE_TILE short(135)
 #define ID_TYPE_MEATER short(140)
 #define ID_TYPE_TRACTIVE short(142)
 #define ID_TYPE_VANMOOF short(145)
@@ -51,7 +54,7 @@
 #define ID_TYPE_EBEACON short(220)
 #define ID_TYPE_ABEACON short(230)
 #define ID_TYPE_IBEACON short(240)
-
+#define ID_TYPE_ALIAS short(250)
 
 class BleFingerprintCollection;
 
@@ -79,6 +82,8 @@ public:
 
     String getMac() const { return SMacf(address); }
 
+    short getIdType() const { return idType; }
+
     String const getDiscriminator() { return disc; }
 
     float getDistance() const { return output.value.position; }
@@ -91,7 +96,7 @@ public:
 
     NimBLEAddress const getAddress() { return address; }
 
-    unsigned long getMsSinceLastSeen() const { return millis() - lastSeenMillis; };
+    unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
     unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
@@ -115,6 +120,8 @@ public:
     bool shouldCount();
     void fingerprintAddress();
 
+    void expire();
+
 private:
 
     static bool shouldHide(const String &s);
@@ -122,7 +129,7 @@ private:
     bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false, countable = false, counting = false;
     NimBLEAddress address;
     String id, name, disc;
-    short int idType = 0;
+    short int idType = NO_ID_TYPE;
     int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
@@ -139,11 +146,8 @@ private:
     bool filter();
 
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-
     void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
-
     void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
-
     void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
 };
 
