@@ -20,7 +20,7 @@
       </div>
       <nav class="mt-10 px-6 ">
         <SidebarItem icon="device" title="Devices" href="/" />
-        <SidebarItem icon="contact" title="Fingerprints" href="/fingerprints" />
+        <SidebarItem icon="fingerprint" title="Fingerprints" href="/fingerprints" />
       </nav>
     </div>
   </div>
