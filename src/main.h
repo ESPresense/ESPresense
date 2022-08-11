@@ -203,6 +203,8 @@ void firmwareUpdate()
     updateStartedMillis = millis();
     mqttClient.disconnect();
     NimBLEDevice::getScan()->stop();
+    SPIFFS.end();
+    HttpServer::UpdateStart();
     GUI::updateStart();
     httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
     httpUpdate.onProgress([](int progress, int total)
@@ -211,6 +213,7 @@ void firmwareUpdate()
                             });
     t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
     GUI::updateEnd();
+    HttpServer::UpdateEnd();
 
     switch (ret)
     {
@@ -221,12 +224,9 @@ void firmwareUpdate()
     case HTTP_UPDATE_NO_UPDATES:
         Serial.printf("No Update!\n");
         break;
-
-    case HTTP_UPDATE_OK:
-        Serial.printf("Update OK!\n");
-        break;
     }
 
+    SPIFFS.begin(true);
     updateStartedMillis = 0;
 #endif
 }

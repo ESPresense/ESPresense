@@ -586,6 +586,7 @@ void loop()
     if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
     firmwareUpdate();
     Motion::Loop();
+    HttpServer::Loop();
 #ifdef SENSORS
     DHT::Loop();
     BH1750::Loop();

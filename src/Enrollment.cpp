@@ -1,6 +1,7 @@
 #include "Enrollment.h"
 #include "globals.h"
 #include "mqtt.h"
+#include "HttpServer.h"
 
 #include <NimBLEDevice.h>
 #include <NimBLEAdvertisedDevice.h>
@@ -11,7 +12,7 @@
 namespace Enrollment
 {
     static const char hex_digits[] = "0123456789abcdef";
-    static bool enrolling = false, lastEnrolling = false;
+    static bool lastEnrolling = false;
     static NimBLEServer *pServer;
     static String id;
     static unsigned long lastLoop = 0;
@@ -217,6 +218,7 @@ namespace Enrollment
     {
         if (enrolling != lastEnrolling)
         {
+            HttpServer::SendState();
             auto pAdvertising = NimBLEDevice::getAdvertising();
             if (enrolling)
             {
@@ -229,12 +231,19 @@ namespace Enrollment
                 Serial.println("Advertising stopped");
             }
             lastEnrolling = enrolling;
+            if (enrolling) enrollingEndMillis = millis() + 120000;
+        }
+
+        if (enrolling && enrollingEndMillis < millis())
+        {
+            enrolling = false;
         }
 
         if (millis() - lastLoop > 1000)
         {
             lastLoop = millis();
 
+            if (enrolling) HttpServer::SendState();
             if (pServer->getConnectedCount())
             {
                 NimBLEService *pSvc = pServer->getServiceByUUID("180D");

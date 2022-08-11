@@ -7,7 +7,7 @@ import htmlTemplate from 'rollup-plugin-generate-html-template';
 import { readFile, writeFile } from 'fs';
 import { basename } from 'path';
 import { promisify } from 'util';
-import zlib from 'zlib';
+import zlib from 'node:zlib';
 import { VERSION, } from 'rollup';
 import { pascalCase } from "pascal-case";
 import mime from 'mime';
@@ -31,9 +31,8 @@ function hexdump(buffer) {
     return lines.join(",\n");
 }
 
-function cppGzipped(html, fileName, contentType) {
-
-    return new Promise((resolve, reject) => zlib.gzip(html, { level: zlib.constants.Z_BEST_COMPRESSION }, function (error, result) {
+function cppCompressed(input, fileName, contentType) {
+    return new Promise((resolve, reject) => zlib.gzip(input, { level: zlib.constants.Z_BEST_COMPRESSION }, function (error, result) {
         if (error) {
             reject(err);
         }
@@ -59,7 +58,7 @@ function cppGzipped(html, fileName, contentType) {
   `;
         resolve(src);
     }));
-  }
+}
 
 const isFunction = (arg) => typeof arg === 'function';
 const isRegExp = (arg) => Object.prototype.toString.call(arg) === '[object RegExp]';
@@ -95,7 +94,7 @@ function cpp(options = {}) {
         ? options.fileName
         : (fileName) => fileName + (options.fileName || '.cpp');
     const plugin = {
-        name: 'gzip',
+        name: 'cpp',
         generateBundle(outputOptions, bundle, isWrite) {
             if (!isWrite)
                 return;
@@ -118,7 +117,7 @@ function cpp(options = {}) {
                     options.minSize > fileContent.length) {
                     return Promise.resolve();
                 }
-                return Promise.resolve(cppGzipped(fileContent, fileName))
+                return Promise.resolve(cppCompressed(fileContent, fileName))
                     .then(compressedContent => {
                         writeFilePromise(mapFileName(fileName), compressedContent);
 
@@ -126,7 +125,7 @@ function cpp(options = {}) {
                 })
                     .catch((err) => {
                     console.error(err);
-                    return Promise.reject('[rollup-plugin-gzip] Error compressing file ' +
+                    return Promise.reject('[rollup-plugin-cpp] Error compressing file ' +
                         fileName);
                 });
             })
@@ -136,12 +135,12 @@ function cpp(options = {}) {
                         !options.additionalFiles.length)
                         return Promise.resolve();
                     const compressAdditionalFiles = () => Promise.all(options.additionalFiles.map(filePath => readFilePromise(filePath)
-                        .then(fileContent => cppGzipped(fileContent, basename(filePath)))
+                        .then(fileContent => cppCompressed(fileContent, basename(filePath)))
                         .then(compressedContent => {
                         return writeFilePromise(mapFileName(filePath), compressedContent);
                     })
                         .catch((err) => {
-                        return Promise.reject('[rollup-plugin-gzip] Error compressing additional file ' +
+                        return Promise.reject('[rollup-plugin-cpp] Error compressing additional file ' +
                             filePath + '\n' + err);
                     })));
                     // additional files can be processed outside of rollup after a delay
