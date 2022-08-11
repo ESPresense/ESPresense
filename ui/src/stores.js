@@ -27,8 +27,9 @@ export const devices = readable([], function start(set) {
 });
 
 var initialValue = {};
+var socket = null;
 export const events = readable(initialValue, function start(set) {
-	const socket = new WebSocket(`${location.origin.replace('http://','ws://')}/ws`);
+	socket = new WebSocket(`${location.origin.replace('http://','ws://')}/ws`);
 
 	socket.addEventListener('open', function (event) {
 		console.log("It's open");
@@ -36,7 +37,7 @@ export const events = readable(initialValue, function start(set) {
 
 	socket.addEventListener('message', function (event) {
 		initialValue = JSON.parse(event.data);
-		console.log(event.data);
+		console.log("Receive: " + event.data);
 		set(initialValue);
 	});
 
@@ -45,3 +46,8 @@ export const events = readable(initialValue, function start(set) {
 	};
 });
 
+export function enroll(name) {
+	var d = JSON.stringify({ command:"enroll", payload:name });
+	console.log("Send: " + d);
+	socket.send(d);
+}

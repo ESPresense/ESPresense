@@ -231,12 +231,19 @@ namespace Enrollment
                 Serial.println("Advertising stopped");
             }
             lastEnrolling = enrolling;
+            if (enrolling) enrollingEndMillis = millis() + 120000;
+        }
+
+        if (enrolling && enrollingEndMillis < millis())
+        {
+            enrolling = false;
         }
 
         if (millis() - lastLoop > 1000)
         {
             lastLoop = millis();
 
+            if (enrolling) HttpServer::SendState();
             if (pServer->getConnectedCount())
             {
                 NimBLEService *pSvc = pServer->getServiceByUUID("180D");

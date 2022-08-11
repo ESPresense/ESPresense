@@ -5,6 +5,7 @@
 
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
+#include "Enrollment.h"
 #include "GUI.h"
 #include "MotionSensors.h"
 #include "defaults.h"
@@ -24,6 +25,7 @@ void serializeInfo(JsonObject &root) {
 void serializeState(JsonObject &root) {
     JsonObject node = root.createNestedObject("state");
     node["enrolling"] = enrolling;
+    if (enrolling) node["remaining_ms"] = enrollingEndMillis - millis();
 }
 
 void serializeConfigs(JsonObject &root) {
@@ -77,17 +79,15 @@ void serveJson(AsyncWebServerRequest *request) {
     servingJson = false;
 }
 
-
 void sendDataWs(AsyncWebSocketClient *client) {
     if (!ws.count()) return;
     AsyncWebSocketMessageBuffer *buffer;
 
     {  // scope JsonDocument so it releases its buffer
         DynamicJsonDocument doc(JSON_BUFFER_SIZE);
-        JsonObject state = doc.createNestedObject("state");
-        serializeState(state);
-        JsonObject info = doc.createNestedObject("info");
-        serializeInfo(info);
+        JsonObject root = doc.to<JsonObject>();
+        serializeState(root);
+        serializeInfo(root);
         size_t len = measureJson(doc);
         size_t heap1 = ESP.getFreeHeap();
         buffer = ws.makeBuffer(len);  // will not allocate correct memory sometimes
@@ -109,7 +109,24 @@ void sendDataWs(AsyncWebSocketClient *client) {
 void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         sendDataWs(NULL);
-    } else if (type == WS_EVT_DISCONNECT) {
+    } else if (type == WS_EVT_DATA) {
+        AwsFrameInfo *info = (AwsFrameInfo *)arg;
+        if (info->final && info->index == 0 && info->len == len) {
+            if (info->opcode == WS_TEXT) {
+                DynamicJsonDocument doc(JSON_BUFFER_SIZE);
+                DeserializationError error = deserializeJson(doc, data, len);
+                JsonObject root = doc.as<JsonObject>();
+                if (error || root.isNull()) {
+                    return;
+                }
+
+                if (root.containsKey("command") && root.containsKey("payload")) {
+                    String command = root["command"].as<String>();
+                    String payload = root["payload"].as<String>();
+                    Enrollment::Command(command, payload);
+                }
+            }
+        }
     }
 }
 
@@ -164,4 +181,4 @@ void UpdateEnd() { ws.enable(true); }
 
 void SendState() { sendDataWs(NULL); }
 
-}  // namespace BleFingerprintCollection
+}  // namespace HttpServer
