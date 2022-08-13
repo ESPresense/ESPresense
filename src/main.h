@@ -34,6 +34,7 @@
 #include "BME280.h"
 #include "BMP180.h"
 #include "BMP280.h"
+#include "SHT30.h"
 #include "TSL2561.h"
 #include "HX711.h"
 #include "DHT.h"
