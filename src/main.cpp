@@ -165,6 +165,9 @@ void setupNetwork()
 #endif
     room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
+    auto allChannelScan = AsyncWiFiSettings.checkbox("all_channel_scan", false, "WiFi: Scan for all APs on all channels");
+    if (allChannelScan) WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
+    else WiFi.setScanMethod(WIFI_FAST_SCAN);
     ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
     AsyncWiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
@@ -239,6 +242,7 @@ void setupNetwork()
 #ifdef VERSION
     Serial.println("Version:      " + String(VERSION));
 #endif
+    Serial.printf("WiFi Scan:    %s (picked channel=%d bss=%s rssi=%d)\n", (allChannelScan ? "All" : "Fast"), WiFi.channel(), WiFi.BSSIDstr().c_str(), WiFi.RSSI());
     Serial.print("IP address:   ");
     Serial.println(Network.localIP());
     Serial.print("DNS address:  ");
@@ -250,6 +254,7 @@ void setupNetwork()
     Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     Motion::SerialReport();
+    I2C::SerialReport();
 #ifdef SENSORS
     DHT::SerialReport();
     BH1750::SerialReport();
@@ -267,6 +272,7 @@ void setupNetwork()
     Serial.println(BleFingerprintCollection::knownMacs);
     Serial.print("Count Ids:    ");
     Serial.println(BleFingerprintCollection::countIds);
+    Serial.println();
 
     localIp = Network.localIP().toString();
     id = slugify(room);
