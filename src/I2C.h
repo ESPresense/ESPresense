@@ -6,8 +6,6 @@ namespace I2C {
     void ConnectToWifi();
     void SerialReport();
     void Setup();
-    void Loop();
-    bool SendDiscovery();
 }
 
 #endif

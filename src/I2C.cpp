@@ -41,9 +41,6 @@ void ConnectToWifi() {
     }
 }
 
-void Loop() {
-}
-
 void Setup() {
 }
 
@@ -111,10 +108,6 @@ void SerialReport() {
     if (nDevices == 0) {
         Serial.println("No I2C devices found\n");
     }
-}
-
-bool SendDiscovery() {
-    return true;
 }
 }  // namespace I2C
 

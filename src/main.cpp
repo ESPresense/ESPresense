@@ -58,6 +58,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && BMP280::SendDiscovery()
             && TSL2561::SendDiscovery()
             && HX711::SendDiscovery()
+            && SensirionSGP30::SendDiscovery()
 #endif
         )
         {
@@ -229,6 +230,7 @@ void setupNetwork()
     BMP280::ConnectToWifi();
     TSL2561::ConnectToWifi();
     HX711::ConnectToWifi();
+    SensirionSGP30::ConnectToWifi();
 #endif
 
     AsyncWiFiSettings.hostname = "espresense-" + kebabify(room);
@@ -267,6 +269,7 @@ void setupNetwork()
     BMP280::SerialReport();
     TSL2561::SerialReport();
     HX711::SerialReport();
+    SensirionSGP30::SerialReport();
 #endif
     Serial.print("Query:        ");
     Serial.println(BleFingerprintCollection::query);
@@ -586,6 +589,7 @@ void setup()
     BMP280::Setup();
     TSL2561::Setup();
     HX711::Setup();
+    SensirionSGP30::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
@@ -609,6 +613,6 @@ void loop()
     BMP280::Loop();
     TSL2561::Loop();
     HX711::Loop();
-    I2C::Loop();
+    SensirionSGP30::Loop();
 #endif
 }
