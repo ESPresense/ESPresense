@@ -55,6 +55,8 @@ namespace BMP280
 
     void SerialReport()
     {
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (BMP280_I2c.isEmpty()) return;
         Serial.print("BMP280_I2c Sensor: ");
         Serial.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
     }
@@ -64,14 +66,14 @@ namespace BMP280
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (!initialized) return;
 
-        if (millis() - BMP280PreviousMillis >= sensorInterval) {
+        if (BMP280PreviousMillis == 0 || millis() - BMP280PreviousMillis >= sensorInterval) {
 
             bmp->takeForcedMeasurement();
             float temperature = bmp->readTemperature();
             float pressure = bmp->readPressure() / 100.0F;
 
-            mqttClient.publish((roomsTopic + "/BMP280_temperature").c_str(), 0, 1, String(temperature).c_str());
-            mqttClient.publish((roomsTopic + "/BMP280_pressure").c_str(), 0, 1, String(pressure).c_str());
+            mqttClient.publish((roomsTopic + "/bmp280_temperature").c_str(), 0, 1, String(temperature).c_str());
+            mqttClient.publish((roomsTopic + "/bmp280_pressure").c_str(), 0, 1, String(pressure).c_str());
 
             BMP280PreviousMillis = millis();
         }
