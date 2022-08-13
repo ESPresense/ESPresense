@@ -3,7 +3,7 @@
 #include "globals.h"
 #include "defaults.h"
 #include "mqtt.h"
-#include "TSL2561Sensor.h"
+#include "TSL2561.h"
 #include <AsyncWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include <Adafruit_TSL2561_U.h>
@@ -31,15 +31,16 @@ namespace TSL2561
 
     void SerialReport()
     {
-        Serial.print("TSL2561_I2c Sensor: ");
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (TSL2561_I2c.isEmpty()) return;
+        Serial.print("TSL2561:      ");
         Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     }
 
     void Loop()
     {
-        if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
-        // TODO: This should move to setup
         int tsl2561_address;
 
         if (TSL2561_I2c == "0x39") {

@@ -49,9 +49,27 @@
 #endif
 
 // I2C Defaults
+#ifdef M5STICK
+#define DEFAULT_I2C_BUS_1_SDA 32
+#define DEFAULT_I2C_BUS_1_SCL 33
+#define DEFAULT_I2C_BUS_2_SDA 21
+#define DEFAULT_I2C_BUS_2_SCL 22
+#define DEFAULT_I2C_BUS 1
+#else
+#ifdef M5ATOM
+#define DEFAULT_I2C_BUS_1_SDA 26
+#define DEFAULT_I2C_BUS_1_SCL 32
+#define DEFAULT_I2C_BUS_2_SDA 25
+#define DEFAULT_I2C_BUS_2_SCL 21
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
+#define DEFAULT_I2C_BUS_2_SDA -1
+#define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
+#endif
 
 // TSL2561 Defaults
 #define DEFAULT_TSL2561_I2C_GAIN "auto"

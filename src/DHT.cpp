@@ -114,11 +114,12 @@ namespace DHT
 
     void SerialReport()
     {
+        if (!dht11Pin && !dht22Pin) return;
         Serial.print("DHT11 Sensor: ");
         Serial.println(dht11Pin ? "enabled" : "disabled");
         Serial.print("DHT22 Sensor: ");
         Serial.println(dht22Pin ? "enabled" : "disabled");
-        Serial.print("DHT Temp Offset: ");
+        Serial.print("DHT Offset:   ");
         Serial.println(dhtTempOffset ? "enabled" : "disabled");
     }
 
