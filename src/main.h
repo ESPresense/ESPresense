@@ -31,8 +31,8 @@
 #ifdef SENSORS
 #include <Wire.h>
 
-#include "BME280Sensor.h"
-#include "TSL2561Sensor.h"
+#include "BME280.h"
+#include "TSL2561.h"
 #include "HX711.h"
 #include "DHT.h"
 #include "BH1750.h"

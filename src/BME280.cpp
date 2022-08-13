@@ -1,5 +1,5 @@
 #ifdef SENSORS
-#include "BME280Sensor.h"
+#include "BME280.h"
 
 #include "globals.h"
 #include "mqtt.h"
@@ -21,7 +21,7 @@ namespace BME280
 
     void Setup()
     {
-        if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
         if (BME280_I2c == "0x76" && BME280_I2c_Bus == 1) {
             BME280_status = BME280.begin(0x76, &Wire);
@@ -59,13 +59,15 @@ namespace BME280
 
     void SerialReport()
     {
-        Serial.print("BME280_I2c Sensor: ");
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (BME280_I2c.isEmpty()) return;
+        Serial.print("BME280:       ");
         Serial.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
     }
 
     void Loop()
     {
-        if (!I2C_Bus_1_Enabled && !I2C_Bus_2_Enabled) return;
+        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (!initialized) return;
 
         if (millis() - bme280PreviousMillis >= sensorInterval) {
