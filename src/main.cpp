@@ -56,6 +56,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && BME280::SendDiscovery()
             && BMP180::SendDiscovery()
             && BMP280::SendDiscovery()
+            && SHT30::SendDiscovery()
             && TSL2561::SendDiscovery()
             && HX711::SendDiscovery()
             && SensirionSGP30::SendDiscovery()
@@ -228,6 +229,7 @@ void setupNetwork()
     BME280::ConnectToWifi();
     BMP180::ConnectToWifi();
     BMP280::ConnectToWifi();
+    SHT30::ConnectToWifi();
     TSL2561::ConnectToWifi();
     HX711::ConnectToWifi();
     SensirionSGP30::ConnectToWifi();
@@ -267,6 +269,7 @@ void setupNetwork()
     BME280::SerialReport();
     BMP180::SerialReport();
     BMP280::SerialReport();
+    SHT30::SerialReport();
     TSL2561::SerialReport();
     HX711::SerialReport();
     SensirionSGP30::SerialReport();
@@ -587,6 +590,7 @@ void setup()
     BME280::Setup();
     BMP180::Setup();
     BMP280::Setup();
+    SHT30::Setup();
     TSL2561::Setup();
     HX711::Setup();
     SensirionSGP30::Setup();
@@ -611,6 +615,7 @@ void loop()
     BME280::Loop();
     BMP180::Loop();
     BMP280::Loop();
+    SHT30::Loop();
     TSL2561::Loop();
     HX711::Loop();
     SensirionSGP30::Loop();
