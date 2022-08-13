@@ -38,6 +38,7 @@
 #include "HX711.h"
 #include "DHT.h"
 #include "BH1750.h"
+#include "SensirionSGP30.h"
 #endif
 
 TimerHandle_t reconnectTimer;
