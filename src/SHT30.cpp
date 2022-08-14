@@ -41,7 +41,7 @@ namespace SHT30
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "SHT30/31 Temperature and Humidity Sensor");
+        AsyncWiFiSettings.html("h4", "SHT30/31 - Temperature and Humidity Sensor:");
         SHT30_I2c_Bus = AsyncWiFiSettings.integer("SHT30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         SHT30_I2c = AsyncWiFiSettings.string("SHT30_I2c", "", "I2C address (0x77)");
     }

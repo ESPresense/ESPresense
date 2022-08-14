@@ -37,7 +37,7 @@ void Setup() {
 }
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.html("h4", "SGP30 Air Quality Sensor");
+    AsyncWiFiSettings.html("h4", "SGP30 - Air Quality Sensor:");
     SGP30_I2c_Bus = AsyncWiFiSettings.integer("SGP30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     SGP30_I2c = AsyncWiFiSettings.string("SGP30_I2c", "", "I2C address (0x58)");
 }
