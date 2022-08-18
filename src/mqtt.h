@@ -1,9 +1,9 @@
 #pragma once
 #include <Arduino.h>
 
-static const char *const EC_DIAGNOSTIC = "diagnostic";
-static const char *const EC_CONFIG = "config";
-static const char *const EC_NONE = "";
+const char *const EC_DIAGNOSTIC = "diagnostic";
+const char *const EC_CONFIG = "config";
+const char *const EC_NONE = "";
 
 static const char *const DEVICE_CLASS_NONE = "";
 
@@ -21,6 +21,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
 bool sendButtonDiscovery(const String &name, const String &entityCategory);
 bool sendSwitchDiscovery(const String &name, const String &entityCategory);
 bool sendNumberDiscovery(const String &name, const String &entityCategory);
+bool sendLightDiscovery(const String &name, const String &entityCategory);
 
 bool sendDeleteDiscovery(const String &domain, const String &name);
 

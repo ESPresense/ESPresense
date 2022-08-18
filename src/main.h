@@ -3,7 +3,6 @@
 
 #include "globals.h"
 #include "mqtt.h"
-#include "GUI.h"
 #include "defaults.h"
 #include "string_utils.h"
 
@@ -28,6 +27,10 @@
 
 #include "MotionSensors.h"
 #include "I2C.h"
+#include "GUI.h"
+#ifdef M5STICK
+#include <AXP192.h>
+#endif
 #ifdef SENSORS
 #include <Wire.h>
 
@@ -135,18 +138,17 @@ void configureOTA()
     ArduinoOTA
         .onStart([]()
                  {
-                     Serial.println("OTA Start");
                      updateStartedMillis = millis();
+                     GUI::Update(true);
                  })
         .onEnd([]()
                {
                    updateStartedMillis = 0;
-                   GUI::updateEnd();
-                   Serial.println("\n\rEnd");
+                   GUI::Update(false);
                })
         .onProgress([](unsigned int progress, unsigned int total)
                     {
-                        GUI::updateProgress((progress / (total / 100)));
+                        GUI::UpdateProgress((progress / (total / 100)));
                     })
         .onError([](ota_error_t error)
                  {
@@ -169,13 +171,22 @@ void configureOTA()
     ArduinoOTA.begin();
 }
 
+bool checkForUpdateFile()
+{
+    static bool alreadyChecked = false;
+    if (alreadyChecked) return false;
+    alreadyChecked = true;
+    return checkForUpdateFile && SPIFFS.exists("/update") && SPIFFS.remove("/update");
+}
+
 void firmwareUpdate() {
 #ifdef FIRMWARE
-    if (!autoUpdate) return;
+    auto uf = checkForUpdateFile();
+    if (!uf && !autoUpdate) return;
     static unsigned long lastFirmwareCheck = 0;
     static unsigned short autoUpdateAttempts = 0;
     unsigned long uptime = getUptimeSeconds();
-    if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
+    if (!uf && uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
         return;
 
     lastFirmwareCheck = uptime;
@@ -196,16 +207,16 @@ void firmwareUpdate() {
         mqttClient.disconnect();
         NimBLEDevice::getScan()->stop();
         HttpServer::UpdateStart();
-        GUI::updateStart();
+        GUI::Update(true);
     });
     httpUpdate.onEnd([](void) {
         if (autoUpdateAttempts > 3) ESP.restart();
         updateStartedMillis = 0;
-        GUI::updateEnd();
+        GUI::Update(false);
         HttpServer::UpdateEnd();
     });
     httpUpdate.onProgress([](int progress, int total) {
-        GUI::updateProgress((progress / (total / 100)));
+        GUI::UpdateProgress((progress / (total / 100)));
     });
     #ifdef VERSION
     auto ret = httpUpdate.update(client, firmwareUrl, String(VERSION));
@@ -237,17 +248,17 @@ void spiffsInit()
     {
         if ((millis() - lastDebounceTime) > debounceDelay)
         {
-            Display.connecting();
+            GUI::ConnectToWifi();
             lastDebounceTime = millis();
             flashes++;
 
             if (flashes > 10)
             {
 
-                Display.erasing();
+                GUI::Erase(true);
                 SPIFFS.format();
                 SPIFFS.begin(true);
-                Display.erased();
+                GUI::Erase(false);
 
                 return;
             }

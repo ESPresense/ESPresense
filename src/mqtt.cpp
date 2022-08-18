@@ -9,7 +9,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
     {
         if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
             return true;
-        delay(50);
+        delay(25);
     }
     return false;
 }
@@ -140,7 +140,7 @@ bool sendButtonDiscovery(const String &name, const String &entityCategory)
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
-    doc["entity_category"] = entityCategory;
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
     String discoveryTopic = Sprintf("homeassistant/button/espresense_%06lx/%s/config", CHIPID, slug.c_str());
@@ -177,10 +177,34 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["step"] = "0.1";
-    doc["entity_category"] = entityCategory;
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
     String discoveryTopic = Sprintf("homeassistant/number/espresense_%06lx/%s/config", CHIPID, slug.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, buffer);
+}
+
+bool sendLightDiscovery(const String &name, const String &entityCategory)
+{
+    auto slug = slugify(name);
+
+    commonDiscovery();
+    doc["~"] = roomsTopic;
+    doc["name"] = name;
+    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["schema"] = "json";
+    doc["stat_t"] = "~/" + slug;
+    doc["cmd_t"] = "~/" + slug + "/set";
+    doc["brightness"] = true;
+    doc["rgb"] = true;
+    //doc["color_temp"] = true;
+    //doc["effect"] = false;
+    //doc["effect_list"] = EFFECT_LIST;
+    if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
+
+    serializeJson(doc, buffer);
+    serializeJson(doc, buffer);
+    String discoveryTopic = Sprintf("homeassistant/light/espresense_%06lx/%s/config", CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 

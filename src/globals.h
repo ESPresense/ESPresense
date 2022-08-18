@@ -27,7 +27,6 @@ Setup variable declaration macros.
 # define _INIT_N(x) UNPACK x
 #endif
 
-_DECL BleFingerprintCollection fingerprints;
 _DECL char buffer[2048];
 _DECL String room, id, statusTopic, teleTopic, roomsTopic, setTopic, configTopic;
 _DECL AsyncMqttClient mqttClient;

@@ -81,3 +81,39 @@
 #define DEFAULT_AUTO_UPDATE false
 #define DEFAULT_ARDUINO_OTA true
 #endif
+
+#if defined M5STICK
+
+#define DEFAULT_LED1_TYPE 4
+#define DEFAULT_LED1_PIN 15
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#define MAX_BRIGHTNESS 100
+
+#elif defined M5ATOM
+
+#define DEFAULT_LED1_TYPE 0
+#define DEFAULT_LED1_PIN 27
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 25
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#define MAX_BRIGHTNESS 50 // M5Atom Matrix has a lower max brightness so it doesn't melt
+
+#else  // DevKit / generic
+
+#define DEFAULT_LED1_TYPE 4
+#define DEFAULT_LED1_PIN 2
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define MAX_BRIGHTNESS 100
+
+#endif
+

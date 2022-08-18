@@ -6,7 +6,6 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
-#include "GUI.h"
 #include "MotionSensors.h"
 #include "defaults.h"
 #include "globals.h"
@@ -31,7 +30,7 @@ void serializeState(JsonObject &root) {
 void serializeConfigs(JsonObject &root) {
     JsonArray devices = root.createNestedArray("configs");
 
-    auto f = BleFingerprintCollection::getConfigs();
+    auto f = BleFingerprintCollection::deviceConfigs;
     for (auto it = f.begin(); it != f.end(); ++it) {
         JsonObject node = devices.createNestedObject();
         node["id"] = it->id;
@@ -44,7 +43,7 @@ void serializeConfigs(JsonObject &root) {
 void serializeDevices(JsonObject &root) {
     JsonArray devices = root.createNestedArray("devices");
 
-    auto f = fingerprints.getCopy();
+    auto f = BleFingerprintCollection::GetCopy();
     for (auto it = f.begin(); it != f.end(); ++it) {
         if ((*it)->getVisible()) {
             JsonObject node = devices.createNestedObject();

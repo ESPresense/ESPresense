@@ -29,7 +29,7 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
     idType = newIdType;
 
     DeviceConfig dc;
-    if (BleFingerprintCollection::findDeviceConfig(newId, dc))
+    if (BleFingerprintCollection::FindDeviceConfig(newId, dc))
     {
         if (!dc.alias.isEmpty())
             return setId(dc.alias, ID_TYPE_ALIAS, dc.name);
@@ -74,7 +74,7 @@ int BleFingerprint::get1mRssi() const
     return BleFingerprintCollection::refRssi + DEFAULT_TX;
 }
 
-BleFingerprint::BleFingerprint(const BleFingerprintCollection *parent, BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)}
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)}
 {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
@@ -177,7 +177,7 @@ void BleFingerprint::fingerprintAddress()
             break;
         case BLE_ADDR_RANDOM: {
             auto naddress = address.getNative();
-            auto irks = BleFingerprintCollection::getIrks();
+            auto irks = BleFingerprintCollection::irks;
             auto it = std::find_if(irks.begin(), irks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
             if (it != irks.end()) {
                 auto irk_hex = hexStr(*it, 16);
@@ -497,12 +497,12 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice)
 
     if (!close && newest > CLOSE_RSSI)
     {
-        GUI::close(this);
+        BleFingerprintCollection::Close(this, true);
         close = true;
     }
     else if (close && newest < LEFT_RSSI)
     {
-        GUI::left(this);
+        BleFingerprintCollection::Close(this, false);
         close = false;
     }
 
@@ -659,7 +659,7 @@ bool BleFingerprint::shouldCount()
 
     if (prevCounting != counting)
     {
-        counting ? GUI::plusOne(this) : GUI::minusOne(this);
+        BleFingerprintCollection::Count(this, counting);
     }
 
     return counting;
