@@ -24,6 +24,7 @@
 #include "Enrollment.h"
 #include "HttpServer.h"
 #include "HttpReleaseUpdate.h"
+#include "SerialImprov.h"
 
 #include "MotionSensors.h"
 #include "I2C.h"
@@ -139,16 +140,16 @@ void configureOTA()
         .onStart([]()
                  {
                      updateStartedMillis = millis();
-                     GUI::Update(true);
+                     GUI::Update(UPDATE_STARTED);
                  })
         .onEnd([]()
                {
                    updateStartedMillis = 0;
-                   GUI::Update(false);
+                   GUI::Update(UPDATE_COMPLETE);
                })
         .onProgress([](unsigned int progress, unsigned int total)
                     {
-                        GUI::UpdateProgress((progress / (total / 100)));
+                    GUI::Update((progress / (total / 100)));
                     })
         .onError([](ota_error_t error)
                  {
@@ -216,7 +217,7 @@ void firmwareUpdate() {
         HttpServer::UpdateEnd();
     });
     httpUpdate.onProgress([](int progress, int total) {
-        GUI::UpdateProgress((progress / (total / 100)));
+        GUI::Update((progress / (total / 100)));
     });
     #ifdef VERSION
     auto ret = httpUpdate.update(client, firmwareUrl, String(VERSION));
@@ -234,40 +235,6 @@ void firmwareUpdate() {
         break;
     }
 #endif
-}
-
-void spiffsInit()
-{
-#ifdef BUTTON
-    pinMode(BUTTON, INPUT);
-    int flashes = 0;
-    unsigned long debounceDelay = 250;
-
-    unsigned long lastDebounceTime = millis();
-    while (digitalRead(BUTTON) == BUTTON_PRESSED)
-    {
-        if ((millis() - lastDebounceTime) > debounceDelay)
-        {
-            GUI::ConnectToWifi();
-            lastDebounceTime = millis();
-            flashes++;
-
-            if (flashes > 10)
-            {
-
-                GUI::Erase(true);
-                SPIFFS.format();
-                SPIFFS.begin(true);
-                GUI::Erase(false);
-
-                return;
-            }
-        }
-    }
-
-#endif
-
-    SPIFFS.begin(true);
 }
 
 #ifdef MACCHINA_A0

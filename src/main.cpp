@@ -145,26 +145,23 @@ void setupNetwork()
     WiFi.persistent(false);
     GUI::Connected(false, false);
 
-    AsyncWiFiSettings.onFailure = []()
+    unsigned int connectProgress = 0;
+    AsyncWiFiSettings.onWaitLoop = [&connectProgress]()
     {
-        GUI::Status("WiFi Failed");
+        GUI::Wifi(connectProgress++);
+        SerialImprov::Loop(true);
+        return 50;
     };
-    AsyncWiFiSettings.onWaitLoop = []()
+    unsigned int portalProgress = 0;
+    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress]()
     {
-        GUI::ConnectProgress();
-        return 150;
-    };
-    static bool inPortal = false;
-    AsyncWiFiSettings.onPortalWaitLoop = []()
-    {
-        if (!inPortal)
-        {
-            inPortal = true;
-            GUI::Status("WiFi Portal...");
-        }
+        GUI::Portal(portalProgress++);
+        SerialImprov::Loop(false);
 
         if (getUptimeSeconds() > CAPTIVE_PORTAL_TIMEOUT)
             ESP.restart();
+
+        return 50;
     };
     AsyncWiFiSettings.onHttpSetup = HttpServer::Init;
 
@@ -172,7 +169,7 @@ void setupNetwork()
     AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
-    auto allChannelScan = AsyncWiFiSettings.checkbox("all_channel_scan", false, "WiFi: Scan for all APs on all channels");
+    auto allChannelScan = AsyncWiFiSettings.checkbox("all_channel_scan", true, "WiFi: Scan for all APs on all channels");
     if (allChannelScan) WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     else WiFi.setScanMethod(WIFI_FAST_SCAN);
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
@@ -588,7 +585,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    spiffsInit();
+    SPIFFS.begin(true);
     setupNetwork();
     firmwareUpdate();
 #if NTP
@@ -625,6 +622,7 @@ void loop() {
     GUI::Loop();
     Motion::Loop();
     HttpServer::Loop();
+    SerialImprov::Loop(false);
 #if M5STICK
     AXP192::Loop();
 #endif

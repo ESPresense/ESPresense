@@ -4,11 +4,11 @@
 #include <AsyncWiFiSettings.h>
 #include <WS2812FX.h>
 
-#include "LED.h"
 #include "MotionSensors.h"
 #include "defaults.h"
 #include "globals.h"
 #include "led/Addressable.h"
+#include "led/LED.h"
 #include "led/SinglePWM.h"
 #include "mqtt.h"
 #include "string_utils.h"
@@ -22,8 +22,16 @@ ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
 std::vector<LED*> leds, status, count, motion;
 bool online;
 
+LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt) {
+    if (pin == -1) return new LED(index, cntrl);
+    if (type >= 2)
+        return new Addressable(1, cntrl, type - 2, pin, cnt);
+    else
+        return new SinglePWM(1, cntrl, type, pin, cnt);
+}
+
 void ConnectToWifi() {
-    std::vector<String> ledTypes = {"Addressable GRB", "Addressable RGBW", "Addressable RGB", "Single PWM", "Single PWM Inverted"};
+    std::vector<String> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
     std::vector<String> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
 
     AsyncWiFiSettings.heading("LEDs <a href='https://espresense.com/configuration/settings#leds' target='_blank'>ℹ️</a>", false);
@@ -49,9 +57,9 @@ void ConnectToWifi() {
     led_3_cnt = AsyncWiFiSettings.integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)AsyncWiFiSettings.dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
 
-    leds.push_back(led_1_type <= 2 ? (LED*)(new Addressable(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt)) : new SinglePWM(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt));
-    leds.push_back(led_2_type <= 2 ? (LED*)(new Addressable(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt)) : new SinglePWM(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt));
-    leds.push_back(led_3_type <= 2 ? (LED*)(new Addressable(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt)) : new SinglePWM(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt));
+    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt));
+    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt));
+    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt));
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(status), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(count), [](LED* a) { return a->getControlType() == Control_Type_Count; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(motion), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
@@ -83,12 +91,12 @@ bool SendState(LED* bulb) {
 
 void Setup() {
     for (auto& led : leds)
-        led->Setup();
+        led->begin();
 }
 
 void Loop() {
     for (auto& led : leds)
-        led->Loop();
+        led->service();
 }
 
 bool SendDiscovery() {
@@ -113,22 +121,40 @@ void Connected(bool wifi, bool mqtt) {
 
 void Seen(bool inprogress) {
     for (auto& led : status)
-        led->setState(inprogress);
+        if (led->hasRgb()) {
+            led->setState(true);
+            led->setColor(inprogress ? PURPLE : ORANGE);
+        } else
+            led->setState(inprogress);
 }
 
-void ConnectProgress() {
-    for (auto& led : status)
-        led->setColor(128, 0, 0);
+void Wifi(unsigned int percent) {
+    for (auto& led : status) {
+        {
+            led->setColor(RED);
+            led->setState(percent % 2 == 0);
+        }
+    }
 }
 
-void Update(bool inprogress) {
-    for (auto& led : status)
-        led->setColor(0, 128, 0);
-}
-
-void UpdateProgress(int percent) {
-    for (auto& led : status)
+void Portal(unsigned int percent) {
+    for (auto& led : status) {
+        led->setColor(PINK);
         led->setState(percent % 2 == 0);
+    }
+}
+
+void Update(unsigned int percent) {
+    if (percent == UPDATE_STARTED) {
+        for (auto& led : status)
+            led->setColor(0, 128, 0);
+    } else if (percent == UPDATE_COMPLETE) {
+        for (auto& led : status)
+            led->setColor(0, 128, 0);
+    } else {
+        for (auto& led : status)
+            led->setState(percent % 2 == 0);
+    }
 }
 
 LED* findBulb(String& command) {

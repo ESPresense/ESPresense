@@ -2,19 +2,15 @@
 
 #include "string_utils.h"
 
-void LED::Loop() {
-}
-
-void LED::Setup() {
-    Serial.println("LED::Setup()");
-}
+void LED::begin() {}
+void LED::service() {}
 
 const uint8_t LED::getBrightness(void) {
     return brightness;
 }
 
 bool LED::setBrightness(uint8_t p_brightness) {
-    Serial.printf("LED::setBrightness(%d)\n", p_brightness);
+    // Serial.printf("LED::setBrightness(%d)\n", p_brightness);
     if (p_brightness == brightness) return false;
     if (p_brightness > 0)
         brightness = p_brightness;
@@ -27,11 +23,15 @@ const Color LED::getColor(void) {
     return color;
 }
 
+bool LED::setColor(uint32_t color) {
+    return LED::setColor((color & 0xFF0000) >> 16, (color & 0x00FF00) >> 8, (color & 0x0000FF));
+}
+
 bool LED::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue) {
-    Serial.printf("LED::setColor(%d, %d, %d)\n", p_red, p_green, p_blue);
     if (p_red == color.red && p_green == color.green && p_blue == color.blue) {
         return false;
     }
+    // Serial.printf("LED::setColor(%d, %d, %d)\n", p_red, p_green, p_blue);
     color.red = p_red;
     color.green = p_green;
     color.blue = p_blue;
@@ -63,6 +63,7 @@ const bool LED::getState(void) {
 
 bool LED::setState(bool p_state) {
     if (state == p_state) return false;
+    // Serial.printf("LED::setState(%s)\n", p_state ? "true" : "false");
     state = p_state;
     return true;
 }
@@ -76,7 +77,6 @@ LED::LED(uint8_t index, ControlType controlType) {
     this->controlType = controlType;
 }
 
-const String LED::getId()
-{
+const String LED::getId() {
     return Sprintf("led_%d", index);
 }

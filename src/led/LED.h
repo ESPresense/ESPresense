@@ -19,13 +19,14 @@ struct Color {
 class LED {
    public:
     LED(uint8_t index, ControlType controlType);
-    virtual void Setup();
-    virtual void Loop();
+    virtual void begin();
+    virtual void service();
 
     const virtual uint8_t getBrightness(void);
     virtual bool setBrightness(uint8_t brightness);
 
     const virtual Color getColor(void);
+    virtual bool setColor(uint32_t color);
     virtual bool setColor(uint8_t red, uint8_t green, uint8_t blue);
 
     virtual bool setWhite(uint8_t white);
@@ -43,7 +44,10 @@ class LED {
     const String getId();
     const String getName();
 
-private:
+    virtual const bool hasRgb() { return false;  }
+    virtual const bool hasRgbw() { return false;  }
+
+   private:
     ControlType controlType;
     uint8_t index;
     Color color = {255, 255, 128, 128};

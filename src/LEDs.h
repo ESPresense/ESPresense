@@ -13,10 +13,10 @@ bool SendDiscovery();
 bool SendOnline();
 bool Command(String& command, String& pay);
 
-void ConnectProgress();
+void Wifi(unsigned int progress);
+void Portal(unsigned int progress);
 void Connected(bool wifi, bool mqtt);
 void Seen(bool inprogress);
-void Update(bool inprogress);
-void UpdateProgress(int percent);
+void Update(unsigned int progress);
 bool Command(String& command, String& pay);
 }  // namespace LEDs

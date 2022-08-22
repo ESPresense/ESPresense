@@ -3,6 +3,7 @@
 #include "BleFingerprintCollection.h"
 #include "Display.h"
 #include "LEDs.h"
+#include "defaults.h"
 
 namespace GUI {
 void Setup(bool beforeWifi) {
@@ -23,35 +24,38 @@ void Setup(bool beforeWifi) {
             Left(fingerprint);
         };
         BleFingerprintCollection::onCountAdd = [](BleFingerprint *fingerprint) {
-            Count(fingerprint, true);
+            Counting(fingerprint, true);
         };
         BleFingerprintCollection::onCountDel = [](BleFingerprint *fingerprint) {
-            Count(fingerprint, false);
+            Counting(fingerprint, false);
         };
         Display::Setup();
     } else {
         LEDs::Setup();
     }
 }
+
 bool SendOnline() {
     return LEDs::SendOnline();
 }
+
 void SerialReport() {
     LEDs::SerialReport();
 }
+
 void ConnectToWifi() {
     LEDs::ConnectToWifi();
-    Display::ConnectToWifi();
 }
+
 void Loop() {
     LEDs::Loop();
-    Display::Loop();
 }
-void Status(const char *message, ...);
+
 void Added(BleFingerprint *f) {
     if (f->getIgnore()) return;
     Serial.printf("%u New %s | MAC: %s, ID: %-58s%ddBm %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
 }
+
 void Removed(BleFingerprint *f) {
     if (f->getIgnore() || !f->getAdded()) return;
     Serial.printf("\u001b[38;5;236m%u Del   | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
@@ -69,46 +73,41 @@ void Motion(bool pir, bool radar) {
     Serial.printf("%u Motion| Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
     Display::Status("Pir:%s Radar:%s\n", pir ? "yes" : "no", radar ? "yes" : "no");
 }
-void Erase(bool inprogress) {
-    Serial.println(F("Resetting back to defaults..."));
 
-    if (inprogress)
-        Status("Erasing...");
-    else
-        Status("Erased");
-}
 void Seen(bool inprogress) {
     LEDs::Seen(inprogress);
 }
 
-void Update(bool inprogress) {
-    LEDs::Update(inprogress);
-    if (inprogress) {
+void Update(unsigned int percent) {
+    LEDs::Update(percent);
+    if (percent == UPDATE_STARTED) {
         Serial.printf("%u Update| %s\n", xPortGetCoreID(), "started");
-        Status("Update:%s", "started");
-    } else {
+        Display::Status("Update:%s\n", "started");
+    } else if (percent == UPDATE_COMPLETE) {
         Serial.printf("%u Update| %s\n", xPortGetCoreID(), "finished");
-        Status("Update:%s", "finished");
+        Display::Status("Update:%s\n", "finished");
+    } else {
+        Serial.printf("%u Update| %d%%\n", xPortGetCoreID(), percent);
     }
-}
-void UpdateProgress(unsigned int percent) {
-    LEDs::UpdateProgress(percent);
-    Serial.printf("%u Update| %d%%\n", xPortGetCoreID(), percent);
 }
 
 void Connected(bool wifi, bool mqtt) {
-    Status("Wifi:%s Mqtt:%s\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    Display::Status("Wifi:%s Mqtt:%s\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
 }
 
-void Count(BleFingerprint *f, bool add) {
+void Counting(BleFingerprint *f, bool add) {
     if (add)
         Serial.printf("\u001b[36m%u C# +1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
     else
         Serial.printf("\u001b[35m%u C# -1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
-void ConnectProgress() {
-    LEDs::ConnectProgress();
+void Wifi(unsigned int percent) {
+    LEDs::Wifi(percent);
+}
+
+void Portal(unsigned int percent) {
+    LEDs::Portal(percent);
 }
 
 void Status(const char *format, ...) {

@@ -1,12 +1,12 @@
 #include <Arduino.h>
 
-#include "../LED.h"
+#include "LED.h"
 
 class SinglePWM : public LED {
    public:
     SinglePWM(uint8_t index, ControlType controlType, int type, int pin, int cnt);
-    void Setup() override;
-    void Loop() override;
+    void begin() override;
+    void service() override;
 
     bool setState(bool state) override;
     bool setBrightness(uint8_t brightness) override;
