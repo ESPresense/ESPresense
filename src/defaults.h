@@ -1,6 +1,25 @@
 #pragma once
 
-#define JSON_BUFFER_SIZE 20480
+// Number of seconds between update checks
+#ifndef CHECK_FOR_UPDATES_INTERVAL
+#define CHECK_FOR_UPDATES_INTERVAL 900
+#endif
+
+// Number of seconds before attempting to reconnect to MQTT broker
+#ifndef CAPTIVE_PORTAL_TIMEOUT
+#define CAPTIVE_PORTAL_TIMEOUT 300
+#endif
+
+#define UPDATE_STARTED -255
+#define UPDATE_COMPLETE 255
+
+#define JSON_BUFFER_SIZE 10240
+
+#define BLE_SCAN_INTERVAL 0x80
+#define BLE_SCAN_WINDOW 0x80
+
+// Define the base topic for room detection. Usually "espresense"
+#define CHANNEL String("espresense")
 
 // Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
@@ -20,15 +39,9 @@
 // Seconds before reporting radar/motion cleared
 #define DEFAULT_DEBOUNCE_TIMEOUT 0.5
 
-// Define the base topic for room detection. Usually "espresense"
-#define CHANNEL String("espresense")
-
 #define DEFAULT_QUERY ""
 #define DEFAULT_INCLUDE ""
 #define DEFAULT_EXCLUDE ""
-
-#define BLE_SCAN_INTERVAL 0x80
-#define BLE_SCAN_WINDOW 0x80
 
 #define DEFAULT_REF_RSSI (-65)
 #define DEFAULT_ABSORPTION (3.5)
@@ -37,16 +50,6 @@
 
 #define DEFAULT_SKIP_DISTANCE 0.5 // If beacon has moved less than this skip update
 #define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
-
-// Number of seconds between update checks
-#ifndef CHECK_FOR_UPDATES_INTERVAL
-#define CHECK_FOR_UPDATES_INTERVAL 900
-#endif
-
-// Number of seconds before attempting to reconnect to MQTT broker
-#ifndef CAPTIVE_PORTAL_TIMEOUT
-#define CAPTIVE_PORTAL_TIMEOUT 300
-#endif
 
 // I2C Defaults
 #ifdef M5STICK
@@ -81,3 +84,39 @@
 #define DEFAULT_AUTO_UPDATE false
 #define DEFAULT_ARDUINO_OTA true
 #endif
+
+#if defined M5STICK
+
+#define DEFAULT_LED1_TYPE 1
+#define DEFAULT_LED1_PIN 10
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#define MAX_BRIGHTNESS 100
+
+#elif defined M5ATOM
+
+#define DEFAULT_LED1_TYPE 2
+#define DEFAULT_LED1_PIN 27
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 25
+
+#define BUTTON 39
+#define BUTTON_PRESSED 0
+
+#define MAX_BRIGHTNESS 50 // M5Atom Matrix has a lower max brightness so it doesn't melt
+
+#else  // DevKit / generic
+
+#define DEFAULT_LED1_TYPE 0
+#define DEFAULT_LED1_PIN 2
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define MAX_BRIGHTNESS 100
+
+#endif
+

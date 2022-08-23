@@ -1,14 +1,63 @@
 #include "BleFingerprintCollection.h"
+
 #include <sstream>
 
-/* Static variables */
-String BleFingerprintCollection::include{}, BleFingerprintCollection::exclude{}, BleFingerprintCollection::query{}, BleFingerprintCollection::knownMacs{}, BleFingerprintCollection::knownIrks{}, BleFingerprintCollection::countIds{};
-float BleFingerprintCollection::skipDistance = 0.0f, BleFingerprintCollection::maxDistance = 0.0f, BleFingerprintCollection::absorption = 3.5f, BleFingerprintCollection::countEnter = 2, BleFingerprintCollection::countExit = 4;
-int BleFingerprintCollection::refRssi = 0, BleFingerprintCollection::forgetMs = 0, BleFingerprintCollection::skipMs = 0, BleFingerprintCollection::countMs = 10000;
-std::vector<DeviceConfig> BleFingerprintCollection::deviceConfigs;
-std::vector<uint8_t *> BleFingerprintCollection::irks;
+namespace BleFingerprintCollection {
+// Public (externed)
+String include{}, exclude{}, query{}, knownMacs{}, knownIrks{}, countIds{};
+float skipDistance = 0.0f, maxDistance = 0.0f, absorption = 3.5f, countEnter = 2, countExit = 4;
+int refRssi = 0, forgetMs = 0, skipMs = 0, countMs = 10000;
+std::vector<DeviceConfig> deviceConfigs;
+std::vector<uint8_t *> irks;
+std::vector<BleFingerprint *> fingerprints;
+TCallbackBool onSeen = nullptr;
+TCallbackFingerprint onAdd = nullptr;
+TCallbackFingerprint onDel = nullptr;
+TCallbackFingerprint onClose = nullptr;
+TCallbackFingerprint onLeft = nullptr;
+TCallbackFingerprint onCountAdd = nullptr;
+TCallbackFingerprint onCountDel = nullptr;
 
-bool BleFingerprintCollection::config(String &id, String &json) {
+// Private
+bool _disable = false;
+unsigned long lastCleanup = 0;
+SemaphoreHandle_t fingerprintSemaphore;
+
+void Setup() {
+    fingerprintSemaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(fingerprintSemaphore);
+}
+void SetDisable(bool disable) { _disable = disable; }
+
+void Count(BleFingerprint *f, bool counting) {
+    if (counting) {
+        if (onCountAdd) onCountAdd(f);
+    } else {
+        if (onCountDel) onCountDel(f);
+    }
+}
+
+void Close(BleFingerprint *f, bool close) {
+    if (close) {
+        if (onClose) onClose(f);
+    } else {
+        if (onLeft) onLeft(f);
+    }
+}
+
+void Seen(BLEAdvertisedDevice *advertisedDevice) {
+    if (_disable) return;
+
+    BLEAdvertisedDevice copy = *advertisedDevice;
+
+       if (onSeen) onSeen(true);
+         BleFingerprint *f = GetFingerprint(&copy);
+        if (f->seen(&copy) && onAdd)
+            onAdd(f);
+        if (onSeen) onSeen(false);
+}
+
+bool Config(String &id, String &json) {
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, json);
 
@@ -28,15 +77,15 @@ bool BleFingerprintCollection::config(String &id, String &json) {
             return false;
         irks.push_back(irk);
 
-        for (auto it = std::begin(fingerprints); it != std::end(fingerprints); ++it)
-            (*it)->fingerprintAddress();
+        for (auto& it : fingerprints)
+            it->fingerprintAddress();
     }
 
     return true;
 }
 
-void BleFingerprintCollection::connectToWifi() {
-    std::istringstream iss(BleFingerprintCollection::knownIrks.c_str());
+void ConnectToWifi() {
+    std::istringstream iss(knownIrks.c_str());
     std::string irk_hex;
     while (iss >> irk_hex) {
         uint8_t *irk = new uint8_t[16];
@@ -46,70 +95,49 @@ void BleFingerprintCollection::connectToWifi() {
     }
 }
 
-bool BleFingerprintCollection::command(String &command, String &pay) {
-
-    if (command == "max_distance")
-    {
-        BleFingerprintCollection::maxDistance = pay.toFloat();
+bool Command(String &command, String &pay) {
+    if (command == "max_distance") {
+        maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
-    }
-    else if (command == "absorption")
-    {
-        BleFingerprintCollection::absorption = pay.toFloat();
+    } else if (command == "absorption") {
+        absorption = pay.toFloat();
         spurt("/absorption", pay);
-    }
-    else if (command == "query")
-    {
-        BleFingerprintCollection::query = pay;
+    } else if (command == "query") {
+        query = pay;
         spurt("/query", pay);
-    }
-    else if (command == "include")
-    {
-        BleFingerprintCollection::include = pay;
+    } else if (command == "include") {
+        include = pay;
         spurt("/include", pay);
-    }
-    else if (command == "exclude")
-    {
-        BleFingerprintCollection::exclude = pay;
+    } else if (command == "exclude") {
+        exclude = pay;
         spurt("/exclude", pay);
-    }
-    else if (command == "known_macs")
-    {
-        BleFingerprintCollection::knownMacs = pay;
+    } else if (command == "known_macs") {
+        knownMacs = pay;
         spurt("/known_macs", pay);
-    }
-    else if (command == "known_irks")
-    {
-        BleFingerprintCollection::knownIrks = pay;
+    } else if (command == "known_irks") {
+        knownIrks = pay;
         spurt("/known_irks", pay);
-    }
-    else if (command == "count_ids")
-    {
-        BleFingerprintCollection::countIds = pay;
+    } else if (command == "count_ids") {
+        countIds = pay;
         spurt("/count_ids", pay);
     } else
         return false;
     return true;
 }
 
-void BleFingerprintCollection::cleanupOldFingerprints()
-{
+void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
     auto it = fingerprints.begin();
     bool any = false;
-    while (it != fingerprints.end())
-    {
+    while (it != fingerprints.end()) {
         auto age = (*it)->getMsSinceLastSeen();
-        if (age > forgetMs)
-        {
-            GUI::removed((*it));
+        if (age > forgetMs) {
+            if (onDel) onDel((*it));
             delete *it;
             it = fingerprints.erase(it);
-        }
-        else
-        {
+        } else {
             any = true;
             ++it;
         }
@@ -123,22 +151,20 @@ void BleFingerprintCollection::cleanupOldFingerprints()
     }
 }
 
-BleFingerprint *BleFingerprintCollection::getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice)
-{
+BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto mac = advertisedDevice->getAddress();
 
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.rend())
         return *it;
 
-    auto created = new BleFingerprint(this, advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
+    auto created = new BleFingerprint(advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
-    if (it2 != fingerprints.end())
-    {
+    if (it2 != fingerprints.end()) {
         auto found = *it2;
-        //Serial.printf("Detected mac switch for fingerprint id %s\n", found->getId().c_str());
+        // Serial.printf("Detected mac switch for fingerprint id %s\n", found->getId().c_str());
         created->setInitial(found->getRssi(), found->getDistance());
-        if (found->getIdType()>ID_TYPE_UNIQUE)
+        if (found->getIdType() > ID_TYPE_UNIQUE)
             found->expire();
     }
 
@@ -146,8 +172,7 @@ BleFingerprint *BleFingerprintCollection::getFingerprintInternal(BLEAdvertisedDe
     return created;
 }
 
-BleFingerprint *BleFingerprintCollection::getFingerprint(BLEAdvertisedDevice *advertisedDevice)
-{
+BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);
@@ -156,28 +181,21 @@ BleFingerprint *BleFingerprintCollection::getFingerprint(BLEAdvertisedDevice *ad
     return f;
 }
 
-const std::vector<BleFingerprint *> BleFingerprintCollection::getCopy() {
+const std::vector<BleFingerprint *> GetCopy() {
     if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
         log_e("Couldn't take semaphore!");
-    cleanupOldFingerprints();
+    CleanupOldFingerprints();
     std::vector<BleFingerprint *> copy(fingerprints);
     if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
         log_e("Couldn't give semaphore!");
     return std::move(copy);
 }
 
-const std::vector<BleFingerprint *> *const BleFingerprintCollection::getNative() { return &fingerprints; }
-
-std::vector<uint8_t *> BleFingerprintCollection::getIrks() { return irks; }
-
-bool BleFingerprintCollection::findDeviceConfig(const String &id, DeviceConfig &config) {
+bool FindDeviceConfig(const String &id, DeviceConfig &config) {
     auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [id](DeviceConfig dc) { return dc.id == id; });
     if (it == deviceConfigs.end()) return false;
     config = (*it);
     return true;
 }
 
-std::vector<DeviceConfig> BleFingerprintCollection::getConfigs()
-{
-    return deviceConfigs;
-}
+}  // namespace BleFingerprintCollection

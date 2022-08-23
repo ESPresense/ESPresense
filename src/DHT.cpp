@@ -13,8 +13,8 @@
 
 namespace DHT
 {
-    uint8_t dht11Pin;
-    uint8_t dht22Pin;
+    int dht11Pin = -1;
+    int dht22Pin = -1;
     float dhtTempOffset;
 
     /** Initialize DHT sensor 1 */
@@ -45,7 +45,6 @@ namespace DHT
      */
     void tempTask(void *pvParameters)
     {
-        Serial.println("tempTask loop started");
         while (1) // tempTask loop
         {
             if (dhtTasksEnabled && !gotNewTemperature)
@@ -75,16 +74,16 @@ namespace DHT
 
     void Setup()
     {
-        if (dht11Pin) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
-        if (dht22Pin) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
+        if (dht11Pin>=0) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
+        if (dht22Pin>=0) dhtSensor.setup(dht22Pin, DHTesp::DHT22); //(AM2302)
 
-        if (dht11Pin || dht22Pin)
+        if (dht11Pin>=0 || dht22Pin>=0)
         {
             // Start task to get temperature
             xTaskCreatePinnedToCore(
                     tempTask,           /* Function to implement the task */
-                    "tempTask ",        /* Name of the task */
-                    4000,               /* Stack size in words */
+                    "DHT",              /* Name of the task */
+                    1024,               /* Stack size in words */
                     NULL,               /* Task input parameter */
                     5,                  /* Priority of the task */
                     &dhtTempTaskHandle, /* Task handle. */
@@ -107,25 +106,25 @@ namespace DHT
 
     void ConnectToWifi()
     {
-        dht11Pin = AsyncWiFiSettings.integer("dht11_pin", 0, "DHT11 sensor pin (0 for disable)");
-        dht22Pin = AsyncWiFiSettings.integer("dht22_pin", 0, "DHT22 sensor pin (0 for disable)");
+        dht11Pin = AsyncWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
+        dht22Pin = AsyncWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
         dhtTempOffset = AsyncWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
     }
 
     void SerialReport()
     {
-        if (!dht11Pin && !dht22Pin) return;
+        if (dht11Pin<0 && dht22Pin<0) return;
         Serial.print("DHT11 Sensor: ");
-        Serial.println(dht11Pin ? "enabled" : "disabled");
+        Serial.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
         Serial.print("DHT22 Sensor: ");
-        Serial.println(dht22Pin ? "enabled" : "disabled");
+        Serial.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
         Serial.print("DHT Offset:   ");
-        Serial.println(dhtTempOffset ? "enabled" : "disabled");
+        Serial.println(dhtTempOffset);
     }
 
     void Loop()
     {
-        if (!dht11Pin && !dht22Pin) return;
+        if (dht11Pin<0 && dht22Pin<0) return;
 
         if (gotNewTemperature)
         {
@@ -142,7 +141,7 @@ namespace DHT
 
     bool SendDiscovery()
     {
-        if (!dht11Pin && !dht22Pin) return true;
+        if (dht11Pin<0 && dht22Pin<0) return true;
 
         return sendSensorDiscovery("Temperature", EC_NONE, "temperature", "°C") && sendSensorDiscovery("Humidity", EC_NONE, "humidity", "%");
     }

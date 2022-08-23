@@ -1,6 +1,6 @@
 #pragma once
 
-#include "string_utils.h"
+#include "Arduino.h"
 
 namespace Enrollment
 {

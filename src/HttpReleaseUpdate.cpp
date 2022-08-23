@@ -4,29 +4,23 @@
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 
-bool checkVersion(WiFiClientSecure& client, const String& url, const String& version) {
+bool isSameVersion(WiFiClientSecure& client, const String& url, const String& version) {
     HTTPClient http;
     if (!http.begin(client, url))
         return false;
 
-    if (version.length() > 0) {
-        // http.addHeader("If-None-Match", version);
+    int httpCode = http.sendRequest("HEAD");
+    bool ret = httpCode > 300 && httpCode < 400 && http.getLocation().indexOf(version) <= 0;
 
-        int httpCode = http.sendRequest("HEAD");
-        if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(version) > 0) {
-            Serial.printf("Not updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-            http.end();
-            return false;
-        } else {
-            Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-            http.end();
-        }
-    }
-    return true;
+    if (ret) Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
+    else Serial.printf("Not updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
+
+    http.end();
+    return ret;
 }
 
 HttpUpdateResult HttpReleaseUpdate::update(WiFiClientSecure& client, const String& url, const String& version) {
-    if (!checkVersion(client, url, version))
+    if (version.length() > 0 && isSameVersion(client, url, version))
         return HTTP_UPDATE_NO_UPDATES;
 
     HTTPClient http;
@@ -123,17 +117,11 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                     goto exit;
                 }
 
-                WiFiClient* tcp = http.getStreamPtr();
-                if(tcp->peek() != 0xE9) {
-                    Serial.printf("Magic header does not start with 0xE9\n");
-                    _lastError = HTTP_UE_BIN_VERIFY_HEADER_FAILED;
-                   goto exit;
-                }
-
                 if (_cbStart) {
                     _cbStart();
                 }
 
+                WiFiClient* tcp = http.getStreamPtr();
                 if (runUpdate(*tcp, len)) {
                     ret = HTTP_UPDATE_OK;
                     if (_rebootOnUpdate) {

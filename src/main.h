@@ -3,7 +3,6 @@
 
 #include "globals.h"
 #include "mqtt.h"
-#include "GUI.h"
 #include "defaults.h"
 #include "string_utils.h"
 
@@ -25,9 +24,14 @@
 #include "Enrollment.h"
 #include "HttpServer.h"
 #include "HttpReleaseUpdate.h"
+#include "SerialImprov.h"
 
 #include "MotionSensors.h"
 #include "I2C.h"
+#include "GUI.h"
+#ifdef M5STICK
+#include <AXP192.h>
+#endif
 #ifdef SENSORS
 #include <Wire.h>
 
@@ -135,18 +139,17 @@ void configureOTA()
     ArduinoOTA
         .onStart([]()
                  {
-                     Serial.println("OTA Start");
                      updateStartedMillis = millis();
+                     GUI::Update(UPDATE_STARTED);
                  })
         .onEnd([]()
                {
                    updateStartedMillis = 0;
-                   GUI::updateEnd();
-                   Serial.println("\n\rEnd");
+                   GUI::Update(UPDATE_COMPLETE);
                })
         .onProgress([](unsigned int progress, unsigned int total)
                     {
-                        GUI::updateProgress((progress / (total / 100)));
+                    GUI::Update((progress / (total / 100)));
                     })
         .onError([](ota_error_t error)
                  {
@@ -169,13 +172,22 @@ void configureOTA()
     ArduinoOTA.begin();
 }
 
+bool checkForUpdateFile()
+{
+    static bool alreadyChecked = false;
+    if (alreadyChecked) return false;
+    alreadyChecked = true;
+    return checkForUpdateFile && SPIFFS.exists("/update") && SPIFFS.remove("/update");
+}
+
 void firmwareUpdate() {
 #ifdef FIRMWARE
-    if (!autoUpdate) return;
+    auto uf = checkForUpdateFile();
+    if (!uf && !autoUpdate) return;
     static unsigned long lastFirmwareCheck = 0;
     static unsigned short autoUpdateAttempts = 0;
     unsigned long uptime = getUptimeSeconds();
-    if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
+    if (!uf && uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
         return;
 
     lastFirmwareCheck = uptime;
@@ -196,16 +208,16 @@ void firmwareUpdate() {
         mqttClient.disconnect();
         NimBLEDevice::getScan()->stop();
         HttpServer::UpdateStart();
-        GUI::updateStart();
+        GUI::Update(UPDATE_STARTED);
     });
     httpUpdate.onEnd([](void) {
         if (autoUpdateAttempts > 3) ESP.restart();
         updateStartedMillis = 0;
-        GUI::updateEnd();
+        GUI::Update(UPDATE_COMPLETE);
         HttpServer::UpdateEnd();
     });
     httpUpdate.onProgress([](int progress, int total) {
-        GUI::updateProgress((progress / (total / 100)));
+        GUI::Update((progress / (total / 100)));
     });
     #ifdef VERSION
     auto ret = httpUpdate.update(client, firmwareUrl, String(VERSION));
@@ -223,40 +235,6 @@ void firmwareUpdate() {
         break;
     }
 #endif
-}
-
-void spiffsInit()
-{
-#ifdef BUTTON
-    pinMode(BUTTON, INPUT);
-    int flashes = 0;
-    unsigned long debounceDelay = 250;
-
-    unsigned long lastDebounceTime = millis();
-    while (digitalRead(BUTTON) == BUTTON_PRESSED)
-    {
-        if ((millis() - lastDebounceTime) > debounceDelay)
-        {
-            Display.connecting();
-            lastDebounceTime = millis();
-            flashes++;
-
-            if (flashes > 10)
-            {
-
-                Display.erasing();
-                SPIFFS.format();
-                SPIFFS.begin(true);
-                Display.erased();
-
-                return;
-            }
-        }
-    }
-
-#endif
-
-    SPIFFS.begin(true);
 }
 
 #ifdef MACCHINA_A0

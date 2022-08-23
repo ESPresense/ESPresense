@@ -50,7 +50,7 @@ namespace SHT30
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (SHT30_I2c.isEmpty()) return;
-        Serial.print("SHT30:       ");
+        Serial.print("SHT30:        ");
         Serial.println(SHT30_I2c + " on bus " + SHT30_I2c_Bus);
     }
 

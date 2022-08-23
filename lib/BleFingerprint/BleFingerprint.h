@@ -1,7 +1,6 @@
 #ifndef _BLEFINGERPRINT_
 #define _BLEFINGERPRINT_
 
-#include "GUI.h"
 #include "rssi.h"
 #include "string_utils.h"
 #include <ArduinoJson.h>
@@ -56,13 +55,11 @@
 #define ID_TYPE_IBEACON short(240)
 #define ID_TYPE_ALIAS short(250)
 
-class BleFingerprintCollection;
-
 class BleFingerprint
 {
 
 public:
-    BleFingerprint(const BleFingerprintCollection *parent, NimBLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
+    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
 

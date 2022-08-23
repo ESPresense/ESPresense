@@ -3,7 +3,6 @@
 .clang_complete
 .gcc-flags.json
 .dblite
-include/
 Settings_*.h
 .pio
 .vscode
