@@ -72,6 +72,7 @@ void Left(BleFingerprint *f) {
 void Motion(bool pir, bool radar) {
     Serial.printf("%u Motion| Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
     Display::Status("Pir:%s Radar:%s\n", pir ? "yes" : "no", radar ? "yes" : "no");
+    LEDs::Motion(pir, radar);
 }
 
 void Seen(bool inprogress) {
@@ -127,5 +128,9 @@ bool Command(String &command, String &pay) {
 
 bool SendDiscovery() {
     return LEDs::SendDiscovery();
+}
+
+void Count(unsigned int count) {
+    LEDs::Count(count);
 }
 }  // namespace GUI

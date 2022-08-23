@@ -19,7 +19,7 @@ int led_1_type = DEFAULT_LED1_TYPE, led_2_type, led_3_type;
 int led_1_pin = DEFAULT_LED1_PIN, led_2_pin, led_3_pin;
 int led_1_cnt = DEFAULT_LED1_CNT, led_2_cnt, led_3_cnt;
 ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
-std::vector<LED*> leds, status, count, motion;
+std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 
 LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt) {
@@ -60,9 +60,9 @@ void ConnectToWifi() {
     leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt));
     leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt));
     leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt));
-    std::copy_if(leds.begin(), leds.end(), std::back_inserter(status), [](LED* a) { return a->getControlType() == Control_Type_Status; });
-    std::copy_if(leds.begin(), leds.end(), std::back_inserter(count), [](LED* a) { return a->getControlType() == Control_Type_Count; });
-    std::copy_if(leds.begin(), leds.end(), std::back_inserter(motion), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
+    std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
+    std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });
+    std::copy_if(leds.begin(), leds.end(), std::back_inserter(motionLeds), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
 }
 
 void SerialReport() {
@@ -115,12 +115,12 @@ bool SendOnline() {
 }
 
 void Connected(bool wifi, bool mqtt) {
-    for (auto& led : status)
+    for (auto& led : statusLeds)
         led->setColor(wifi ? 128 : 0, 128, mqtt ? 128 : 0);
 }
 
 void Seen(bool inprogress) {
-    for (auto& led : status)
+    for (auto& led : statusLeds)
         if (led->hasRgb()) {
             led->setState(true);
             led->setColor(inprogress ? PURPLE : ORANGE);
@@ -129,7 +129,7 @@ void Seen(bool inprogress) {
 }
 
 void Wifi(unsigned int percent) {
-    for (auto& led : status) {
+    for (auto& led : statusLeds) {
         {
             led->setColor(RED);
             led->setState(percent % 2 == 0);
@@ -138,7 +138,7 @@ void Wifi(unsigned int percent) {
 }
 
 void Portal(unsigned int percent) {
-    for (auto& led : status) {
+    for (auto& led : statusLeds) {
         led->setColor(PINK);
         led->setState(percent % 2 == 0);
     }
@@ -146,13 +146,13 @@ void Portal(unsigned int percent) {
 
 void Update(unsigned int percent) {
     if (percent == UPDATE_STARTED) {
-        for (auto& led : status)
+        for (auto& led : statusLeds)
             led->setColor(0, 128, 0);
     } else if (percent == UPDATE_COMPLETE) {
-        for (auto& led : status)
+        for (auto& led : statusLeds)
             led->setColor(0, 128, 0);
     } else {
-        for (auto& led : status)
+        for (auto& led : statusLeds)
             led->setState(percent % 2 == 0);
     }
 }
@@ -206,4 +206,31 @@ bool Command(String& command, String& pay) {
     return true;
 }
 
+    int count = 0, lastCount = 0;
+    void Counting(bool added)
+    {
+        if (added) {
+            count++;
+        } else {
+            count--;
+        }
+        if (count != lastCount) {
+            lastCount = count;
+            for (auto& led : countLeds)
+                led->setState(count > 0);
+        }
+    }
+
+    void Count(unsigned int countVal)
+    {
+        count = countVal;
+        for (auto& led: countLeds)
+            led->setState(count > 0);
+    }
+
+    void Motion(bool pir, bool radar)
+    {
+        for (auto& led: motionLeds)
+            led->setState(pir || radar);
+    }
 }  // namespace LEDs

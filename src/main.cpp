@@ -1,7 +1,7 @@
 #define VAR_DECLS
 #include "main.h"
 
-bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int totalFpReported, int count)
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigned totalFpQueried, int unsigned totalFpReported, unsigned int count)
 {
     if (!online)
     {
@@ -464,10 +464,10 @@ bool reportDevice(BleFingerprint *f)
     return false;
 }
 
-int totalFpReported = 0;
-int totalSeen = 0;
-int totalFpSeen = 0;
-int totalFpQueried = 0;
+unsigned int totalSeen = 0;
+unsigned int totalFpSeen = 0;
+unsigned int totalFpQueried = 0;
+unsigned int totalFpReported = 0;
 
 void reportTask(void *parameter)
 {
@@ -481,10 +481,12 @@ void reportTask(void *parameter)
         yield();
         auto copy = BleFingerprintCollection::GetCopy();
 
-        int count = 0;
+        unsigned int count = 0;
         for (auto& i: copy)
             if (i->shouldCount())
                 count++;
+
+        GUI::Count(count);
 
         yield();
         sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
@@ -636,6 +638,5 @@ void loop() {
     TSL2561::Loop();
     SensirionSGP30::Loop();
     HX711::Loop();
-
 #endif
 }
