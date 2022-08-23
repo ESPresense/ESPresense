@@ -23,11 +23,11 @@ std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 
 LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt) {
-    if (pin == -1) return new LED(index, cntrl);
+    if (pin == -1) return new LED(index, Control_Type_None);
     if (type >= 2)
-        return new Addressable(1, cntrl, type - 2, pin, cnt);
+        return new Addressable(index, cntrl, type - 2, pin, cnt);
     else
-        return new SinglePWM(1, cntrl, type, pin, cnt);
+        return new SinglePWM(index, cntrl, type, pin, cnt);
 }
 
 void ConnectToWifi() {

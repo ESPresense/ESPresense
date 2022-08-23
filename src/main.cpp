@@ -40,7 +40,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", EC_NONE, "{{ value_json.count }}"))
             && sendButtonDiscovery("Restart", EC_DIAGNOSTIC)
             && sendButtonDiscovery("Update", EC_DIAGNOSTIC)
-            && sendSwitchDiscovery("Status LED", EC_CONFIG)
+            && sendDeleteDiscovery("switch", "Status LED")
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
             && sendSwitchDiscovery("Active Scan", EC_CONFIG)
@@ -198,7 +198,7 @@ void setupNetwork()
     BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
 
     AsyncWiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
-    BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include device ids (space seperated ids)");
+    BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include id prefixes (space seperated)");
     BleFingerprintCollection::countEnter = AsyncWiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
     BleFingerprintCollection::countExit = AsyncWiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
     BleFingerprintCollection::countMs = AsyncWiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");

@@ -3,10 +3,11 @@
 #include <Arduino.h>
 
 enum ControlType {
-    Control_Type_MQTT,
-    Control_Type_Status,
-    Control_Type_Motion,
-    Control_Type_Count,
+    Control_Type_None = -1,
+    Control_Type_MQTT = 0,
+    Control_Type_Status = 1,
+    Control_Type_Motion = 2,
+    Control_Type_Count = 3,
 };
 
 struct Color {
@@ -44,8 +45,8 @@ class LED {
     const String getId();
     const String getName();
 
-    virtual const bool hasRgb() { return false;  }
-    virtual const bool hasRgbw() { return false;  }
+    virtual const bool hasRgb() { return false; }
+    virtual const bool hasRgbw() { return false; }
 
    private:
     ControlType controlType;
