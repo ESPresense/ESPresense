@@ -184,7 +184,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
-bool sendLightDiscovery(const String &name, const String &entityCategory)
+bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb)
 {
     auto slug = slugify(name);
 
@@ -196,10 +196,7 @@ bool sendLightDiscovery(const String &name, const String &entityCategory)
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["brightness"] = true;
-    doc["rgb"] = true;
-    //doc["color_temp"] = true;
-    //doc["effect"] = false;
-    //doc["effect_list"] = EFFECT_LIST;
+    doc["rgb"] = rgb;
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);

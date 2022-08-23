@@ -208,12 +208,12 @@ void firmwareUpdate() {
         mqttClient.disconnect();
         NimBLEDevice::getScan()->stop();
         HttpServer::UpdateStart();
-        GUI::Update(true);
+        GUI::Update(UPDATE_STARTED);
     });
     httpUpdate.onEnd([](void) {
         if (autoUpdateAttempts > 3) ESP.restart();
         updateStartedMillis = 0;
-        GUI::Update(false);
+        GUI::Update(UPDATE_COMPLETE);
         HttpServer::UpdateEnd();
     });
     httpUpdate.onProgress([](int progress, int total) {
