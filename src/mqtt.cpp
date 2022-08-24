@@ -190,7 +190,7 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name;
+    doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
     doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
     doc["schema"] = "json";
     doc["stat_t"] = "~/" + slug;
