@@ -4,23 +4,26 @@
 #include <esp_ota_ops.h>
 #include <esp_partition.h>
 
-bool isSameVersion(WiFiClientSecure& client, const String& url, const String& version) {
+bool hasNewVersion(WiFiClientSecure& client, const String& url, const String& version) {
     HTTPClient http;
     if (!http.begin(client, url))
         return false;
 
+    bool ret = false;
     int httpCode = http.sendRequest("HEAD");
-    bool ret = httpCode > 300 && httpCode < 400 && http.getLocation().indexOf(version) <= 0;
-
-    if (ret) Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-    else Serial.printf("Not updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-
+    bool isRedirect = httpCode > 300 && httpCode < 400;
+    if (isRedirect) {
+        if (http.getLocation().indexOf(version) < 0){
+            Serial.printf("Found new version: %s\n", http.getLocation().c_str());
+            ret = true;
+        }
+    } else Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
     http.end();
     return ret;
 }
 
 HttpUpdateResult HttpReleaseUpdate::update(WiFiClientSecure& client, const String& url, const String& version) {
-    if (version.length() > 0 && isSameVersion(client, url, version))
+    if (version.length() > 0 && !hasNewVersion(client, url, version))
         return HTTP_UPDATE_NO_UPDATES;
 
     HTTPClient http;
