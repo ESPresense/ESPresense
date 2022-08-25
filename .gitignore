@@ -3,7 +3,6 @@
 .clang_complete
 .gcc-flags.json
 .dblite
-include/
 Settings_*.h
 .pio
 .vscode
@@ -14,3 +13,4 @@ build/
 CMakeLists.txt
 CMakeListsPrivate.txt
 platformio_override.ini
+node_modules

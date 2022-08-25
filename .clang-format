@@ -1,0 +1,6 @@
+---
+BasedOnStyle: Google
+ColumnLimit: 0
+IndentWidth: 4
+UseCRLF: false
+UseTab: Never

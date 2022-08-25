@@ -11,7 +11,7 @@
 #include <ArduinoOTA.h>
 #include <AsyncTCP.h>
 #include <HTTPClient.h>
-#include <HTTPUpdate.h>
+#include <HttpReleaseUpdate.h>
 #include <NimBLEDevice.h>
 #include <SPIFFS.h>
 #include <WebServer.h>
@@ -165,53 +165,56 @@ void configureOTA()
     ArduinoOTA.begin();
 }
 
-void firmwareUpdate()
+bool checkForUpdateFile()
 {
+    static bool alreadyChecked = false;
+    if (alreadyChecked) return false;
+    alreadyChecked = true;
+    return checkForUpdateFile && SPIFFS.exists("/update") && SPIFFS.remove("/update");
+}
+
+void firmwareUpdate() {
 #ifdef FIRMWARE
-    if (!autoUpdate) return;
+    auto uf = checkForUpdateFile();
+    if (!uf && !autoUpdate) return;
     static unsigned long lastFirmwareCheck = 0;
+    static unsigned short autoUpdateAttempts = 0;
     unsigned long uptime = getUptimeSeconds();
-    if (uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
+    if (!uf && uptime - lastFirmwareCheck < CHECK_FOR_UPDATES_INTERVAL)
         return;
 
     lastFirmwareCheck = uptime;
 
-    HTTPClient http;
-    WiFiClientSecure client;
-    client.setInsecure();
-
     String firmwareUrl = prerelease
                              ? "https://espresense.com/releases/latest-any/download/" FIRMWARE ".bin"
                              : "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
-    if (!http.begin(client, firmwareUrl))
-        return;
 
-#ifdef VERSION
-    int httpCode = http.sendRequest("HEAD");
-    if (httpCode < 300 || httpCode > 400 || http.getLocation().indexOf(String(VERSION)) > 0)
-    {
-        Serial.printf("Not updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-        http.end();
-        return;
-    }
-    else
-    {
-        Serial.printf("Updating from (sc=%d): %s\n", httpCode, http.getLocation().c_str());
-    }
-#endif
+    WiFiClientSecure client;
+    client.setTimeout(12);
+    client.setInsecure();
 
-    updateStartedMillis = millis();
-    mqttClient.disconnect();
-    NimBLEDevice::getScan()->stop();
-    GUI::updateStart();
-    httpUpdate.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-    httpUpdate.onProgress([](int progress, int total)
-                            {
-                                GUI::updateProgress((progress / (total / 100)));
-                            });
-    t_httpUpdate_return ret = httpUpdate.update(client, firmwareUrl);
-    GUI::updateEnd();
-
+    HttpReleaseUpdate httpUpdate;
+    httpUpdate.setTimeout(12000);
+    httpUpdate.onStart([](void) {
+        autoUpdateAttempts++;
+        updateStartedMillis = millis();
+        mqttClient.disconnect();
+        NimBLEDevice::getScan()->stop();
+        GUI::updateStart();
+    });
+    httpUpdate.onEnd([](void) {
+        if (autoUpdateAttempts > 3) ESP.restart();
+        updateStartedMillis = 0;
+        GUI::updateEnd();
+    });
+    httpUpdate.onProgress([](int progress, int total) {
+        GUI::updateProgress((progress / (total / 100)));
+    });
+    #ifdef VERSION
+    auto ret = httpUpdate.update(client, firmwareUrl, String("v") + VERSION + String("/"));
+    #else
+    auto ret = httpUpdate.update(client, firmwareUrl, "");
+    #endif
     switch (ret)
     {
     case HTTP_UPDATE_FAILED:
@@ -221,13 +224,7 @@ void firmwareUpdate()
     case HTTP_UPDATE_NO_UPDATES:
         Serial.printf("No Update!\n");
         break;
-
-    case HTTP_UPDATE_OK:
-        Serial.printf("Update OK!\n");
-        break;
     }
-
-    updateStartedMillis = 0;
 #endif
 }
 

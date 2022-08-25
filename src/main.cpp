@@ -24,6 +24,7 @@ bool sendTelemetry(int totalSeen, int totalFpSeen, int totalFpQueried, int total
             && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", DEVICE_CLASS_NONE, "bytes")
             && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", EC_NONE, "{{ value_json.count }}"))
             && sendButtonDiscovery("Restart", EC_DIAGNOSTIC)
+            && sendButtonDiscovery("Update", EC_DIAGNOSTIC)
             && sendSwitchDiscovery("Status LED", EC_CONFIG)
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
@@ -358,9 +359,10 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
     {
         ESP.restart();
     }
-    else if (command == "dump_memory")
+    else if (command == "update")
     {
-        heap_caps_dump_all();
+        spurt("/update", "NOW");
+        ESP.restart();
     }
     else if (Motion::Command(command, pay)){}
     else changed = false;
@@ -548,6 +550,7 @@ void setup()
 
     spiffsInit();
     setupNetwork();
+    firmwareUpdate();
 #if NTP
     setClock();
 #endif
