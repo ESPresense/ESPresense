@@ -1,13 +1,13 @@
 #pragma once
 
-// Number of seconds between update checks
+// Number of ms between update checks
 #ifndef CHECK_FOR_UPDATES_INTERVAL
-#define CHECK_FOR_UPDATES_INTERVAL 900
+#define CHECK_FOR_UPDATES_INTERVAL 900000
 #endif
 
-// Number of seconds before attempting to reconnect to MQTT broker
+// Number of ms to keep up captive portal before retrying connecting
 #ifndef CAPTIVE_PORTAL_TIMEOUT
-#define CAPTIVE_PORTAL_TIMEOUT 300
+#define CAPTIVE_PORTAL_TIMEOUT 300000
 #endif
 
 #define UPDATE_STARTED -255
@@ -19,7 +19,7 @@
 #define BLE_SCAN_WINDOW 0x80
 
 // Define the base topic for room detection. Usually "espresense"
-#define CHANNEL String("espresense")
+#define CHANNEL "espresense"
 
 // Replace with your MQTT Broker address
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
@@ -77,13 +77,8 @@
 // TSL2561 Defaults
 #define DEFAULT_TSL2561_I2C_GAIN "auto"
 
-#ifdef VERSION
-#define DEFAULT_AUTO_UPDATE true
 #define DEFAULT_ARDUINO_OTA false
-#else
 #define DEFAULT_AUTO_UPDATE false
-#define DEFAULT_ARDUINO_OTA true
-#endif
 
 #if defined M5STICK
 
