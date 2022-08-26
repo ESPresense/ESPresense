@@ -1,3 +1,11 @@
+#include "Battery.h"
+
+#include <Arduino.h>
+
+#include "defaults.h"
+#include "globals.h"
+#include "mqtt.h"
+
 namespace Battery {
 #ifdef MACCHINA_A0
 int smoothMilliVolts;
