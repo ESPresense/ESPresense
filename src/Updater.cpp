@@ -142,6 +142,8 @@ void configureOTA(void) {
     ArduinoOTA.setPort(3232);
     ArduinoOTA.setMdnsEnabled(false);  // We just don't have the memory
     ArduinoOTA.begin();
+
+    Serial.println("ArduinoOTA configured and ready");
 }
 
 bool setup = false;
@@ -165,7 +167,6 @@ void Loop() {
         configureOTA();
         ArduinoOTA.handle();
     }
-    Serial.println("ArduinoOTA configured and ready");
 }
 
 bool SendOnline() {
