@@ -34,7 +34,7 @@ jobs:
         pio platform update
         pio run -t clean
     - name: Set env
-      run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_REF#refs/*/}\"' -DVERSION='\"${GITHUB_SHA::7}\"'" >> $GITHUB_ENV
+      run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_HEAD_REF}\"' -DVERSION='\"${GITHUB_SHA::7}\"'" >> $GITHUB_ENV
       if: ${{ github.event_name == 'pull_request' }}
     - name: Set env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV

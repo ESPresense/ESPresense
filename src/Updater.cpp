@@ -151,8 +151,6 @@ bool setup = false;
 void Setup() {
     auto uf = SPIFFS.exists("/update") && SPIFFS.remove("/update");
     if (uf) firmwareUpdate();
-    if (arduinoOtaEnabled)
-        configureOTA();
 }
 
 void Loop() {
