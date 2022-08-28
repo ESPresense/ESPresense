@@ -23,13 +23,14 @@ unsigned short autoUpdateAttempts = 0;
 
 String getFirmwareUrl() {
 #ifdef FIRMWARE
-    return prerelease
-               ? "https://espresense.com/releases/latest-any/download/" FIRMWARE ".bin"
-               : "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
+    if (!prerelease) return "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
+    #ifdef BRANCH
+        return "https://espresense.com/artifacts/latest/download/" BRANCH "/" FIRMWARE ".bin";
+    #else
+        return "https://espresense.com/releases/latest-any/download/" FIRMWARE ".bin";
+    #endif
 #else
-    return prerelease
-               ? "https://espresense.com/releases/latest-any/download/esp32.bin"
-               : "https://github.com/ESPresense/ESPresense/releases/latest/download/esp32.bin";
+    return "https://github.com/ESPresense/ESPresense/releases/latest/download/esp32.bin";
 #endif
 }
 
@@ -45,10 +46,10 @@ bool hasNewVersion(WiFiClientSecure& client, const String& url, const String& ve
     static bool foundNewVersion = false;
     if (foundNewVersion) return true;
 
+    Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
     HTTPClient http;
     if (!http.begin(client, url))
         return false;
-
     int httpCode = http.sendRequest("HEAD");
     bool isRedirect = httpCode > 300 && httpCode < 400;
     if (isRedirect) {

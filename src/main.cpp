@@ -517,8 +517,8 @@ void setup() {
 
 void loop() {
     auto freeHeap = ESP.getFreeHeap();
-    if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
-    if (freeHeap > 4096) Updater::Loop();
+    if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\n", freeHeap);
+    if (freeHeap > 70000) Updater::Loop();
     GUI::Loop();
     Motion::Loop();
     HttpWebServer::Loop();
