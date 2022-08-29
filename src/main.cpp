@@ -1,10 +1,8 @@
 #define VAR_DECLS
 #include "main.h"
 
-bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigned totalFpQueried, int unsigned totalFpReported, unsigned int count)
-{
-    if (!online)
-    {
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigned totalFpQueried, int unsigned totalFpReported, unsigned int count) {
+    if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
             && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str())
@@ -15,45 +13,34 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str())
             && pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str())
             && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
-            && pub((roomsTopic + "/arduino_ota").c_str(), 0, true, arduinoOta ? "ON" : "OFF")
-            && pub((roomsTopic + "/auto_update").c_str(), 0, true, autoUpdate ? "ON" : "OFF")
-            && pub((roomsTopic + "/prerelease").c_str(), 0, true, prerelease ? "ON" : "OFF")
-            && pub((roomsTopic + "/active_scan").c_str(), 0, true, activeScan ? "ON" : "OFF")
+            && Updater::SendOnline()
             && Motion::SendOnline()
             && GUI::SendOnline()
-        )
-        {
+        ) {
             online = true;
             reconnectTries = 0;
-        }
-        else
-        {
-            log_e("Error sending status=online");
+        } else {
+            Serial.println("Error sending status=online");
         }
     }
 
-    if (discovery && !sentDiscovery)
-    {
+    if (discovery && !sentDiscovery) {
         if (sendConnectivityDiscovery()
             && sendTeleSensorDiscovery("Uptime", EC_DIAGNOSTIC, "{{ value_json.uptime }}", DEVICE_CLASS_NONE, "s")
             && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", DEVICE_CLASS_NONE, "bytes")
             && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", EC_NONE, "{{ value_json.count }}"))
             && sendButtonDiscovery("Restart", EC_DIAGNOSTIC)
-            && sendButtonDiscovery("Update", EC_DIAGNOSTIC)
-            && sendDeleteDiscovery("switch", "Status LED")
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
-            && sendSwitchDiscovery("Active Scan", EC_CONFIG)
-            && sendSwitchDiscovery("Auto Update", EC_CONFIG)
-            && sendSwitchDiscovery("Arduino OTA", EC_CONFIG)
-            && sendSwitchDiscovery("Prerelease", EC_CONFIG)
+
+            && sendDeleteDiscovery("switch", "Status LED")
+            && sendDeleteDiscovery("switch", "Active Scan")
+
+            && Updater::SendDiscovery()
             && GUI::SendDiscovery()
             && Motion::SendDiscovery()
             && Enrollment::SendDiscovery()
-#ifdef MACCHINA_A0
-            && sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
-            && sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
-#endif
+            && Battery::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
             && BH1750::SendDiscovery()
@@ -65,13 +52,10 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && SensirionSGP30::SendDiscovery()
             && HX711::SendDiscovery()
 #endif
-        )
-        {
+        ) {
             sentDiscovery = true;
-        }
-        else
-        {
-            log_e("Error sending discovery");
+        } else {
+            Serial.println("Error sending discovery");
         }
     }
 
@@ -84,19 +68,13 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
 
     doc.clear();
     doc["ip"] = localIp;
-    doc["uptime"] = getUptimeSeconds();
+    doc["uptime"] = esp_timer_get_time() / 1000000;
 #ifdef FIRMWARE
     doc["firm"] = String(FIRMWARE);
 #endif
     doc["rssi"] = WiFi.RSSI();
-#ifdef MACCHINA_A0
-    auto mv = a0_read_batt_mv();
-    doc["mV"] = mv;
-    bool charging = (mv > 13200);
-    unsigned int soc = round(-13275.04 + 2.049731 * mv - (0.00007847975 * mv) * mv);
-    doc["batt"] = charging ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc));
-    doc["charging"] = charging ? "ON" : "OFF";
-#endif
+    Battery::SendTelemetry();
+
 #ifdef VERSION
     doc["ver"] = String(VERSION);
 #endif
@@ -111,59 +89,48 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
         doc["queried"] = totalFpQueried;
     if (totalFpReported > 0)
         doc["reported"] = totalFpReported;
-
     if (teleFails > 0)
         doc["teleFails"] = teleFails;
     if (reconnectTries > 0)
         doc["reconnectTries"] = reconnectTries;
-
-    doc["freeHeap"] = ESP.getFreeHeap();
-    doc["maxAllocHeap"] = ESP.getMaxAllocHeap();
-    doc["memFrag"] = 100 - (ESP.getMaxAllocHeap() * 100.0 / ESP.getFreeHeap());
-    doc["resetReason"] = resetReason(rtc_get_reset_reason(0));
+    auto maxHeap = ESP.getMaxAllocHeap();
+    auto freeHeap = ESP.getFreeHeap();
+    doc["freeHeap"] = freeHeap;
+    doc["maxAllocHeap"] = maxHeap;
+    doc["memFrag"] = 100 - (maxHeap * 100.0 / freeHeap);
     doc["scanHighWater"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["reportHighWater"] = uxTaskGetStackHighWaterMark(reportTaskHandle);
 
-    char teleMessageBuffer[512];
-    serializeJson(doc, teleMessageBuffer);
-
-    for (int i = 0; i < 10; i++)
-    {
-        if (!publishTele || mqttClient.publish(teleTopic.c_str(), 0, false, teleMessageBuffer))
-            return true;
-        delay(50);
-    }
+    serializeJson(doc, buffer);
+    if (pub(teleTopic.c_str(), 0, false, buffer)) return true;
 
     teleFails++;
     log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
     return false;
 }
 
-void setupNetwork()
-{
+void setupNetwork() {
     Serial.println("Setup network");
     WiFi.persistent(false);
     GUI::Connected(false, false);
 
     unsigned int connectProgress = 0;
-    AsyncWiFiSettings.onWaitLoop = [&connectProgress]()
-    {
+    AsyncWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
         SerialImprov::Loop(true);
         return 50;
     };
     unsigned int portalProgress = 0;
-    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress]()
-    {
+    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress]() {
         GUI::Portal(portalProgress++);
         SerialImprov::Loop(false);
 
-        if (getUptimeSeconds() > CAPTIVE_PORTAL_TIMEOUT)
+        if (millis() > CAPTIVE_PORTAL_TIMEOUT)
             ESP.restart();
 
         return 50;
     };
-    AsyncWiFiSettings.onHttpSetup = HttpServer::Init;
+    AsyncWiFiSettings.onHttpSetup = HttpWebServer::Init;
 
 #ifdef VERSION
     AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
@@ -186,13 +153,9 @@ void setupNetwork()
     publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     AsyncWiFiSettings.heading("Updating <a href='https://espresense.com/configuration/settings#updating' target='_blank'>ℹ️</a>", false);
-    autoUpdate = AsyncWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = AsyncWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-    arduinoOta = AsyncWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
+    Updater::ConnectToWifi();
 
     AsyncWiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
-    activeScan = false && AsyncWiFiSettings.checkbox("active_scan", false, "Request scan results (usually not needed)"); // Disabled due to known issue
-
     BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
     BleFingerprintCollection::knownIrks = AsyncWiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
     BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
@@ -263,8 +226,9 @@ void setupNetwork()
     Serial.println(Network.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
-    Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
+    Serial.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
+    Serial.printf("Init Free Mem:%d\n", ESP.getFreeHeap());
     GUI::SerialReport();
     Motion::SerialReport();
     I2C::SerialReport();
@@ -294,11 +258,11 @@ void setupNetwork()
 
     localIp = Network.localIP().toString();
     id = slugify(room);
-    roomsTopic = CHANNEL + "/rooms/" + id;
+    roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
-    configTopic = CHANNEL + "/settings/+/config";
+    configTopic = CHANNEL + String("/settings/+/config");
     AsyncWiFiSettings.httpSetup();
 }
 
@@ -317,42 +281,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     online = false;
 }
 
-bool Command(String &command, String &pay) {
-    if (command == "active_scan") {
-        activeScan = pay == "ON";
-        spurt("/active_scan", String(activeScan));
-    }
-    else if (command == "arduino_ota")
-    {
-        arduinoOta = pay == "ON";
-        spurt("/arduino_ota", String(arduinoOta));
-    }
-    else if (command == "auto_update")
-    {
-        autoUpdate = pay == "ON";
-        spurt("/auto_update", String(autoUpdate));
-    }
-    else if (command == "prerelease")
-    {
-        prerelease = pay == "ON";
-        spurt("/prerelease", String(prerelease));
-    }
-    else if (command == "restart")
-    {
-        ESP.restart();
-    }
-    else if (command == "update")
-    {
-        spurt("/update", "NOW");
-        ESP.restart();
-    }
-    else
-        return false;
-    return true;
-}
-
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total)
-{
+void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
     char new_payload[len + 1];
     new_payload[len] = '\0';
     strncpy(new_payload, payload, len);
@@ -369,15 +298,14 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         Serial.printf("%d MQTT  | Config %s: %s\n", xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
-
         auto commandPos = top.lastIndexOf("/", setPos - 1);
         if (commandPos < 0) goto skip;
         auto command = top.substring(commandPos + 1, setPos);
         Serial.printf("%d MQTT  | Set %s: %s\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
-        if (Command(command, pay))
-            changed = true;
+        if (command == "restart")
+            ESP.restart();
         else if (GUI::Command(command, pay))
             ;
         else if (Motion::Command(command, pay))
@@ -386,29 +314,27 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
             changed = true;
         else if (Enrollment::Command(command, pay))
             changed = true;
+        else if (Updater::Command(command, pay))
+            changed = true;
         else if (Motion::Command(command, pay))
             changed = true;
         if (changed) online = false;
     } else {
-skip:
+    skip:
         Serial.printf("%d MQTT  | Unknown: %s: %s\n", xPortGetCoreID(), topic, new_payload);
     }
 }
 
-void reconnect(TimerHandle_t xTimer)
-{
+void reconnect(TimerHandle_t xTimer) {
     Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
-    if (updateInProgress()) return;
     if (Network.isConnected() && mqttClient.connected()) return;
 
-    if (reconnectTries++ > 50)
-    {
+    if (reconnectTries++ > 50) {
         Serial.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected())
-    {
+    if (!Network.isConnected()) {
         Serial.printf("%u Reconnecting to Network...\n", xPortGetCoreID());
 
         bool success = false;
@@ -421,32 +347,29 @@ void reconnect(TimerHandle_t xTimer)
     mqttClient.connect();
 }
 
-void connectToMqtt()
-{
+void connectToMqtt() {
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessage);
     mqttClient.setClientId(AsyncWiFiSettings.hostname.c_str());
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
-    mqttClient.setWill(statusTopic.c_str(), 0, true, offline.c_str());
+    mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
 
-bool reportDevice(BleFingerprint *f)
-{
+bool reportDevice(BleFingerprint *f) {
     doc.clear();
     JsonObject obj = doc.to<JsonObject>();
     if (!f->report(&obj))
         return false;
 
     serializeJson(doc, buffer);
-    String devicesTopic = CHANNEL + "/devices/" + f->getId() + "/" + id;
+    String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
 
     bool p1 = false, p2 = false;
-    for (int i = 0; i < 10; i++)
-    {
+    for (int i = 0; i < 10; i++) {
         if (!mqttClient.connected())
             return false;
 
@@ -469,20 +392,18 @@ unsigned int totalFpSeen = 0;
 unsigned int totalFpQueried = 0;
 unsigned int totalFpReported = 0;
 
-void reportTask(void *parameter)
-{
+void reportTask(void *parameter) {
     connectToMqtt();
 
-    while (true)
-    {
-        while (updateInProgress() || !mqttClient.connected())
+    while (true) {
+        while (!mqttClient.connected())
             delay(1000);
 
         yield();
         auto copy = BleFingerprintCollection::GetCopy();
 
         unsigned int count = 0;
-        for (auto& i: copy)
+        for (auto &i : copy)
             if (i->shouldCount())
                 count++;
 
@@ -493,16 +414,13 @@ void reportTask(void *parameter)
         yield();
 
         auto reported = 0;
-        for (auto& f : copy)
-        {
+        for (auto &f : copy) {
             auto seen = f->getSeenCount();
-            if (seen)
-            {
+            if (seen) {
                 totalSeen += seen;
                 totalFpSeen++;
             }
-            if (reportDevice(f))
-            {
+            if (reportDevice(f)) {
                 totalFpReported++;
                 reported++;
             }
@@ -511,14 +429,13 @@ void reportTask(void *parameter)
     }
 }
 
-class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice* advertisedDevice) {
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
+    void onResult(BLEAdvertisedDevice *advertisedDevice) {
         BleFingerprintCollection::Seen(advertisedDevice);
     }
 };
 
-void scanTask(void *parameter)
-{
+void scanTask(void *parameter) {
     NimBLEDevice::init("ESPresense");
     for (esp_ble_power_type_t i = ESP_BLE_PWR_TYPE_CONN_HDL0; i <= ESP_BLE_PWR_TYPE_CONN_HDL8; i = esp_ble_power_type_t((int)i + 1))
         NimBLEDevice::setPower(ESP_PWR_LVL_P9, i);
@@ -529,45 +446,30 @@ void scanTask(void *parameter)
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
-    pBLEScan->setActiveScan(activeScan);
+    pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
     if (!pBLEScan->start(0, nullptr, false))
         log_e("Error starting continuous ble scan");
 
-    while (true)
-    {
-        for (auto& f : BleFingerprintCollection::fingerprints)
+    while (true) {
+        for (auto &f : BleFingerprintCollection::fingerprints)
             if (f->query())
                 totalFpQueried++;
 
-        if (updateInProgress())
-        {
-            BleFingerprintCollection::SetDisable(true);
-            while (updateInProgress())
-                delay(1000);
-            BleFingerprintCollection::SetDisable(false);
-        }
-        else
-        {
-            Enrollment::Loop();
-        }
+        Enrollment::Loop();
 
-        if (!pBLEScan->isScanning())
-        {
+        if (!pBLEScan->isScanning()) {
             if (!pBLEScan->start(0, nullptr, true))
                 log_e("Error re-starting continuous ble scan");
-            delay(3000); // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
-        }
-        else
-        {
+            delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
+        } else {
             delay(100);
         }
     }
 }
 
 void setup() {
-
 #ifdef FAST_MONITOR
     Serial.begin(1500000);
 #else
@@ -589,7 +491,7 @@ void setup() {
 #endif
     SPIFFS.begin(true);
     setupNetwork();
-    firmwareUpdate();
+    Updater::Setup();
 #if NTP
     setClock();
 #endif
@@ -610,20 +512,21 @@ void setup() {
     SensirionSGP30::Setup();
     HX711::Setup();
 #endif
-    xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
-    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
-    configureOTA();
+    xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", REPORT_TASK_STACK_SIZE, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
 }
 
 void loop() {
-    uint32_t freeHeap = ESP.getFreeHeap();
-    if (arduinoOta && freeHeap > 4096)
-        ArduinoOTA.handle();
-    if (freeHeap < 10000) Serial.printf("Low memory: %u bytes free", freeHeap);
-    firmwareUpdate();
+    static unsigned long lastSlowLoop = 0;
+    if (millis() - lastSlowLoop > 5000) {
+        lastSlowLoop = millis();
+        auto freeHeap = ESP.getFreeHeap();
+        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\n", freeHeap);
+        if (freeHeap > 70000) Updater::Loop();
+    }
     GUI::Loop();
     Motion::Loop();
-    HttpServer::Loop();
+    HttpWebServer::Loop();
     SerialImprov::Loop(false);
 #if M5STICK
     AXP192::Loop();

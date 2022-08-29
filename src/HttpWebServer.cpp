@@ -1,4 +1,4 @@
-#include "HttpServer.h"
+#include "HttpWebServer.h"
 
 #include <AsyncMqttClient.h>
 #include <AsyncWiFiSettings.h>
@@ -15,7 +15,7 @@
 #include "ui_index_html.h"
 #include "ui_index_js.h"
 
-namespace HttpServer {
+namespace HttpWebServer {
 
 void serializeInfo(JsonObject &root) {
     root["room"] = room;

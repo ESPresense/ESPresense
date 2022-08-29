@@ -1,7 +1,7 @@
 #include "Enrollment.h"
 #include "globals.h"
 #include "mqtt.h"
-#include "HttpServer.h"
+#include "HttpWebServer.h"
 
 #include <NimBLEDevice.h>
 #include <NimBLEAdvertisedDevice.h>
@@ -218,7 +218,7 @@ namespace Enrollment
     {
         if (enrolling != lastEnrolling)
         {
-            HttpServer::SendState();
+            HttpWebServer::SendState();
             auto pAdvertising = NimBLEDevice::getAdvertising();
             if (enrolling)
             {
@@ -243,7 +243,7 @@ namespace Enrollment
         {
             lastLoop = millis();
 
-            if (enrolling) HttpServer::SendState();
+            if (enrolling) HttpWebServer::SendState();
             if (pServer->getConnectedCount())
             {
                 NimBLEService *pSvc = pServer->getServiceByUUID("180D");

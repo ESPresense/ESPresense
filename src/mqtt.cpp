@@ -218,6 +218,6 @@ bool alias(const String &alias, const String &id)
     doc.clear();
     doc["id"] = id;
     serializeJson(doc, buffer);
-    String settingsTopic = CHANNEL + "/settings/" + alias + "/config";
+    String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
     return pub(settingsTopic.c_str(), 0, true, buffer);
 }

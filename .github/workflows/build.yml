@@ -33,7 +33,13 @@ jobs:
         pip install --upgrade platformio
         pio platform update
         pio run -t clean
-    - name: Set env
+    - name: Setup github_head_sha
+      run: echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
+      if: ${{ github.event_name == 'pull_request' }}
+    - name: Set pr env
+      run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_HEAD_REF}\"' -DVERSION='\"${GITHUB_HEAD_SHA::7}\"'" >> $GITHUB_ENV
+      if: ${{ github.event_name == 'pull_request' }}
+    - name: Set rel env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
     - name: Run PlatformIO
