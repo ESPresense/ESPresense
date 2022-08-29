@@ -106,18 +106,18 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                 WiFiClient* tcp = http.getStreamPtr();
                 if (runUpdate(*tcp, len)) {
                     ret = HTTP_UPDATE_OK;
-                    if (_rebootOnUpdate) {
-                        ESP.restart();
+                    if (_cbEnd) {
+                        _cbEnd(true);
                     }
 
-                    if (_cbEnd) {
-                        _cbEnd();
+                    if (_rebootOnUpdate) {
+                        ESP.restart();
                     }
                 } else {
                     ret = HTTP_UPDATE_FAILED;
 
                     if (_cbEnd) {
-                        _cbEnd();
+                        _cbEnd(false);
                     }
                 }
             } else {

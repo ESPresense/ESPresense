@@ -20,6 +20,7 @@ bool arduinoOtaEnabled, arduinoOtaConfgured = false;
 unsigned long updateStartedMillis = 0;
 unsigned long lastFirmwareCheck = 0;
 unsigned short autoUpdateAttempts = 0;
+String updateUrl;
 
 String getFirmwareUrl() {
 #ifdef FIRMWARE
@@ -42,35 +43,33 @@ String getVersionMarker() {
 #endif
 }
 
-bool hasNewVersion(WiFiClientSecure& client, const String& url, const String& version) {
-    static bool foundNewVersion = false;
-    if (foundNewVersion) return true;
-
-    Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
-    HTTPClient http;
-    if (!http.begin(client, url))
-        return false;
-    int httpCode = http.sendRequest("HEAD");
-    bool isRedirect = httpCode > 300 && httpCode < 400;
-    if (isRedirect) {
-        if (http.getLocation().indexOf(version) < 0) {
-            Serial.printf("Found new version: %s\n", http.getLocation().c_str());
-            foundNewVersion = true;
-        }
-    } else
-        Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
-    http.end();
-
-    return foundNewVersion;
-}
-
 void checkForUpdates() {
+    static bool foundNewVersion = false;
     WiFiClientSecure client;
     client.setTimeout(12);
     client.setInsecure();
-    if (hasNewVersion(client, getFirmwareUrl(), getVersionMarker())) {
-        spurt("/update", "NOW");
-        ESP.restart();
+    {
+        auto url = getFirmwareUrl();
+        Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
+        HTTPClient http;
+        if (!http.begin(client, url))
+            return;
+        int httpCode = http.sendRequest("HEAD");
+        bool isRedirect = httpCode > 300 && httpCode < 400;
+        if (isRedirect) {
+            if (http.getLocation().indexOf(getVersionMarker()) < 0) {
+                Serial.printf("Found new version: %s\n", http.getLocation().c_str());
+                    spurt("/update", http.getLocation());
+                foundNewVersion = true;
+            }
+        } else
+            Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
+        http.end();
+
+        if (foundNewVersion) {
+            Serial.println("Rebooting to start update");
+            ESP.restart();
+        }
     }
 }
 
@@ -86,18 +85,16 @@ void firmwareUpdate() {
             updateStartedMillis = millis();
             GUI::Update(UPDATE_STARTED);
         });
-        httpUpdate.onEnd([](void) {
-            if (autoUpdateAttempts > 3) {
-                spurt("/update", "NOW");
-                ESP.restart();
-            }
+        httpUpdate.onEnd([](bool success) {
+            if (success)
+                SPIFFS.remove("/update");
             updateStartedMillis = 0;
             GUI::Update(UPDATE_COMPLETE);
         });
         httpUpdate.onProgress([](int progress, int total) {
             GUI::Update((progress / (total / 100)));
         });
-        auto ret = httpUpdate.update(client, getFirmwareUrl());
+        auto ret = httpUpdate.update(client, updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl());
         switch (ret) {
             case HTTP_UPDATE_FAILED:
                 Serial.printf("Http Update Failed (Error=%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
@@ -150,7 +147,7 @@ void configureOTA(void) {
 
 bool setup = false;
 void Setup() {
-    auto uf = SPIFFS.exists("/update") && SPIFFS.remove("/update");
+    auto uf = SPIFFS.exists("/update");
     if (uf) firmwareUpdate();
 }
 
@@ -181,6 +178,7 @@ void ConnectToWifi() {
     autoUpdateEnabled = AsyncWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
     prerelease = AsyncWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
     arduinoOtaEnabled = AsyncWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
+    updateUrl = AsyncWiFiSettings.string("update", "", "If set will update from this url on next boot");
 }
 
 bool Command(String& command, String& pay) {
@@ -194,7 +192,7 @@ bool Command(String& command, String& pay) {
         prerelease = pay == "ON";
         spurt("/prerelease", String(prerelease));
     } else if (command == "update") {
-        spurt("/update", "NOW");
+        spurt("/update", pay);
         ESP.restart();
     } else
         return false;

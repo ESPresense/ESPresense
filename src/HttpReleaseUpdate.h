@@ -25,7 +25,7 @@ enum HttpUpdateResult {
 };
 
 using HttpUpdateStartCB = std::function<void()>;
-using HttpUpdateEndCB = std::function<void()>;
+using HttpUpdateEndCB = std::function<void(bool)>;
 using HttpUpdateErrorCB = std::function<void(int)>;
 using HttpUpdateProgressCB = std::function<void(int, int)>;
 
