@@ -44,31 +44,34 @@ String getVersionMarker() {
 }
 
 void checkForUpdates() {
-    static bool foundNewVersion = false;
-    WiFiClientSecure client;
-    client.setTimeout(12);
-    client.setInsecure();
-    {
-        auto url = getFirmwareUrl();
-        Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
-        HTTPClient http;
-        if (!http.begin(client, url))
-            return;
-        int httpCode = http.sendRequest("HEAD");
-        bool isRedirect = httpCode > 300 && httpCode < 400;
-        if (isRedirect) {
-            if (http.getLocation().indexOf(getVersionMarker()) < 0) {
-                Serial.printf("Found new version: %s\n", http.getLocation().c_str());
+    auto versionMarker = getVersionMarker();
+    if (versionMarker.length() > 0) {
+        static bool foundNewVersion = false;
+        WiFiClientSecure client;
+        client.setTimeout(12);
+        client.setInsecure();
+        {
+            auto url = getFirmwareUrl();
+            Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
+            HTTPClient http;
+            if (!http.begin(client, url))
+                return;
+            int httpCode = http.sendRequest("HEAD");
+            bool isRedirect = httpCode > 300 && httpCode < 400;
+            if (isRedirect) {
+                if (http.getLocation().indexOf(versionMarker) < 0) {
+                    Serial.printf("Found new version: %s\n", http.getLocation().c_str());
                     spurt("/update", http.getLocation());
-                foundNewVersion = true;
-            }
-        } else
-            Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
-        http.end();
+                    foundNewVersion = true;
+                }
+            } else
+                Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
+            http.end();
 
-        if (foundNewVersion) {
-            Serial.println("Rebooting to start update");
-            ESP.restart();
+            if (foundNewVersion) {
+                Serial.println("Rebooting to start update");
+                ESP.restart();
+            }
         }
     }
 }
