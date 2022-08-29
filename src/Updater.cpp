@@ -78,34 +78,35 @@ void firmwareUpdate() {
     WiFiClientSecure client;
     client.setTimeout(12);
     client.setInsecure();
+    {  // WiFiClientSecure needs to be destroyed after HttpReleaseUpdate
+        HttpReleaseUpdate httpUpdate;
+        httpUpdate.setTimeout(12000);
+        httpUpdate.onStart([](void) {
+            autoUpdateAttempts++;
+            updateStartedMillis = millis();
+            GUI::Update(UPDATE_STARTED);
+        });
+        httpUpdate.onEnd([](void) {
+            if (autoUpdateAttempts > 3) {
+                spurt("/update", "NOW");
+                ESP.restart();
+            }
+            updateStartedMillis = 0;
+            GUI::Update(UPDATE_COMPLETE);
+        });
+        httpUpdate.onProgress([](int progress, int total) {
+            GUI::Update((progress / (total / 100)));
+        });
+        auto ret = httpUpdate.update(client, getFirmwareUrl());
+        switch (ret) {
+            case HTTP_UPDATE_FAILED:
+                Serial.printf("Http Update Failed (Error=%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+                break;
 
-    HttpReleaseUpdate httpUpdate;
-    httpUpdate.setTimeout(12000);
-    httpUpdate.onStart([](void) {
-        autoUpdateAttempts++;
-        updateStartedMillis = millis();
-        GUI::Update(UPDATE_STARTED);
-    });
-    httpUpdate.onEnd([](void) {
-        if (autoUpdateAttempts > 3) {
-            spurt("/update", "NOW");
-            ESP.restart();
+            case HTTP_UPDATE_NO_UPDATES:
+                Serial.printf("No Update!\n");
+                break;
         }
-        updateStartedMillis = 0;
-        GUI::Update(UPDATE_COMPLETE);
-    });
-    httpUpdate.onProgress([](int progress, int total) {
-        GUI::Update((progress / (total / 100)));
-    });
-    auto ret = httpUpdate.update(client, getFirmwareUrl());
-    switch (ret) {
-        case HTTP_UPDATE_FAILED:
-            Serial.printf("Http Update Failed (Error=%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-            break;
-
-        case HTTP_UPDATE_NO_UPDATES:
-            Serial.printf("No Update!\n");
-            break;
     }
 }
 

@@ -226,8 +226,9 @@ void setupNetwork() {
     Serial.println(Network.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
-    Serial.printf("MQTT server:  %s:%d\n", mqttHost.c_str(), mqttPort);
+    Serial.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
+    Serial.printf("Init Free Mem:%d\n", ESP.getFreeHeap());
     GUI::SerialReport();
     Motion::SerialReport();
     I2C::SerialReport();
@@ -516,9 +517,13 @@ void setup() {
 }
 
 void loop() {
-    auto freeHeap = ESP.getFreeHeap();
-    if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\n", freeHeap);
-    if (freeHeap > 70000) Updater::Loop();
+    static unsigned long lastSlowLoop = 0;
+    if (millis() - lastSlowLoop > 5000) {
+        lastSlowLoop = millis();
+        auto freeHeap = ESP.getFreeHeap();
+        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\n", freeHeap);
+        if (freeHeap > 70000) Updater::Loop();
+    }
     GUI::Loop();
     Motion::Loop();
     HttpWebServer::Loop();
