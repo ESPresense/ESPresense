@@ -512,8 +512,8 @@ void setup() {
     SensirionSGP30::Setup();
     HX711::Setup();
 #endif
-    xTaskCreatePinnedToCore(scanTask, "scanTask", 7168, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
-    xTaskCreatePinnedToCore(reportTask, "reportTask", 7168, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+    xTaskCreatePinnedToCore(reportTask, "reportTask", REPORT_TASK_STACK_SIZE, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
 }
 
 void loop() {
