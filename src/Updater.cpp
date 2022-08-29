@@ -77,10 +77,10 @@ void checkForUpdates() {
 void firmwareUpdate() {
     WiFiClientSecure client;
     client.setTimeout(12);
+    client.setHandshakeTimeout(8);
     client.setInsecure();
     {  // WiFiClientSecure needs to be destroyed after HttpReleaseUpdate
         HttpReleaseUpdate httpUpdate;
-        httpUpdate.setTimeout(12000);
         httpUpdate.onStart([](void) {
             autoUpdateAttempts++;
             updateStartedMillis = millis();
