@@ -140,9 +140,12 @@ void Init(AsyncWebServer *server) {
         request->send(response);
     });
 
-    server->on("/devices", HTTP_GET, serveIndexHtml);
-    server->on("/bundle.css", HTTP_GET, serveBundleCss);
-    server->on("/index.js", HTTP_GET, serveIndexJs);
+    server->on("/ui/", HTTP_GET, serveIndexHtml);
+    server->on("/ui/bundle.css", HTTP_GET, serveBundleCss);
+    server->on("/ui/index.js", HTTP_GET, serveIndexJs);
+    server->on("/ui", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->redirect("/ui/");
+    });
     server->on("/json", HTTP_GET, serveJson);
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
