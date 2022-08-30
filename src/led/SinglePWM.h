@@ -4,7 +4,8 @@
 
 class SinglePWM : public LED {
    public:
-    SinglePWM(uint8_t index, ControlType controlType, int type, int pin, int cnt);
+
+    SinglePWM(uint8_t index, ControlType controlType, bool inverted, int pin);
     void begin() override;
     void service() override;
 
@@ -13,8 +14,6 @@ class SinglePWM : public LED {
 
    private:
     void setDuty(uint32_t value);
-    int type;
+    bool inverted;
     int pin;
-    int cnt;
-    int cntrl;
 };

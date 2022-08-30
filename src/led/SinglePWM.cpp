@@ -1,9 +1,8 @@
 #include "SinglePWM.h"
 
-SinglePWM::SinglePWM(uint8_t index, ControlType controlType, int type, int pin, int cnt) : LED(index, controlType) {
-    this->type = type;
+SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int pin) : LED(index, controlType) {
+    this->inverted = inverted;
     this->pin = pin;
-    this->cnt = cnt;
 }
 
 void SinglePWM::begin() {
@@ -12,8 +11,9 @@ void SinglePWM::begin() {
     setDuty(LED::getBrightness());
 }
 
-void SinglePWM::setDuty(uint32_t value) {
-    uint32_t duty = (type & 0x1 == 0) ? map(value, 0, 255, 0, 4095) : map(value, 0, 255, 4095, 0);
+void SinglePWM::setDuty(uint32_t x) {
+    uint32_t duty = x >= 255 ? 4096 : (x <= 0 ? 0 : round(4096.0 * pow(10.0, 0.0055 * (x - 255.0))));
+    if (inverted) duty = 4096 - duty;
     ledcWrite(LED::getIndex(), duty);
 }
 
