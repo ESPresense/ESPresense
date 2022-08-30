@@ -27,7 +27,7 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt) {
     if (type >= 2)
         return new Addressable(index, cntrl, type - 2, pin, cnt);
     else
-        return new SinglePWM(index, cntrl, type, pin, cnt);
+        return new SinglePWM(index, cntrl, type == 1, pin);
 }
 
 void ConnectToWifi() {
