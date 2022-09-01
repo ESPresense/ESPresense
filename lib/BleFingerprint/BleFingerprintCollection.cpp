@@ -1,12 +1,14 @@
 #include "BleFingerprintCollection.h"
 
 #include <sstream>
+#include <Arduino.h>
 
 namespace BleFingerprintCollection {
 // Public (externed)
 String include{}, exclude{}, query{}, knownMacs{}, knownIrks{}, countIds{};
 float skipDistance = 0.0f, maxDistance = 0.0f, absorption = 3.5f, countEnter = 2, countExit = 4;
-int refRssi = 0, forgetMs = 0, skipMs = 0, countMs = 10000;
+int8_t refRssi = -65;
+int forgetMs = 0, skipMs = 0, countMs = 10000;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 std::vector<BleFingerprint *> fingerprints;
@@ -19,7 +21,6 @@ TCallbackFingerprint onCountAdd = nullptr;
 TCallbackFingerprint onCountDel = nullptr;
 
 // Private
-bool _disable = false;
 unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintSemaphore;
 
@@ -27,7 +28,6 @@ void Setup() {
     fingerprintSemaphore = xSemaphoreCreateBinary();
     xSemaphoreGive(fingerprintSemaphore);
 }
-void SetDisable(bool disable) { _disable = disable; }
 
 void Count(BleFingerprint *f, bool counting) {
     if (counting) {
@@ -46,15 +46,25 @@ void Close(BleFingerprint *f, bool close) {
 }
 
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
-    if (_disable) return;
-
     BLEAdvertisedDevice copy = *advertisedDevice;
 
-       if (onSeen) onSeen(true);
-         BleFingerprint *f = GetFingerprint(&copy);
-        if (f->seen(&copy) && onAdd)
-            onAdd(f);
-        if (onSeen) onSeen(false);
+    if (onSeen) onSeen(true);
+    BleFingerprint *f = GetFingerprint(&copy);
+    if (f->seen(&copy) && onAdd)
+        onAdd(f);
+    if (onSeen) onSeen(false);
+}
+
+bool addOrReplace(DeviceConfig config) {
+    bool found = false;
+    for (auto &it : deviceConfigs) {
+        if (it.id == config.id) {
+            it = config;
+            return false;
+        }
+    }
+    deviceConfigs.push_back(config);
+    return true;
 }
 
 bool Config(String &id, String &json) {
@@ -63,21 +73,35 @@ bool Config(String &id, String &json) {
 
     DeviceConfig config = {};
     config.id = id;
-    auto alias = doc["id"].as<String>();
-    if (alias != id) config.alias = alias;
-    config.calRssi = doc["rssi@1m"];
-    config.name = doc["name"].as<String>();
-    deviceConfigs.push_back(config);
+    if (doc.containsKey("id")) {
+        auto alias = doc["id"].as<String>();
+        if (alias != id) config.alias = alias;
+    }
+    if (doc.containsKey("rssi@1m"))
+        config.calRssi = doc["rssi@1m"].as<int8_t>();
+    if (doc.containsKey("name"))
+        config.name = doc["name"].as<String>();
+    auto isNew = addOrReplace(config);
 
-    auto p = id.indexOf("irk:");
-    if (p == 0) {
-        auto irk_hex = id.substring(4);
-        uint8_t *irk = new uint8_t[16];
-        if (!hextostr(irk_hex, irk, 16))
-            return false;
-        irks.push_back(irk);
+    if (isNew) {
+        auto p = id.indexOf("irk:");
+        if (p == 0) {
+            auto irk_hex = id.substring(4);
+            uint8_t *irk = new uint8_t[16];
+            if (!hextostr(irk_hex, irk, 16))
+                return false;
+            irks.push_back(irk);
+        }
+    }
 
-        for (auto& it : fingerprints)
+    for (auto &it : fingerprints) {
+        auto it_id = it->getId();
+        if (it_id == id || it_id == config.alias) {
+            it->setName(config.name);
+            it->setId(config.alias.length() > 0 ? config.alias : config.id, ID_TYPE_ALIAS, config.name);
+            if (config.calRssi != NO_RSSI)
+                it->set1mRssi(config.calRssi);
+        } else
             it->fingerprintAddress();
     }
 

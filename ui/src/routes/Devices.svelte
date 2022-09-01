@@ -123,7 +123,7 @@ const columns = [
   classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5"
 ></SvelteTable>
 {:else}
-    <h1>Error while loading devices</h1>
+    <h1>Loading fingerprints...</h1>
 {/if}
 </main>
 
