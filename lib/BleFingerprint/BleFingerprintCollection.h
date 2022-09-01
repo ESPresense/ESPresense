@@ -15,7 +15,7 @@ struct DeviceConfig {
     String id;
     String alias;
     String name;
-    uint8_t calRssi = 127;
+    int8_t calRssi = NO_RSSI;
 };
 
 namespace BleFingerprintCollection {
@@ -35,7 +35,6 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 const std::vector<BleFingerprint *> GetCopy();
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
-void SetDisable(bool disable);
 
 extern TCallbackBool onSeen;
 extern TCallbackFingerprint onAdd;
@@ -47,7 +46,8 @@ extern TCallbackFingerprint onCountDel;
 
 extern String include, exclude, query, knownMacs, knownIrks, countIds;
 extern float skipDistance, maxDistance, absorption, countEnter, countExit;
-extern int refRssi, forgetMs, skipMs, countMs;
+extern int8_t refRssi;
+extern int forgetMs, skipMs, countMs;
 extern std::vector<DeviceConfig> deviceConfigs;
 extern std::vector<uint8_t *> irks;
 extern std::vector<BleFingerprint *> fingerprints;

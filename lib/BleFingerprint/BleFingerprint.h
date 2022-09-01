@@ -11,7 +11,7 @@
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
 
-#define NO_RSSI (-32768)
+#define NO_RSSI (-128)
 
 #define ID_TYPE_TX_POW short(1)
 
@@ -73,6 +73,8 @@ public:
 
     String getName() { return name; }
 
+    void setName(String &name) { this->name = name; }
+
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
     void setInitial(int rssi, float distance);
@@ -90,6 +92,8 @@ public:
     int getNewestRssi() const { return newest; }
 
     int get1mRssi() const;
+
+    void set1mRssi(int8_t rssi) { this->calRssi = rssi; }
 
     NimBLEAddress const getAddress() { return address; }
 
@@ -127,7 +131,8 @@ private:
     NimBLEAddress address;
     String id, name, disc;
     short int idType = NO_ID_TYPE;
-    int rssi = -100, calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
+    int rssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
+    int8_t calRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
