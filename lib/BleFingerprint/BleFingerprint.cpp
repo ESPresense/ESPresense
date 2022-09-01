@@ -21,9 +21,9 @@ bool BleFingerprint::shouldHide(const String &s) {
 }
 
 bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
-
-    if ((idType < 0 || newIdType < 0) ? newIdType >= idType : newIdType <= idType) return false;
-    //Serial.printf("setId: %s %d %s\n", newId.c_str(), newIdType, newName.c_str());
+    if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
+    if (idType > 0 && newIdType <= idType) return false;
+    // Serial.printf("setId: %s %d %s OLD idType: %d\n", newId.c_str(), newIdType, newName.c_str(), idType);
 
     ignore = newIdType < 0;
     idType = newIdType;
