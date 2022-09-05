@@ -102,8 +102,8 @@ bool Command(String& command, String& pay) {
 
 bool SendOnline() {
     if (online) return true;
-    if (!pub((roomsTopic + "/pir_timeout").c_str(), 0, true, String(pirTimeout).c_str()) && pub((roomsTopic + "/radar_timeout").c_str(), 0, true, String(radarTimeout).c_str()))
-        return false;
+    if (!pub((roomsTopic + "/pir_timeout").c_str(), 0, true, String(pirTimeout).c_str())) return false;
+    if (!pub((roomsTopic + "/radar_timeout").c_str(), 0, true, String(radarTimeout).c_str())) return false;
     online = true;
     return true;
 }
