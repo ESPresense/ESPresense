@@ -111,7 +111,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
 
 void setupNetwork() {
     Serial.println("Setup network");
-    WiFi.persistent(false);
+    WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
     unsigned int connectProgress = 0;
