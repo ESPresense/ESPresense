@@ -136,9 +136,7 @@ void setupNetwork() {
     AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
-    auto allChannelScan = AsyncWiFiSettings.checkbox("all_channel_scan", true, "WiFi: Scan for all APs on all channels");
-    if (allChannelScan) WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
-    else WiFi.setScanMethod(WIFI_FAST_SCAN);
+    auto wifiTimeout = AsyncWiFiSettings.integer("wifi_timeout", 45, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
     ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
@@ -206,7 +204,7 @@ void setupNetwork() {
 
     bool success = false;
     if (ethernetType > 0) success = Network.connect(ethernetType, 20, AsyncWiFiSettings.hostname.c_str());
-    if (!success && !AsyncWiFiSettings.connect(true, 40))
+    if (!success && !AsyncWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
     GUI::Connected(true, false);
@@ -217,7 +215,6 @@ void setupNetwork() {
 #ifdef VERSION
     Serial.println("Version:      " + String(VERSION));
 #endif
-    Serial.printf("WiFi Scan:    %s (picked channel=%d bss=%s rssi=%d)\n", (allChannelScan ? "All" : "Fast"), WiFi.channel(), WiFi.BSSIDstr().c_str(), WiFi.RSSI());
     Serial.print("IP address:   ");
     Serial.println(Network.localIP());
     Serial.print("DNS address:  ");
