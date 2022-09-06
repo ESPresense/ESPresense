@@ -303,6 +303,8 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         bool changed = false;
         if (command == "restart")
             ESP.restart();
+        else if (command == "wifi-ssid" || command == "wifi-password")
+            spurt("/" + command, pay);
         else if (GUI::Command(command, pay))
             ;
         else if (Motion::Command(command, pay))
