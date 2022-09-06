@@ -5,9 +5,14 @@
 #define CHECK_FOR_UPDATES_INTERVAL 900000
 #endif
 
-// Number of ms to keep up captive portal before retrying connecting
-#ifndef CAPTIVE_PORTAL_TIMEOUT
-#define CAPTIVE_PORTAL_TIMEOUT 300000
+// Number of seconds to wait for a Station Wifi connection to be established
+#ifndef DEFAULT_WIFI_TIMEOUT
+#define DEFAULT_WIFI_TIMEOUT 120
+#endif
+
+// Number of seconds to keep up captive portal (SoftAP) before rebooting
+#ifndef DEFAULT_PORTAL_TIMEOUT
+#define DEFAULT_PORTAL_TIMEOUT 300
 #endif
 
 #define UPDATE_STARTED -255
