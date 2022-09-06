@@ -38,6 +38,7 @@
 #include "DHT.h"
 #include "HX711.h"
 #include "SHT30.h"
+#include "SHTC3.h"
 #include "SensirionSGP30.h"
 #include "TSL2561.h"
 #endif
