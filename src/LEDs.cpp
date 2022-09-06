@@ -68,7 +68,7 @@ void ConnectToWifi() {
 void SerialReport() {
 }
 
-bool SendState(LED* bulb) {
+bool sendState(LED* bulb) {
     char buffer[512];
     DynamicJsonDocument doc(512);
     auto slug = slugify(bulb->getName());
@@ -109,7 +109,7 @@ bool SendDiscovery() {
 bool SendOnline() {
     if (online) return true;
     for (auto& led : leds)
-        if (!SendState(led)) return false;
+        if (led->getControlType() > Control_Type_None && !sendState(led)) return false;
     online = true;
     return true;
 }
@@ -202,7 +202,7 @@ bool Command(String& command, String& pay) {
     if (root.containsKey("state"))
         sendNewState = sendNewState || bulb->setState(root["state"] == MQTT_STATE_ON_PAYLOAD);
 
-    if (sendNewState) SendState(bulb);
+    if (sendNewState) sendState(bulb);
     return true;
 }
 
