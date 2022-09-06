@@ -114,29 +114,12 @@ void setupNetwork() {
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
-    unsigned int connectProgress = 0;
-    AsyncWiFiSettings.onWaitLoop = [&connectProgress]() {
-        GUI::Wifi(connectProgress++);
-        SerialImprov::Loop(true);
-        return 50;
-    };
-    unsigned int portalProgress = 0;
-    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress]() {
-        GUI::Portal(portalProgress++);
-        SerialImprov::Loop(false);
-
-        if (millis() > CAPTIVE_PORTAL_TIMEOUT)
-            ESP.restart();
-
-        return 50;
-    };
-    AsyncWiFiSettings.onHttpSetup = HttpWebServer::Init;
-
 #ifdef VERSION
     AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
 #endif
     room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
-    auto wifiTimeout = AsyncWiFiSettings.integer("wifi_timeout", 45, "Seconds to wait for WiFi before captive portal (-1 = forever)");
+    auto wifiTimeout = AsyncWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
+    auto portalTimeout = 1000UL * AsyncWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE"};
     ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
@@ -200,6 +183,23 @@ void setupNetwork() {
 
 #endif
 
+    unsigned int connectProgress = 0;
+    AsyncWiFiSettings.onWaitLoop = [&connectProgress]() {
+        GUI::Wifi(connectProgress++);
+        SerialImprov::Loop(true);
+        return 50;
+    };
+    unsigned int portalProgress = 0;
+    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
+        GUI::Portal(portalProgress++);
+        SerialImprov::Loop(false);
+
+        if (millis() > portalTimeout)
+            ESP.restart();
+
+        return 50;
+    };
+    AsyncWiFiSettings.onHttpSetup = HttpWebServer::Init;
     AsyncWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
