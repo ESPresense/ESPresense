@@ -71,11 +71,19 @@
 #define DEFAULT_I2C_BUS_2_SCL 21
 #define DEFAULT_I2C_BUS 1
 #else
+#ifdef ESP32C3
+#define DEFAULT_I2C_BUS_1_SDA 19
+#define DEFAULT_I2C_BUS_1_SCL 18
+#define DEFAULT_I2C_BUS_2_SDA -1
+#define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
 #endif
 #endif
 

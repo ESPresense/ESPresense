@@ -13,7 +13,9 @@ class SinglePWM : public LED {
     bool setBrightness(uint8_t brightness) override;
 
    private:
+    void init();
     void setDuty(uint32_t value);
     bool inverted;
     int pin;
+    bool inited = false;
 };

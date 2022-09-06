@@ -5,13 +5,19 @@ SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int 
     this->pin = pin;
 }
 
-void SinglePWM::begin() {
-    ledcSetup(LED::getIndex(), 12000, 12);
+void SinglePWM::init() {
+    inited = true;
+    pinMode(pin, OUTPUT);
+    ledcSetup(LED::getIndex(), 5000, 12);
     ledcAttachPin(pin, getIndex());
+}
+
+void SinglePWM::begin() {
     setDuty(LED::getBrightness());
 }
 
 void SinglePWM::setDuty(uint32_t x) {
+    if (!inited) init();
     uint32_t duty = x >= 255 ? 4096 : (x <= 0 ? 0 : round(4096.0 * pow(10.0, 0.0055 * (x - 255.0))));
     if (inverted) duty = 4096 - duty;
     ledcWrite(LED::getIndex(), duty);
