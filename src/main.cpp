@@ -215,6 +215,7 @@ void setupNetwork() {
 #ifdef VERSION
     Serial.println("Version:      " + String(VERSION));
 #endif
+    Serial.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Serial.print("IP address:   ");
     Serial.println(Network.localIP());
     Serial.print("DNS address:  ");
