@@ -59,7 +59,7 @@ static void pirLoop() {
     int pirValue = (detected || since < (pirTimeout * 1000)) ? HIGH : LOW;
 
     if (lastPirValue == pirValue) return;
-    mqttClient.publish((roomsTopic + "/pir").c_str(), 0, true, pirValue == HIGH ? "ON" : "OFF");
+    pub((roomsTopic + "/pir").c_str(), 0, true, pirValue == HIGH ? "ON" : "OFF");
     lastPirValue = pirValue;
 }
 
@@ -71,7 +71,7 @@ static void radarLoop() {
     int radarValue = (detected || since < (radarTimeout * 1000)) ? HIGH : LOW;
 
     if (lastRadarValue == radarValue) return;
-    mqttClient.publish((roomsTopic + "/radar").c_str(), 0, true, radarValue == HIGH ? "ON" : "OFF");
+    pub((roomsTopic + "/radar").c_str(), 0, true, radarValue == HIGH ? "ON" : "OFF");
     lastRadarValue = radarValue;
 }
 
@@ -81,7 +81,7 @@ void Loop() {
     int motionValue = (lastRadarValue == HIGH || lastPirValue == HIGH) ? HIGH : LOW;
     if (lastMotionValue == motionValue) return;
     GUI::Motion(lastPirValue == HIGH, lastRadarValue == HIGH);
-    mqttClient.publish((roomsTopic + "/motion").c_str(), 0, true, motionValue == HIGH ? "ON" : "OFF");
+    pub((roomsTopic + "/motion").c_str(), 0, true, motionValue == HIGH ? "ON" : "OFF");
     lastMotionValue = motionValue;
 }
 

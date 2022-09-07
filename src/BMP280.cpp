@@ -72,8 +72,8 @@ namespace BMP280
             float temperature = bmp->readTemperature();
             float pressure = bmp->readPressure() / 100.0F;
 
-            mqttClient.publish((roomsTopic + "/bmp280_temperature").c_str(), 0, 1, String(temperature).c_str());
-            mqttClient.publish((roomsTopic + "/bmp280_pressure").c_str(), 0, 1, String(pressure).c_str());
+            pub((roomsTopic + "/bmp280_temperature").c_str(), 0, 1, String(temperature).c_str());
+            pub((roomsTopic + "/bmp280_pressure").c_str(), 0, 1, String(pressure).c_str());
 
             BMP280PreviousMillis = millis();
         }

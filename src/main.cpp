@@ -47,8 +47,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && BME280::SendDiscovery()
             && BMP180::SendDiscovery()
             && BMP280::SendDiscovery()
-            && SHT30::SendDiscovery()
-            && SHTC3::SendDiscovery()
+            && SHT::SendDiscovery()
             && TSL2561::SendDiscovery()
             && SensirionSGP30::SendDiscovery()
             && HX711::SendDiscovery()
@@ -179,8 +178,7 @@ void setupNetwork() {
     BME280::ConnectToWifi();
     BMP180::ConnectToWifi();
     BMP280::ConnectToWifi();
-    SHT30::ConnectToWifi();
-    SHTC3::ConnectToWifi();
+    SHT::ConnectToWifi();
     TSL2561::ConnectToWifi();
     SensirionSGP30::ConnectToWifi();
     HX711::ConnectToWifi();
@@ -240,8 +238,7 @@ void setupNetwork() {
     BME280::SerialReport();
     BMP180::SerialReport();
     BMP280::SerialReport();
-    SHT30::SerialReport();
-    SHTC3::SerialReport();
+    SHT::SerialReport();
     TSL2561::SerialReport();
     SensirionSGP30::SerialReport();
     HX711::SerialReport();
@@ -510,8 +507,7 @@ void setup() {
     BME280::Setup();
     BMP180::Setup();
     BMP280::Setup();
-    SHT30::Setup();
-    SHTC3::Setup();
+    SHT::Setup();
     TSL2561::Setup();
     SensirionSGP30::Setup();
     HX711::Setup();
@@ -541,8 +537,7 @@ void loop() {
     BME280::Loop();
     BMP180::Loop();
     BMP280::Loop();
-    SHT30::Loop();
-    SHTC3::Loop();
+    SHT::Loop();
     TSL2561::Loop();
     SensirionSGP30::Loop();
     HX711::Loop();

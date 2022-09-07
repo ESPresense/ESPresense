@@ -77,9 +77,9 @@ namespace BME280
             float humidity = BME280.readHumidity();
             float pressure = BME280.readPressure() / 100.0F;
 
-            mqttClient.publish((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
-            mqttClient.publish((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
-            mqttClient.publish((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+            pub((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
+            pub((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
+            pub((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
 
             bme280PreviousMillis = millis();
         }

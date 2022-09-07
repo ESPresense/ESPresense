@@ -99,7 +99,7 @@ namespace BH1750
                 if (!BH1750.saturated())
                 {
                     float lux = BH1750.getLux();
-                    mqttClient.publish((roomsTopic + "/bh1750_lux").c_str(), 0, 1, String(int(lux)).c_str());             
+                    pub((roomsTopic + "/bh1750_lux").c_str(), 0, 1, String(int(lux)).c_str());
                 }
 
                 BH1750.adjustSettings(90);
