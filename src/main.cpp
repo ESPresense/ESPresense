@@ -161,7 +161,7 @@ void setupNetwork() {
 
     GUI::ConnectToWifi();
 
-    AsyncWiFiSettings.heading("Misc <a href='https://espresense.com/configuration/settings#misc' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("GPIO Sensors <a href='https://espresense.com/configuration/settings#gpio-sensors' target='_blank'>ℹ️</a>", false);
 
     BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
@@ -497,9 +497,7 @@ void setup() {
 #endif
     GUI::Setup(false);
     Motion::Setup();
-#if MACCHINA_A0
-    pinMode(GPIO_NUM_35, INPUT);
-#endif
+    Battery::Setup();
 #ifdef SENSORS
     DHT::Setup();
     I2C::Setup();

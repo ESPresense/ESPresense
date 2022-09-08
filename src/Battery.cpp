@@ -19,6 +19,12 @@ int a0_read_batt_mv() {
 }
 #endif
 
+void Setup() {
+#if MACCHINA_A0
+    pinMode(GPIO_NUM_35, INPUT);
+#endif
+}
+
 bool SendDiscovery() {
 #ifdef MACCHINA_A0
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%") && sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging");

@@ -10,31 +10,38 @@
 #include "string_utils.h"
 
 namespace Motion {
-int lastMotionValue = -1;
+int8_t lastMotionValue = -1;
 
-int pirPin = -1;
+int8_t pirType, pirPin, pirDetected = -1;
 float pirTimeout = 0;
-int lastPirValue = -1;
+int8_t lastPirValue = -1;
 unsigned long lastPirMilli = 0;
 
-int radarPin = -1;
+int8_t radarType, radarPin, radarDetected = -1;
 float radarTimeout = 0;
-int lastRadarValue = -1;
+int8_t lastRadarValue = -1;
 unsigned long lastRadarMilli = 0;
 bool online;
 
 void Setup() {
-    if (pirPin >= 0)
-        pinMode(pirPin, INPUT_PULLUP);
-    if (radarPin >= 0)
-        pinMode(radarPin, INPUT_PULLUP);
+    std::vector<uint8_t> pinTypes = {INPUT_PULLUP, INPUT_PULLUP, INPUT_PULLDOWN, INPUT_PULLDOWN, INPUT, INPUT};
+    if (pirPin >= 0) pinMode(pirPin, pinTypes[pirType]);
+    if (radarPin >= 0) pinMode(radarPin, pinTypes[radarType]);
 }
 
 void ConnectToWifi() {
+    AsyncWiFiSettings.html("h4", "PIR:");
+    std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
+    pirType = AsyncWiFiSettings.dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
     pirPin = AsyncWiFiSettings.integer("pir_pin", -1, "PIR motion pin (-1 for disable)");
     pirTimeout = AsyncWiFiSettings.floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
+    pirDetected = pirType & 0x01 ? LOW : HIGH;
+
+    AsyncWiFiSettings.html("h4", "Radar:");
+    radarType = AsyncWiFiSettings.dropdown("radar_type", pinTypes, 0, "PIR motion pin type");
     radarPin = AsyncWiFiSettings.integer("radar_pin", -1, "Radar motion pin (-1 for disable)");
     radarTimeout = AsyncWiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
+    radarDetected = radarType & 0x01 ? LOW : HIGH;
 }
 
 void SerialReport() {
@@ -46,7 +53,7 @@ void SerialReport() {
 
 static void pirLoop() {
     if (pirPin < 0) return;
-    bool detected = digitalRead(pirPin) == HIGH;
+    bool detected = digitalRead(pirPin) == pirDetected;
     if (detected) lastPirMilli = millis();
     unsigned long since = millis() - lastPirMilli;
     int pirValue = (detected || since < (pirTimeout * 1000)) ? HIGH : LOW;
@@ -58,7 +65,7 @@ static void pirLoop() {
 
 static void radarLoop() {
     if (radarPin < 0) return;
-    bool detected = digitalRead(radarPin) == HIGH;
+    bool detected = digitalRead(radarPin) == radarDetected;
     if (detected) lastRadarMilli = millis();
     unsigned long since = millis() - lastRadarMilli;
     int radarValue = (detected || since < (radarTimeout * 1000)) ? HIGH : LOW;
