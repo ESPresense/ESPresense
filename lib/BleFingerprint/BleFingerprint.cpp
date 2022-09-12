@@ -650,7 +650,7 @@ bool BleFingerprint::shouldCount()
     bool prevCounting = counting;
     if (ignore || !countable || !hasValue)
         counting = false;
-    else if (getMsSinceFirstSeen() <= BleFingerprintCollection::countMs || getMsSinceLastSeen() > BleFingerprintCollection::countMs)
+    else if (getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
     else if (counting && output.value.position > BleFingerprintCollection::countExit)
         counting = false;
