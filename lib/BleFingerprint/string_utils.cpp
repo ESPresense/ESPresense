@@ -125,12 +125,12 @@ bool prefixExists(const String &prefixes, const String &s)
         if (space > start)
         {
             auto sub = prefixes.substring(start, space);
-            if (s.indexOf(sub) != -1) return true;
+            if (s.indexOf(sub) == 0) return true;
         }
         start = space + 1;
     }
     auto sub = prefixes.substring(start);
-    return !sub.isEmpty() && s.indexOf(sub) != -1;
+    return !sub.isEmpty() && s.indexOf(sub) == 0;
 }
 
 bool spurt(const String &fn, const String &content)
