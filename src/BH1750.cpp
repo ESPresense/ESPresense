@@ -14,11 +14,10 @@ namespace BH1750
 {
     hp_BH1750 BH1750;
     unsigned long ms_BH1750;
-    float lux_BH1750;
-    int lux_BH1750_MQTT;
     String BH1750_I2c;
     int BH1750_I2c_Bus;
     bool initialized = false;
+    int sensorInterval = 60000;
 
     void Setup()
     {
@@ -67,7 +66,6 @@ namespace BH1750
             Serial.println();
 
             // start first measure and timecount
-            lux_BH1750 = -1; // nothing to compare
             BH1750.start(BH1750_QUALITY_HIGH, 1);
             ms_BH1750 = millis();
             initialized = true;
@@ -92,42 +90,16 @@ namespace BH1750
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (!initialized) return;
+        if (!initialized || millis() - ms_BH1750 < sensorInterval) return;
 
         if (BH1750_I2c == "0x23" || BH1750_I2c == "0x5C")
         {
-            float lux;
-            int lux_mqtt;
-
             if (BH1750.hasValue())
             {
-                ms_BH1750 = millis() - ms_BH1750;
                 if (!BH1750.saturated())
                 {
-                    lux = BH1750.getLux();
-                    lux_mqtt = int(lux);
-
-                    if (lux != lux_BH1750)
-                    {
-                        lux_BH1750 = lux;
-                        // Serial.print("BH1750 (");
-                        // Serial.print(ms_BH1750);
-                        // Serial.print(" ms): ");
-                        // Serial.print(lux);
-                        // Serial.println(" lx");
-                    }
-
-                    //convert lx to integer to reduce mqtt traffic, send only if lx changed
-                    if (lux_mqtt != lux_BH1750_MQTT)
-                    {
-                        lux_BH1750_MQTT = lux_mqtt;
-                        Serial.print("BH1750 (");
-                        Serial.print(ms_BH1750);
-                        Serial.print(" ms): ");
-                        Serial.print(lux_mqtt);
-                        Serial.println(" lx");
-                        mqttClient.publish((roomsTopic + "/lux").c_str(), 0, 1, String(lux_mqtt).c_str());
-                    }
+                    float lux = BH1750.getLux();
+                    mqttClient.publish((roomsTopic + "/bh1750_lux").c_str(), 0, 1, String(int(lux)).c_str());             
                 }
 
                 BH1750.adjustSettings(90);
@@ -141,7 +113,7 @@ namespace BH1750
     {
         if (BH1750_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("Lux", EC_NONE, "illuminance", "lx");
+        return sendSensorDiscovery("BH1750 Lux", EC_NONE, "illuminance", "lx");
     }
 }
 
