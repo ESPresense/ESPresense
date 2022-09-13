@@ -77,6 +77,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
 
 #ifdef VERSION
     doc["ver"] = String(VERSION);
+# else
+    doc["ver"] = ESP.getSketchMD5();
 #endif
 
     if (!BleFingerprintCollection::countIds.isEmpty())
