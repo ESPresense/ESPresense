@@ -7,12 +7,12 @@ export default defineConfig({
   server: {
     proxy: {
       '^/json': {
-        target: 'http://192.168.128.186/',
+        target: 'http://espresense-living-room.localdomain/',
         changeOrigin: true,
         rewrite: (path) => path
       },
       '^/ws': {
-        target: 'ws://192.168.128.186/',
+        target: 'ws://espresense-living-room.localdomain/',
         changeOrigin: true,
         rewrite: (path) => path
       },
