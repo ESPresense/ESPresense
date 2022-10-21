@@ -4,7 +4,7 @@
 #include <AsyncWiFiSettings.h>
 #include <WS2812FX.h>
 
-#include "MotionSensors.h"
+#include "Motion.h"
 #include "defaults.h"
 #include "globals.h"
 #include "led/Addressable.h"

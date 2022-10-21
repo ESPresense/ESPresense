@@ -17,7 +17,7 @@
 #include "HttpReleaseUpdate.h"
 #include "HttpWebServer.h"
 #include "I2C.h"
-#include "MotionSensors.h"
+#include "Motion.h"
 #include "Network.h"
 #include "SerialImprov.h"
 #include "Updater.h"

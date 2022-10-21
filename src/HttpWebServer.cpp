@@ -6,7 +6,6 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
-#include "MotionSensors.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
