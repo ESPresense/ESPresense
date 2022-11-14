@@ -1,0 +1,43 @@
+name: Bug report
+description: Create a report to help us improve
+labels:
+  - bug
+body:
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: >-
+        A clear and concise description of what the bug is.  If it relates to
+        fingerprinting or presense please include the id you expect/monitor.
+  - type: input
+    attributes:
+      label: Version
+  - type: input
+    attributes:
+      label: Active scan enabled
+  - type: input
+    attributes:
+      label: Include filter
+  - type: input
+    attributes:
+      label: Exclude filter
+  - type: input
+    attributes:
+      label: Query filter
+  - type: input
+    attributes:
+      label: Firmware flavor
+  - type: input
+    attributes:
+      label: Device (be specific)
+  - type: textarea
+    attributes:
+      label: Logs
+      description: >-
+        If possible, copy and paste any logs from the serial monitor from the
+        time that you see the bug.
+      render: text
+  - type: textarea
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
