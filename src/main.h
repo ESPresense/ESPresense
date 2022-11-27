@@ -37,7 +37,7 @@
 #include "BMP280.h"
 #include "DHT.h"
 #include "HX711.h"
-#include "SHT30.h"
+#include "SHT.h"
 #include "SensirionSGP30.h"
 #include "TSL2561.h"
 #endif

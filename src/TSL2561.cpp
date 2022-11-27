@@ -79,7 +79,7 @@ namespace TSL2561
 
         if (event.light) {
             if (millis() - tsl2561PreviousMillis >= sensorInterval) {
-                mqttClient.publish((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
+                pub((roomsTopic + "/tsl2561_lux").c_str(), 0, 1, String(event.light).c_str());
 
                 tsl2561PreviousMillis = millis();
             }

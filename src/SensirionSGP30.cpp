@@ -61,8 +61,8 @@ void Loop() {
         float tvoc = sgp->TVOC;
 
         if (SGP30PreviousMillis > 30000) {  // First 30 seconds after boot, don't report
-            mqttClient.publish((roomsTopic + "/co2").c_str(), 0, 1, String(co2).c_str());
-            mqttClient.publish((roomsTopic + "/tvoc").c_str(), 0, 1, String(tvoc).c_str());
+            pub((roomsTopic + "/co2").c_str(), 0, 1, String(co2).c_str());
+            pub((roomsTopic + "/tvoc").c_str(), 0, 1, String(tvoc).c_str());
         }
     }
 }

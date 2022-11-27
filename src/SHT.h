@@ -2,7 +2,7 @@
 #ifdef SENSORS
 #include <ArduinoJson.h>
 
-namespace SHT30
+namespace SHT
 {
     void ConnectToWifi();
     void SerialReport();
