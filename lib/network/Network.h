@@ -22,7 +22,7 @@ public:
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
 };
 
-#define CONFIG_NUM_ETH_TYPES        9
+#define CONFIG_NUM_ETH_TYPES        10
 
 #define CONFIG_ETH_NONE             0
 #define CONFIG_ETH_WT32_ETH01       1
@@ -33,6 +33,7 @@ public:
 #define CONFIG_ETH_ESP32DEUX        6
 #define CONFIG_ETH_ETHERNET_KIT_VE  7
 #define CONFIG_ETH_LILYGO           8
+#define CONFIG_ETH_GLINET_S10_V21   9
 
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
