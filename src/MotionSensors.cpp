@@ -38,7 +38,7 @@ void ConnectToWifi() {
     pirDetected = pirType & 0x01 ? LOW : HIGH;
 
     AsyncWiFiSettings.html("h4", "Radar:");
-    radarType = AsyncWiFiSettings.dropdown("radar_type", pinTypes, 0, "PIR motion pin type");
+    radarType = AsyncWiFiSettings.dropdown("radar_type", pinTypes, 0, "Radar motion pin type");
     radarPin = AsyncWiFiSettings.integer("radar_pin", -1, "Radar motion pin (-1 for disable)");
     radarTimeout = AsyncWiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
     radarDetected = radarType & 0x01 ? LOW : HIGH;
