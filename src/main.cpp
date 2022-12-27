@@ -43,6 +43,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && Battery::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
+            && AHTX0::SendDiscovery()
             && BH1750::SendDiscovery()
             && BME280::SendDiscovery()
             && BMP180::SendDiscovery()
@@ -174,6 +175,7 @@ void setupNetwork() {
 
     AsyncWiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
 
+    AHTX0::ConnectToWifi();
     BH1750::ConnectToWifi();
     BME280::ConnectToWifi();
     BMP180::ConnectToWifi();
@@ -234,6 +236,7 @@ void setupNetwork() {
     I2C::SerialReport();
 #ifdef SENSORS
     DHT::SerialReport();
+    AHTX0::SerialReport();
     BH1750::SerialReport();
     BME280::SerialReport();
     BMP180::SerialReport();
@@ -503,6 +506,7 @@ void setup() {
 #ifdef SENSORS
     DHT::Setup();
     I2C::Setup();
+    AHTX0::Setup();
     BH1750::Setup();
     BME280::Setup();
     BMP180::Setup();
@@ -533,6 +537,7 @@ void loop() {
 #endif
 #ifdef SENSORS
     DHT::Loop();
+    AHTX0::Loop();
     BH1750::Loop();
     BME280::Loop();
     BMP180::Loop();
