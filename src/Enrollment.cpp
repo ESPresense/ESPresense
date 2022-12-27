@@ -195,7 +195,7 @@ void Setup() {
     oBeacon.setProximityUUID(espresenseUUID);
     oBeacon.setMajor(major);
     oBeacon.setMinor(minor);
-    oBeacon.setSignalPower(-59);
+    oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
     oAdvertisementData->setManufacturerData(oBeacon.getData());

@@ -71,7 +71,7 @@ int BleFingerprint::get1mRssi() const
     if (calRssi != NO_RSSI) return calRssi;
     if (mdRssi != NO_RSSI) return mdRssi;
     if (asRssi != NO_RSSI) return asRssi;
-    return BleFingerprintCollection::refRssi + DEFAULT_TX;
+    return BleFingerprintCollection::rxRefRssi + DEFAULT_TX;
 }
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)}
@@ -202,7 +202,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
 #endif
         if (uuid == roomAssistantService)
         {
-            asRssi = BleFingerprintCollection::refRssi + RM_ASST_TX;
+            asRssi = BleFingerprintCollection::rxRefRssi + RM_ASST_TX;
             if (!rmAsst)
             {
                 rmAsst = true;
@@ -217,56 +217,56 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
         }
         else if (uuid == tileUUID)
         {
-            asRssi = BleFingerprintCollection::refRssi + TILE_TX;
+            asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
             setId("tile:" + getMac(), ID_TYPE_TILE);
             return;
         }
         else if (uuid == sonosUUID)
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
             return;
         }
         else if (uuid == itagUUID)
         {
-            asRssi = BleFingerprintCollection::refRssi + (haveTxPower ? txPower : ITAG_TX);
+            asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : ITAG_TX);
             setId("itag:" + getMac(), ID_TYPE_ITAG);
             return;
         }
         else if (uuid == trackrUUID)
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("trackr:" + getMac(), ID_TYPE_TRACKR);
             return;
         }
         else if (uuid == tractiveUUID)
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("tractive:" + getMac(), ID_TYPE_TRACTIVE);
             return;
         }
         else if (uuid == vanmoofUUID)
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("vanmoof:" + getMac(), ID_TYPE_VANMOOF);
             return;
         }
         else if (uuid == (meaterService))
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("meater:" + getMac(), ID_TYPE_MEATER);
             return;
         }
         else if (uuid == nutUUID)
         {
-            asRssi = BleFingerprintCollection::refRssi + (haveTxPower ? txPower : NUT_TX);
+            asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : NUT_TX);
             setId("nut:" + getMac(), ID_TYPE_NUT);
             return;
         }
     }
 
     String fingerprint = "ad:";
-    asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+    asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
     for (int i = 0; i < serviceAdvCount; i++)
     {
         std::string sid = advertisedDevice->getServiceUUID(i).toString();
@@ -278,7 +278,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
 
 void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower)
 {
-    asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+    asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
     String fingerprint = "";
     for (int i = 0; i < serviceDataCount; i++)
     {
@@ -290,18 +290,18 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 
         if (uuid == exposureUUID)
         { // found COVID-19 exposure tracker
-            calRssi = BleFingerprintCollection::refRssi + EXPOSURE_TX;
+            calRssi = BleFingerprintCollection::rxRefRssi + EXPOSURE_TX;
             setId("exp:" + String(strServiceData.length()), ID_TYPE_EXPOSURE);
             //disc = hexStr(strServiceData).c_str();
         }
         else if (uuid == smartTagUUID)
         { // found Samsung smart tag
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("smarttag:" + String(strServiceData.length()), ID_TYPE_SMARTTAG);
         }
         else if (uuid == miThermUUID)
         {
-            asRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             if (strServiceData.length() == 15)
             { // custom format
                 auto serviceData = strServiceData.c_str();
@@ -397,45 +397,45 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_APPLE_NEARBY);
                 disc = hexStr(strManufacturerData.substr(4)).c_str();
-                mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
+                mdRssi = BleFingerprintCollection::rxRefRssi + APPLE_TX;
             }
             else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x12 && strManufacturerData.length() == 29)
             {
                 String pid = "apple:findmy";
                 setId(pid, ID_TYPE_FINDMY);
-                mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
+                mdRssi = BleFingerprintCollection::rxRefRssi + APPLE_TX;
             }
             else if (strManufacturerData.length() >= 4)
             {
                 String pid = Sprintf("apple:%02x%02x:%u", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_MISC_APPLE);
-                mdRssi = BleFingerprintCollection::refRssi + APPLE_TX;
+                mdRssi = BleFingerprintCollection::rxRefRssi + APPLE_TX;
             }
         }
         else if (manuf == "05a7") // Sonos
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
         }
         else if (manuf == "0087") // Garmin
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("garmin:" + getMac(), ID_TYPE_GARMIN);
         }
         else if (manuf == "4d4b") // iTrack
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("iTrack:" + getMac(), ID_TYPE_ITRACK);
         }
         else if (manuf == "0157") // Mi-fit
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("mifit:" + getMac(), ID_TYPE_MIFIT);
         }
         else if (manuf == "0006" && strManufacturerData.length() == 29) // microsoft
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId(Sprintf("msft:cdp:%02x%02x", strManufacturerData[3], strManufacturerData[5]), ID_TYPE_MSFT);
             /*disc = Sprintf("%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
                            strManufacturerData[6], strManufacturerData[7], strManufacturerData[8], strManufacturerData[9], strManufacturerData[10],
@@ -446,7 +446,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         }
         else if (manuf == "0075") // samsung
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("samsung:" + getMac(), ID_TYPE_MISC);
         }
         else if (manuf == "beac" && strManufacturerData.length() == 26)
@@ -458,7 +458,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         }
         else if (manuf != "0000")
         {
-            mdRssi = haveTxPower ? BleFingerprintCollection::refRssi + txPower : NO_RSSI;
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             String fingerprint = Sprintf("md:%s:%u", manuf.c_str(), strManufacturerData.length());
             if (haveTxPower) fingerprint = fingerprint + String(-txPower);
             setId(fingerprint, ID_TYPE_MD);
