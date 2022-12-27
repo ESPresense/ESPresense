@@ -25,4 +25,4 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
 
 bool sendDeleteDiscovery(const String &domain, const String &name);
 
-bool alias(const String &alias, const String &id);
+bool alias(const String &alias, const String &id, const String &name);
