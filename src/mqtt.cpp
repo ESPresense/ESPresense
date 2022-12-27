@@ -212,11 +212,12 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
-bool alias(const String &alias, const String &id)
+bool alias(const String &alias, const String &id, const String &name = "")
 {
     Serial.printf("Setting %s->%s\n", alias.c_str(), id.c_str());
     doc.clear();
     doc["id"] = id;
+    doc["name"] = name;
     serializeJson(doc, buffer);
     String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
     return pub(settingsTopic.c_str(), 0, true, buffer);
