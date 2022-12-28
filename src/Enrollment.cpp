@@ -209,8 +209,6 @@ bool Loop() {
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
             pAdvertising->reset();
-            pAdvertising->setMaxInterval(6400);
-            pAdvertising->setMinInterval(3200);
             pAdvertising->setScanResponse(true);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
@@ -218,8 +216,9 @@ bool Loop() {
             Serial.println("Advertising HRM");
         } else {
             alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room);
-
             pAdvertising->reset();
+            pAdvertising->setMaxInterval(6400);
+            pAdvertising->setMinInterval(3200);
             pAdvertising->setScanResponse(false);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
