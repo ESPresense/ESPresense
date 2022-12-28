@@ -209,6 +209,8 @@ bool Loop() {
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
             pAdvertising->reset();
+            pAdvertising->setMaxInterval(6400);
+            pAdvertising->setMinInterval(3200);
             pAdvertising->setScanResponse(true);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
