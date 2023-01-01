@@ -54,7 +54,18 @@
 			"utility": "cpp",
 			"typeinfo": "cpp",
 			"string": "cpp",
-			"set": "cpp"
+			"set": "cpp",
+			"atomic": "cpp",
+			"bitset": "cpp",
+			"condition_variable": "cpp",
+			"csignal": "cpp",
+			"map": "cpp",
+			"memory_resource": "cpp",
+			"optional": "cpp",
+			"random": "cpp",
+			"regex": "cpp",
+			"string_view": "cpp",
+			"thread": "cpp"
 		}
 	}
 }

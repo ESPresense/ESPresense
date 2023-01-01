@@ -39,6 +39,7 @@
 #define ID_TYPE_ITAG short(125)
 #define ID_TYPE_ITRACK short(127)
 #define ID_TYPE_NUT short(128)
+#define ID_TYPE_FLORA short(129)
 #define ID_TYPE_TRACKR short(130)
 #define ID_TYPE_TILE short(135)
 #define ID_TYPE_MEATER short(140)
