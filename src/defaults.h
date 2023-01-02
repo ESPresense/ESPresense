@@ -38,7 +38,7 @@
 // Replace with your MQTT Broker password
 #define DEFAULT_MQTT_PASSWORD ""
 
-#define DEFAULT_HA_DISCOVERY_TOPIC "homeassistant"
+#define DEFAULT_HA_DISCOVERY_PREFIX "homeassistant"
 
 // Maximum distance (in meters) to report. Devices that are calculated to be further than this distance in meters will not be reported
 #define DEFAULT_MAX_DISTANCE 16
