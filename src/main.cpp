@@ -135,6 +135,7 @@ void setupNetwork() {
     publishTele = AsyncWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = AsyncWiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+    homeAssistantDiscoveryTopic = AsyncWiFiSettings.string("discovery_topic", DEFAULT_DISCOVERY_TOPIC, "Home Assistant discovery topic");
 
     AsyncWiFiSettings.heading("Updating <a href='https://espresense.com/configuration/settings#updating' target='_blank'>ℹ️</a>", false);
     Updater::ConnectToWifi();
