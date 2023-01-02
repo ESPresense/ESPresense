@@ -132,7 +132,7 @@ void setupNetwork() {
     mqttUser = AsyncWiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = AsyncWiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
     discovery = AsyncWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
-    homeAssistantDiscoveryTopic = AsyncWiFiSettings.string("discovery_topic", DEFAULT_DISCOVERY_TOPIC, "Home Assistant discovery topic");
+    homeAssistantDiscoveryTopic = AsyncWiFiSettings.string("discovery_topic", DEFAULT_HA_DISCOVERY_TOPIC, "Home Assistant discovery topic");
     publishTele = AsyncWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishRooms = AsyncWiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
