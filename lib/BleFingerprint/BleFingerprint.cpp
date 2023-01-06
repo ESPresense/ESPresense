@@ -61,10 +61,11 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 }
 
 int BleFingerprint::get1mRssi() const {
-    if (calRssi != NO_RSSI) return calRssi;
-    if (mdRssi != NO_RSSI) return mdRssi;
-    if (asRssi != NO_RSSI) return asRssi;
-    return BleFingerprintCollection::rxRefRssi + DEFAULT_TX;
+    if (calRssi != NO_RSSI) return calRssi + BleFingerprintCollection::rxAdjRssi;
+    if (bcnRssi != NO_RSSI) return bcnRssi + BleFingerprintCollection::rxAdjRssi;
+    if (mdRssi != NO_RSSI) return mdRssi + BleFingerprintCollection::rxAdjRssi;
+    if (asRssi != NO_RSSI) return asRssi + BleFingerprintCollection::rxAdjRssi;
+    return BleFingerprintCollection::rxRefRssi + DEFAULT_TX + BleFingerprintCollection::rxAdjRssi;
 }
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)} {
@@ -253,7 +254,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 #endif
 
         if (uuid == exposureUUID) {  // found COVID-19 exposure tracker
-            calRssi = BleFingerprintCollection::rxRefRssi + EXPOSURE_TX;
+            bcnRssi = BleFingerprintCollection::rxRefRssi + EXPOSURE_TX;
             setId("exp:" + String(strServiceData.length()), ID_TYPE_EXPOSURE);
             // disc = hexStr(strServiceData).c_str();
         } else if (uuid == smartTagUUID) {  // found Samsung smart tag
@@ -288,7 +289,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
                 oBeacon.setData(strServiceData);
-                calRssi = EDDYSTONE_ADD_1M + oBeacon.getPower();
+                bcnRssi = EDDYSTONE_ADD_1M + oBeacon.getPower();
             } else if (strServiceData[0] == EDDYSTONE_TLM_FRAME_TYPE) {
                 BLEEddystoneTLM oBeacon = BLEEddystoneTLM();
                 oBeacon.setData(strServiceData);
@@ -300,7 +301,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
             } else if (strServiceData[0] == 0x00) {
                 auto serviceData = strServiceData.c_str();
                 int8_t rss0m = *(int8_t *)(serviceData + 1);
-                calRssi = EDDYSTONE_ADD_1M + rss0m;
+                bcnRssi = EDDYSTONE_ADD_1M + rss0m;
                 setId(Sprintf("eddy:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x-%02x%02x%02x%02x%02x%02x",
                               strServiceData[2], strServiceData[3], strServiceData[4], strServiceData[5], strServiceData[6],
                               strServiceData[6], strServiceData[7], strServiceData[8], strServiceData[9], strServiceData[10],
@@ -331,8 +332,8 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15) {
                 BLEBeacon oBeacon = BLEBeacon();
                 oBeacon.setData(strManufacturerData);
-                calRssi = oBeacon.getSignalPower();
-                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), calRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
+                bcnRssi = oBeacon.getSignalPower();
+                setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
             } else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10) {
                 String pid = Sprintf("apple:%02x%02x:%u", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 if (haveTxPower) pid += -txPower;
@@ -383,7 +384,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             BLEBeacon oBeacon = BLEBeacon();
             oBeacon.setData(strManufacturerData.substr(0, 25));
             setId(Sprintf("altBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
-            calRssi = oBeacon.getSignalPower();
+            bcnRssi = oBeacon.getSignalPower();
         } else if (manuf != "0000") {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             String fingerprint = Sprintf("md:%s:%u", manuf.c_str(), strManufacturerData.length());

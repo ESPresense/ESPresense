@@ -7,6 +7,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             pub(statusTopic.c_str(), 0, true, "online")
             && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str())
             && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str())
+            && pub((roomsTopic + "/tx_ref_rssi").c_str(), 0, true, String(BleFingerprintCollection::txRefRssi).c_str())
+            && pub((roomsTopic + "/rx_adj_rssi").c_str(), 0, true, String(BleFingerprintCollection::rxAdjRssi).c_str())
             && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str())
             && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str())
             && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str())
@@ -159,6 +161,7 @@ void setupNetwork() {
 
     AsyncWiFiSettings.heading("Calibration <a href='https://espresense.com/configuration/settings#calibration' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::rxRefRssi = AsyncWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
+    BleFingerprintCollection::rxAdjRssi = AsyncWiFiSettings.integer("rx_adj_rssi", -100, 100, 0, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
     BleFingerprintCollection::absorption = AsyncWiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     BleFingerprintCollection::forgetMs = AsyncWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     BleFingerprintCollection::txRefRssi = AsyncWiFiSettings.integer("tx_ref_rssi", -100, 100, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
