@@ -46,7 +46,7 @@ extern TCallbackFingerprint onCountDel;
 
 extern String include, exclude, query, knownMacs, knownIrks, countIds;
 extern float skipDistance, maxDistance, absorption, countEnter, countExit;
-extern int8_t rxRefRssi, txRefRssi;
+extern int8_t rxRefRssi, rxAdjRssi, txRefRssi;
 extern int forgetMs, skipMs, countMs;
 extern std::vector<DeviceConfig> deviceConfigs;
 extern std::vector<uint8_t *> irks;
