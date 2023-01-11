@@ -43,6 +43,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && Motion::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
+	    && PWS::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
             && AHTX0::SendDiscovery()
@@ -173,6 +174,7 @@ void setupNetwork() {
     BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
 
+    PWS::ConnectToWifi();
 #ifdef SENSORS
     DHT::ConnectToWifi();
     I2C::ConnectToWifi();
@@ -238,6 +240,7 @@ void setupNetwork() {
     GUI::SerialReport();
     Motion::SerialReport();
     I2C::SerialReport();
+    PWS::SerialReport();
 #ifdef SENSORS
     DHT::SerialReport();
     AHTX0::SerialReport();
@@ -505,6 +508,7 @@ void setup() {
     GUI::Setup(false);
     Motion::Setup();
     Battery::Setup();
+    PWS::Setup();
 #ifdef SENSORS
     DHT::Setup();
     I2C::Setup();
@@ -534,6 +538,7 @@ void loop() {
     Motion::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
+    PWS::Loop();
 #if M5STICK
     AXP192::Loop();
 #endif

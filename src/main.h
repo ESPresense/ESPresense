@@ -28,6 +28,7 @@
 #ifdef M5STICK
 #include <AXP192.h>
 #endif
+#include "PWS.h"
 #ifdef SENSORS
 #include <Wire.h>
 
