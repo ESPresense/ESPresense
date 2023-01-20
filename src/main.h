@@ -40,6 +40,7 @@
 #include "HX711.h"
 #include "SHT.h"
 #include "SensirionSGP30.h"
+#include "SensirionSCD4X.h"
 #include "TSL2561.h"
 #endif
 

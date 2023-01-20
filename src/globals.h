@@ -4,6 +4,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <BleFingerprintCollection.h>
+#include <SensirionI2CScd4x.h>
 
 /*----------------------------------------------------------------------------
 globals.h

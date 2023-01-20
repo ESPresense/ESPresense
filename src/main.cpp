@@ -53,6 +53,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && SHT::SendDiscovery()
             && TSL2561::SendDiscovery()
             && SensirionSGP30::SendDiscovery()
+            && SensirionSCD4X::SendDiscovery()
             && HX711::SendDiscovery()
 #endif
         ) {
@@ -187,6 +188,7 @@ void setupNetwork() {
     SHT::ConnectToWifi();
     TSL2561::ConnectToWifi();
     SensirionSGP30::ConnectToWifi();
+    SensirionSCD4X::ConnectToWifi();
     HX711::ConnectToWifi();
 
 #endif
@@ -248,6 +250,7 @@ void setupNetwork() {
     SHT::SerialReport();
     TSL2561::SerialReport();
     SensirionSGP30::SerialReport();
+    SensirionSCD4X::SerialReport();
     HX711::SerialReport();
 
 #endif
@@ -516,6 +519,7 @@ void setup() {
     SHT::Setup();
     TSL2561::Setup();
     SensirionSGP30::Setup();
+    SensirionSCD4X::Setup();
     HX711::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
@@ -547,6 +551,7 @@ void loop() {
     SHT::Loop();
     TSL2561::Loop();
     SensirionSGP30::Loop();
+    SensirionSCD4X::Loop();
     HX711::Loop();
 #endif
 }
