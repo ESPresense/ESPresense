@@ -38,8 +38,9 @@ void SendTelemetry() {
     auto mv = a0_read_batt_mv();
     doc["mV"] = mv;
     bool charging = (mv > 13200);
+    bool dead = (mv < 11883);
     unsigned int soc = round(-13275.04 + 2.049731 * mv - (0.00007847975 * mv) * mv);
-    doc["batt"] = charging ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc));
+    doc["batt"] = dead ? 0 : (charging ? (unsigned int)100 : max((unsigned int)0, min((unsigned int)100, soc)));
     doc["charging"] = charging ? "ON" : "OFF";
 #endif
 }
