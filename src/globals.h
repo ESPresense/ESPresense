@@ -30,6 +30,7 @@ Setup variable declaration macros.
 _DECL char buffer[2048];
 _DECL String room, id, statusTopic, teleTopic, roomsTopic, setTopic, configTopic;
 _DECL AsyncMqttClient mqttClient;
+_DECL String homeAssistantDiscoveryPrefix;
 _DECL DynamicJsonDocument doc _INIT_N(((2048)));
 _DECL String localIp;
 _DECL AsyncWebSocket ws _INIT_N((("/ws")));
