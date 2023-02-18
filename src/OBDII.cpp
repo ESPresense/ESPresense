@@ -3,6 +3,8 @@
 #include <Arduino.h>
 
 #ifdef MACCHINA_A0
+#include <defaults.h>
+#include <OBD2.h>
 #include <esp32_can.h>
 #endif
 
@@ -47,7 +49,7 @@ bool SendDiscovery() {
 
 void SendTelemetry() {
 #if MACCHINA_A0
-    auto mv = a0_read_batt_mv();
+    auto mv = 0;
     doc["mV"] = mv;
     bool charging = (mv > 13200);
     bool dead = (mv < 11883);

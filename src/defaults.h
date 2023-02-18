@@ -122,6 +122,8 @@
 
 #elif defined MACCHINA_A0
 
+#define CAN CAN1
+
 #define DEFAULT_LED1_TYPE 2
 #define DEFAULT_LED1_PIN 2
 #define DEFAULT_LED1_CNTRL Control_Type_Status
