@@ -9,6 +9,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 
+#if MACCHINA_A0
+#include <OBDII.h>
+#endif
 #include "Battery.h"
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
