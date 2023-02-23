@@ -63,8 +63,8 @@ namespace AHTX0
             sensors_event_t humidity, temp;
             aht->getEvent(&humidity, &temp);
 
-            pub((roomsTopic + "/AHTX0_temperature").c_str(), 0, 1, String(temp.temperature).c_str());
-            pub((roomsTopic + "/AHTX0_humidity").c_str(), 0, 1, String(humidity.relative_humidity).c_str());
+            pub((roomsTopic + "/ahtx0_temperature").c_str(), 0, 1, String(temp.temperature).c_str());
+            pub((roomsTopic + "/ahtx0_humidity").c_str(), 0, 1, String(humidity.relative_humidity).c_str());
 
             AHTX0PreviousMillis = millis();
         }
