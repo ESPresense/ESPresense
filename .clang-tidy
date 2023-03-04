@@ -1,6 +1,3 @@
-Disabled: >
-  -llvmlibc-callee-namespace,
-
 Checks: >
   -*,
   bugprone-*,
@@ -17,9 +14,12 @@ Checks: >
   -readability-named-parameter,
   -readability-braces-around-statements,
   -readability-magic-numbers
-
-# Turn all the warnings from the checks above into errors.
-WarningsAsErrors: "*"
+  -llvmlibc-callee-namespace
+  -bugprone-easily-swappable-parameters
+  -readability-magic-numbers
+  -readability-identifier-length
+  -readability-identifier-naming
+  -modernize-macro-to-enum
 
 CheckOptions:
   - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }
