@@ -16,7 +16,6 @@
 #include "GUI.h"
 #include "HttpReleaseUpdate.h"
 #include "HttpWebServer.h"
-#include "I2C.h"
 #include "Motion.h"
 #include "Network.h"
 #include "SerialImprov.h"
@@ -31,6 +30,7 @@
 #ifdef SENSORS
 #include <Wire.h>
 
+#include "I2C.h"
 #include "BH1750.h"
 #include "BME280.h"
 #include "BMP180.h"

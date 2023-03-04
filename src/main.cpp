@@ -238,8 +238,8 @@ void setupNetwork() {
     Serial.printf("Init Free Mem:%d\n", ESP.getFreeHeap());
     GUI::SerialReport();
     Motion::SerialReport();
-    I2C::SerialReport();
 #ifdef SENSORS
+    I2C::SerialReport();
     DHT::SerialReport();
     AHTX0::SerialReport();
     BH1750::SerialReport();
