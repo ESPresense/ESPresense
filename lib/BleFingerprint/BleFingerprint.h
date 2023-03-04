@@ -21,6 +21,7 @@
 #define ID_TYPE_MISC_APPLE short(-5)
 
 #define ID_TYPE_RAND_MAC short(1)
+#define ID_TYPE_RAND_STATIC_MAC short(5)
 #define ID_TYPE_AD short(10)
 #define ID_TYPE_SD short(15)
 #define ID_TYPE_MD short(20)

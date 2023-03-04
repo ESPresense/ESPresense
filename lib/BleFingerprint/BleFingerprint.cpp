@@ -161,14 +161,20 @@ void BleFingerprint::fingerprintAddress() {
             case BLE_ADDR_PUBLIC_ID:
                 setId(mac, ID_TYPE_PUBLIC_MAC);
                 break;
-            case BLE_ADDR_RANDOM: {
+            case BLE_ADDR_RANDOM:
+            case BLE_ADDR_RANDOM_ID: {
                 auto naddress = address.getNative();
-                auto irks = BleFingerprintCollection::irks;
-                auto it = std::find_if(irks.begin(), irks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
-                if (it != irks.end()) {
-                    auto irk_hex = hexStr(*it, 16);
-                    setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
-                    break;
+                if ((naddress[5] & 0xc0) == 0xc0)
+                    setId(mac, ID_TYPE_RAND_STATIC_MAC);
+                else {
+                    auto irks = BleFingerprintCollection::irks;
+                    auto it = std::find_if(irks.begin(), irks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
+                    if (it != irks.end()) {
+                        auto irk_hex = hexStr(*it, 16);
+                        setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
+                        break;
+                    }
+                    setId(mac, ID_TYPE_RAND_MAC);
                 }
                 break;
             }
