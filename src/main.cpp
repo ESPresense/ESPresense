@@ -80,7 +80,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
 
 #ifdef VERSION
     doc["ver"] = String(VERSION);
-# else
+#else
     doc["ver"] = ESP.getSketchMD5();
 #endif
 
@@ -104,7 +104,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
     doc["maxAllocHeap"] = maxHeap;
     doc["memFrag"] = 100 - (maxHeap * 100.0 / freeHeap);
     doc["scanHighWater"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
-    doc["reportHighWater"] = uxTaskGetStackHighWaterMark(reportTaskHandle);
 
     serializeJson(doc, buffer);
     if (pub(teleTopic.c_str(), 0, false, buffer)) return true;
@@ -402,40 +401,41 @@ unsigned int totalFpSeen = 0;
 unsigned int totalFpQueried = 0;
 unsigned int totalFpReported = 0;
 
-void reportTask(void *parameter) {
+void reportSetup() {
     connectToMqtt();
+}
 
-    while (true) {
-        while (!mqttClient.connected())
-            delay(1000);
+void reportLoop() {
+    if (!mqttClient.connected()) {
+        return;
+    }
 
-        yield();
-        auto copy = BleFingerprintCollection::GetCopy();
+    yield();
+    auto copy = BleFingerprintCollection::GetCopy();
 
-        unsigned int count = 0;
-        for (auto &i : copy)
-            if (i->shouldCount())
-                count++;
+    unsigned int count = 0;
+    for (auto &i : copy)
+        if (i->shouldCount())
+            count++;
 
-        GUI::Count(count);
+    GUI::Count(count);
 
-        yield();
-        sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
-        yield();
+    yield();
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
+    yield();
 
-        auto reported = 0;
-        for (auto &f : copy) {
-            auto seen = f->getSeenCount();
-            if (seen) {
-                totalSeen += seen;
-                totalFpSeen++;
-            }
-            if (reportDevice(f)) {
-                totalFpReported++;
-                reported++;
-            }
-            yield();
+    auto reported = 0;
+    for (auto &f : copy) {
+        auto seen = f->getSeenCount();
+        if (seen) {
+            totalSeen += seen;
+            totalFpSeen++;
         }
+        if (reportDevice(f)) {
+            totalFpReported++;
+            reported++;
+        }
+        yield();
     }
 }
 
@@ -520,10 +520,11 @@ void setup() {
     HX711::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
-    xTaskCreatePinnedToCore(reportTask, "reportTask", REPORT_TASK_STACK_SIZE, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
+    reportSetup();
 }
 
 void loop() {
+    reportLoop();
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
