@@ -74,7 +74,7 @@ bool Addressable::setEffect(const char* p_effect) {
     return true;
 }
 
-const bool Addressable::hasRgbw()
+bool Addressable::hasRgbw()
 {
     return this->type==1 || this->type==3;
 }

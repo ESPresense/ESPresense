@@ -170,6 +170,7 @@ void BleFingerprint::fingerprintAddress() {
                     setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
                     break;
                 }
+                break;
             }
             default:
                 setId(mac, ID_TYPE_RAND_MAC);

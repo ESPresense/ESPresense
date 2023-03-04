@@ -149,8 +149,6 @@ void Init(AsyncWebServer *server) {
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
         "/json", [](AsyncWebServerRequest *request, JsonVariant &json) {
-            bool verboseResponse = false;
-            bool isConfig = false;
             {
                 DynamicJsonDocument doc(1500);
                 DeserializationError error =

@@ -12,10 +12,10 @@
 
 namespace I2C {
 bool I2CDebug = false;
-int I2C_Bus_1_SDA;
-int I2C_Bus_1_SCL;
-int I2C_Bus_2_SDA;
-int I2C_Bus_2_SCL;
+int I2C_Bus_1_SDA = 0;
+int I2C_Bus_1_SCL = 0;
+int I2C_Bus_2_SDA = 0;
+int I2C_Bus_2_SCL = 0;
 
 void ConnectToWifi() {
     AsyncWiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);

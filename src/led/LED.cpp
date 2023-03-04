@@ -5,7 +5,7 @@
 void LED::begin() {}
 void LED::service() {}
 
-const uint8_t LED::getBrightness(void) {
+uint8_t LED::getBrightness(void) {
     return brightness;
 }
 
@@ -43,7 +43,7 @@ bool LED::setWhite(uint8_t p_white) {
     return false;
 }
 
-const uint16_t LED::getColorTemperature(void) {
+uint16_t LED::getColorTemperature(void) {
     return 0;
 }
 
@@ -57,7 +57,7 @@ bool LED::setEffect(const char *p_effect) {
     return false;
 }
 
-const bool LED::getState(void) {
+bool LED::getState(void) {
     return state;
 }
 

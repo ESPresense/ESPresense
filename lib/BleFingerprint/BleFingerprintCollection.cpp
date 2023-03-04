@@ -56,7 +56,6 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 }
 
 bool addOrReplace(DeviceConfig config) {
-    bool found = false;
     for (auto &it : deviceConfigs) {
         if (it.id == config.id) {
             it = config;

@@ -14,8 +14,8 @@ class Addressable : public LED {
     bool setBrightness(uint8_t brightness) override;
     bool setState(bool p_state) override;
     bool setEffect(const char* p_effect) override;
-    const bool hasRgb() override { return true; }
-    const bool hasRgbw() override;
+    bool hasRgb() override { return true; }
+    bool hasRgbw() override;
 
    private:
     WS2812FX* ws2812fx = NULL;

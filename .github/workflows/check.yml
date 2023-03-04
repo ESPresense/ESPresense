@@ -1,0 +1,37 @@
+name: check
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - v*
+  pull_request:
+  release:
+    types: [published]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+        pio platform update
+        pio run -t clean
+    - name: Run PlatformIO
+      run: pio check -e esp32 -e esp32c3 -e esp32-verbose -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0

@@ -23,7 +23,7 @@ class LED {
     virtual void begin();
     virtual void service();
 
-    const virtual uint8_t getBrightness(void);
+    virtual uint8_t getBrightness(void);
     virtual bool setBrightness(uint8_t brightness);
 
     const virtual Color getColor(void);
@@ -32,21 +32,21 @@ class LED {
 
     virtual bool setWhite(uint8_t white);
 
-    const virtual uint16_t getColorTemperature(void);
+    virtual uint16_t getColorTemperature(void);
     virtual bool setColorTemperature(uint16_t colorTemperature);
 
     virtual bool setEffect(const char* effect);
 
-    const virtual bool getState(void);
+    virtual bool getState(void);
     virtual bool setState(bool state);
 
-    const uint8_t getIndex() { return index; }
-    const ControlType getControlType() { return controlType; }
+    uint8_t getIndex() { return index; }
+    ControlType getControlType() { return controlType; }
     const String getId();
     const String getName();
 
-    virtual const bool hasRgb() { return false; }
-    virtual const bool hasRgbw() { return false; }
+    virtual bool hasRgb() { return false; }
+    virtual bool hasRgbw() { return false; }
 
    private:
     ControlType controlType;
