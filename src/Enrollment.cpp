@@ -215,7 +215,6 @@ bool Loop() {
             pAdvertising->start();
             Serial.println("Advertising HRM");
         } else {
-            alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room);
             pAdvertising->reset();
             pAdvertising->setMaxInterval(3200);
             pAdvertising->setMinInterval(1600);
@@ -273,6 +272,8 @@ bool Command(String &command, String &pay) {
 }
 
 bool SendDiscovery() {
-    return sendButtonDiscovery("Enroll", EC_CONFIG);
+    return
+        alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
+        sendButtonDiscovery("Enroll", EC_CONFIG);
 }
 }  // namespace Enrollment
