@@ -111,6 +111,7 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                     }
 
                     if (_rebootOnUpdate) {
+                        Serial.println("Update complete, rebooting...");
                         ESP.restart();
                     }
                 } else {
