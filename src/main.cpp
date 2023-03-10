@@ -223,7 +223,7 @@ void setupNetwork() {
 #ifdef VERSION
     Serial.println("Version:      " + String(VERSION));
 #endif
-    Serial.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Serial.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Serial.print("IP address:   ");
     Serial.println(Network.localIP());
     Serial.print("DNS address:  ");
@@ -232,9 +232,9 @@ void setupNetwork() {
     Serial.println(Network.getHostname());
     Serial.print("Room:         ");
     Serial.println(room);
-    Serial.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
-    Serial.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
-    Serial.printf("Init Free Mem:%d\n", ESP.getFreeHeap());
+    Serial.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
+    Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
+    Serial.printf("Init Free Mem:%d\r\n", ESP.getFreeHeap());
     GUI::SerialReport();
     Motion::SerialReport();
 #ifdef SENSORS
@@ -283,7 +283,7 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     GUI::Connected(true, false);
-    Serial.printf("Disconnected from MQTT; reason %d\n", (int)reason);
+    Serial.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
 }
@@ -298,13 +298,13 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.lastIndexOf("/", configPos - 1);
         if (idPos < 0) goto skip;
         auto id = top.substring(idPos + 1, configPos);
-        Serial.printf("%d MQTT  | Config %s: %s\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        Serial.printf("%d MQTT  | Config %s: %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
         auto commandPos = top.lastIndexOf("/", setPos - 1);
         if (commandPos < 0) goto skip;
         auto command = top.substring(commandPos + 1, setPos);
-        Serial.printf("%d MQTT  | Set %s: %s\n", xPortGetCoreID(), command.c_str(), pay.c_str());
+        Serial.printf("%d MQTT  | Set %s: %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
         if (command == "restart")
@@ -326,7 +326,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         if (changed) online = false;
     } else {
     skip:
-        Serial.printf("%d MQTT  | Unknown: %s: %s\n", xPortGetCoreID(), topic, payload);
+        Serial.printf("%d MQTT  | Unknown: %s: %s\r\n", xPortGetCoreID(), topic, payload);
     }
 }
 
@@ -346,7 +346,7 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
 }
 
 void reconnect(TimerHandle_t xTimer) {
-    Serial.printf("%u Reconnect timer\n", xPortGetCoreID());
+    Serial.printf("%u Reconnect timer\r\n", xPortGetCoreID());
     if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
@@ -355,7 +355,7 @@ void reconnect(TimerHandle_t xTimer) {
     }
 
     if (!Network.isConnected()) {
-        Serial.printf("%u Reconnecting to Network...\n", xPortGetCoreID());
+        Serial.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
         if (ethernetType > 0) success = Network.connect(ethernetType, 2, AsyncWiFiSettings.hostname.c_str());
@@ -363,7 +363,7 @@ void reconnect(TimerHandle_t xTimer) {
             ESP.restart();
     }
 
-    Serial.printf("%u Reconnecting to MQTT...\n", xPortGetCoreID());
+    Serial.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
@@ -540,7 +540,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\n", freeHeap);
+        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();

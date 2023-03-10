@@ -49,14 +49,14 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     };
 
     void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc) {
-        Serial.printf("MTU updated: %u for connection ID: %u\n", MTU, desc->conn_handle);
+        Serial.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
     };
 
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
         if (!desc->sec_state.encrypted)
-            Serial.printf("Encrypt connection failed conn: %d!\n", desc->conn_handle);
+            Serial.printf("Encrypt connection failed conn: %d!\r\n", desc->conn_handle);
         else
-            Serial.printf("Encrypt connection success conn: %d!\n", desc->conn_handle);
+            Serial.printf("Encrypt connection success conn: %d!\r\n", desc->conn_handle);
     };
 };
 

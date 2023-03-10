@@ -22,7 +22,7 @@ bool BleFingerprint::shouldHide(const String &s) {
 bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
     if (idType > 0 && newIdType <= idType) return false;
-    // Serial.printf("setId: %s %d %s OLD idType: %d\n", newId.c_str(), newIdType, newName.c_str(), idType);
+    // Serial.printf("setId: %s %d %s OLD idType: %d\r\n", newId.c_str(), newIdType, newName.c_str(), idType);
 
     ignore = newIdType < 0;
     idType = newIdType;
@@ -146,7 +146,7 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
 
     if (ecb.cipher_text[15] != rpa[0] || ecb.cipher_text[14] != rpa[1] || ecb.cipher_text[13] != rpa[2]) return false;
 
-    // Serial.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
+    // Serial.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\r\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
 
     return true;
 }
@@ -189,7 +189,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     for (size_t i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm AD: %s\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
+        Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
         if (uuid == roomAssistantService) {
             asRssi = BleFingerprintCollection::rxRefRssi + RM_ASST_TX;
@@ -257,7 +257,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm SD: %s/%s\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
+        Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
 
         if (uuid == exposureUUID) {  // found COVID-19 exposure tracker
@@ -276,7 +276,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 mv = *(uint16_t *)(serviceData + 10);
                 battery = serviceData[12];
 #ifdef VERBOSE
-                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
+                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             } else if (strServiceData.length() == 13) {  // format atc1441
@@ -288,7 +288,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 battery = serviceData[9];
 
 #ifdef VERBOSE
-                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\n", temp, humidity, mv, battery, serviceData[12]);
+                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[12]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
@@ -329,7 +329,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm MD: %s\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
+    Serial.printf("Verbose | MAC: %s, ID: %-58s%ddBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2) {
         String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
@@ -507,7 +507,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query | MAC: %s, ID: %-58s%ddBm %lums\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Serial.printf("%u Query | MAC: %s, ID: %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -524,14 +524,14 @@ bool BleFingerprint::query() {
             iphone = sMdl.find("iPhone") == 0;
             if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
                 if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
-                    Serial.printf("\u001b[38;5;104m%u Name  | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
+                    Serial.printf("\u001b[38;5;104m%u Name  | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
                 }
                 success = true;
             }
 
             if (!sMdl.empty()) {
                 if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str()))) {
-                    Serial.printf("\u001b[38;5;136m%u Model | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
+                    Serial.printf("\u001b[38;5;136m%u Model | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
                 }
                 success = true;
             }
@@ -542,7 +542,7 @@ bool BleFingerprint::query() {
             std::string sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
             if (!sRmAst.empty()) {
                 if (setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST)) {
-                    Serial.printf("\u001b[38;5;129m%u RmAst | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sRmAst.c_str());
+                    Serial.printf("\u001b[38;5;129m%u RmAst | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sRmAst.c_str());
                 }
                 success = true;
             }
@@ -555,7 +555,7 @@ bool BleFingerprint::query() {
 
     qryAttempts++;
     qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-    Serial.printf("%u QryErr| MAC: %s, ID: %-58s%ddBm Try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+    Serial.printf("%u QryErr| MAC: %s, ID: %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
 
     didQuery = false;
 

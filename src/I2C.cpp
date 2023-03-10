@@ -106,7 +106,7 @@ void SerialReport() {
     }
 
     if (nDevices == 0) {
-        Serial.println("No I2C devices found\n");
+        Serial.println("No I2C devices found\r\n");
     }
 }
 }  // namespace I2C

@@ -214,7 +214,7 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
 
 bool alias(const String &alias, const String &id, const String &name = "")
 {
-    Serial.printf("Setting %s->%s\n", alias.c_str(), id.c_str());
+    Serial.printf("Setting %s->%s\r\n", alias.c_str(), id.c_str());
     doc.clear();
     doc["id"] = id;
     doc["name"] = name;

@@ -78,7 +78,7 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
 
     int code = http.GET();
     if (code <= 0) {
-        Serial.printf("HTTP error: %s\n", http.errorToString(code).c_str());
+        Serial.printf("HTTP error: %s\r\n", http.errorToString(code).c_str());
         _lastError = code;
         goto exit;
     }
@@ -94,7 +94,7 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                 }
 
                 if (len > sketchFreeSpace) {
-                    Serial.printf("FreeSketchSpace too low (%d) needed: %d\n", sketchFreeSpace, len);
+                    Serial.printf("FreeSketchSpace too low (%d) needed: %d\r\n", sketchFreeSpace, len);
                     _lastError = HTTP_UE_TOO_LESS_SPACE;
                     goto exit;
                 }
@@ -123,7 +123,7 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                 }
             } else {
                 _lastError = HTTP_UE_SERVER_NOT_REPORT_SIZE;
-                Serial.printf("Content-Length was 0 or wasn't set by Server?!\n");
+                Serial.printf("Content-Length was 0 or wasn't set by Server?!\r\n");
                 goto exit;
             }
         } break;
@@ -140,7 +140,7 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
             break;
         default:
             _lastError = HTTP_UE_SERVER_WRONG_HTTP_CODE;
-            Serial.printf("HTTP Code is (%d)\n", code);
+            Serial.printf("HTTP Code is (%d)\r\n", code);
             break;
     }
 
@@ -160,7 +160,7 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
         _lastError = Update.getError();
         Update.printError(error);
         error.trim();  // remove line ending
-        Serial.printf("Update.begin failed! (%s)\n", error.c_str());
+        Serial.printf("Update.begin failed! (%s)\r\n", error.c_str());
         return false;
     }
 
@@ -172,7 +172,7 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
         _lastError = Update.getError();
         Update.printError(error);
         error.trim();  // remove line ending
-        Serial.printf("Update.writeStream failed! (%s)\n", error.c_str());
+        Serial.printf("Update.writeStream failed! (%s)\r\n", error.c_str());
         return false;
     }
 
@@ -184,7 +184,7 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
         _lastError = Update.getError();
         Update.printError(error);
         error.trim();  // remove line ending
-        Serial.printf("Update.end failed! (%s)\n", error.c_str());
+        Serial.printf("Update.end failed! (%s)\r\n", error.c_str());
         return false;
     }
 

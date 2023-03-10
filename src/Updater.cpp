@@ -52,7 +52,7 @@ void checkForUpdates() {
         client.setInsecure();
         {
             auto url = getFirmwareUrl();
-            Serial.printf("Checking for new firmware version at '%s'\n", url.c_str());
+            Serial.printf("Checking for new firmware version at '%s'\r\n", url.c_str());
             HTTPClient http;
             if (!http.begin(client, url))
                 return;
@@ -60,12 +60,12 @@ void checkForUpdates() {
             bool isRedirect = httpCode > 300 && httpCode < 400;
             if (isRedirect) {
                 if (http.getLocation().indexOf(versionMarker) < 0) {
-                    Serial.printf("Found new version: %s\n", http.getLocation().c_str());
+                    Serial.printf("Found new version: %s\r\n", http.getLocation().c_str());
                     spurt("/update", http.getLocation());
                     foundNewVersion = true;
                 }
             } else
-                Serial.printf("Error on checking for update (sc=%d)\n", httpCode);
+                Serial.printf("Error on checking for update (sc=%d)\r\n", httpCode);
             http.end();
 
             if (foundNewVersion) {
@@ -100,11 +100,11 @@ void firmwareUpdate() {
         auto ret = httpUpdate.update(client, updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl());
         switch (ret) {
             case HTTP_UPDATE_FAILED:
-                Serial.printf("Http Update Failed (Error=%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+                Serial.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
                 break;
 
             case HTTP_UPDATE_NO_UPDATES:
-                Serial.printf("No Update!\n");
+                Serial.printf("No Update!\r\n");
                 break;
         }
     }

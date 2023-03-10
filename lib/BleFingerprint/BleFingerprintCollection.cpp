@@ -194,7 +194,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;
-        // Serial.printf("Detected mac switch for fingerprint id %s\n", found->getId().c_str());
+        // Serial.printf("Detected mac switch for fingerprint id %s\r\n", found->getId().c_str());
         created->setInitial(found->getRssi(), found->getDistance());
         if (found->getIdType() > ID_TYPE_UNIQUE)
             found->expire();

@@ -63,7 +63,7 @@ bool Addressable::setState(bool p_state) {
 }
 
 bool Addressable::setWhite(uint8_t p_white) {
-    Serial.printf("Addressable::setWhite: p_white=%d\n", p_white);
+    Serial.printf("Addressable::setWhite: p_white=%d\r\n", p_white);
     if (ws2812fx == NULL) begin();
     ws2812fx->setColor(p_white, p_white, p_white);
     return true;

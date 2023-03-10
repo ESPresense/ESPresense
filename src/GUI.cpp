@@ -53,25 +53,25 @@ void Loop() {
 
 void Added(BleFingerprint *f) {
     if (f->getIgnore()) return;
-    Serial.printf("%u New %s | MAC: %s, ID: %-58s%ddBm %s\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
+    Serial.printf("%u New %s | MAC: %s, ID: %-58s%ddBm %s\r\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
 }
 
 void Removed(BleFingerprint *f) {
     if (f->getIgnore() || !f->getAdded()) return;
-    Serial.printf("\u001b[38;5;236m%u Del   | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
+    Serial.printf("\u001b[38;5;236m%u Del   | MAC: %s, ID: %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
 }
 void Close(BleFingerprint *f) {
-    Serial.printf("\u001b[32m%u Close | MAC: %s, ID: %-58s%ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getNewestRssi());
-    Display::Status("C:%s\n", f->getId().c_str());
+    Serial.printf("\u001b[32m%u Close | MAC: %s, ID: %-58s%ddBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getNewestRssi());
+    Display::Status("C:%s\r\n", f->getId().c_str());
 }
 
 void Left(BleFingerprint *f) {
-    Serial.printf("\u001b[33m%u Left  | MAC: %s, ID: %-58s%ddBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getNewestRssi());
-    Display::Status("L:%s\n", f->getId().c_str());
+    Serial.printf("\u001b[33m%u Left  | MAC: %s, ID: %-58s%ddBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getNewestRssi());
+    Display::Status("L:%s\r\n", f->getId().c_str());
 }
 void Motion(bool pir, bool radar) {
-    Serial.printf("%u Motion| Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
-    Display::Status("Pir:%s Radar:%s\n", pir ? "yes" : "no", radar ? "yes" : "no");
+    Serial.printf("%u Motion| Pir: %s Radar: %s\r\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
+    Display::Status("Pir:%s Radar:%s\r\n", pir ? "yes" : "no", radar ? "yes" : "no");
     LEDs::Motion(pir, radar);
 }
 
@@ -82,25 +82,25 @@ void Seen(bool inprogress) {
 void Update(unsigned int percent) {
     LEDs::Update(percent);
     if (percent == UPDATE_STARTED) {
-        Serial.printf("%u Update| %s\n", xPortGetCoreID(), "started");
-        Display::Status("Update:%s\n", "started");
+        Serial.printf("%u Update| %s\r\n", xPortGetCoreID(), "started");
+        Display::Status("Update:%s\r\n", "started");
     } else if (percent == UPDATE_COMPLETE) {
-        Serial.printf("%u Update| %s\n", xPortGetCoreID(), "finished");
-        Display::Status("Update:%s\n", "finished");
+        Serial.printf("%u Update| %s\r\n", xPortGetCoreID(), "finished");
+        Display::Status("Update:%s\r\n", "finished");
     } else {
-        Serial.printf("%u Update| %d%%\n", xPortGetCoreID(), percent);
+        Serial.printf("%u Update| %d%%\r\n", xPortGetCoreID(), percent);
     }
 }
 
 void Connected(bool wifi, bool mqtt) {
-    Display::Status("Wifi:%s Mqtt:%s\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    Display::Status("Wifi:%s Mqtt:%s\r\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
 }
 
 void Counting(BleFingerprint *f, bool add) {
     if (add)
-        Serial.printf("\u001b[36m%u C# +1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Serial.printf("\u001b[36m%u C# +1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
     else
-        Serial.printf("\u001b[35m%u C# -1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Serial.printf("\u001b[35m%u C# -1 | MAC: %s, ID: %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
 void Wifi(unsigned int percent) {
