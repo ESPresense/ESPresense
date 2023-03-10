@@ -283,18 +283,14 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     GUI::Connected(true, false);
-    Serial.printf("Disconnected from MQTT; reason %d\n", reason);
+    Serial.printf("Disconnected from MQTT; reason %d\n", (int)reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
 }
 
-void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-    char new_payload[len + 1];
-    new_payload[len] = '\0';
-    strncpy(new_payload, payload, len);
-
+void onMqttMessage(const char *topic, const char *payload) {
     String top = String(topic);
-    String pay = String(new_payload);
+    String pay = String(payload);
 
     auto setPos = top.lastIndexOf("/set");
     auto configPos = top.lastIndexOf("/config");
@@ -330,7 +326,22 @@ void onMqttMessage(char *topic, char *payload, AsyncMqttClientMessageProperties 
         if (changed) online = false;
     } else {
     skip:
-        Serial.printf("%d MQTT  | Unknown: %s: %s\n", xPortGetCoreID(), topic, new_payload);
+        Serial.printf("%d MQTT  | Unknown: %s: %s\n", xPortGetCoreID(), topic, payload);
+    }
+}
+
+std::string payload_buffer_;
+void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
+    if (index == 0)
+        payload_buffer_.reserve(total);
+
+    // append new payload, may contain incomplete MQTT message
+    payload_buffer_.append(payload, len);
+
+    // MQTT fully received
+    if (len + index == total) {
+        onMqttMessage(topic, payload_buffer_.data());
+        payload_buffer_.clear();
     }
 }
 
@@ -360,7 +371,7 @@ void connectToMqtt() {
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
-    mqttClient.onMessage(onMqttMessage);
+    mqttClient.onMessage(onMqttMessageRaw);
     mqttClient.setClientId(AsyncWiFiSettings.hostname.c_str());
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
