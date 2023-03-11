@@ -36,6 +36,6 @@
   },
   "dependencies": {
     "svelte-spa-router": "^3.2.0",
-    "svelte-table": "^0.5.0"
+    "svelte-table": "^0.5.5"
   }
 }
