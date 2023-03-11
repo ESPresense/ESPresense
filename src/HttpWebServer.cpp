@@ -158,7 +158,6 @@ void Init(AsyncWebServer *server) {
                     request->send(400, "application/json", F("{\"error\":9}"));
                     return;
                 }
-                const String &url = request->url();
             }
             request->send(200, "application/json", F("{\"success\":true}"));
         });
