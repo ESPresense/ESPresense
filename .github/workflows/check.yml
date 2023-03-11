@@ -34,4 +34,4 @@ jobs:
         pio platform update
         pio run -t clean
     - name: Run PlatformIO
-      run: pio check -e esp32 -e esp32c3 -e esp32-verbose -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0
+      run: pio run -e esp32 -e esp32c3 -e esp32s3 -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0

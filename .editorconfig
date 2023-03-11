@@ -2,8 +2,10 @@
 end_of_line = lf
 insert_final_newline = true
 max_line_length = 999
-
-# 4 spaces indentation
-[*.ino]
 indent_style = space
 indent_size = 4
+trim_trailing_whitespace = true
+
+[*.ini]
+indent_style = space
+indent_size = 2

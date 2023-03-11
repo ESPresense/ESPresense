@@ -27,12 +27,12 @@ jobs:
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
     - name: Set up Python
       uses: actions/setup-python@v4
-    - name: Install PlatformIO
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install --upgrade platformio
-        pio platform update
-        pio run -t clean
+        pip install wheel
+        pip install -U platformio
     - name: Setup github_head_sha
       run: echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
       if: ${{ github.event_name == 'pull_request' }}
@@ -43,28 +43,19 @@ jobs:
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
     - name: Run PlatformIO
-      run: pio run -e esp32 -e esp32c3 -e esp32-verbose -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0
+      run: pio run -e esp32 -e esp32c3 -e esp32s3 -e esp32-verbose -e esp32c3-verbose -e esp32s3-verbose -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0
     - name: Rename firmware
       run: |
         cp .pio/build/esp32/firmware.bin esp32.bin
         cp .pio/build/esp32c3/firmware.bin esp32c3.bin
+        cp .pio/build/esp32s3/firmware.bin esp32s3.bin
         cp .pio/build/esp32-verbose/firmware.bin esp32-verbose.bin
+        cp .pio/build/esp32c3-verbose/firmware.bin esp32c3-verbose.bin
+        cp .pio/build/esp32s3-verbose/firmware.bin esp32s3-verbose.bin
         cp .pio/build/m5stickc/firmware.bin m5stickc.bin
         cp .pio/build/m5stickc-plus/firmware.bin m5stickc-plus.bin
         cp .pio/build/m5atom/firmware.bin m5atom.bin
         cp .pio/build/macchina-a0/firmware.bin macchina-a0.bin
-
-        #Deprecated
-        cp .pio/build/m5atom/firmware.bin m5atom-matrix.bin
-        cp .pio/build/m5atom/firmware.bin m5atom-matrix-sensors.bin
-        cp .pio/build/esp32/firmware.bin adafruit-huzzah32.bin
-        cp .pio/build/esp32/firmware.bin adafruit-huzzah32-sensors.bin
-
-        #Deprecated Sensors
-        cp .pio/build/esp32/firmware.bin esp32-sensors.bin
-        cp .pio/build/esp32-verbose/firmware.bin esp32-verbose-sensors.bin
-        cp .pio/build/m5stickc/firmware.bin m5stickc-sensors.bin
-        cp .pio/build/m5stickc-plus/firmware.bin m5stickc-plus-sensors.bin
     - name: Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/v')
