@@ -234,7 +234,6 @@ void setupNetwork() {
     Serial.println(room);
     Serial.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
     Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
-    Serial.printf("Init Free Mem:%d\r\n", ESP.getFreeHeap());
     GUI::SerialReport();
     Motion::SerialReport();
 #ifdef SENSORS
@@ -261,7 +260,6 @@ void setupNetwork() {
     Serial.println(BleFingerprintCollection::knownMacs);
     Serial.print("Count Ids:    ");
     Serial.println(BleFingerprintCollection::countIds);
-    Serial.println();
 
     localIp = Network.localIP().toString();
     id = slugify(room);
@@ -495,6 +493,12 @@ void setup() {
     Serial.begin(115200);
 #endif
     Serial.setDebugOutput(true);
+#ifdef VERBOSE
+    esp_log_level_set("*", ESP_LOG_DEBUG);
+#else
+    esp_log_level_set("*", ESP_LOG_ERROR);
+#endif
+    Serial.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
 
 #if M5STICK
     AXP192::Setup();
@@ -502,12 +506,6 @@ void setup() {
 
     GUI::Setup(true);
     BleFingerprintCollection::Setup();
-
-#ifdef VERBOSE
-    esp_log_level_set("*", ESP_LOG_DEBUG);
-#else
-    esp_log_level_set("*", ESP_LOG_ERROR);
-#endif
     SPIFFS.begin(true);
     setupNetwork();
     Updater::Setup();
@@ -532,6 +530,8 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
+    Serial.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Serial.println();
 }
 
 void loop() {
