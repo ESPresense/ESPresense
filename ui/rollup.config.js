@@ -1,7 +1,7 @@
 import svelte from 'rollup-plugin-svelte';
 import image from '@rollup/plugin-image';
 import resolve from '@rollup/plugin-node-resolve';
-import { terser } from "rollup-plugin-terser";
+import terser from "@rollup/plugin-terser";
 import postcss from 'rollup-plugin-postcss'
 import htmlTemplate from 'rollup-plugin-generate-html-template';
 import { readFile, writeFile } from 'fs';
