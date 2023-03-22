@@ -296,13 +296,13 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.lastIndexOf("/", configPos - 1);
         if (idPos < 0) goto skip;
         auto id = top.substring(idPos + 1, configPos);
-        Serial.printf("%d MQTT  | Config %s: %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        Serial.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
         auto commandPos = top.lastIndexOf("/", setPos - 1);
         if (commandPos < 0) goto skip;
         auto command = top.substring(commandPos + 1, setPos);
-        Serial.printf("%d MQTT  | Set %s: %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
+        Serial.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
         if (command == "restart")
@@ -324,7 +324,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         if (changed) online = false;
     } else {
     skip:
-        Serial.printf("%d MQTT  | Unknown: %s: %s\r\n", xPortGetCoreID(), topic, payload);
+        Serial.printf("%d Unknown| %s to %s\r\n", xPortGetCoreID(), topic, payload);
     }
 }
 
