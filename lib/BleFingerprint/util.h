@@ -35,11 +35,3 @@ const BLEUUID modelChar(uint16_t(0x2A24));
 const BLEUUID fwRevChar(uint16_t(0x2A26));
 const BLEUUID hwRevChar(uint16_t(0x2A27));
 const BLEUUID manufChar(uint16_t(0x2A29));
-
-static int median_of_3(int a, int b, int c) {
-    int the_max = max(max(a, b), c);
-    int the_min = min(min(a, b), c);
-    // unnecessarily clever code
-    int the_median = the_max ^ the_min ^ a ^ b ^ c;
-    return (the_median);
-}

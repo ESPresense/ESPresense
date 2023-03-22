@@ -18,7 +18,7 @@ void commonDiscovery()
 {
     doc.clear();
     auto identifiers = doc["dev"].createNestedArray("ids");
-    identifiers.add(Sprintf("espresense_%06lx", CHIPID));
+    identifiers.add(Sprintf("espresense_%06x", CHIPID));
     auto connections = doc["dev"].createNestedArray("cns");
     auto mac = connections.createNestedArray();
     mac.add("mac");
@@ -40,7 +40,7 @@ bool sendConnectivityDiscovery()
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = "ESPresense " + room;
-    doc["uniq_id"] = Sprintf("espresense_%06lx_connectivity", CHIPID);
+    doc["uniq_id"] = Sprintf("espresense_%06x_connectivity", CHIPID);
     doc["json_attr_t"] = "~/telemetry";
     doc["stat_t"] = "~/status";
     doc["dev_cla"] = "connectivity";
@@ -48,7 +48,7 @@ bool sendConnectivityDiscovery()
     doc["pl_off"] = "offline";
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06lx/connectivity/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID);
+    const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/connectivity/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID);
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -59,7 +59,7 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
     doc["value_template"] = temp;
@@ -67,7 +67,7 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -78,7 +78,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
     doc["value_template"] = temp;
@@ -87,7 +87,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/sensor/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(),CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(),CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -98,7 +98,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
@@ -107,7 +107,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     doc["frc_upd"] = frcUpdate;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/sensor/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -118,14 +118,14 @@ bool sendBinarySensorDiscovery(const String &name, const String &entityCategory,
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -136,14 +136,14 @@ bool sendButtonDiscovery(const String &name, const String &entityCategory)
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/button/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/button/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -154,14 +154,14 @@ bool sendSwitchDiscovery(const String &name, const String &entityCategory)
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/switch/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    String discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer, 0);
 }
 
@@ -172,7 +172,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
@@ -180,7 +180,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/number/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/number/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
@@ -191,7 +191,7 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = Sprintf("ESPresense %s %s", room.c_str(), name.c_str());
-    doc["uniq_id"] = Sprintf("espresense_%06lx_%s", CHIPID, slug.c_str());
+    doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["schema"] = "json";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
@@ -201,14 +201,14 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
 
     serializeJson(doc, buffer);
     serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/light/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/light/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, buffer);
 }
 
 bool sendDeleteDiscovery(const String &domain, const String &name)
 {
     auto slug = slugify(name);
-    String discoveryTopic = Sprintf("%s/%s/espresense_%06lx/%s/config", homeAssistantDiscoveryPrefix.c_str(), domain, CHIPID, slug.c_str());
+    const String discoveryTopic = Sprintf("%s/%s/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), domain.c_str(), CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
@@ -219,6 +219,6 @@ bool alias(const String &alias, const String &id, const String &name = "")
     doc["id"] = id;
     doc["name"] = name;
     serializeJson(doc, buffer);
-    String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
+    const String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
     return pub(settingsTopic.c_str(), 0, true, buffer);
 }

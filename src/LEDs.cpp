@@ -172,7 +172,7 @@ bool Command(String& command, String& pay) {
     DynamicJsonDocument root(pay.length() + 100);
     auto err = deserializeJson(root, pay);
     if (err) {
-        Serial.printf("LEDs::Command: deserializeJson: 0x%x\r\n", err);
+        Serial.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
         return true;
     }
     bool sendNewState = false;

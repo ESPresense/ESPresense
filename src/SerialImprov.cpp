@@ -212,9 +212,9 @@ void sendImprovInfoResponse() {
     out[21] = 'e';
     uint8_t lengthSum = 23;
 #ifdef VERSION
-    uint8_t vlen = sprintf_P(out + lengthSum, VERSION, 1);
+    uint8_t vlen = sprintf_P(out + lengthSum, VERSION);
 #else
-    uint8_t vlen = sprintf_P(out + lengthSum, "Dev", 1);
+    uint8_t vlen = sprintf_P(out + lengthSum, "Dev");
 #endif
     out[22] = vlen;
     lengthSum += vlen;
@@ -223,7 +223,6 @@ void sendImprovInfoResponse() {
     strcpy(out + lengthSum + 1, "esp32");
     out[lengthSum] = hlen;
     lengthSum += hlen + 1;
-    bool useMdnsName = false;
     strcpy(out + lengthSum + 1, room.c_str());
     uint8_t nlen = room.length();
     out[lengthSum] = nlen;
