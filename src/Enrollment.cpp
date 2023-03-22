@@ -213,7 +213,7 @@ bool Loop() {
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
             pAdvertising->start();
-            Serial.println("Advertising HRM");
+            Serial.printf("%u Advert| HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
             pAdvertising->setMaxInterval(3200);
@@ -222,7 +222,7 @@ bool Loop() {
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
             pAdvertising->start();
-            Serial.println("Advertising iBeacon");
+            Serial.printf("%u Advert| iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
         if (enrolling) enrollingEndMillis = millis() + 120000;
