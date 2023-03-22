@@ -422,16 +422,22 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     oldest = recent;
     recent = newest;
     newest = advertisedDevice->getRSSI();
-    rssi = median_of_3(oldest, recent, newest);
 
-    float ratio = (get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption);
+    auto the_min = min(min(oldest, recent), newest);
+    auto the_max = max(max(oldest, recent), newest);
+    auto the_median = the_max ^ the_min ^ oldest ^ recent ^ newest;
+    auto range = the_max - the_min;
+
+    rssi = the_median;
+
+    const auto ratio = float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption);
     raw = pow(10, ratio);
     if (filter()) hasValue = true;
 
-    if (!close && newest > CLOSE_RSSI) {
+    if (!close && the_min > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
         BleFingerprintCollection::Close(this, true);
         close = true;
-    } else if (close && newest < LEFT_RSSI) {
+    } else if (close && the_max < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
         BleFingerprintCollection::Close(this, false);
         close = false;
     }
@@ -463,6 +469,7 @@ void BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("distance")] = serialized(String(output.value.position, 2));
     (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
     (*doc)[F("mac")] = SMacf(address);
+    if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("interval")] = (millis() - firstSeenMillis) / seenCount;
 

@@ -1,10 +1,11 @@
 <script>
-  import { devices, events } from '../stores';
+  import { devices } from '../stores';
   import SvelteTable from "svelte-table";
 
 var filterSelections = {  };
 var sortBy = "distance"
 var sortOrder = 1;
+var selectedRowIds = []
 const columns = [
   {
     key: "distance",
@@ -106,18 +107,24 @@ const columns = [
     headerClass: "text-left px-6 py-3",
   },
 ];
+function classNameRow(event) { event.close ? "bg-yellow-100 row" : "row"; }
 </script>
 
 <main>
 
 {#if $devices?.devices != null }
-<SvelteTable columns="{columns}" rows="{$devices.devices}"
+<SvelteTable columns="{columns}" rows="{$devices.devices}" rowKey="mac"
   bind:filterSelections="{filterSelections}"
-  bind:sortBy = "{sortBy}"
-  bind:sortOrder = "{sortOrder}"
+  bind:sortBy="{sortBy}"
+  bind:sortOrder="{sortOrder}"
+  selectSingle="{true}"
+  selectOnClick="{true}"
+  selected={selectedRowIds}
   classNameTable="min-w-full divide-y divide-gray-200 table-auto"
   classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase"
   classNameTbody="bg-white divide-y divide-gray-200"
+  classNameRow="{classNameRow}"
+  classNameRowSelected="bg-blue-100"
   classNameCell="px-3 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900"
   classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5"
   classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5"
