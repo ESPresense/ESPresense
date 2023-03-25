@@ -86,7 +86,7 @@ bool Config(String &id, String &json) {
         auto p = id.indexOf("irk:");
         if (p == 0) {
             auto irk_hex = id.substring(4);
-            uint8_t *irk = new uint8_t[16];
+            auto *irk = new uint8_t[16];
             if (!hextostr(irk_hex, irk, 16))
                 return false;
             irks.push_back(irk);
@@ -111,7 +111,7 @@ void ConnectToWifi() {
     std::istringstream iss(knownIrks.c_str());
     std::string irk_hex;
     while (iss >> irk_hex) {
-        uint8_t *irk = new uint8_t[16];
+        auto *irk = new uint8_t[16];
         if (!hextostr(irk_hex.c_str(), irk, 16))
             continue;
         irks.push_back(irk);
@@ -126,13 +126,13 @@ bool Command(String &command, String &pay) {
         absorption = pay.toFloat();
         spurt("/absorption", pay);
     } else if (command == "rx_adj_rssi") {
-        rxAdjRssi = pay.toFloat();
+        rxAdjRssi = (int8_t)pay.toInt();
         spurt("/rx_adj_rssi", pay);
     } else if (command == "ref_rssi") {
-        rxRefRssi = pay.toFloat();
+        rxRefRssi = (int8_t)pay.toInt();
         spurt("/ref_rssi", pay);
     } else if (command == "tx_ref_rssi") {
-        rxRefRssi = pay.toFloat();
+        txRefRssi = (int8_t)pay.toInt();
         spurt("/tx_ref_rssi", pay);
     } else if (command == "query") {
         query = pay;
