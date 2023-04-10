@@ -21,7 +21,7 @@
 #include "Switch.h"
 #include "Button.h"
 #include "Network.h"
-#include "SerialImprov.h"
+#include <ImprovWiFiLibrary.h>
 #include "Updater.h"
 #include "defaults.h"
 #include "globals.h"
@@ -47,6 +47,7 @@
 #include "DS18B20.h"
 #endif
 
+ImprovWiFi improvSerial(&Serial);
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle;
 
