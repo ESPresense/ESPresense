@@ -17,6 +17,7 @@
 #include "HttpReleaseUpdate.h"
 #include "HttpWebServer.h"
 #include "Motion.h"
+#include "Switch.h"
 #include "Network.h"
 #include "SerialImprov.h"
 #include "Updater.h"

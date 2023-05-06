@@ -76,6 +76,12 @@ void Motion(bool pir, bool radar) {
     LEDs::Motion(pir, radar);
 }
 
+void Switch(bool switchone, bool switchtwo) {
+    Serial.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switchone ? "yes" : "no", switchtwo ? "yes" : "no");
+    Display::Status("Switch One:%s Switch Two:%s\r\n", switchone ? "yes" : "no", switchtwo ? "yes" : "no");
+}
+
+
 void Seen(bool inprogress) {
     LEDs::Seen(inprogress);
 }

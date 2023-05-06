@@ -41,6 +41,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
             && Motion::SendDiscovery()
+            && Switch::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
 #ifdef SENSORS
@@ -172,6 +173,7 @@ void setupNetwork() {
 
     BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
+    Switch::ConnectToWifi();
 
 #ifdef SENSORS
     DHT::ConnectToWifi();
@@ -236,6 +238,7 @@ void setupNetwork() {
     Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Motion::SerialReport();
+    Switch::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
     DHT::SerialReport();
@@ -514,6 +517,7 @@ void setup() {
 #endif
     GUI::Setup(false);
     Motion::Setup();
+    Switch::Setup();
     Battery::Setup();
 #ifdef SENSORS
     DHT::Setup();
@@ -545,6 +549,7 @@ void loop() {
     }
     GUI::Loop();
     Motion::Loop();
+    Switch::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
 #if M5STICK
