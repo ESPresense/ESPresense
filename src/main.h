@@ -18,6 +18,7 @@
 #include "HttpWebServer.h"
 #include "Motion.h"
 #include "Switch.h"
+#include "Button.h"
 #include "Network.h"
 #include "SerialImprov.h"
 #include "Updater.h"

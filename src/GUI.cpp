@@ -76,11 +76,15 @@ void Motion(bool pir, bool radar) {
     LEDs::Motion(pir, radar);
 }
 
-void Switch(bool switchone, bool switchtwo) {
-    Serial.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switchone ? "yes" : "no", switchtwo ? "yes" : "no");
-    Display::Status("Switch One:%s Switch Two:%s\r\n", switchone ? "yes" : "no", switchtwo ? "yes" : "no");
+void Switch(bool switch_1, bool switch_2) {
+    Serial.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
+    Display::Status("Switch One:%s Switch Two:%s\r\n", switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
 }
 
+void Button(bool button_1, bool button_2) {
+    Serial.printf("%u Button | Button One: %s Button Two: %s\r\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+    Display::Status("Button One:%s Button Two:%s\r\n", button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+}
 
 void Seen(bool inprogress) {
     LEDs::Seen(inprogress);
