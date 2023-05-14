@@ -10,6 +10,8 @@
 #define DEFAULT_WIFI_TIMEOUT 120
 #endif
 
+#define DEFAULT_MDNS false
+
 // Number of seconds to keep up captive portal (SoftAP) before rebooting
 #ifndef DEFAULT_PORTAL_TIMEOUT
 #define DEFAULT_PORTAL_TIMEOUT 300
