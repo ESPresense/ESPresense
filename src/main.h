@@ -43,6 +43,8 @@
 #include "TSL2561.h"
 #endif
 
+#include <ESPmDNS.h>
+
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle;
 
@@ -54,6 +56,7 @@ bool online = false;         // Have we successfully sent status=online
 bool sentDiscovery = false;  // Have we successfully sent discovery
 
 int ethernetType = 0;
+bool mDNS;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 
