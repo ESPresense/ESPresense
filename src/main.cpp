@@ -17,6 +17,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
             && Updater::SendOnline()
             && Motion::SendOnline()
+            && Switch::SendOnline()
+            && Button::SendOnline()
             && GUI::SendOnline()
         ) {
             online = true;
@@ -41,6 +43,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
             && Motion::SendDiscovery()
+            && Switch::SendDiscovery()
+            && Button::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
 #ifdef SENSORS
@@ -173,6 +177,8 @@ void setupNetwork() {
 
     BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
+    Switch::ConnectToWifi();
+    Button::ConnectToWifi();
 
 #ifdef SENSORS
     DHT::ConnectToWifi();
@@ -238,6 +244,8 @@ void setupNetwork() {
     Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Motion::SerialReport();
+    Switch::SerialReport();
+    Button::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
     DHT::SerialReport();
@@ -323,6 +331,10 @@ void onMqttMessage(const char *topic, const char *payload) {
         else if (Updater::Command(command, pay))
             changed = true;
         else if (Motion::Command(command, pay))
+            changed = true;
+        else if (Switch::Command(command, pay))
+            changed = true;
+        else if (Button::Command(command, pay))
             changed = true;
         if (changed) online = false;
     } else {
@@ -517,6 +529,8 @@ void setup() {
 #endif
     GUI::Setup(false);
     Motion::Setup();
+    Switch::Setup();
+    Button::Setup();
     Battery::Setup();
 #ifdef SENSORS
     DHT::Setup();
@@ -549,6 +563,8 @@ void loop() {
     }
     GUI::Loop();
     Motion::Loop();
+    Switch::Loop();
+    Button::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
 #if M5STICK
