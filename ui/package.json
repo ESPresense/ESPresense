@@ -22,7 +22,7 @@
     "mime": "^3.0.0",
     "node-zopfli": "^2.1.4",
     "pascal-case": "^3.1.2",
-    "postcss": "^8.4.23",
+    "postcss": "^8.4.24",
     "postcss-load-config": "^4.0.1",
     "rollup": "^3.23.0",
     "rollup-plugin-css-only": "^4.3.0",
