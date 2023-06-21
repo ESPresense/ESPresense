@@ -29,6 +29,8 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 
     DeviceConfig dc;
     if (BleFingerprintCollection::FindDeviceConfig(newId, dc)) {
+        if (dc.calRssi != NO_RSSI)
+            calRssi = dc.calRssi;
         if (!dc.alias.isEmpty())
             return setId(dc.alias, ID_TYPE_ALIAS, dc.name);
         if (!dc.name.isEmpty())
