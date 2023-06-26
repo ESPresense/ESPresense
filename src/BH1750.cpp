@@ -17,7 +17,7 @@ namespace BH1750
     String BH1750_I2c;
     int BH1750_I2c_Bus;
     bool initialized = false;
-    int sensorInterval = 60000;
+    int sensorInterval = 5000;
 
     void Setup()
     {
