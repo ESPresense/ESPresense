@@ -516,7 +516,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query  | %s | %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+//    Serial.printf("%u Query  | %s | %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -533,14 +533,14 @@ bool BleFingerprint::query() {
             iphone = sMdl.find("iPhone") == 0;
             if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
                 if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
-                    Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
+                //    Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
                 }
                 success = true;
             }
 
             if (!sMdl.empty()) {
                 if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str()))) {
-                    Serial.printf("\u001b[38;5;136m%u Model  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
+               //     Serial.printf("\u001b[38;5;136m%u Model  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
                 }
                 success = true;
             }
@@ -551,7 +551,7 @@ bool BleFingerprint::query() {
             std::string sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
             if (!sRmAst.empty()) {
                 if (setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST)) {
-                    Serial.printf("\u001b[38;5;129m%u RmAst  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sRmAst.c_str());
+                 //   Serial.printf("\u001b[38;5;129m%u RmAst  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sRmAst.c_str());
                 }
                 success = true;
             }
@@ -564,7 +564,7 @@ bool BleFingerprint::query() {
 
     qryAttempts++;
     qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-    Serial.printf("%u QryErr | %s | %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+  //  Serial.printf("%u QryErr | %s | %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
 
     didQuery = false;
 
