@@ -159,7 +159,7 @@ bool Command(String &command, String &pay) {
 
 void CleanupOldFingerprints() {
     auto now = millis();
-    if (now - lastCleanup < 5000) return;
+    if (now - lastCleanup < 3000) return;
     lastCleanup = now;
     auto it = fingerprints.begin();
     bool any = false;
