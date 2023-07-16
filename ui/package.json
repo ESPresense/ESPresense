@@ -21,18 +21,18 @@
     "cssnano": "^6.0.1",
     "mime": "^3.0.0",
     "pascal-case": "^3.1.2",
-    "postcss": "^8.4.24",
+    "postcss": "^8.4.26",
     "postcss-load-config": "^4.0.1",
-    "rollup": "^3.26.1",
+    "rollup": "^3.26.2",
     "rollup-plugin-css-only": "^4.3.0",
     "rollup-plugin-generate-html-template": "^1.7.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-svelte": "^7.1.6",
-    "svelte": "^4.0.4",
+    "svelte": "^4.0.5",
     "svelte-preprocess": "^5.0.4",
     "svelte-spa-router": "^3.3.0",
     "svelte-table": "^0.6.1",
-    "tailwindcss": "^3.3.2",
-    "vite": "^4.3.9"
+    "tailwindcss": "^3.3.3",
+    "vite": "^4.4.4"
   }
 }
