@@ -127,7 +127,7 @@
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
 
-#define MAX_BRIGHTNESS 100
+#define MAX_BRIGHTNESS 20
 
 #else  // DevKit / generic
 

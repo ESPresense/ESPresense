@@ -47,6 +47,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && Button::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
+            && CAN::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
             && AHTX0::SendDiscovery()
@@ -532,6 +533,7 @@ void setup() {
     Switch::Setup();
     Button::Setup();
     Battery::Setup();
+    CAN::Setup();
 #ifdef SENSORS
     DHT::Setup();
     I2C::Setup();
