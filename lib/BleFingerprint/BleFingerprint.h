@@ -10,6 +10,8 @@
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
+#include<MqttQuery/QueryReport.h>
+#include<MqttQuery/Sensors/MiFlora/MiFloraReport.h>
 
 #define NO_RSSI (-128)
 
@@ -113,6 +115,9 @@ public:
 
     bool getRmAsst() const { return rmAsst; };
 
+    bool hasReport()  {return mqttReport != nullptr;};
+    QueryReport* getReport() {return mqttReport;};
+
     unsigned int getSeenCount()
     {
         auto sc = seenCount - lastSeenCount;
@@ -147,6 +152,7 @@ private:
     OneEuroFilter<float, unsigned long> oneEuro;
     DifferentialFilter<float, unsigned long> diffFilter;
 
+    QueryReport* mqttReport;
     bool filter();
 
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);

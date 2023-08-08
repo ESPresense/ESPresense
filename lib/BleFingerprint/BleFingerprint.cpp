@@ -1,6 +1,7 @@
 #include "BleFingerprint.h"
 
 #include "BleFingerprintCollection.h"
+#include <../miflora/MiFloraHandler.h>
 #include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
@@ -76,7 +77,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     addressType = advertisedDevice->getAddressType();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
     seenCount = 1;
-
+    mqttReport = nullptr;
     fingerprintAddress();
 }
 
@@ -528,6 +529,25 @@ bool BleFingerprint::query() {
     if (pClient->connect(address)) {
         bool iphone = true;
         if (allowQuery) {
+
+
+            if (getId().startsWith("flora")) {
+                qryDelayMillis = MiFloraHandler::getInterval();
+                didQuery = false;
+
+                if(mqttReport == nullptr){
+                    mqttReport = new MiFloraReport(&address);
+                }
+
+                if (!MiFloraHandler::requestData(pClient, this, mqttReport)){
+                    qryDelayMillis = 60000;
+                    Serial.printf("%u QryErr| MAC: %s, ID: %-58s%ddBm Try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+                }
+
+                NimBLEDevice::deleteClient(pClient);
+                return true;
+            }
+
             std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
             std::string sName = pClient->getValue(genericAccessService, nameChar);
             iphone = sMdl.find("iPhone") == 0;

@@ -9,6 +9,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 
+#include <MiFloraHandler.h>
 #include "Battery.h"
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
