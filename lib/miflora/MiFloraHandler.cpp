@@ -157,7 +157,7 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint,QueryReport*
 }
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.heading("MiFlora <a href='https://github.com/0Flush0/ESPresenseFlora' target='_blank'>ℹ️</a> ", false);
+    AsyncWiFiSettings.heading("MiFlora <a href='https://github.com/vrachieru/xiaomi-flower-care-api' target='_blank'>ℹ️</a> ", false);
     interval = AsyncWiFiSettings.integer("poll_interval", 0, 240, 10, "Poll interval in minutes") * 60 * 1000;
 }
 int getInterval() {
