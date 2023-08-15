@@ -10,8 +10,8 @@
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
-#include<MqttQuery/QueryReport.h>
-#include<MqttQuery/Sensors/MiFlora/MiFloraReport.h>
+#include "QueryReport.h"
+#include "Sensors/MiFloraReport.h"
 
 #define NO_RSSI (-128)
 

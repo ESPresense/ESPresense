@@ -516,7 +516,7 @@ bool BleFingerprint::query() {
     NimBLEDevice::getScan()->stop();
     if (pClient->connect(address)) {
         if (allowQuery) {
-            if (getId().startsWith("flora")) {
+            if (id.startsWith("flora:")) {
                 qryDelayMillis = MiFloraHandler::getInterval();
                 didQuery = false;
 
