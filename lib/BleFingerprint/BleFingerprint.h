@@ -113,8 +113,6 @@ public:
 
     bool getAllowQuery() const { return allowQuery; };
 
-    bool getRmAsst() const { return rmAsst; };
-
     bool hasReport()  {return mqttReport != nullptr;};
     QueryReport* getReport() {return mqttReport;};
 
@@ -134,7 +132,7 @@ private:
 
     static bool shouldHide(const String &s);
 
-    bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, didQuery = false, rmAsst = false, hidden = false, connectable = false, countable = false, counting = false;
+    bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, didQuery = false, hidden = false, connectable = false, countable = false, counting = false;
     NimBLEAddress address;
     String id, name, disc;
     short int idType = NO_ID_TYPE;

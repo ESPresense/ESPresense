@@ -45,9 +45,9 @@ void ConnectToWifi() {
 }
 
 void SerialReport() {
-    Serial.print("Switch One Sensor:   ");
+    Serial.print("Switch One: ");
     Serial.println(switch_1Pin >= 0 ? "enabled" : "disabled");
-    Serial.print("Switch Two Sensor: ");
+    Serial.print("Switch Two: ");
     Serial.println(switch_2Pin >= 0 ? "enabled" : "disabled");
 }
 

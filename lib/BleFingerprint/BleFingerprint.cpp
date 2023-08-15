@@ -101,20 +101,20 @@ void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
 }
 
 int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data) {
-    mbedtls_aes_context s = {0};
-    mbedtls_aes_init(&s);
+    mbedtls_aes_context ctx;
+    mbedtls_aes_init(&ctx);
 
-    if (mbedtls_aes_setkey_enc(&s, key, 128) != 0) {
-        mbedtls_aes_free(&s);
+    if (mbedtls_aes_setkey_enc(&ctx, key, 128) != 0) {
+        mbedtls_aes_free(&ctx);
         return BLE_HS_EUNKNOWN;
     }
 
-    if (mbedtls_aes_crypt_ecb(&s, MBEDTLS_AES_ENCRYPT, plaintext, enc_data) != 0) {
-        mbedtls_aes_free(&s);
+    if (mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_ENCRYPT, plaintext, enc_data) != 0) {
+        mbedtls_aes_free(&ctx);
         return BLE_HS_EUNKNOWN;
     }
 
-    mbedtls_aes_free(&s);
+    mbedtls_aes_free(&ctx);
     return 0;
 }
 
@@ -145,7 +145,7 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
     ecb.plain_text[14] = rpa[4];
     ecb.plain_text[13] = rpa[5];
 
-    auto err = bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
+    bt_encrypt_be(ecb.key, ecb.plain_text, ecb.cipher_text);
 
     if (ecb.cipher_text[15] != rpa[0] || ecb.cipher_text[14] != rpa[1] || ecb.cipher_text[13] != rpa[2]) return false;
 
@@ -166,7 +166,7 @@ void BleFingerprint::fingerprintAddress() {
                 break;
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
-                auto naddress = address.getNative();
+                const auto *naddress = address.getNative();
                 if ((naddress[5] & 0xc0) == 0xc0)
                     setId(mac, ID_TYPE_RAND_STATIC_MAC);
                 else {
@@ -194,18 +194,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
 #ifdef VERBOSE
         Serial.printf("Verbose | %s | %-58s%ddBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
-        if (uuid == roomAssistantService) {
-            asRssi = BleFingerprintCollection::rxRefRssi + RM_ASST_TX;
-            if (!rmAsst) {
-                rmAsst = true;
-                if (didQuery) {
-                    qryDelayMillis = 0;
-                    qryAttempts = 0;
-                    didQuery = false;
-                }
-            }
-            return;
-        } else if (uuid == tileUUID) {
+        if (uuid == tileUUID) {
             asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
             setId("tile:" + getMac(), ID_TYPE_TILE);
             return;
@@ -429,7 +418,6 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     auto the_min = min(min(oldest, recent), newest);
     auto the_max = max(max(oldest, recent), newest);
     auto the_median = the_max ^ the_min ^ oldest ^ recent ^ newest;
-    auto range = the_max - the_min;
 
     rssi = the_median;
 
@@ -505,7 +493,7 @@ bool BleFingerprint::report(JsonObject *doc) {
 }
 
 bool BleFingerprint::query() {
-    if (!(allowQuery || rmAsst) || didQuery) return false;
+    if (!allowQuery || didQuery) return false;
     if (rssi < -90) return false;
     auto now = millis();
 
@@ -527,10 +515,7 @@ bool BleFingerprint::query() {
     pClient->setConnectTimeout(5);
     NimBLEDevice::getScan()->stop();
     if (pClient->connect(address)) {
-        bool iphone = true;
         if (allowQuery) {
-
-
             if (getId().startsWith("flora")) {
                 qryDelayMillis = MiFloraHandler::getInterval();
                 didQuery = false;
@@ -550,7 +535,6 @@ bool BleFingerprint::query() {
 
             std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
             std::string sName = pClient->getValue(genericAccessService, nameChar);
-            iphone = sMdl.find("iPhone") == 0;
             if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
                 if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
                     Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
@@ -561,17 +545,6 @@ bool BleFingerprint::query() {
             if (!sMdl.empty()) {
                 if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str()))) {
                     Serial.printf("\u001b[38;5;136m%u Model  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
-                }
-                success = true;
-            }
-        }
-
-        if (rmAsst || iphone)  // For some reason we often don't get room assistant's service advertisement
-        {
-            std::string sRmAst = pClient->getValue(roomAssistantService, rootAssistantCharacteristic);
-            if (!sRmAst.empty()) {
-                if (setId(String("roomAssistant:") + kebabify(sRmAst).c_str(), ID_TYPE_RM_ASST)) {
-                    Serial.printf("\u001b[38;5;129m%u RmAst  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sRmAst.c_str());
                 }
                 success = true;
             }

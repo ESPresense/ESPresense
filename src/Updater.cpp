@@ -102,9 +102,11 @@ void firmwareUpdate() {
             case HTTP_UPDATE_FAILED:
                 Serial.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
                 break;
-
             case HTTP_UPDATE_NO_UPDATES:
                 Serial.printf("No Update!\r\n");
+                break;
+            case HTTP_UPDATE_OK:
+                Serial.printf("Update OK!\r\n");
                 break;
         }
     }
