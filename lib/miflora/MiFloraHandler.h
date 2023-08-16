@@ -13,8 +13,6 @@ namespace MiFloraHandler{
     static BLEUUID uuid_version_battery("00001a02-0000-1000-8000-00805f9b34fb");
     static BLEUUID uuid_sensor_data("00001a01-0000-1000-8000-00805f9b34fb");
     static BLEUUID uuid_write_mode("00001a00-0000-1000-8000-00805f9b34fb");
-    
-    bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint, QueryReport* report);
-    int getInterval();
-    void ConnectToWifi();
+
+    bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint);
 }

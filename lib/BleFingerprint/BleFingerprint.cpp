@@ -1,7 +1,8 @@
 #include "BleFingerprint.h"
 
-#include "BleFingerprintCollection.h"
 #include <../miflora/MiFloraHandler.h>
+
+#include "BleFingerprintCollection.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
@@ -77,7 +78,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     addressType = advertisedDevice->getAddressType();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
     seenCount = 1;
-    mqttReport = nullptr;
+    queryReport = nullptr;
     fingerprintAddress();
 }
 
@@ -517,36 +518,27 @@ bool BleFingerprint::query() {
     if (pClient->connect(address)) {
         if (allowQuery) {
             if (id.startsWith("flora:")) {
-                qryDelayMillis = MiFloraHandler::getInterval();
-                didQuery = false;
-
-                if(mqttReport == nullptr){
-                    mqttReport = new MiFloraReport(&address);
-                }
-
-                if (!MiFloraHandler::requestData(pClient, this, mqttReport)){
-                    qryDelayMillis = 60000;
+                if (!MiFloraHandler::requestData(pClient, this)) {
                     Serial.printf("%u QryErr| MAC: %s, ID: %-58s%ddBm Try %d, retry after %dms\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
                 }
 
-                NimBLEDevice::deleteClient(pClient);
-                return true;
-            }
-
-            std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
-            std::string sName = pClient->getValue(genericAccessService, nameChar);
-            if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
-                if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
-                    Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
-                }
                 success = true;
-            }
-
-            if (!sMdl.empty()) {
-                if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str()))) {
-                    Serial.printf("\u001b[38;5;136m%u Model  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
+            } else {
+                std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
+                std::string sName = pClient->getValue(genericAccessService, nameChar);
+                if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
+                    if (setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
+                        Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sName.c_str());
+                    }
+                    success = true;
                 }
-                success = true;
+
+                if (!sMdl.empty()) {
+                    if (setId(String("apple:") + kebabify(sMdl).c_str(), ID_TYPE_QUERY_MODEL, String(sMdl.c_str()))) {
+                        Serial.printf("\u001b[38;5;136m%u Model  | %s | %-58s%ddBm %s\u001b[0m\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, sMdl.c_str());
+                    }
+                    success = true;
+                }
             }
         }
     }

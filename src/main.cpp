@@ -150,7 +150,10 @@ void setupNetwork() {
     AsyncWiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
     BleFingerprintCollection::knownIrks = AsyncWiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
-    BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. apple:1005:9-26)");
+
+    AsyncWiFiSettings.heading("Querying <a href='https://espresense.com/configuration/settings#querying' target='_blank'>ℹ️</a>", false);
+    BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
+    BleFingerprintCollection::requeryMs = AsyncWiFiSettings.integer("requery_interval", 0, 240, 5, "Requery interval in minutes") * 60 * 1000;
 
     AsyncWiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include id prefixes (space seperated)");
@@ -172,7 +175,6 @@ void setupNetwork() {
     BleFingerprintCollection::forgetMs = AsyncWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     BleFingerprintCollection::txRefRssi = AsyncWiFiSettings.integer("tx_ref_rssi", -100, 100, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
 
-    MiFloraHandler::ConnectToWifi();
     GUI::ConnectToWifi();
 
     AsyncWiFiSettings.heading("GPIO Sensors <a href='https://espresense.com/configuration/settings#gpio-sensors' target='_blank'>ℹ️</a>", false);
@@ -393,18 +395,17 @@ void connectToMqtt() {
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
-bool reportBuffer(const char *topic, const char *buffer) {
+bool reportBuffer(QueryReport *report) {
     for (int i = 0; i < 10; i++) {
-        if (!mqttClient.connected()) {
-            return false;
-        }
-        if (mqttClient.publish(topic, 0, false, buffer)) {
+        if (!mqttClient.connected()) return false;
+        if (mqttClient.publish(report->getTopic().c_str(), 0, false, report->getPayload().c_str())) {
             return true;
         }
         delay(20);
     }
     return false;
 }
+
 bool reportDevice(BleFingerprint *f) {
     doc.clear();
     JsonObject obj = doc.to<JsonObject>();
@@ -414,8 +415,19 @@ bool reportDevice(BleFingerprint *f) {
     serializeJson(doc, buffer);
     String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
 
-    if (reportBuffer(roomsTopic.c_str(), buffer) && reportBuffer(devicesTopic.c_str(), buffer))
-        return true;
+    bool p1 = false, p2 = false;
+    for (int i = 0; i < 10; i++) {
+        if (!mqttClient.connected()) return false;
+        if (!p1 && (!publishRooms || mqttClient.publish(roomsTopic.c_str(), 0, false, buffer)))
+            p1 = true;
+
+        if (!p2 && (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer)))
+            p2 = true;
+
+        if (p1 && p2)
+            return true;
+        delay(20);
+    }
 
     teleFails++;
     return false;
@@ -430,9 +442,6 @@ void reportSetup() {
     connectToMqtt();
 }
 
-QueryReport *report;
-std::string *specificTopic = new std::string();
-std::string *specificBuffer = new std::string();
 void reportLoop() {
     if (!mqttClient.connected()) {
         return;
@@ -461,13 +470,7 @@ void reportLoop() {
         }
 
         if (f->hasReport()) {
-            report = f->getReport();
-            if (report->HasChanged()) {
-
-                report->GetTopic(specificTopic, std::string(roomsTopic.c_str()));
-                report->GetBuffer(specificBuffer);
-                reportBuffer(specificTopic->c_str(), specificBuffer->c_str());
-            }
+            reportBuffer(f->getReport());
         }
         if (reportDevice(f)) {
             totalFpReported++;

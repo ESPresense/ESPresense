@@ -1,10 +1,8 @@
-#include <MiFloraHandler.h>
+#include "MiFloraHandler.h"
 
 namespace MiFloraHandler {
 
 std::vector<std::string> addresses;
-std::string bluetoothAdresses{};
-int interval{};
 bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     BLERemoteCharacteristic* floraCharacteristic = nullptr;
 
@@ -35,15 +33,14 @@ bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
 
     (*doc)[F("temperature")] = temperature;
     (*doc)[F("moisture")] = moisture;
-
     (*doc)[F("light")] = brightness;
-
     (*doc)[F("conductivity")] = conductivity;
 
     floraService->deleteCharacteristics();
 
     return true;
 }
+
 bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     BLERemoteCharacteristic* floraCharacteristic = nullptr;
 
@@ -68,6 +65,7 @@ bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     floraService->deleteCharacteristics();
     return true;
 }
+
 bool forceFloraServiceDataMode(BLERemoteService* floraService) {  // Setting the mi flora to data reading mode
     BLERemoteCharacteristic* floraCharacteristic;
 
@@ -89,11 +87,13 @@ bool forceFloraServiceDataMode(BLERemoteService* floraService) {  // Setting the
 
     return true;
 }
+
 void fillDeviceData(DynamicJsonDocument* doc, BleFingerprint* f) {
     (*doc)[F("id")] = f->getId();
     (*doc)[F("mac")] = f->getMac();
     (*doc)[F("rssi")] = f->getRssi();
 }
+
 bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleFingerprint* f) {
     // Force miFlora to data mode
 
@@ -112,27 +112,12 @@ bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleF
 
     return true;
 }
-void updateAdresses(std::string stringaddresses) {  // Updating addresses after config has been saved
 
-    addresses.clear();
-    std::stringstream ss(stringaddresses);
-    std::string substr;
-    while (ss.good()) {
-        std::getline(ss, substr, ',');
-        addresses.push_back(substr);
-    }
-}
-
-bool checkValidAddress(std::string address) {  // Checking if address is in scanning whitelist
-
-    return (std::find(addresses.begin(), addresses.end(), address) != addresses.end());
-}
-
-
-static char test_buffer[2048];
-static DynamicJsonDocument document(1024);
-bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint,QueryReport* report)  // Getting mi flora data
+bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting mi flora data
 {
+    char test_buffer[2048];
+    DynamicJsonDocument document(1024);
+
     NimBLERemoteService* floraService = pClient->getService(serviceUUID);
 
     if (floraService == nullptr) {
@@ -152,15 +137,8 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint,QueryReport*
     // Deleting services
     pClient->deleteServices();
     // Sending buffer over mqtt
-    report->UpdateBuffer(new std::string(test_buffer));
+    fingerprint->setReport(new QueryReport(SMacf(pClient->getPeerAddress()), String(test_buffer)));
     return true;
 }
 
-void ConnectToWifi() {
-    AsyncWiFiSettings.heading("MiFlora <a href='https://github.com/vrachieru/xiaomi-flower-care-api' target='_blank'>ℹ️</a> ", false);
-    interval = AsyncWiFiSettings.integer("poll_interval", 0, 240, 10, "Poll interval in minutes") * 60 * 1000;
-}
-int getInterval() {
-    return interval;
-}
 }  // namespace MiFloraHandler
