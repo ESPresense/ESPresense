@@ -113,11 +113,9 @@ bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleF
     return true;
 }
 
+static DynamicJsonDocument document(1024);
 bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting mi flora data
 {
-    char test_buffer[2048];
-    DynamicJsonDocument document(1024);
-
     NimBLERemoteService* floraService = pClient->getService(serviceUUID);
 
     if (floraService == nullptr) {
@@ -132,12 +130,13 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting
         Serial.println("Failed reading flora data");
         return false;
     }
-    serializeJson(document, test_buffer);
+    String buf = String();
+    serializeJson(document, buf);
 
     // Deleting services
     pClient->deleteServices();
     // Sending buffer over mqtt
-    fingerprint->setReport(new QueryReport(SMacf(pClient->getPeerAddress()), String(test_buffer)));
+    fingerprint->setReport(new QueryReport(SMacf(pClient->getPeerAddress()), buf));
     return true;
 }
 

@@ -115,6 +115,7 @@ public:
     bool hasReport()  {return queryReport != nullptr;};
     QueryReport* getReport() {return queryReport;};
     void setReport(QueryReport* report) {queryReport = report;};
+    void clearReport() {queryReport = nullptr;};
 
     unsigned int getSeenCount()
     {

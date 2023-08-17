@@ -395,15 +395,11 @@ void connectToMqtt() {
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
 }
-bool reportBuffer(QueryReport *report) {
-    for (int i = 0; i < 10; i++) {
-        if (!mqttClient.connected()) return false;
-        if (mqttClient.publish(report->getTopic().c_str(), 0, false, report->getPayload().c_str())) {
-            return true;
-        }
-        delay(20);
-    }
-    return false;
+
+bool reportBuffer(BleFingerprint *f, QueryReport *report) {
+    if (!mqttClient.connected()) return false;
+    String topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report->getId().c_str());
+    return mqttClient.publish(topic.c_str(), 0, false, report->getPayload().c_str());
 }
 
 bool reportDevice(BleFingerprint *f) {
@@ -470,7 +466,8 @@ void reportLoop() {
         }
 
         if (f->hasReport()) {
-            reportBuffer(f->getReport());
+            if (reportBuffer(f, f->getReport()))
+                f->clearReport();
         }
         if (reportDevice(f)) {
             totalFpReported++;
