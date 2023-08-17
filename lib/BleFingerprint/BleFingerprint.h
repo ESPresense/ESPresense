@@ -1,8 +1,5 @@
 #ifndef _BLEFINGERPRINT_
 #define _BLEFINGERPRINT_
-
-#include "rssi.h"
-#include "string_utils.h"
 #include <ArduinoJson.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
@@ -10,7 +7,12 @@
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
 #include <SoftFilters.h>
+
+#include <memory>
+
 #include "QueryReport.h"
+#include "rssi.h"
+#include "string_utils.h"
 
 #define NO_RSSI (-128)
 
@@ -112,10 +114,10 @@ public:
 
     bool getAllowQuery() const { return allowQuery; };
 
-    bool hasReport()  {return queryReport != nullptr;};
-    QueryReport* getReport() {return queryReport;};
-    void setReport(QueryReport* report) {queryReport = report;};
-    void clearReport() {queryReport = nullptr;};
+    const bool hasReport() { return queryReport != nullptr; };
+    const QueryReport getReport() { return *queryReport; };
+    void setReport(const QueryReport &report) { queryReport = std::unique_ptr<QueryReport>(new QueryReport {report}); };
+    void clearReport() { queryReport.reset(); };
 
     unsigned int getSeenCount()
     {
@@ -151,7 +153,7 @@ private:
     OneEuroFilter<float, unsigned long> oneEuro;
     DifferentialFilter<float, unsigned long> diffFilter;
 
-    QueryReport* queryReport;
+    std::unique_ptr<QueryReport> queryReport = nullptr;
     bool filter();
 
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);

@@ -136,7 +136,7 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting
     // Deleting services
     pClient->deleteServices();
     // Sending buffer over mqtt
-    fingerprint->setReport(new QueryReport(SMacf(pClient->getPeerAddress()), buf));
+    fingerprint->setReport(QueryReport{SMacf(pClient->getPeerAddress()), buf});
     return true;
 }
 
