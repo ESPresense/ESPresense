@@ -1,18 +1,18 @@
 #pragma once
-#include<NimBLEClient.h>
-#include <NimBLEDevice.h>
 #include <ArduinoJson.h>
-#include <sstream>
-#include <SoftFilters.h>
 #include <AsyncMqttClient.h>
-#include <BleFingerprint.h>
 #include <AsyncWiFiSettings.h>
-namespace MiFloraHandler{
+#include <BleFingerprint.h>
+#include <NimBLEClient.h>
+#include <NimBLEDevice.h>
+#include <SoftFilters.h>
 
-    static BLEUUID serviceUUID("00001204-0000-1000-8000-00805f9b34fb");
-    static BLEUUID uuid_version_battery("00001a02-0000-1000-8000-00805f9b34fb");
-    static BLEUUID uuid_sensor_data("00001a01-0000-1000-8000-00805f9b34fb");
-    static BLEUUID uuid_write_mode("00001a00-0000-1000-8000-00805f9b34fb");
+namespace MiFloraHandler
+{
+    static BLEUUID serviceUUID(0x00001204, 0x0000, 0x1000, 0x800000805f9b34fb);
+    static BLEUUID uuid_version_battery(0x00001a02, 0x0000, 0x1000, 0x800000805f9b34fb);
+    static BLEUUID uuid_sensor_data(0x00001a01, 0x0000, 0x1000, 0x800000805f9b34fb);
+    static BLEUUID uuid_write_mode(0x00001a00, 0x0000, 0x1000, 0x800000805f9b34fb);
 
     bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint);
-}
+}  // namespace MiFloraHandler

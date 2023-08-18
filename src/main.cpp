@@ -153,7 +153,7 @@ void setupNetwork() {
 
     AsyncWiFiSettings.heading("Querying <a href='https://espresense.com/configuration/settings#querying' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
-    BleFingerprintCollection::requeryMs = AsyncWiFiSettings.integer("requery_interval", 0, 240, 5, "Requery interval in minutes") * 60 * 1000;
+    BleFingerprintCollection::requeryMs = AsyncWiFiSettings.integer("requery_ms", 30, 3600, 300, "Requery interval in seconds") * 1000;
 
     AsyncWiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
     BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include id prefixes (space seperated)");

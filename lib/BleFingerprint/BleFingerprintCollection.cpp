@@ -8,7 +8,7 @@ namespace BleFingerprintCollection {
 String include{}, exclude{}, query{}, knownMacs{}, knownIrks{}, countIds{};
 float skipDistance = 0.0f, maxDistance = 0.0f, absorption = 3.5f, countEnter = 2, countExit = 4;
 int8_t rxRefRssi = -65, rxAdjRssi = 0, txRefRssi = -59;
-int forgetMs = 0, skipMs = 0, countMs = 10000, requeryMs = 60000;
+int forgetMs = 0, skipMs = 0, countMs = 10000, requeryMs = 300000;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 std::vector<BleFingerprint *> fingerprints;
