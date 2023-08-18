@@ -399,6 +399,8 @@ bool reportDevice(BleFingerprint *f) {
     if (!f->report(&obj))
         return false;
 
+    doc["name"] = "presense";
+
     serializeJson(doc, buffer);
     String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
 
