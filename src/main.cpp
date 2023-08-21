@@ -1,6 +1,13 @@
 #define VAR_DECLS
 #include "main.h"
 
+#include "esp_heap_caps.h"
+
+void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
+{
+    printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
+}
+
 bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigned totalFpQueried, int unsigned totalFpReported, unsigned int count) {
     if (!online) {
         if (
@@ -107,9 +114,9 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
     auto maxHeap = ESP.getMaxAllocHeap();
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
-    doc["maxAllocHeap"] = maxHeap;
-    doc["memFrag"] = 100 - (maxHeap * 100.0 / freeHeap);
-    doc["scanHighWater"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
+    doc["maxHeap"] = maxHeap;
+    doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
+    doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
 
     serializeJson(doc, buffer);
     if (pub(teleTopic.c_str(), 0, false, buffer)) return true;
@@ -133,7 +140,7 @@ void setupNetwork() {
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet"};
     ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
-    AsyncWiFiSettings.heading("MQTT <a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>MQTT</a>", false);
     mqttHost = AsyncWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = AsyncWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = AsyncWiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
@@ -144,31 +151,31 @@ void setupNetwork() {
     publishRooms = AsyncWiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
     publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    AsyncWiFiSettings.heading("Updating <a href='https://espresense.com/configuration/settings#updating' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#updating' target='_blank'>Updating</a>", false);
     Updater::ConnectToWifi();
 
-    AsyncWiFiSettings.heading("Scanning <a href='https://espresense.com/configuration/settings#scanning' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#scanning' target='_blank'>Scanning</a>", false);
     BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
     BleFingerprintCollection::knownIrks = AsyncWiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
 
-    AsyncWiFiSettings.heading("Querying <a href='https://espresense.com/configuration/settings#querying' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#querying' target='_blank'>Querying</a>", false);
     BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
     BleFingerprintCollection::requeryMs = AsyncWiFiSettings.integer("requery_ms", 30, 3600, 300, "Requery interval in seconds") * 1000;
 
-    AsyncWiFiSettings.heading("Counting <a href='https://espresense.com/configuration/settings#counting' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#counting' target='_blank'>Counting</a>", false);
     BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include id prefixes (space seperated)");
     BleFingerprintCollection::countEnter = AsyncWiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
     BleFingerprintCollection::countExit = AsyncWiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
     BleFingerprintCollection::countMs = AsyncWiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
 
-    AsyncWiFiSettings.heading("Filtering <a href='https://espresense.com/configuration/settings#filtering' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#filtering' target='_blank'>Filtering</a>", false);
     BleFingerprintCollection::include = AsyncWiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
     BleFingerprintCollection::exclude = AsyncWiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
     BleFingerprintCollection::maxDistance = AsyncWiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     BleFingerprintCollection::skipDistance = AsyncWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     BleFingerprintCollection::skipMs = AsyncWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
 
-    AsyncWiFiSettings.heading("Calibration <a href='https://espresense.com/configuration/settings#calibration' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#calibration' target='_blank'>Calibration</a>", false);
     BleFingerprintCollection::rxRefRssi = AsyncWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
     BleFingerprintCollection::rxAdjRssi = AsyncWiFiSettings.integer("rx_adj_rssi", -100, 100, 0, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
     BleFingerprintCollection::absorption = AsyncWiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
@@ -177,7 +184,7 @@ void setupNetwork() {
 
     GUI::ConnectToWifi();
 
-    AsyncWiFiSettings.heading("GPIO Sensors <a href='https://espresense.com/configuration/settings#gpio-sensors' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#gpio-sensors' target='_blank'>GPIO Sensors</a>", false);
 
     BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
@@ -188,7 +195,7 @@ void setupNetwork() {
     DHT::ConnectToWifi();
     I2C::ConnectToWifi();
 
-    AsyncWiFiSettings.heading("I2C Sensors <a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#i2c-sensors' target='_blank'>I2C Sensors</a>", false);
 
     AHTX0::ConnectToWifi();
     BH1750::ConnectToWifi();
@@ -529,6 +536,7 @@ void setup() {
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
     Serial.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
     AXP192::Setup();
@@ -574,7 +582,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 50000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();

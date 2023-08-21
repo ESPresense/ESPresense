@@ -34,7 +34,7 @@ void ConnectToWifi() {
     std::vector<String> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
     std::vector<String> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
 
-    AsyncWiFiSettings.heading("LEDs <a href='https://espresense.com/configuration/settings#leds' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#leds' target='_blank'>LEDs</a>", false);
 
     AsyncWiFiSettings.html("h4", "LED 1:");
 

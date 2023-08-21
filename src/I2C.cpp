@@ -18,7 +18,7 @@ int I2C_Bus_2_SDA = 0;
 int I2C_Bus_2_SCL = 0;
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.heading("I2C Settings <a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>ℹ️</a>", false);
+    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>I2C Settings</a>", false);
 
     AsyncWiFiSettings.html("h4", "Bus 1:");
 
