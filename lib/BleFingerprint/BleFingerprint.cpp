@@ -74,7 +74,10 @@ int BleFingerprint::get1mRssi() const {
 
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)} {
     firstSeenMillis = millis();
-    address = NimBLEAddress(advertisedDevice->getAddress());
+
+    auto native = advertisedDevice->getAddress().getNative();
+    memcpy(address, native, 6);
+
     addressType = advertisedDevice->getAddressType();
     newest = recent = oldest = rssi = advertisedDevice->getRSSI();
     seenCount = 1;
@@ -91,10 +94,10 @@ void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->getAdvType() > 0)
         connectable = true;
 
-    size_t serviceAdvCount = advertisedDevice->getServiceUUIDCount();
-    size_t serviceDataCount = advertisedDevice->getServiceDataCount();
-    bool haveTxPower = advertisedDevice->haveTXPower();
-    int8_t txPower = advertisedDevice->getTXPower();
+    const size_t serviceAdvCount = advertisedDevice->getServiceUUIDCount();
+    const size_t serviceDataCount = advertisedDevice->getServiceDataCount();
+    const bool haveTxPower = advertisedDevice->haveTXPower();
+    const int8_t txPower = advertisedDevice->getTXPower();
 
     if (serviceAdvCount > 0) fingerprintServiceAdvertisements(advertisedDevice, serviceAdvCount, haveTxPower, txPower);
     if (serviceDataCount > 0) fingerprintServiceData(advertisedDevice, serviceDataCount, haveTxPower, txPower);
@@ -167,7 +170,7 @@ void BleFingerprint::fingerprintAddress() {
                 break;
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
-                const auto *naddress = address.getNative();
+                const auto *naddress = address;
                 if ((naddress[5] & 0xc0) == 0xc0)
                     setId(mac, ID_TYPE_RAND_STATIC_MAC);
                 else {
@@ -460,7 +463,7 @@ void BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("raw")] = serialized(String(raw, 2));
     (*doc)[F("distance")] = serialized(String(output.value.position, 2));
     (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
-    (*doc)[F("mac")] = SMacf(address);
+    (*doc)[F("mac")] = getMac();
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("interval")] = (millis() - firstSeenMillis) / seenCount;

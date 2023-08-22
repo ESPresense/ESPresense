@@ -84,7 +84,7 @@ public:
 
     void setInitial(int rssi, float distance);
 
-    String getMac() const { return SMacf(address); }
+    const String getMac() const { return Sprintf("%02x%02x%02x%02x%02x%02x", address[0], address[1], address[2], address[3], address[4], address[5]); }
 
     short getIdType() const { return idType; }
 
@@ -100,7 +100,7 @@ public:
 
     void set1mRssi(int8_t rssi) { this->calRssi = rssi; }
 
-    NimBLEAddress const getAddress() { return address; }
+    const uint8_t* getAddress() const { return reinterpret_cast<const uint8_t*>(address); }
 
     unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
@@ -136,7 +136,7 @@ private:
     static bool shouldHide(const String &s);
 
     bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;
-    NimBLEAddress address;
+    uint8_t address[6];
     String id, name, disc;
     short int idType = NO_ID_TYPE;
     int rssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;

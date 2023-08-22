@@ -184,7 +184,7 @@ void CleanupOldFingerprints() {
 }
 
 BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
-    auto mac = advertisedDevice->getAddress();
+    auto mac = advertisedDevice->getAddress().getNative();
 
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.rend())
