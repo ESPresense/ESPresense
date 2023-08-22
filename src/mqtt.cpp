@@ -39,7 +39,7 @@ bool sendConnectivityDiscovery()
 {
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = "connectivity";
+    doc["name"] = "Connectivity";
     doc["uniq_id"] = Sprintf("espresense_%06x_connectivity", CHIPID);
     doc["json_attr_t"] = "~/telemetry";
     doc["stat_t"] = "~/status";
