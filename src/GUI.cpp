@@ -53,7 +53,7 @@ void Loop() {
 
 void Added(BleFingerprint *f) {
     if (f->getIgnore()) return;
-    Serial.printf("%u New %s  | %s | %-58s%ddBm %s\r\n", xPortGetCoreID(), f->getRmAsst() ? "R" : (f->getAllowQuery() ? "Q" : " "), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
+    Serial.printf("%u New %s  | %s | %-58s%ddBm %s\r\n", xPortGetCoreID(), f->getAllowQuery() ? "Q" : " ", f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDiscriminator().c_str());
 }
 
 void Removed(BleFingerprint *f) {

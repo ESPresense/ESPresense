@@ -27,11 +27,11 @@ void serializeState(JsonObject &root) {
 }
 
 void serializeConfigs(JsonObject &root) {
-    JsonArray devices = root.createNestedArray("configs");
+    JsonArray configs = root.createNestedArray("configs");
 
-    auto f = BleFingerprintCollection::deviceConfigs;
-    for (auto it = f.begin(); it != f.end(); ++it) {
-        JsonObject node = devices.createNestedObject();
+    auto deviceConfigs = BleFingerprintCollection::deviceConfigs;
+    for (auto it = deviceConfigs.begin(); it != deviceConfigs.end(); ++it) {
+        const JsonObject& node = configs.createNestedObject();
         node["id"] = it->id;
         node["alias"] = it->alias;
         node["name"] = it->name;
