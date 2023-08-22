@@ -58,7 +58,7 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
@@ -77,7 +77,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/telemetry";
@@ -97,7 +97,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
@@ -117,7 +117,7 @@ bool sendBinarySensorDiscovery(const String &name, const String &entityCategory,
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
@@ -135,7 +135,7 @@ bool sendButtonDiscovery(const String &name, const String &entityCategory)
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
@@ -153,7 +153,7 @@ bool sendSwitchDiscovery(const String &name, const String &entityCategory)
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
@@ -171,7 +171,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
@@ -190,7 +190,7 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
 
     commonDiscovery();
     doc["~"] = roomsTopic;
-    doc["name"] = name.c_str();
+    doc["name"] = name;
     doc["uniq_id"] = Sprintf("espresense_%06x_%s", CHIPID, slug.c_str());
     doc["schema"] = "json";
     doc["stat_t"] = "~/" + slug;
