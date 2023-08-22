@@ -126,17 +126,11 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting
     document.clear();
     // Retriving the actual data
     if (!getFloraData(&document, floraService, fingerprint))  // Getting flora data
-    {
-        Serial.println("Failed reading flora data");
         return false;
-    }
     String buf = String();
     serializeJson(document, buf);
-
-    // Deleting services
-    pClient->deleteServices();
     // Sending buffer over mqtt
-    fingerprint->setReport(QueryReport{SMacf(pClient->getPeerAddress()), buf});
+    fingerprint->setReport(QueryReport{"miflora", buf});
     return true;
 }
 

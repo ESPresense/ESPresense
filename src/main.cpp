@@ -582,7 +582,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 50000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();
