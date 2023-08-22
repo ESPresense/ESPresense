@@ -44,9 +44,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
 
-            && sendDeleteDiscovery("switch", "Status LED")
-            && sendDeleteDiscovery("switch", "Active Scan")
-
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
             && Motion::SendDiscovery()
