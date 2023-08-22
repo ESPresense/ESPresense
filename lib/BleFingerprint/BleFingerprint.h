@@ -14,7 +14,7 @@
 #include "rssi.h"
 #include "string_utils.h"
 
-#define NO_RSSI (-128)
+#define NO_RSSI int8_t(-128)
 
 #define ID_TYPE_TX_POW short(1)
 

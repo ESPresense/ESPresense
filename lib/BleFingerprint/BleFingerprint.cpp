@@ -84,7 +84,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->haveName()) {
-        std::string name = advertisedDevice->getName();
+        const std::string name = advertisedDevice->getName();
         if (!name.empty()) setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
     }
 
