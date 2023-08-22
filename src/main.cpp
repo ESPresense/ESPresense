@@ -37,9 +37,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
 
-            && sendDeleteDiscovery("switch", "Status LED")
-            && sendDeleteDiscovery("switch", "Active Scan")
-
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
             && Motion::SendDiscovery()
@@ -398,8 +395,6 @@ bool reportDevice(BleFingerprint *f) {
     JsonObject obj = doc.to<JsonObject>();
     if (!f->report(&obj))
         return false;
-
-    doc["name"] = "presense";
 
     serializeJson(doc, buffer);
     String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
