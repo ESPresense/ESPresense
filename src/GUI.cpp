@@ -72,18 +72,15 @@ void Left(BleFingerprint *f) {
 }
 void Motion(bool pir, bool radar) {
     Serial.printf("%u Motion | Pir: %s Radar: %s\r\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
-    Display::Status("Pir:%s Radar:%s\r\n", pir ? "yes" : "no", radar ? "yes" : "no");
     LEDs::Motion(pir, radar);
 }
 
 void Switch(bool switch_1, bool switch_2) {
     Serial.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
-    Display::Status("Switch One:%s Switch Two:%s\r\n", switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
 }
 
 void Button(bool button_1, bool button_2) {
     Serial.printf("%u Button | Button One: %s Button Two: %s\r\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
-    Display::Status("Button One:%s Button Two:%s\r\n", button_1 ? "yes" : "no", button_2 ? "yes" : "no");
 }
 
 void Seen(bool inprogress) {
