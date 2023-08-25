@@ -113,9 +113,10 @@ bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleF
     return true;
 }
 
-static DynamicJsonDocument document(1024);
 bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting mi flora data
 {
+    DynamicJsonDocument document(256);
+
     NimBLERemoteService* floraService = pClient->getService(serviceUUID);
 
     if (floraService == nullptr) {
@@ -123,7 +124,6 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting
         return false;
     }
 
-    document.clear();
     // Retriving the actual data
     if (!getFloraData(&document, floraService, fingerprint))  // Getting flora data
         return false;

@@ -45,9 +45,9 @@ void ConnectToWifi() {
 }
 
 void SerialReport() {
-    Serial.print("Button One Sensor:   ");
+    Serial.print("Button One:   ");
     Serial.println(button_1Pin >= 0 ? "enabled" : "disabled");
-    Serial.print("Button Two Sensor: ");
+    Serial.print("Button Two:   ");
     Serial.println(button_2Pin >= 0 ? "enabled" : "disabled");
 }
 
