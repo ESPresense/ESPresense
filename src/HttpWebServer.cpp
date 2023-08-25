@@ -61,7 +61,7 @@ void serveJson(AsyncWebServerRequest *request) {
     if (url.indexOf("devices") > 0) subJson = 1;
     if (url.indexOf("configs") > 0) subJson = 2;
 
-    AsyncJsonResponse *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
+    auto *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
     JsonObject root = response->getRoot();
     serializeInfo(root);
     switch (subJson) {
@@ -82,7 +82,7 @@ void sendDataWs(AsyncWebSocketClient *client) {
     AsyncWebSocketMessageBuffer *buffer;
 
     {  // scope JsonDocument so it releases its buffer
-        DynamicJsonDocument doc(JSON_BUFFER_SIZE);
+        DynamicJsonDocument doc(256);
         JsonObject root = doc.to<JsonObject>();
         serializeState(root);
         serializeInfo(root);
@@ -104,23 +104,23 @@ void sendDataWs(AsyncWebSocketClient *client) {
     }
 }
 
-void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
     if (type == WS_EVT_CONNECT) {
-        sendDataWs(NULL);
+        sendDataWs(nullptr);
     } else if (type == WS_EVT_DATA) {
-        AwsFrameInfo *info = (AwsFrameInfo *)arg;
+        auto* info = static_cast<AwsFrameInfo*>(arg);
         if (info->final && info->index == 0 && info->len == len) {
             if (info->opcode == WS_TEXT) {
-                DynamicJsonDocument doc(JSON_BUFFER_SIZE);
-                DeserializationError error = deserializeJson(doc, data, len);
-                JsonObject root = doc.as<JsonObject>();
+                auto doc = DynamicJsonDocument(256);
+                auto error = deserializeJson(doc, data, len);
+                auto root = doc.as<JsonObject>();
                 if (error || root.isNull()) {
                     return;
                 }
 
                 if (root.containsKey("command") && root.containsKey("payload")) {
-                    String command = root["command"].as<String>();
-                    String payload = root["payload"].as<String>();
+                    auto command = root["command"].as<String>();
+                    auto payload = root["payload"].as<String>();
                     Enrollment::Command(command, payload);
                 }
             }
@@ -177,6 +177,6 @@ void UpdateStart() {
 
 void UpdateEnd() { ws.enable(true); }
 
-void SendState() { sendDataWs(NULL); }
+void SendState() { sendDataWs(nullptr); }
 
 }  // namespace HttpServer

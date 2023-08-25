@@ -115,8 +115,9 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
 
+    String buffer;
     serializeJson(doc, buffer);
-    if (pub(teleTopic.c_str(), 0, false, buffer)) return true;
+    if (pub(teleTopic.c_str(), 0, false, buffer.c_str())) return true;
 
     teleFails++;
     log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
@@ -413,16 +414,17 @@ bool reportDevice(BleFingerprint *f) {
     if (!f->report(&obj))
         return false;
 
+    String buffer;
     serializeJson(doc, buffer);
     String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
 
     bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++) {
         if (!mqttClient.connected()) return false;
-        if (!p1 && (!publishRooms || mqttClient.publish(roomsTopic.c_str(), 0, false, buffer)))
+        if (!p1 && (!publishRooms || mqttClient.publish(roomsTopic.c_str(), 0, false, buffer.c_str())))
             p1 = true;
 
-        if (!p2 && (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer)))
+        if (!p2 && (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer.c_str())))
             p2 = true;
 
         if (p1 && p2)

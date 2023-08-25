@@ -27,11 +27,10 @@ Setup variable declaration macros.
 # define _INIT_N(x) UNPACK x
 #endif
 
-_DECL char buffer[2048];
 _DECL String room, id, statusTopic, teleTopic, roomsTopic, setTopic, configTopic;
 _DECL AsyncMqttClient mqttClient;
 _DECL String homeAssistantDiscoveryPrefix;
-_DECL DynamicJsonDocument doc _INIT_N(((2048)));
+_DECL DynamicJsonDocument doc _INIT_N(((1024)));
 _DECL String localIp;
 _DECL AsyncWebSocket ws _INIT_N((("/ws")));
 _DECL bool enrolling;

@@ -77,6 +77,7 @@ void checkForUpdates() {
 }
 
 void firmwareUpdate() {
+
     WiFiClientSecure client;
     client.setTimeout(12);
     client.setHandshakeTimeout(8);
@@ -87,12 +88,14 @@ void firmwareUpdate() {
             autoUpdateAttempts++;
             updateStartedMillis = millis();
             GUI::Update(UPDATE_STARTED);
+            HttpWebServer::UpdateStart();
         });
         httpUpdate.onEnd([](bool success) {
             if (success)
                 SPIFFS.remove("/update");
             updateStartedMillis = 0;
             GUI::Update(UPDATE_COMPLETE);
+            HttpWebServer::UpdateEnd();
         });
         httpUpdate.onProgress([](int progress, int total) {
             GUI::Update((progress / (total / 100)));
@@ -120,10 +123,12 @@ void configureOTA(void) {
         .onStart([]() {
             updateStartedMillis = millis();
             GUI::Update(UPDATE_STARTED);
+            HttpWebServer::UpdateStart();
         })
         .onEnd([]() {
             updateStartedMillis = 0;
             GUI::Update(UPDATE_COMPLETE);
+            HttpWebServer::UpdateEnd();
         })
         .onProgress([](unsigned int progress, unsigned int total) {
             GUI::Update((progress / (total / 100)));

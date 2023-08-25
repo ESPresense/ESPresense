@@ -47,9 +47,10 @@ bool sendConnectivityDiscovery()
     doc["pl_on"] = "online";
     doc["pl_off"] = "offline";
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/connectivity/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID);
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "")
@@ -66,9 +67,10 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "", const String &units = "")
@@ -86,9 +88,10 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     if (!units.isEmpty()) doc["unit_of_meas"] = units;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(),CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "", const String &units = "", bool frcUpdate = true)
@@ -106,9 +109,10 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
     doc["frc_upd"] = frcUpdate;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "")
@@ -124,9 +128,10 @@ bool sendBinarySensorDiscovery(const String &name, const String &entityCategory,
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendButtonDiscovery(const String &name, const String &entityCategory)
@@ -142,9 +147,10 @@ bool sendButtonDiscovery(const String &name, const String &entityCategory)
     doc["cmd_t"] = "~/" + slug + "/set";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/button/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendSwitchDiscovery(const String &name, const String &entityCategory)
@@ -160,9 +166,10 @@ bool sendSwitchDiscovery(const String &name, const String &entityCategory)
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["entity_category"] = entityCategory;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     String discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer, 0);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str(), 0);
 }
 
 bool sendNumberDiscovery(const String &name, const String &entityCategory)
@@ -179,9 +186,10 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     doc["step"] = "0.1";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/number/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb)
@@ -199,10 +207,10 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
     doc["rgb"] = rgb;
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
-    serializeJson(doc, buffer);
+    String buffer = String();
     serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/light/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer);
+    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
 bool sendDeleteDiscovery(const String &domain, const String &name)
@@ -218,7 +226,8 @@ bool alias(const String &alias, const String &id, const String &name = "")
     doc.clear();
     doc["id"] = id;
     doc["name"] = name;
+    String buffer = String();
     serializeJson(doc, buffer);
     const String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
-    return pub(settingsTopic.c_str(), 0, true, buffer);
+    return pub(settingsTopic.c_str(), 0, true, buffer.c_str());
 }
