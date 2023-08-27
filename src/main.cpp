@@ -151,6 +151,7 @@ void setupNetwork() {
 
     AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#updating' target='_blank'>Updating</a>", false);
     Updater::ConnectToWifi();
+    AsyncWiFiSettings.markExtra();
 
     AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#scanning' target='_blank'>Scanning</a>", false);
     BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
