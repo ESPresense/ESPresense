@@ -13,7 +13,7 @@
 #include <Ticker.h>
 
 
-namespace DS18B20 
+namespace DS18B20
 {
     int ds18b20Pin = -1;
     float dsTempOffset;
@@ -108,7 +108,6 @@ namespace DS18B20
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "DS18B20:");
         ds18b20Pin = AsyncWiFiSettings.integer("ds18b20_pin", -1, "DS18B20 sensor pin (-1 for disable)");
         dsTempOffset = AsyncWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
     }

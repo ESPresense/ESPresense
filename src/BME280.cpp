@@ -52,7 +52,6 @@ namespace BME280
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "BME280 - Humidity + Temp + Pressure Sensor:");
         BME280_I2c_Bus = AsyncWiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BME280_I2c = AsyncWiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
     }

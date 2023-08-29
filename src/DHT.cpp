@@ -106,7 +106,6 @@ namespace DHT
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "DHT:");
         dht11Pin = AsyncWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
         dht22Pin = AsyncWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
         dhtTempOffset = AsyncWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");

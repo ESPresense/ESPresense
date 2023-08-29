@@ -41,7 +41,6 @@ namespace AHTX0
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "AHTX0 - Temperature + Humidity Sensor:");
         AHTX0_I2c_Bus = AsyncWiFiSettings.integer("AHTX0_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         AHTX0_I2c = AsyncWiFiSettings.string("AHTX0_I2c", "", "I2C address (0x38 or 0x39)");
     }
