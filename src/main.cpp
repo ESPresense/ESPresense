@@ -146,11 +146,14 @@ void setupNetwork() {
     discovery = AsyncWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
     homeAssistantDiscoveryPrefix = AsyncWiFiSettings.string("discovery_prefix", DEFAULT_HA_DISCOVERY_PREFIX, "Home Assistant discovery topic prefix");
     publishTele = AsyncWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
-    publishRooms = AsyncWiFiSettings.checkbox("pub_rooms", true, "Send to rooms topic");
+    publishRooms = AsyncWiFiSettings.checkbox("pub_rooms_dep", true, "Send to rooms topic (deprecated in v4)");
     publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#updating' target='_blank'>Updating</a>", false);
     Updater::ConnectToWifi();
+
+    AsyncWiFiSettings.info("<a href='ui/#settings' target='_blank'>Click here to edit other settings!</a>", false);
+
     AsyncWiFiSettings.markExtra();
 
     BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");

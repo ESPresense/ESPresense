@@ -1,7 +1,7 @@
 import { readable } from 'svelte/store';
 import { writable } from 'svelte/store';
 
-export const extras = readable([], function start(set) {
+export const extras = writable([], function start(set) {
     fetch(`/extras`)
         .then(d => d.json())
         .then(r => {
