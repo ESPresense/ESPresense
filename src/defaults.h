@@ -7,7 +7,7 @@
 
 // Number of seconds to wait for a Station Wifi connection to be established
 #ifndef DEFAULT_WIFI_TIMEOUT
-#define DEFAULT_WIFI_TIMEOUT 120
+#define DEFAULT_WIFI_TIMEOUT 60
 #endif
 
 // Number of seconds to keep up captive portal (SoftAP) before rebooting

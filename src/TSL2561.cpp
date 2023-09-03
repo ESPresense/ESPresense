@@ -23,7 +23,6 @@ namespace TSL2561
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "TSL2561 - Ambient Light Sensor:");
         TSL2561_I2c_Bus = AsyncWiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         TSL2561_I2c = AsyncWiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
         TSL2561_I2c_Gain = AsyncWiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");

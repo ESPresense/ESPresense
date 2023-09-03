@@ -48,7 +48,6 @@ namespace BMP280
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "BMP280 - Barometric Pressure + Temperature Sensor:");
         BMP280_I2c_Bus = AsyncWiFiSettings.integer("BMP280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BMP280_I2c = AsyncWiFiSettings.string("BMP280_I2c", "", "I2C address (0x76 or 0x77)");
     }

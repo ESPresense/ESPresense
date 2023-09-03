@@ -30,7 +30,6 @@ void Setup() {
 }
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.html("h4", "SHTC1/3, SHTW1/2, SHT3x/4x, SHT85 - Temperature and Humidity Sensor:");
     bus = AsyncWiFiSettings.integer("SHT_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
 }
 

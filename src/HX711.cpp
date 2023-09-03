@@ -26,7 +26,6 @@ namespace HX711
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "HX711 - Weight Sensor:");
         sckPin = AsyncWiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
         doutPin = AsyncWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
     }

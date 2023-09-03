@@ -39,7 +39,6 @@ namespace BMP180
 
     void ConnectToWifi()
     {
-        AsyncWiFiSettings.html("h4", "BMP085/BMP180 - Barometric Pressure + Temperature:");
         BMP180_I2c_Bus = AsyncWiFiSettings.integer("BMP180_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BMP180_I2c = AsyncWiFiSettings.string("BMP180_I2c", "", "I2C address (0x77)");
     }

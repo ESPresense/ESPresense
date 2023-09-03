@@ -1,6 +1,18 @@
 import { readable } from 'svelte/store';
 import { writable } from 'svelte/store';
 
+export const extras = writable([], function start(set) {
+    fetch(`/extras`)
+        .then(d => d.json())
+        .then(r => {
+            set(r);
+        })
+        .catch((ex) => {
+            set(null);
+            console.log(ex);
+        });
+});
+
 export const devices = readable([], function start(set) {
 	var errors = 0;
 	var outstanding = false;

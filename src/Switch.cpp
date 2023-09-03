@@ -30,14 +30,12 @@ void Setup() {
 }
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.html("h4", "Switch One:");
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     switch_1Type = AsyncWiFiSettings.dropdown("switch_1_type", pinTypes, 0, "Switch One pin type");
     switch_1Pin = AsyncWiFiSettings.integer("switch_1_pin", -1, "Switch One pin (-1 for disable)");
     switch_1Timeout = AsyncWiFiSettings.floating("switch_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch One timeout (in seconds)");
     switch_1Detected = switch_1Type & 0x01 ? LOW : HIGH;
 
-    AsyncWiFiSettings.html("h4", "Switch Two:");
     switch_2Type = AsyncWiFiSettings.dropdown("switch_2_type", pinTypes, 0, "Switch Two pin type");
     switch_2Pin = AsyncWiFiSettings.integer("switch_2_pin", -1, "Switch Two pin (-1 for disable)");
     switch_2Timeout = AsyncWiFiSettings.floating("switch_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch Two timeout (in seconds)");
