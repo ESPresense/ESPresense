@@ -114,6 +114,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigne
     doc["maxHeap"] = maxHeap;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
+    doc["bleStack"] = bleStack;
 
     String buffer;
     serializeJson(doc, buffer);
@@ -480,6 +481,7 @@ void reportLoop() {
 
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
+        bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(advertisedDevice);
     }
 };
