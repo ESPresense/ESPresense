@@ -56,6 +56,7 @@ int reconnectTries = 0;
 int teleFails = 0;
 bool online = false;         // Have we successfully sent status=online
 bool sentDiscovery = false;  // Have we successfully sent discovery
+UBaseType_t bleStack = 0;
 
 int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;
