@@ -33,6 +33,6 @@
     "svelte-spa-router": "^3.3.0",
     "svelte-table": "^0.6.1",
     "tailwindcss": "^3.3.5",
-    "vite": "^4.4.9"
+    "vite": "^4.5.0"
   }
 }
