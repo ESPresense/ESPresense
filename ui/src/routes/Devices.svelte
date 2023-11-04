@@ -1,5 +1,6 @@
 <script>
-    import { devices, events, enroll, cancelEnroll } from "../stores";
+    import SvelteTable from "svelte-table";
+    import { configs, events, enroll, cancelEnroll } from "../stores";
     let name;
     let showModal = false;
 
@@ -19,6 +20,88 @@
     }
 
     $: if ($events?.state?.enrolling) showModal = true;
+
+    var filterSelections = {};
+    var sortBy = "alias";
+    var sortOrder = 1;
+    var selectedRowIds = [];
+    const columns = [
+        {
+            key: "alias",
+            title: "Alias",
+            value: (v) => v.alias,
+            sortable: true,
+            filterOptions: (rows) => {
+                const prefixes = new Set();
+                rows.forEach((row) => {
+                    var prefix = row.alias.substring(0, row.alias.indexOf(":") + 1);
+                    if (prefix.length > 0) {
+                        prefixes.add(prefix);
+                    }
+                });
+                return Array.from(prefixes)
+                    .sort()
+                    .map((a) => ({ name: a, value: a }));
+            },
+            filterValue: (v) => v.alias.substring(0, v.alias.indexOf(":") + 1),
+            headerClass: "text-left px-6 py-3",
+        },
+        {
+            key: "id",
+            title: "ID",
+            value: (v) => v.id,
+            sortable: true,
+            filterOptions: (rows) => {
+                const prefixes = new Set();
+                rows.forEach((row) => {
+                    var prefix = row.id.substring(0, row.id.indexOf(":") + 1);
+                    if (prefix.length > 0) {
+                        prefixes.add(prefix);
+                    }
+                });
+                return Array.from(prefixes)
+                    .sort()
+                    .map((a) => ({ name: a, value: a }));
+            },
+            filterValue: (v) => v.id.substring(0, v.id.indexOf(":") + 1),
+            headerClass: "text-left px-6 py-3",
+        },
+        {
+            key: "name",
+            title: "Name",
+            value: (v) => v.name ?? "",
+            sortable: true,
+            filterOptions: (rows) => {
+                let letrs = {};
+                rows.forEach((row) => {
+                    let letr = row.name?.charAt(0);
+                    if (letr && letrs[letr] === undefined)
+                        letrs[letr] = {
+                            name: `${letr.toUpperCase()}`,
+                            value: letr.toLowerCase(),
+                        };
+                });
+                // fix order
+                letrs = Object.entries(letrs)
+                    .sort()
+                    .reduce((o, [k, v]) => ((o[k] = v), o), {});
+                return Object.values(letrs);
+            },
+            filterValue: (v) => v.name?.charAt(0).toLowerCase(),
+            headerClass: "text-left px-6 py-3",
+        },
+        {
+            key: "rssi@1m",
+            title: "Rssi@1m",
+            value: (v) => v["rssi@1m"],
+            renderValue: (v) => v["rssi@1m"] != null ? `${v["rssi@1m"]}dBm` : "",
+            sortable: true,
+            headerClass: "text-left px-6 py-3",
+        },
+     ];
+    function classNameRow(event) {
+        event.close ? "bg-yellow-100 row" : "row";
+    }
 </script>
 
 <button on:click={() => (showModal = true)} class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800">Enroll</button>
@@ -59,3 +142,20 @@
         </div>
     </div>
 {/if}
+
+<main>
+    {#if $configs?.configs != null}
+        <SvelteTable {columns} rows={$configs.configs} rowKey="mac" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-3 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
+    {:else}
+        <h1>Loading configs...</h1>
+    {/if}
+</main>
+
+<style>
+    main {
+        padding: 1rem;
+    }
+    h1 {
+        text-align: center;
+    }
+</style>
