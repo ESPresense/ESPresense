@@ -32,11 +32,11 @@ void serializeConfigs(JsonObject &root) {
 
     auto deviceConfigs = BleFingerprintCollection::deviceConfigs;
     for (auto it = deviceConfigs.begin(); it != deviceConfigs.end(); ++it) {
-        const JsonObject& node = configs.createNestedObject();
+        const JsonObject &node = configs.createNestedObject();
         node["id"] = it->id;
         node["alias"] = it->alias;
         node["name"] = it->name;
-        node["rss@1m"] = it->calRssi;
+        if (it->calRssi > -128) node["rssi@1m"] = it->calRssi;
     }
 }
 
@@ -105,11 +105,11 @@ void sendDataWs(AsyncWebSocketClient *client) {
     }
 }
 
-void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
     if (type == WS_EVT_CONNECT) {
         sendDataWs(nullptr);
     } else if (type == WS_EVT_DATA) {
-        auto* info = static_cast<AwsFrameInfo*>(arg);
+        auto *info = static_cast<AwsFrameInfo *>(arg);
         if (info->final && info->index == 0 && info->len == len) {
             if (info->opcode == WS_TEXT) {
                 auto doc = DynamicJsonDocument(256);
@@ -180,4 +180,4 @@ void UpdateEnd() { ws.enable(true); }
 
 void SendState() { sendDataWs(nullptr); }
 
-}  // namespace HttpServer
+}  // namespace HttpWebServer
