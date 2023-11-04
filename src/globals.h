@@ -34,6 +34,7 @@ _DECL DynamicJsonDocument doc _INIT_N(((1024)));
 _DECL String localIp;
 _DECL AsyncWebSocket ws _INIT_N((("/ws")));
 _DECL bool enrolling;
+_DECL String enrolledId;
 _DECL unsigned long enrollingEndMillis;
 
 // I2C

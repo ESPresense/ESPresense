@@ -23,7 +23,8 @@ void serializeInfo(JsonObject &root) {
 void serializeState(JsonObject &root) {
     JsonObject node = root.createNestedObject("state");
     node["enrolling"] = enrolling;
-    if (enrolling) node["remaining_ms"] = enrollingEndMillis - millis();
+    if (!enrolledId.isEmpty()) node["enrolledId"] = enrolledId;
+    if (enrolling) node["remain"] = (enrollingEndMillis - millis()) / 1000;
 }
 
 void serializeConfigs(JsonObject &root) {
@@ -118,9 +119,9 @@ void onWsEvent(AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventTyp
                     return;
                 }
 
-                if (root.containsKey("command") && root.containsKey("payload")) {
+                if (root.containsKey("command")) {
                     auto command = root["command"].as<String>();
-                    auto payload = root["payload"].as<String>();
+                    auto payload = root.containsKey("payload") ? root["payload"].as<String>() : "";
                     Enrollment::Command(command, payload);
                 }
             }

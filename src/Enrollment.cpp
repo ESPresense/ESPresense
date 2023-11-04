@@ -25,15 +25,13 @@ static NimBLEService *deviceInfo;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer *pServer) {
-        Serial.println("Client connected");
         if (enrolling) {
-            Serial.println("Multi-connect support: start advertising");
             NimBLEDevice::startAdvertising();
         }
     };
 
     void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-        Serial.print("Client address: ");
+        Serial.print("Connected to: ");
         Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         if (enrolling) {
             NimBLEDevice::startSecurity(desc->conn_handle);
@@ -43,7 +41,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
-            Serial.println("Client disconnected - start advertising");
+            Serial.println("Client disconnected");
             NimBLEDevice::startAdvertising();
         }
     };
@@ -53,11 +51,8 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     };
 
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
-        if (!desc->sec_state.encrypted)
-            Serial.printf("Encrypt connection failed conn: %d!\r\n", desc->conn_handle);
-        else
-            Serial.printf("Encrypt connection success conn: %d!\r\n", desc->conn_handle);
-    };
+        Serial.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
+    }
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
@@ -250,7 +245,9 @@ bool Loop() {
                 std::string irk;
                 if (tryGetIrkFromConnection(connectionToEnroll, irk)) {
                     auto id = name.isEmpty() ? "" : slugify(name);
-                    alias(String("irk:") + irk.c_str(), id.isEmpty() ? (String("irk:") + irk.c_str()) : id, name);
+                    if (id.isEmpty()) id = (String("irk:") + irk.c_str());
+                    enrolledId = id;
+                    alias(String("irk:") + irk.c_str(), id, name);
                     enrolling = false;
                     pServer->disconnect(connectionToEnroll);
                     connectionToEnroll = -1;
@@ -268,12 +265,16 @@ bool Command(String &command, String &pay) {
         enrolling = true;
         return true;
     }
+    if (command == "cancelEnroll") {
+        enrolledId = "";
+        enrolling = false;
+        return true;
+    }
     return false;
 }
 
 bool SendDiscovery() {
-    return
-        alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
-        sendButtonDiscovery("Enroll", EC_CONFIG);
+    return alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
+           sendButtonDiscovery("Enroll", EC_CONFIG);
 }
 }  // namespace Enrollment
