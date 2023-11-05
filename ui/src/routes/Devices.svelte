@@ -94,7 +94,7 @@
             key: "rssi@1m",
             title: "Rssi@1m",
             value: (v) => v["rssi@1m"],
-            renderValue: (v) => v["rssi@1m"] != null ? `${v["rssi@1m"]}dBm` : "",
+            renderValue: (v) => v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : "",
             sortable: true,
             headerClass: "text-left px-6 py-3",
         },
@@ -145,9 +145,9 @@
 
 <main>
     {#if $configs?.configs != null}
-        <SvelteTable {columns} rows={$configs.configs} rowKey="mac" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-3 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
+        <SvelteTable {columns} rows={$configs.configs} rowKey="id" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-3 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
     {:else}
-        <h1>Loading configs...</h1>
+        <h1>Loading configured devices...</h1>
     {/if}
 </main>
 

@@ -40,14 +40,16 @@ void serializeConfigs(JsonObject &root) {
     }
 }
 
-void serializeDevices(JsonObject &root) {
+void serializeDevices(JsonObject &root, bool showAll) {
     JsonArray devices = root.createNestedArray("devices");
 
     auto f = BleFingerprintCollection::GetCopy();
     for (auto it = f.begin(); it != f.end(); ++it) {
-        if ((*it)->getVisible()) {
+        bool visible = (*it)->getVisible();
+        if (showAll || visible) {
             JsonObject node = devices.createNestedObject();
             (*it)->fill(&node);
+            if (showAll && visible) node[F("vis")] = true;
         }
     }
 }
@@ -57,17 +59,24 @@ bool servingJson = false;
 void serveJson(AsyncWebServerRequest *request) {
     if (servingJson) request->send(429, "Too Many Requests", "Too Many Requests");
     servingJson = true;
+    bool showAll = false;
     const String &url = request->url();
     short subJson = 0;
     if (url.indexOf("devices") > 0) subJson = 1;
     if (url.indexOf("configs") > 0) subJson = 2;
+
+    int paramsNr = request->params();
+    for (int i = 0; i < paramsNr; i++) {
+        AsyncWebParameter *p = request->getParam(i);
+        if (p->name() == "showAll") showAll = true;
+    }
 
     auto *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
     JsonObject root = response->getRoot();
     serializeInfo(root);
     switch (subJson) {
         case 1:
-            serializeDevices(root);
+            serializeDevices(root, showAll);
             break;
         case 2:
             serializeConfigs(root);

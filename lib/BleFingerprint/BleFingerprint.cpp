@@ -16,6 +16,16 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)} {
+    firstSeenMillis = millis();
+    address = NimBLEAddress(advertisedDevice->getAddress());
+    addressType = advertisedDevice->getAddressType();
+    newest = recent = oldest = rssi = advertisedDevice->getRSSI();
+    seenCount = 1;
+    queryReport = nullptr;
+    fingerprintAddress();
+}
+
 bool BleFingerprint::shouldHide(const String &s) {
     if (BleFingerprintCollection::include.length() > 0 && !prefixExists(BleFingerprintCollection::include, s)) return true;
     return (BleFingerprintCollection::exclude.length() > 0 && prefixExists(BleFingerprintCollection::exclude, s));
@@ -41,7 +51,7 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
         name = newName;
 
     if (id != newId) {
-        hidden = shouldHide(newId);
+        bool newHidden = shouldHide(newId);
         countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
         bool newQuery = !ignore && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
         if (newQuery != allowQuery) {
@@ -58,28 +68,24 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
             }
         }
         id = newId;
+        hidden = newHidden;
         added = false;
     }
 
     return true;
 }
 
-int BleFingerprint::get1mRssi() const {
+const String BleFingerprint::getMac() const {
+    const auto nativeAddress = address.getNative();
+    return Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
+}
+
+const int BleFingerprint::get1mRssi() const {
     if (calRssi != NO_RSSI) return calRssi + BleFingerprintCollection::rxAdjRssi;
     if (bcnRssi != NO_RSSI) return bcnRssi + BleFingerprintCollection::rxAdjRssi;
     if (mdRssi != NO_RSSI) return mdRssi + BleFingerprintCollection::rxAdjRssi;
     if (asRssi != NO_RSSI) return asRssi + BleFingerprintCollection::rxAdjRssi;
     return BleFingerprintCollection::rxRefRssi + DEFAULT_TX + BleFingerprintCollection::rxAdjRssi;
-}
-
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)} {
-    firstSeenMillis = millis();
-    address = NimBLEAddress(advertisedDevice->getAddress());
-    addressType = advertisedDevice->getAddressType();
-    newest = recent = oldest = rssi = advertisedDevice->getRSSI();
-    seenCount = 1;
-    queryReport = nullptr;
-    fingerprintAddress();
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
@@ -449,6 +455,7 @@ void BleFingerprint::setInitial(int initalRssi, float initalDistance) {
 }
 
 void BleFingerprint::fill(JsonObject *doc) {
+    (*doc)[F("mac")] = getMac();
     (*doc)[F("id")] = id;
     if (!name.isEmpty()) (*doc)[F("name")] = name;
     if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
@@ -458,12 +465,10 @@ void BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("rssi")] = rssi;
 
     (*doc)[F("raw")] = serialized(String(raw, 2));
-    (*doc)[F("distance")] = serialized(String(output.value.position, 2));
-    (*doc)[F("speed")] = serialized(String(output.value.speed * 1e3f, 2));
-    (*doc)[F("mac")] = SMacf(address);
+    (*doc)[F("distance")] = serialized(String(hasValue ? output.value.position : raw, 2));
     if (close) (*doc)[F("close")] = true;
 
-    (*doc)[F("interval")] = (millis() - firstSeenMillis) / seenCount;
+    (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
 
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
@@ -472,22 +477,21 @@ void BleFingerprint::fill(JsonObject *doc) {
 }
 
 bool BleFingerprint::report(JsonObject *doc) {
-    if (ignore || idType <= ID_TYPE_RAND_MAC || hidden)
-        return false;
+    if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
+    if (reported) return false;
 
-    if (reported || !hasValue)
-        return false;
+    auto dist = hasValue ? output.value.position : raw;
 
     auto maxDistance = BleFingerprintCollection::maxDistance;
-    if (maxDistance > 0 && output.value.position > maxDistance)
+    if (maxDistance > 0 && dist > maxDistance)
         return false;
 
     auto now = millis();
-    if ((abs(output.value.position - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
+    if ((abs(dist - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
         return false;
 
     lastReportedMillis = now;
-    lastReported = output.value.position;
+    lastReported = dist;
     reported = true;
     fill(doc);
     return true;
@@ -540,7 +544,7 @@ bool BleFingerprint::query() {
 
 bool BleFingerprint::shouldCount() {
     bool prevCounting = counting;
-    if (ignore || !countable || !hasValue)
+    if (ignore || !countable)
         counting = false;
     else if (getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
