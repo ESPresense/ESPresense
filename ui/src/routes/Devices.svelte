@@ -34,8 +34,8 @@
             filterOptions: (rows) => {
                 const prefixes = new Set();
                 rows.forEach((row) => {
-                    var prefix = row.alias.substring(0, row.alias.indexOf(":") + 1);
-                    if (prefix.length > 0) {
+                    var prefix = row.alias?.substring(0, row.alias.indexOf(":") + 1);
+                    if (prefix?.length > 0) {
                         prefixes.add(prefix);
                     }
                 });
@@ -55,7 +55,7 @@
                 const prefixes = new Set();
                 rows.forEach((row) => {
                     var prefix = row.id?.substring(0, row.id.indexOf(":") + 1);
-                    if (prefix.length > 0) {
+                    if (prefix?.length > 0) {
                         prefixes.add(prefix);
                     }
                 });
