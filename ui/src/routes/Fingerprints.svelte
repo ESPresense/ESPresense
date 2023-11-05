@@ -24,7 +24,7 @@
                 const prefixes = new Set();
                 rows.forEach((row) => {
                     var prefix = row.id?.substring(0, row.id.indexOf(":") + 1);
-                    if (prefix.length > 0) {
+                    if (prefix?.length > 0) {
                         prefixes.add(prefix);
                     }
                 });
