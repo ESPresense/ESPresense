@@ -23,7 +23,7 @@
             filterOptions: (rows) => {
                 const prefixes = new Set();
                 rows.forEach((row) => {
-                    var prefix = row.id.substring(0, row.id.indexOf(":") + 1);
+                    var prefix = row.id?.substring(0, row.id.indexOf(":") + 1);
                     if (prefix.length > 0) {
                         prefixes.add(prefix);
                     }
@@ -32,7 +32,7 @@
                     .sort()
                     .map((a) => ({ name: a, value: a }));
             },
-            filterValue: (v) => v.id.substring(0, v.id.indexOf(":") + 1),
+            filterValue: (v) => v.id?.substring(0, v.id.indexOf(":") + 1),
             headerClass: "text-left px-6 py-3",
         },
         {
