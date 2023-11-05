@@ -2,7 +2,7 @@ import { readable } from 'svelte/store';
 import { writable } from 'svelte/store';
 
 export const extras = writable([], function start(set) {
-    fetch(`/extras`)
+    fetch("/extras")
         .then(d => d.json())
         .then(r => {
             set(r);
@@ -19,7 +19,7 @@ export const configs = readable([], function start(set) {
     const interval = setInterval(() => {
         if (outstanding) return;
         outstanding = true;
-        fetch(`/json/configs`)
+        fetch("/json/configs")
             .then(d => d.json())
             .then(r => {
                 outstanding = false;
@@ -44,7 +44,7 @@ export const devices = readable([], function start(set) {
     const interval = setInterval(() => {
         if (outstanding) return;
         outstanding = true;
-        fetch(`/json/devices`)
+        fetch("/json/devices?showAll")
             .then(d => d.json())
             .then(r => {
                 outstanding = false;

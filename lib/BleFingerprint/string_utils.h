@@ -8,11 +8,6 @@
 #define ESPMAC (Sprintf("%06x", CHIPID))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const String r = s; free(s); r; })
 #define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const std::string r = s; free(s); r; })
-#define SMacf(f) (                                                                                                                                       \
-    {                                                                                                                                                    \
-        const auto nativeAddress = (f).getNative();                                                                                                            \
-        Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]); \
-    })
 
 std::string slugify(const std::string& text);
 String slugify(const String& text);

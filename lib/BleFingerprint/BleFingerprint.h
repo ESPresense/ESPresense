@@ -60,10 +60,8 @@
 #define ID_TYPE_KNOWN_MAC short(210)
 #define ID_TYPE_ALIAS short(250)
 
-class BleFingerprint
-{
-
-public:
+class BleFingerprint {
+   public:
     BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
@@ -74,53 +72,52 @@ public:
 
     bool query();
 
-    String getId() { return id; }
+    const String getId() const { return id; }
 
-    String getName() { return name; }
+    const String getName() const { return name; }
 
-    void setName(String &name) { this->name = name; }
+    void setName(const String &name) { this->name = name; }
 
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
     void setInitial(int rssi, float distance);
 
-    String getMac() const { return SMacf(address); }
+    const String getMac() const;
 
-    short getIdType() const { return idType; }
+    const short getIdType() const { return idType; }
 
-    String const getDiscriminator() { return disc; }
+    const String getDiscriminator() const { return disc; }
 
-    float getDistance() const { return output.value.position; }
+    const float getDistance() const { return output.value.position; }
 
-    int getRssi() const { return rssi; }
+    const int getRssi() const { return rssi; }
 
-    int getNewestRssi() const { return newest; }
+    const int getNewestRssi() const { return newest; }
 
-    int get1mRssi() const;
+    const int get1mRssi() const;
 
     void set1mRssi(int8_t rssi) { this->calRssi = rssi; }
 
-    NimBLEAddress const getAddress() { return address; }
+    const NimBLEAddress getAddress() const { return address; }
 
-    unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
+    const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
-    unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
+    const unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
-    bool getVisible() const { return !ignore && !hidden && hasValue; }
+    const bool getVisible() const { return !ignore && !hidden; }
 
-    bool getAdded() const { return added; };
+    const bool getAdded() const { return added; };
 
-    bool getIgnore() const { return ignore; };
+    const bool getIgnore() const { return ignore; };
 
-    bool getAllowQuery() const { return allowQuery; };
+    const bool getAllowQuery() const { return allowQuery; };
 
     const bool hasReport() { return queryReport != nullptr; };
     const QueryReport getReport() { return *queryReport; };
-    void setReport(const QueryReport &report) { queryReport = std::unique_ptr<QueryReport>(new QueryReport {report}); };
+    void setReport(const QueryReport &report) { queryReport = std::unique_ptr<QueryReport>(new QueryReport{report}); };
     void clearReport() { queryReport.reset(); };
 
-    unsigned int getSeenCount()
-    {
+    unsigned int getSeenCount() {
         auto sc = seenCount - lastSeenCount;
         lastSeenCount = seenCount;
         return sc;
@@ -131,8 +128,7 @@ public:
 
     void expire();
 
-private:
-
+   private:
     static bool shouldHide(const String &s);
 
     bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;

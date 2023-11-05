@@ -2,11 +2,27 @@
     import { devices } from "../stores";
     import SvelteTable from "svelte-table";
 
-    var filterSelections = {};
+    var filterSelections = {
+        vis: true
+    };
     var sortBy = "distance";
     var sortOrder = 1;
     var selectedRowIds = [];
     const columns = [
+        {
+            key: "vis",
+            title: "Visible",
+            value: (v) => v.vis ?? false,
+            renderValue: (v) => v.vis ? "⬤" : "",
+            sortable: true,
+            filterOptions: (rows) => {
+                const options = [
+                    { name: "Yes", value: true },
+                    { name: "No", value: false },
+                ];
+                return options;
+            },
+        },
         {
             key: "distance",
             title: "Dist",
@@ -18,7 +34,7 @@
         {
             key: "id",
             title: "ID",
-            value: (v) => v.id,
+            value: (v) => v.id ?? "",
             sortable: true,
             filterOptions: (rows) => {
                 const prefixes = new Set();
@@ -62,7 +78,7 @@
         {
             key: "mac",
             title: "MAC",
-            value: (v) => v.mac,
+            value: (v) => v.mac ?? "n/a",
             sortable: true,
             filterOptions: (rows) => {
                 // use first letter of last_name to generate filter
@@ -88,25 +104,28 @@
             key: "rssi",
             title: "Rssi",
             value: (v) => v.rssi,
-            renderValue: (v) => v.rssi + "dBm",
+            renderValue: (v) => v.rssi ? `${v.rssi} dBm` : "",
             sortable: true,
-            headerClass: "text-left px-6 py-3",
+            headerClass: "",
+            class: "whitespace-nowrap",
         },
         {
             key: "rssi@1m",
             title: "Rssi@1m",
             value: (v) => v["rssi@1m"],
-            renderValue: (v) => v["rssi@1m"] + "dBm",
+            renderValue: (v) => v["rssi@1m"] ? `${v["rssi@1m"]} dBm` : "",
             sortable: true,
-            headerClass: "text-left px-6 py-3",
+            headerClass: "",
+            class: "whitespace-nowrap",
         },
         {
-            key: "interval",
-            title: "Interval",
-            value: (v) => v.interval,
-            renderValue: (v) => v.interval + "ms",
+            key: "int",
+            title: "int",
+            value: (v) => v.int ?? 0,
+            renderValue: (v) => v.int ? `${v.int} ms` : "",
             sortable: true,
-            headerClass: "text-left px-6 py-3",
+            headerClass: "",
+            class: "whitespace-nowrap",
         },
     ];
     function classNameRow(event) {
@@ -116,7 +135,7 @@
 
 <main>
     {#if $devices?.devices != null}
-        <SvelteTable {columns} rows={$devices.devices} rowKey="mac" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-3 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
+        <SvelteTable {columns} rows={$devices.devices} rowKey="mac" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-1 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
     {:else}
         <h1>Loading fingerprints...</h1>
     {/if}
