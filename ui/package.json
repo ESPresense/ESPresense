@@ -24,7 +24,7 @@
     "postcss": "^8.4.31",
     "postcss-load-config": "^4.0.1",
     "rollup": "^3.29.4",
-    "rollup-plugin-css-only": "^4.5.0",
+    "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-generate-html-template": "^1.7.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-svelte": "^7.1.6",
