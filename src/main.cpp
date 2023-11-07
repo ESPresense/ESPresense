@@ -506,6 +506,9 @@ void scanTask(void *parameter) {
             if (f->query())
                 totalFpQueried++;
 
+        for (auto &f : BleFingerprintCollection::fingerprints)
+            f->filter();
+
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {

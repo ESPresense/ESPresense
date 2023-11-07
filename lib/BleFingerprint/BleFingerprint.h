@@ -6,13 +6,13 @@
 #include <NimBLEDevice.h>
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
-#include <SoftFilters.h>
 
 #include <memory>
 
 #include "QueryReport.h"
 #include "rssi.h"
 #include "string_utils.h"
+#include "RSSISmoother.h"
 
 #define NO_RSSI int8_t(-128)
 
@@ -72,6 +72,8 @@ class BleFingerprint {
 
     bool query();
 
+    bool filter();
+
     const String getId() const { return id; }
 
     const String getName() const { return name; }
@@ -86,17 +88,13 @@ class BleFingerprint {
 
     const short getIdType() const { return idType; }
 
-    const String getDiscriminator() const { return disc; }
+    const float getDistance() const;
 
-    const float getDistance() const { return output.value.position; }
-
-    const int getRssi() const { return rssi; }
-
-    const int getNewestRssi() const { return newest; }
+    const int getRssi() const;
+    const int getRawRssi() const { return rssi; }
 
     const int get1mRssi() const;
-
-    void set1mRssi(int8_t rssi) { this->calRssi = rssi; }
+    void set1mRssi(int8_t rssi) { calRssi = rssi; }
 
     const NimBLEAddress getAddress() const { return address; }
 
@@ -125,33 +123,26 @@ class BleFingerprint {
 
     bool shouldCount();
     void fingerprintAddress();
-
     void expire();
 
    private:
-    static bool shouldHide(const String &s);
 
-    bool hasValue = false, added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;
     NimBLEAddress address;
-    String id, name, disc;
+    String id, name;
     short int idType = NO_ID_TYPE;
-    int rssi = NO_RSSI, newest = NO_RSSI, recent = NO_RSSI, oldest = NO_RSSI;
+    int rssi = NO_RSSI;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
-    float raw = 0, lastReported = 0, temp = 0, humidity = 0;
+    float raw = 0, dist = 0, smooth = NO_RSSI, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-
-    Reading<Differential<float>> output;
-
-    OneEuroFilter<float, unsigned long> oneEuro;
-    DifferentialFilter<float, unsigned long> diffFilter;
-
+    RSSISmoother rssiSmoother;
     std::unique_ptr<QueryReport> queryReport = nullptr;
-    bool filter();
 
+    static bool shouldHide(const String &s);
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
     void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
     void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
