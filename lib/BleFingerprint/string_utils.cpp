@@ -107,7 +107,7 @@ uint8_t hextob(char ch)
 
 bool hextostr(const String &hexStr, uint8_t* output, size_t len)
 {
-    if (len & 1) return false;
+    if (hexStr.length() & 1) return false;
     if (hexStr.length() < len*2) return false;
     int k = 0;
     for (size_t i = 0; i < len*2; i+=2)
