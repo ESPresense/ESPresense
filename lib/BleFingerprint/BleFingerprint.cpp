@@ -449,10 +449,16 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     return false;
 }
 
-void BleFingerprint::setInitial(int initalRssi, float initalDistance) {
-    newest = recent = oldest = rssi = initalRssi;
-    raw = initalDistance;
-    hasValue = filter() || filter();
+void BleFingerprint::setInitial(const BleFingerprint &other) {
+    newest = other.newest;
+    recent = other.recent;
+    oldest = other.oldest;
+    rssi = other.rssi;
+    raw = other.rssi;
+    output = other.output;
+    oneEuro = other.oneEuro;
+    diffFilter = other.diffFilter;
+    hasValue = other.hasValue;
 }
 
 void BleFingerprint::fill(JsonObject *doc) {

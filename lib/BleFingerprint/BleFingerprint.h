@@ -80,7 +80,7 @@ class BleFingerprint {
 
     bool setId(const String &newId, short int newIdType, const String &newName = "");
 
-    void setInitial(int rssi, float distance);
+    void setInitial(const BleFingerprint &other);
 
     const String getMac() const;
 
