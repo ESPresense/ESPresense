@@ -26,8 +26,8 @@
         {
             key: "distance",
             title: "Dist",
-            value: (v) => v.distance,
-            renderValue: (v) => `${v.distance?.toLocaleString(undefined, { minimumFractionDigits: 2 })}m`,
+            value: (v) => v.distance ?? 0,
+            renderValue: (v) => v.distance === undefined ? "n/a" : `${v.distance?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortable: true,
             class: "px-0 py-0 whitespace-nowrap",
         },
