@@ -464,8 +464,9 @@ void BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    (*doc)[F("raw")] = serialized(String(raw, 2));
-    (*doc)[F("distance")] = serialized(String(hasValue ? output.value.position : raw, 2));
+    auto dist = hasValue ? output.value.position : raw;
+    if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
+    if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
