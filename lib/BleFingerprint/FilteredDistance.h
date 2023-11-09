@@ -1,35 +1,23 @@
 #ifndef FILTEREDDISTANCE_H
 #define FILTEREDDISTANCE_H
 
-#include <Arduino.h>
-
-#define SPIKE_THRESHOLD 1.0f  // Threshold for spike detection
-#define NUM_READINGS 10       // Number of readings to keep track of
-
 class FilteredDistance {
    public:
-    FilteredDistance(float minCutoff = 1.0f, float beta = 0.0f, float dcutoff = 1.0f);
+    FilteredDistance(float processNoise, float measurementNoise);
     void addMeasurement(float dist);
-    const float getMedianDistance() const;
     const float getDistance() const;
-    bool hasValue() const { return lastTime != 0; }
+    const bool hasValue() const { return !isFirstMeasurement; }
 
    private:
-    float minCutoff;
-    float beta;
-    float dcutoff;
-    float x, dx;
-    float lastDist;
-    unsigned long lastTime;
+    float state[2];                // State: [0] is distance, [1] is rate of change in distance
+    float covariance[2][2];        // State covariance
+    unsigned long lastUpdateTime;  // Time of the last update
+    float processNoise;            // Process noise (Q)
+    float measurementNoise;        // Measurement noise (R)
+    bool isFirstMeasurement;
 
-    float getAlpha(float cutoff, float dT);
-
-    float readings[NUM_READINGS];  // Array to store readings
-    int readIndex;                 // Current position in the array
-    float total;                   // Total of the readings
-
-    void initSpike(float dist);
-    float removeSpike(float dist);
+    void prediction(float deltaTime);
+    void update(float distanceMeasurement);
 };
 
 #endif  // FILTEREDDISTANCE_H
