@@ -236,6 +236,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
         } else if (uuid == miFloraUUID) {
             asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : FLORA_TX);
             setId("flora:" + getMac(), ID_TYPE_FLORA);
+            return;
         }
     }
 
