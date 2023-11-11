@@ -3,14 +3,15 @@
 
 #include <Arduino.h>
 
-class RSSISmoother {
+class FilteredDistance {
    public:
-    RSSISmoother(float timeConstant, float minCutoff = 1.0f, float beta = 0.0f, float dcutoff = 1.0f);
-    void addRSSIValue(float rssi);
-    float getSmoothedRSSI();
+    FilteredDistance(float minCutoff = 1.0f, float beta = 0.0f, float dcutoff = 1.0f);
+    void addMeasurement(float dist);
+    const float getDistance() const;
+    bool hasValue() const { return lastTime != 0;}
 
    private:
-    static const size_t bufferSize = 10;
+    static const size_t bufferSize = 3;
     std::pair<unsigned long, float> rssiBuffer[bufferSize];  // Fixed-size buffer
     size_t bufferIndex = 0;                                  // Current index in the buffer
 
@@ -19,7 +20,7 @@ class RSSISmoother {
     float beta;
     float dcutoff;
     float x, dx;
-    float lastRSSI;
+    float lastDist;
     unsigned long lastTime;
 
     float getAlpha(float cutoff, float dT);

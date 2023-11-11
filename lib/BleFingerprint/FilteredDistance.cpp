@@ -1,18 +1,18 @@
-#include "RSSISmoother.h"
+#include "FilteredDistance.h"
 
 #include <Arduino.h>
 
 #include <cmath>
 #include <vector>
 
-RSSISmoother::RSSISmoother(float timeConstant, float minCutoff, float beta, float dcutoff)
-    : timeConstant(timeConstant), minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastRSSI(0), lastTime(micros()) {
+FilteredDistance::FilteredDistance(float minCutoff, float beta, float dcutoff)
+    : timeConstant(1), minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()) {
     for (size_t i = 0; i < bufferSize; ++i) {
         rssiBuffer[i] = std::make_pair(0, 0.0f);  // Initialize the buffer
     }
 }
 
-void RSSISmoother::addRSSIValue(float rssi) {
+void FilteredDistance::addMeasurement(float dist) {
     unsigned long now = micros();
     float dT = (now - lastTime) * 0.000001f;  // Convert microseconds to seconds
     lastTime = now;
@@ -22,19 +22,19 @@ void RSSISmoother::addRSSIValue(float rssi) {
     float alpha = getAlpha(minCutoff, dT);
     float dAlpha = getAlpha(dcutoff, dT);
 
-    x += alpha * (rssi - x);
+    x += alpha * (dist - x);
 
-    float dxTemp = (rssi - lastRSSI) / dT;
+    float dxTemp = (dist - lastDist) / dT;
     dx = dAlpha * (dx + (1 - dAlpha) * dxTemp);
 
-    lastRSSI = x + beta * dx;
+    lastDist = x + beta * dx;
 
     bufferIndex %= bufferSize;
-    rssiBuffer[bufferIndex] = std::make_pair(now, lastRSSI);
+    rssiBuffer[bufferIndex] = std::make_pair(now, lastDist);
     bufferIndex++;
 }
 
-float RSSISmoother::getSmoothedRSSI() {
+const float FilteredDistance::getDistance() const {
     unsigned long now = micros();
 
     float total = 0.0f;
@@ -56,7 +56,7 @@ float RSSISmoother::getSmoothedRSSI() {
     }
 
     // Check if weightSum is zero to avoid division by zero
-    if (weightSum == 0) return lastRSSI;
+    if (weightSum == 0) return lastDist;
 
     // Then, use the sum to normalize the weights and calculate the weighted sum
     for (size_t i = 0; i < decayedWeights.size(); ++i) {
@@ -68,7 +68,7 @@ float RSSISmoother::getSmoothedRSSI() {
     return total;
 }
 
-float RSSISmoother::getAlpha(float cutoff, float dT) {
+float FilteredDistance::getAlpha(float cutoff, float dT) {
     float tau = 1.0f / (2 * M_PI * cutoff);
     float te = 1.0f / (1.0f + tau / dT);
     return te;

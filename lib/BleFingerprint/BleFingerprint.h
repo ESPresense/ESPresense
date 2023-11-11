@@ -12,7 +12,7 @@
 #include "QueryReport.h"
 #include "rssi.h"
 #include "string_utils.h"
-#include "RSSISmoother.h"
+#include "FilteredDistance.h"
 
 #define NO_RSSI int8_t(-128)
 
@@ -66,7 +66,7 @@ class BleFingerprint {
 
     bool seen(BLEAdvertisedDevice *advertisedDevice);
 
-    void fill(JsonObject *doc);
+    bool fill(JsonObject *doc);
 
     bool report(JsonObject *doc);
 
@@ -134,12 +134,12 @@ class BleFingerprint {
     int rssi = NO_RSSI;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
-    float raw = 0, dist = 0, smooth = NO_RSSI, lastReported = 0, temp = 0, humidity = 0;
+    float raw = 0, dist = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-    RSSISmoother rssiSmoother;
+    FilteredDistance filteredDistance;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);
