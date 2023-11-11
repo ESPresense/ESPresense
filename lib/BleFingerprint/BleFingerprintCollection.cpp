@@ -119,7 +119,13 @@ void ConnectToWifi() {
 }
 
 bool Command(String &command, String &pay) {
-    if (command == "max_distance") {
+    if (command == "skip_ms") {
+        BleFingerprintCollection::skipMs  = pay.toInt();
+        spurt("/skip_ms", pay);
+    } else if (command == "skip_distance") {
+        BleFingerprintCollection::skipDistance  = pay.toFloat();
+        spurt("/skip_dist", pay);
+    } else if (command == "max_distance") {
         maxDistance = pay.toFloat();
         spurt("/max_dist", pay);
     } else if (command == "absorption") {
