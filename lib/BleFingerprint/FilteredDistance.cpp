@@ -7,7 +7,7 @@
 #include <numeric>
 
 FilteredDistance::FilteredDistance(float minCutoff, float beta, float dcutoff)
-    : timeConstant(1), minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()) {
+    : minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()) {
     for (size_t i = 0; i < bufferSize; ++i) {
         rssiBuffer[i] = std::make_pair(0, 0.0f);  // Initialize the buffer
     }
@@ -26,6 +26,12 @@ void FilteredDistance::addMeasurement(float dist) {
     x += alpha * (dist - x);
 
     float dxTemp = (dist - lastDist) / dT;
+
+    // Apply 1 m/s limit to dxTemp
+    if (std::abs(dxTemp) > 1.0f) {
+        dxTemp = (dxTemp > 0 ? 1 : -1) * 1.0f;
+    }
+
     dx = dAlpha * (dx + (1 - dAlpha) * dxTemp);
 
     lastDist = x + beta * dx;
@@ -34,7 +40,8 @@ void FilteredDistance::addMeasurement(float dist) {
     rssiBuffer[bufferIndex] = std::make_pair(now, lastDist);
     bufferIndex++;
 }
-const float FilteredDistance::getDistance() const {
+
+const float FilteredDistance::getMedianDistance() const {
     std::vector<float> distances;
 
     // Gather all distances
@@ -51,23 +58,13 @@ const float FilteredDistance::getDistance() const {
 
     // Calculate median of distances
     std::nth_element(distances.begin(), distances.begin() + distances.size() / 2, distances.end());
-    float medianDistance = distances[distances.size() / 2];
-
-    // Filter out distances significantly greater than the median
-    std::vector<float> filteredDistances;
-    for (float distance : distances) {
-        if (distance <= medianDistance * 1.2) { // Adjust multiplier as needed
-            filteredDistances.push_back(distance);
-        }
-    }
-
-    // Compute average of filtered distances
-    if (filteredDistances.empty()) return lastDist;
-
-    float sum = std::accumulate(filteredDistances.begin(), filteredDistances.end(), 0.0f);
-    return sum / filteredDistances.size();
+    return distances[distances.size() / 2];
 }
 
+const float FilteredDistance::getDistance() const {
+
+    return getMedianDistance();
+}
 
 float FilteredDistance::getAlpha(float cutoff, float dT) {
     float tau = 1.0f / (2 * M_PI * cutoff);

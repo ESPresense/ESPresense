@@ -7,6 +7,7 @@ class FilteredDistance {
    public:
     FilteredDistance(float minCutoff = 1.0f, float beta = 0.0f, float dcutoff = 1.0f);
     void addMeasurement(float dist);
+    const float getMedianDistance() const;
     const float getDistance() const;
     bool hasValue() const { return lastTime != 0;}
 
@@ -15,7 +16,6 @@ class FilteredDistance {
     std::pair<unsigned long, float> rssiBuffer[bufferSize];  // Fixed-size buffer
     size_t bufferIndex = 0;                                  // Current index in the buffer
 
-    float timeConstant;
     float minCutoff;
     float beta;
     float dcutoff;
