@@ -23,6 +23,7 @@ version-resolver:
     labels:
       - 'patch'
   default: patch
+prerelease-identifier: 'b'  
 template: |
   ## Changes
 
