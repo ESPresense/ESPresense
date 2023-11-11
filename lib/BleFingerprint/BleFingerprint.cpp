@@ -100,8 +100,7 @@ const int BleFingerprint::getRssi() const {
 }
 
 const float BleFingerprint::getDistance() const {
-    if (filteredDistance.hasValue()) return  dist;
-    return raw;
+    return dist;
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
@@ -459,7 +458,6 @@ void BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    auto dist = hasValue ? output.value.position : raw;
     if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
     if (close) (*doc)[F("close")] = true;
@@ -474,7 +472,7 @@ void BleFingerprint::fill(JsonObject *doc) {
 }
 
 bool BleFingerprint::filter() {
-    dist = filteredDistance.getDistance();
+    if (filteredDistance.hasValue()) dist = filteredDistance.getDistance();
     return true;
 }
 

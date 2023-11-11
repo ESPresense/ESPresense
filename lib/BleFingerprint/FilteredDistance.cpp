@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <vector>
+#include <numeric>
 
 FilteredDistance::FilteredDistance(float minCutoff, float beta, float dcutoff)
     : timeConstant(1), minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()) {
@@ -33,40 +34,40 @@ void FilteredDistance::addMeasurement(float dist) {
     rssiBuffer[bufferIndex] = std::make_pair(now, lastDist);
     bufferIndex++;
 }
-
 const float FilteredDistance::getDistance() const {
-    unsigned long now = micros();
+    std::vector<float> distances;
 
-    float total = 0.0f;
-    float weightSum = 0.0f;
-    std::vector<float> decayedWeights;
-
-    // First, calculate all the decayed weights and sum them up
+    // Gather all distances
     for (size_t i = 0; i < bufferSize; ++i) {
         size_t index = (bufferIndex + bufferSize - i - 1) % bufferSize;
         unsigned long elementTimestamp = rssiBuffer[index].first;
 
-        // Skip if the slot is uninitialized (timestamp is 0)
-        if (elementTimestamp == 0) continue;
+        if (elementTimestamp == 0) continue; // Skip uninitialized slots
 
-        float age = (now - elementTimestamp) * 0.000001f;  // Convert microseconds to seconds
-        float decayedWeight = exp(-age / timeConstant);
-        decayedWeights.push_back(decayedWeight);
-        weightSum += decayedWeight;
+        distances.push_back(rssiBuffer[index].second);
     }
 
-    // Check if weightSum is zero to avoid division by zero
-    if (weightSum == 0) return lastDist;
+    if (distances.empty()) return lastDist;
 
-    // Then, use the sum to normalize the weights and calculate the weighted sum
-    for (size_t i = 0; i < decayedWeights.size(); ++i) {
-        size_t index = (bufferIndex + bufferSize - i - 1) % bufferSize;
-        float normalizedWeight = decayedWeights[i] / weightSum;
-        total += rssiBuffer[index].second * normalizedWeight;
+    // Calculate median of distances
+    std::nth_element(distances.begin(), distances.begin() + distances.size() / 2, distances.end());
+    float medianDistance = distances[distances.size() / 2];
+
+    // Filter out distances significantly greater than the median
+    std::vector<float> filteredDistances;
+    for (float distance : distances) {
+        if (distance <= medianDistance * 1.2) { // Adjust multiplier as needed
+            filteredDistances.push_back(distance);
+        }
     }
 
-    return total;
+    // Compute average of filtered distances
+    if (filteredDistances.empty()) return lastDist;
+
+    float sum = std::accumulate(filteredDistances.begin(), filteredDistances.end(), 0.0f);
+    return sum / filteredDistances.size();
 }
+
 
 float FilteredDistance::getAlpha(float cutoff, float dT) {
     float tau = 1.0f / (2 * M_PI * cutoff);

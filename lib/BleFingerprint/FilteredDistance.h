@@ -11,7 +11,7 @@ class FilteredDistance {
     bool hasValue() const { return lastTime != 0;}
 
    private:
-    static const size_t bufferSize = 3;
+    static const size_t bufferSize = 5;
     std::pair<unsigned long, float> rssiBuffer[bufferSize];  // Fixed-size buffer
     size_t bufferIndex = 0;                                  // Current index in the buffer
 
