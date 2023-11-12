@@ -72,8 +72,6 @@ class BleFingerprint {
 
     bool query();
 
-    bool filter();
-
     const String getId() const { return id; }
 
     const String getName() const { return name; }
@@ -88,9 +86,9 @@ class BleFingerprint {
 
     const short getIdType() const { return idType; }
 
-    const float getDistance() const;
+    const float getDistance() const { return dist; }
 
-    const int getRssi() const;
+    const int getRssi() const { return rssi; }
     const int getRawRssi() const { return rssi; }
 
     const int get1mRssi() const;

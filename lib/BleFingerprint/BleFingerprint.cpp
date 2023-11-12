@@ -96,14 +96,6 @@ const int BleFingerprint::get1mRssi() const {
     return BleFingerprintCollection::rxRefRssi + DEFAULT_TX + BleFingerprintCollection::rxAdjRssi;
 }
 
-const int BleFingerprint::getRssi() const {
-    return rssi;
-}
-
-const float BleFingerprint::getDistance() const {
-    return dist;
-}
-
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->haveName()) {
         const std::string name = advertisedDevice->getName();
@@ -429,6 +421,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     rssi = advertisedDevice->getRSSI();
     raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     filteredDistance.addMeasurement(raw);
+    dist = filteredDistance.getDistance();
 
     if (!added) {
         added = true;
@@ -457,12 +450,6 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
-    return true;
-}
-
-bool BleFingerprint::filter() {
-    if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
-    if (filteredDistance.hasValue()) dist = filteredDistance.getDistance();
     return true;
 }
 
