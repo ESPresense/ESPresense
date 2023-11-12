@@ -39,6 +39,9 @@ jobs:
     - name: Set pr env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_HEAD_REF}\"' -DVERSION='\"${GITHUB_HEAD_SHA::7}\"'" >> $GITHUB_ENV
       if: ${{ github.event_name == 'pull_request' }}
+    - name: Set branch env
+      run:  echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_REF#refs/heads/}\"' -DVERSION='\"${GITHUB_SHA::7}\"'" >> $GITHUB_ENV
+      if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
     - name: Set rel env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
