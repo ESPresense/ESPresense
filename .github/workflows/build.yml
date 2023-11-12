@@ -51,7 +51,7 @@ jobs:
     - name: Run PlatformIO
       run: pio run -e ${{ matrix.env }}
     - name: Upload Artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: ${{ matrix.env }}.bin
         path: .pio/build/${{ matrix.env }}/firmware.bin
