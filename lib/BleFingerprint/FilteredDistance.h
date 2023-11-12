@@ -1,5 +1,5 @@
-#ifndef RSSISMOOTHER_H
-#define RSSISMOOTHER_H
+#ifndef FILTEREDDISTANCE_H
+#define FILTEREDDISTANCE_H
 
 #include <Arduino.h>
 
@@ -32,4 +32,4 @@ class FilteredDistance {
     float removeSpike(float dist);
 };
 
-#endif  // RSSISMOOTHER_H
+#endif  // FILTEREDDISTANCE_H
