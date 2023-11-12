@@ -11,6 +11,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [esp32, esp32c3, esp32c3-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
     - uses: actions/checkout@v4
     - name: Cache pip
@@ -46,29 +49,24 @@ jobs:
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
     - name: Run PlatformIO
-      run: pio run -e esp32 -e esp32c3 -e esp32c3-cdc -e esp32s3 -e esp32s3-cdc -e esp32-verbose -e esp32c3-verbose -e esp32s3-verbose -e m5stickc -e m5stickc-plus -e m5atom -e macchina-a0
-    - name: Rename firmware
-      run: |
-        cp .pio/build/esp32/firmware.bin esp32.bin
-        cp .pio/build/esp32c3/firmware.bin esp32c3.bin
-        cp .pio/build/esp32c3-cdc/firmware.bin esp32c3-cdc.bin
-        cp .pio/build/esp32s3/firmware.bin esp32s3.bin
-        cp .pio/build/esp32s3-cdc/firmware.bin esp32s3-cdc.bin
-        cp .pio/build/esp32-verbose/firmware.bin esp32-verbose.bin
-        cp .pio/build/esp32c3-verbose/firmware.bin esp32c3-verbose.bin
-        cp .pio/build/esp32s3-verbose/firmware.bin esp32s3-verbose.bin
-        cp .pio/build/m5stickc/firmware.bin m5stickc.bin
-        cp .pio/build/m5stickc-plus/firmware.bin m5stickc-plus.bin
-        cp .pio/build/m5atom/firmware.bin m5atom.bin
-        cp .pio/build/macchina-a0/firmware.bin macchina-a0.bin
+      run: pio run -e ${{ matrix.env }}
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ matrix.env }}.bin
+        path: .pio/build/${{ matrix.env }}/firmware.bin
+  release:
+    runs-on: ubuntu-latest
+    needs: build  # This job needs to wait for all matrix builds to complete
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v2
+      with:
+        path: artifacts/
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/v')
       with:
-        files: "*.bin"
+        files: artifacts/*.bin
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    - name: Archive Build
-      uses: kittaakos/upload-artifact-as-is@v0
-      with:
-        path: ./*.bin
