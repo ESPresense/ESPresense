@@ -7,38 +7,31 @@
 #include <vector>
 
 FilteredDistance::FilteredDistance(float minCutoff, float beta, float dcutoff)
-    : minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()) {
+    : minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(micros()), total(0), average(0), readIndex(0) {
     for (size_t i = 0; i < NUM_READINGS; i++) {
         readings[i] = 0;
     }
 }
 
 float FilteredDistance::removeSpike(float newValue) {
-    // Subtract the last reading:
-    total = total - readings[readIndex];
-    // Read the sensor:
-    readings[readIndex] = newValue;
-    // Add the reading to the total:
-    total = total + readings[readIndex];
-    // Advance to the next position in the array:
-    readIndex = (readIndex + 1) % NUM_READINGS;
+    total -= readings[readIndex]; // Subtract the last reading
+    readings[readIndex] = newValue; // Read the sensor
+    total += readings[readIndex]; // Add the reading to the total
+    readIndex = (readIndex + 1) % NUM_READINGS; // Advance to the next position in the array
 
-    // Calculate the average:
-    average = total / NUM_READINGS;
+    average = total / static_cast<float>(NUM_READINGS); // Calculate the average
 
-    // Detect spike
-    if (abs(newValue - average) > SPIKE_THRESHOLD) {
-        // Spike detected, use the average as the filtered value
-        return average;
+    if (std::fabs(newValue - average) > SPIKE_THRESHOLD) { // Use fabs for floating-point
+        return average; // Spike detected, use the average as the filtered value
     } else {
-        // No spike, return the new value
-        return newValue;
+        return newValue; // No spike, return the new value
     }
 }
 
 void FilteredDistance::addMeasurement(float dist) {
     unsigned long now = micros();
-    float dT = (now - lastTime) * 0.000001f;  // Convert microseconds to seconds
+    unsigned long elapsed = now - lastTime;
+    float dT = elapsed * 0.000001f; // Convert microseconds to seconds
     lastTime = now;
 
     dT = std::max(dT, 0.05f);  // Enforce a minimum dT
@@ -63,6 +56,5 @@ const float FilteredDistance::getDistance() const {
 
 float FilteredDistance::getAlpha(float cutoff, float dT) {
     float tau = 1.0f / (2 * M_PI * cutoff);
-    float te = 1.0f / (1.0f + tau / dT);
-    return te;
+    return 1.0f / (1.0f + tau / dT);
 }
