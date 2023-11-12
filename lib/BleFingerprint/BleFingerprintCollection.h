@@ -3,10 +3,9 @@
 
 #include "BleFingerprint.h"
 
-#define ONE_EURO_FCMIN 1e-3f
-#define ONE_EURO_BETA 1e-7f
-#define ONE_EURO_DCUTOFF 1e-4f
-
+#define ONE_EURO_FCMIN 1e-2f
+#define ONE_EURO_BETA 1e-4f
+#define ONE_EURO_DCUTOFF 1e-2f
 
 #ifndef ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS
 #define ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS 1800
