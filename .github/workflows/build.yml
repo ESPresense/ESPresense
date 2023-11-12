@@ -51,11 +51,11 @@ jobs:
     - name: Run PlatformIO
       run: pio run -e ${{ matrix.env }}
     - name: Rename artifact
-      run: mv .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
+      run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.env }}
+        name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
   release:
     runs-on: ubuntu-latest
