@@ -16,7 +16,7 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(25, 0.1)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
@@ -27,10 +27,11 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
     fingerprintAddress();
 }
 
-void BleFingerprint::setInitial(int initalRssi, float initalDistance) {
-    rssi = initalRssi;
-    raw = dist = initalDistance;
-    filteredDistance.addMeasurement(raw);
+void BleFingerprint::setInitial(const BleFingerprint &other) {
+    rssi = other.rssi;
+    dist = other.dist;
+    raw = other.raw;
+    filteredDistance = other.filteredDistance;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -437,19 +438,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     return false;
 }
 
-void BleFingerprint::setInitial(const BleFingerprint &other) {
-    newest = other.newest;
-    recent = other.recent;
-    oldest = other.oldest;
-    rssi = other.rssi;
-    raw = other.rssi;
-    output = other.output;
-    oneEuro = other.oneEuro;
-    diffFilter = other.diffFilter;
-    hasValue = other.hasValue;
-}
-
-void BleFingerprint::fill(JsonObject *doc) {
+bool BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("mac")] = getMac();
     (*doc)[F("id")] = id;
     if (!name.isEmpty()) (*doc)[F("name")] = name;
