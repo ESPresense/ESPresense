@@ -8,7 +8,7 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
     printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
 }
 
-bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, int unsigned totalFpQueried, int unsigned totalFpReported, unsigned int count) {
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
