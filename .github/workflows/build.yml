@@ -26,12 +26,8 @@ jobs:
     - name: Cache PlatformIO
       uses: actions/cache@v3
       with:
-        path: |
-          ~/.platformio
-          .pio/libdeps
-        key: ${{ runner.os }}-platformio-${{ hashFiles('**/platformio.ini') }}
-        restore-keys: |
-          ${{ runner.os }}-platformio-
+        path: ~/.platformio/.cache
+        key: ${{ runner.os }}-pio
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
