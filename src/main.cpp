@@ -104,6 +104,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         doc["queried"] = totalFpQueried;
     if (totalFpReported > 0)
         doc["reported"] = totalFpReported;
+    if (reportFailed > 0)
+        doc["failed"] = reportFailed;
     if (teleFails > 0)
         doc["teleFails"] = teleFails;
     if (reconnectTries > 0)
@@ -427,7 +429,7 @@ bool reportDevice(BleFingerprint *f) {
         delay(20);
     }
 
-    teleFails++;
+    reportFailed++;
     return false;
 }
 

@@ -54,6 +54,7 @@ unsigned long updateStartedMillis = 0;
 unsigned long lastTeleMillis = 0;
 int reconnectTries = 0;
 int teleFails = 0;
+int reportFailed = 0;
 bool online = false;         // Have we successfully sent status=online
 bool sentDiscovery = false;  // Have we successfully sent discovery
 UBaseType_t bleStack = 0;

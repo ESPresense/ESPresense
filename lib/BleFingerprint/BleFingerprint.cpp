@@ -472,6 +472,7 @@ void BleFingerprint::fill(JsonObject *doc) {
 }
 
 bool BleFingerprint::filter() {
+    if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
     if (filteredDistance.hasValue()) dist = filteredDistance.getDistance();
     return true;
 }
@@ -488,10 +489,14 @@ bool BleFingerprint::report(JsonObject *doc) {
     if ((abs(dist - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
         return false;
 
-    lastReportedMillis = now;
-    lastReported = dist;
-    reported = true;
-    return fill(doc);
+    if (fill(doc)) {
+        lastReportedMillis = now;
+        lastReported = dist;
+        reported = true;
+        return true;
+    }
+
+    return false;
 }
 
 bool BleFingerprint::query() {
