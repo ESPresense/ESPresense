@@ -25,11 +25,11 @@ class FilteredDistance {
     float getAlpha(float cutoff, float dT);
 
     float readings[NUM_READINGS];  // Array to store readings
-    int readIndex = 0;             // Current position in the array
-    float total = 0;               // Total of the readings
-    float average = 0;             // Average of the readings
+    int readIndex;                 // Current position in the array
+    float total;                   // Total of the readings
 
-    float removeSpike(float newValue);
+    void initSpike(float dist);
+    float removeSpike(float dist);
 };
 
 #endif  // RSSISMOOTHER_H
