@@ -1,7 +1,8 @@
 #include "BleFingerprintCollection.h"
 
-#include <sstream>
 #include <Arduino.h>
+
+#include <sstream>
 
 namespace BleFingerprintCollection {
 // Public (externed)
@@ -21,12 +22,15 @@ TCallbackFingerprint onCountAdd = nullptr;
 TCallbackFingerprint onCountDel = nullptr;
 
 // Private
+const TickType_t MAX_WAIT = portTICK_PERIOD_MS * 100;
+
 unsigned long lastCleanup = 0;
-SemaphoreHandle_t fingerprintSemaphore;
+SemaphoreHandle_t fingerprintMutex;
+SemaphoreHandle_t deviceConfigMutex;
 
 void Setup() {
-    fingerprintSemaphore = xSemaphoreCreateBinary();
-    xSemaphoreGive(fingerprintSemaphore);
+    fingerprintMutex = xSemaphoreCreateMutex();
+    deviceConfigMutex = xSemaphoreCreateMutex();
 }
 
 void Count(BleFingerprint *f, bool counting) {
@@ -56,13 +60,18 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 }
 
 bool addOrReplace(DeviceConfig config) {
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take deviceConfigMutex in addOrReplace!");
+
     for (auto &it : deviceConfigs) {
         if (it.id == config.id) {
             it = config;
+            xSemaphoreGive(deviceConfigMutex);
             return false;
         }
     }
     deviceConfigs.push_back(config);
+    xSemaphoreGive(deviceConfigMutex);
     return true;
 }
 
@@ -120,10 +129,10 @@ void ConnectToWifi() {
 
 bool Command(String &command, String &pay) {
     if (command == "skip_ms") {
-        BleFingerprintCollection::skipMs  = pay.toInt();
+        BleFingerprintCollection::skipMs = pay.toInt();
         spurt("/skip_ms", pay);
     } else if (command == "skip_distance") {
-        BleFingerprintCollection::skipDistance  = pay.toFloat();
+        BleFingerprintCollection::skipDistance = pay.toFloat();
         spurt("/skip_dist", pay);
     } else if (command == "max_distance") {
         maxDistance = pay.toFloat();
@@ -211,29 +220,35 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
 }
 
 BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
-    if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);
-    if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
-        log_e("Couldn't give semaphore!");
+    xSemaphoreGive(fingerprintMutex);
     return f;
 }
 
 const std::vector<BleFingerprint *> GetCopy() {
-    if (xSemaphoreTake(fingerprintSemaphore, 1000) != pdTRUE)
-        log_e("Couldn't take semaphore!");
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take fingerprintMutex!");
     CleanupOldFingerprints();
     std::vector<BleFingerprint *> copy(fingerprints);
-    if (xSemaphoreGive(fingerprintSemaphore) != pdTRUE)
-        log_e("Couldn't give semaphore!");
+    xSemaphoreGive(fingerprintMutex);
     return std::move(copy);
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {
-    auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [id](DeviceConfig dc) { return dc.id == id; });
-    if (it == deviceConfigs.end()) return false;
-    config = (*it);
-    return true;
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) == pdTRUE) {
+        auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [id](DeviceConfig dc) { return dc.id == id; });
+        if (it != deviceConfigs.end()) {
+            config = *it;
+            xSemaphoreGive(deviceConfigMutex);
+            return true;
+        }
+        xSemaphoreGive(deviceConfigMutex);
+        return false;
+    }
+    log_e("Couldn't take deviceConfigMutex!");
+    return false;
 }
 
 }  // namespace BleFingerprintCollection
