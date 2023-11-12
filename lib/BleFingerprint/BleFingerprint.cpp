@@ -16,14 +16,22 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : oneEuro{OneEuroFilter<float, unsigned long>(1, fcmin, beta, dcutoff)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
-    newest = recent = oldest = rssi = advertisedDevice->getRSSI();
+    rssi = advertisedDevice->getRSSI();
+    raw = dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
+}
+
+void BleFingerprint::setInitial(const BleFingerprint &other) {
+    rssi = other.rssi;
+    dist = other.dist;
+    raw = other.raw;
+    filteredDistance = other.filteredDistance;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -196,7 +204,7 @@ void BleFingerprint::fingerprintAddress() {
 }
 
 void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
-    for (size_t i = 0; i < serviceAdvCount; i++) {
+    for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
         Serial.printf("Verbose | %s | %-58s%ddBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
@@ -345,7 +353,6 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
                 String pid = Sprintf("apple:%02x%02x:%u", strManufacturerData[2], strManufacturerData[3], strManufacturerData.length());
                 if (haveTxPower) pid += -txPower;
                 setId(pid, ID_TYPE_APPLE_NEARBY);
-                disc = hexStr(strManufacturerData.substr(4)).c_str();
                 mdRssi = BleFingerprintCollection::rxRefRssi + APPLE_TX;
             } else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x12 && strManufacturerData.length() == 29) {
                 String pid = "apple:findmy";
@@ -401,14 +408,6 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
     }
 }
 
-bool BleFingerprint::filter() {
-    Reading<float, unsigned long> inter1, inter2;
-    inter1.timestamp = millis();
-    inter1.value = raw;
-
-    return oneEuro.push(&inter1, &inter2) && diffFilter.push(&inter2, &output);
-}
-
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     lastSeenMillis = millis();
     reported = false;
@@ -417,29 +416,12 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
 
     fingerprint(advertisedDevice);
 
-    if (ignore) return false;
+    if (ignore || hidden) return false;
 
-    oldest = recent;
-    recent = newest;
-    newest = advertisedDevice->getRSSI();
-
-    auto the_min = min(min(oldest, recent), newest);
-    auto the_max = max(max(oldest, recent), newest);
-    auto the_median = the_max ^ the_min ^ oldest ^ recent ^ newest;
-
-    rssi = the_median;
-
-    const auto ratio = float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption);
-    raw = pow(10, ratio);
-    if (filter()) hasValue = true;
-
-    if (!close && the_min > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
-        BleFingerprintCollection::Close(this, true);
-        close = true;
-    } else if (close && the_max < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
-        BleFingerprintCollection::Close(this, false);
-        close = false;
-    }
+    rssi = advertisedDevice->getRSSI();
+    raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    filteredDistance.addMeasurement(raw);
+    dist = filteredDistance.getDistance();
 
     if (!added) {
         added = true;
@@ -449,29 +431,15 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     return false;
 }
 
-void BleFingerprint::setInitial(const BleFingerprint &other) {
-    newest = other.newest;
-    recent = other.recent;
-    oldest = other.oldest;
-    rssi = other.rssi;
-    raw = other.rssi;
-    output = other.output;
-    oneEuro = other.oneEuro;
-    diffFilter = other.diffFilter;
-    hasValue = other.hasValue;
-}
-
-void BleFingerprint::fill(JsonObject *doc) {
+bool BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("mac")] = getMac();
     (*doc)[F("id")] = id;
     if (!name.isEmpty()) (*doc)[F("name")] = name;
-    if (!disc.isEmpty()) (*doc)[F("disc")] = disc;
     if (idType) (*doc)[F("idType")] = idType;
 
     (*doc)[F("rssi@1m")] = get1mRssi();
     (*doc)[F("rssi")] = rssi;
 
-    auto dist = hasValue ? output.value.position : raw;
     if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
     if (close) (*doc)[F("close")] = true;
@@ -482,13 +450,12 @@ void BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
+    return true;
 }
 
 bool BleFingerprint::report(JsonObject *doc) {
     if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
     if (reported) return false;
-
-    auto dist = hasValue ? output.value.position : raw;
 
     auto maxDistance = BleFingerprintCollection::maxDistance;
     if (maxDistance > 0 && dist > maxDistance)
@@ -498,11 +465,14 @@ bool BleFingerprint::report(JsonObject *doc) {
     if ((abs(dist - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
         return false;
 
-    lastReportedMillis = now;
-    lastReported = dist;
-    reported = true;
-    fill(doc);
-    return true;
+    if (fill(doc)) {
+        lastReportedMillis = now;
+        lastReported = dist;
+        reported = true;
+        return true;
+    }
+
+    return false;
 }
 
 bool BleFingerprint::query() {
@@ -551,14 +521,22 @@ bool BleFingerprint::query() {
 }
 
 bool BleFingerprint::shouldCount() {
+    if (!close && rssi > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
+        BleFingerprintCollection::Close(this, true);
+        close = true;
+    } else if (close && rssi < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
+        BleFingerprintCollection::Close(this, false);
+        close = false;
+    }
+
     bool prevCounting = counting;
     if (ignore || !countable)
         counting = false;
     else if (getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
-    else if (counting && output.value.position > BleFingerprintCollection::countExit)
+    else if (counting && dist > BleFingerprintCollection::countExit)
         counting = false;
-    else if (!counting && output.value.position <= BleFingerprintCollection::countEnter)
+    else if (!counting && dist <= BleFingerprintCollection::countEnter)
         counting = true;
 
     if (prevCounting != counting) {

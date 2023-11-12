@@ -48,8 +48,10 @@ void serializeDevices(JsonObject &root, bool showAll) {
         bool visible = (*it)->getVisible();
         if (showAll || visible) {
             JsonObject node = devices.createNestedObject();
-            (*it)->fill(&node);
-            if (showAll && visible) node[F("vis")] = true;
+            if ((*it)->fill(&node)) {
+                if (showAll && visible) node[F("vis")] = true;
+            } else
+                devices.remove(devices.size() - 1);
         }
     }
 }

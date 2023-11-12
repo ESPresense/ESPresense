@@ -5,7 +5,6 @@
 #include <BleFingerprint.h>
 #include <NimBLEClient.h>
 #include <NimBLEDevice.h>
-#include <SoftFilters.h>
 
 namespace MiFloraHandler
 {

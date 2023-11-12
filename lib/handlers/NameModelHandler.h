@@ -3,7 +3,6 @@
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
 #include <sstream>
-#include <SoftFilters.h>
 #include <AsyncMqttClient.h>
 #include <BleFingerprint.h>
 #include <AsyncWiFiSettings.h>
