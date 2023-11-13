@@ -1,0 +1,22 @@
+name: Dispatch Events
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Repository Dispatch
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.ESPRESENSE_CONTENTS_TOKEN }}
+        repository: ESPresense/ESPresense.github.io
+        event-type: new-release
+        client-payload: >
+          {
+            "repository": "ESPresense/ESPresense",
+            "ref": "${{ github.ref }}",
+            "sha": "${{ github.sha }}"
+          }
