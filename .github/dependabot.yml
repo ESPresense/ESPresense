@@ -5,16 +5,16 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
   # Maintain dependencies for npm
   - package-ecosystem: "npm"
     directory: "ui/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
 
-  # Maintain dependencies for Composer
+  # Maintain dependencies for nuget
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
-      interval: "platformio"
+      interval: "weekly"
