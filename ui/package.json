@@ -28,7 +28,7 @@
     "rollup-plugin-generate-html-template": "^1.7.0",
     "rollup-plugin-postcss": "^4.0.2",
     "rollup-plugin-svelte": "^7.1.6",
-    "svelte": "^4.2.3",
+    "svelte": "^4.2.7",
     "svelte-preprocess": "^5.1.0",
     "svelte-spa-router": "^3.3.0",
     "svelte-table": "^0.6.1",
