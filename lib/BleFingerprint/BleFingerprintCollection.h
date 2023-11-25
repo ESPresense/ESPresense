@@ -3,9 +3,9 @@
 
 #include "BleFingerprint.h"
 
-#define ONE_EURO_FCMIN 1e-1f
-#define ONE_EURO_BETA 1e-3f
-#define ONE_EURO_DCUTOFF 5e-3f
+#define ONE_EURO_FCMIN 0.3f   // Respond to changes moderately fast
+#define ONE_EURO_BETA 0.002f  // Balance between smoothing and responsiveness
+#define ONE_EURO_DCUTOFF 1.0f // Control noise in the derivative
 
 #ifndef ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS
 #define ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS 1800

@@ -16,11 +16,11 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : rssiSmoother{RSSISmoother(1, fcmin, beta, dcutoff)} {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
-    rssi = advertisedDevice->getRSSI();
+    smooth = rssi = advertisedDevice->getRSSI();
     raw = dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     seenCount = 1;
     queryReport = nullptr;
@@ -94,6 +94,14 @@ const int BleFingerprint::get1mRssi() const {
     if (mdRssi != NO_RSSI) return mdRssi + BleFingerprintCollection::rxAdjRssi;
     if (asRssi != NO_RSSI) return asRssi + BleFingerprintCollection::rxAdjRssi;
     return BleFingerprintCollection::rxRefRssi + DEFAULT_TX + BleFingerprintCollection::rxAdjRssi;
+}
+
+const int BleFingerprint::getRssi() const {
+    return smooth;
+}
+
+const float BleFingerprint::getDistance() const {
+    return dist;
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
@@ -419,9 +427,8 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     rssi = advertisedDevice->getRSSI();
+    rssiSmoother.addRSSIValue(rssi);
     raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filteredDistance.addMeasurement(raw);
-    dist = filteredDistance.getDistance();
 
     if (!added) {
         added = true;
@@ -450,6 +457,18 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
+    return true;
+}
+
+bool BleFingerprint::filter() {
+    smooth = rssiSmoother.getSmoothedRSSI();
+    dist = pow(10, float(get1mRssi() - smooth) / (10.0f * BleFingerprintCollection::absorption));
+    return true;
+}
+
+bool BleFingerprint::filter() {
+    smooth = rssiSmoother.getSmoothedRSSI();
+    dist = pow(10, float(get1mRssi() - smooth) / (10.0f * BleFingerprintCollection::absorption));
     return true;
 }
 
