@@ -16,12 +16,13 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
     rssi = advertisedDevice->getRSSI();
-    raw = dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    dist = pbf(raw, 0.0);
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
@@ -29,9 +30,9 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmi
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
+    pbf = other.pbf;
     dist = other.dist;
     raw = other.raw;
-    filteredDistance = other.filteredDistance;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -409,7 +410,9 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
 }
 
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
-    lastSeenMillis = millis();
+    auto now = millis();
+    double deltaTime = (now - lastSeenMillis) / 1000.0f;
+    lastSeenMillis = now;
     reported = false;
 
     seenCount++;
@@ -420,8 +423,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
 
     rssi = advertisedDevice->getRSSI();
     raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filteredDistance.addMeasurement(raw);
-    dist = filteredDistance.getDistance();
+    dist = pbf(raw, deltaTime);
 
     if (!added) {
         added = true;

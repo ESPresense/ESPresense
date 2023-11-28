@@ -12,7 +12,7 @@
 #include "QueryReport.h"
 #include "rssi.h"
 #include "string_utils.h"
-#include "FilteredDistance.h"
+#include "PhysicsBasedFilter.h"
 
 #define NO_RSSI int8_t(-128)
 
@@ -130,6 +130,7 @@ class BleFingerprint {
     String id, name;
     short int idType = NO_ID_TYPE;
     int rssi = NO_RSSI;
+    PhysicsBasedFilter pbf;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, dist = 0, lastReported = 0, temp = 0, humidity = 0;
@@ -137,7 +138,6 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-    FilteredDistance filteredDistance;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);
