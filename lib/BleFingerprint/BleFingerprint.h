@@ -12,7 +12,7 @@
 #include "QueryReport.h"
 #include "rssi.h"
 #include "string_utils.h"
-#include "FilteredDistance.h"
+#include "PhysicsBasedFilter.h"
 
 #define NO_RSSI int8_t(-128)
 
@@ -112,7 +112,7 @@ class BleFingerprint {
 
     const short getIdType() const { return idType; }
 
-    const float getDistance() const { return filter.getDistance(); }
+    const float getDistance() const { return filter.distance(); }
 
     const int getMaxObservedRssi() const {
         return std::max_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.rssi < b.rssi; })->rssi;
@@ -170,7 +170,7 @@ class BleFingerprint {
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
     std::unique_ptr<QueryReport> queryReport = nullptr;
-    FilteredDistance filter { ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF };
+    PhysicsBasedFilter filter;
 
     static bool shouldHide(const String &s);
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);

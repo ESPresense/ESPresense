@@ -22,6 +22,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     addressType = advertisedDevice->getAddressType();
     for (auto& channel : channels)
         channel.observe(firstSeenMillis, get1mRssi(), advertisedDevice->getRSSI());
+    filter.update(channels[0].raw, 0.0);
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
@@ -29,6 +30,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
     channels = other.channels;
+    filter = other.filter;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -421,7 +423,12 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel
     if (ignore || hidden) return false;
 
     lastChannel = channel;
-    channels[ble_channel_to_index(channel)].observe(millis(), get1mRssi(), advertisedDevice->getRSSI());
+    auto& observedChannel = channels[ble_channel_to_index(channel)];
+
+    auto now = millis();
+    double deltaTime = (now - observedChannel.lastSeenMillis) / 1000.0f;
+
+    observedChannel.observe(now, get1mRssi(), advertisedDevice->getRSSI());
 
     int maxRssiRecent = NO_RSSI, maxRssiOverall = NO_RSSI;
     for (const auto& channel : channels) {
@@ -433,7 +440,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel
 
     int rssi = (maxRssiRecent != NO_RSSI) ? maxRssiRecent : maxRssiOverall;
     auto raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filter.addMeasurement(raw);
+    filter.update(raw, deltaTime);
 
     if (!added) {
         added = true;
@@ -469,10 +476,10 @@ bool BleFingerprint::fill(JsonObject *doc) {
     }
     (*doc)[F("channel")] = lastChannel;
 
-    (*doc)[F("distance")] = serialized(String(filter.getDistance(), 2));
-    (*doc)[F("mean")] = serialized(String(filter.getMeanDistance(), 2));
-    (*doc)[F("var")] = serialized(String(filter.getVariance(), 2));
-    (*doc)[F("ci")] = serialized(String(1.959 * std::sqrt(filter.getVariance()) / std::sqrt(12), 2));
+    (*doc)[F("distance")] = serialized(String(filter.distance(), 2));
+    (*doc)[F("mean")] = serialized(String(filter.mean(), 2));
+    (*doc)[F("var")] = serialized(String(filter.variance(), 2));
+    (*doc)[F("ci")] = serialized(String(1.959 * std::sqrt(filter.variance()) / std::sqrt(12), 2));
 
     if (close) (*doc)[F("close")] = true;
 
