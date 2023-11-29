@@ -7,7 +7,7 @@
 #include <vector>
 
 FilteredDistance::FilteredDistance(float minCutoff, float beta, float dcutoff)
-    : minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(0), total(0), readIndex(0) {
+    : minCutoff(minCutoff), beta(beta), dcutoff(dcutoff), x(0), dx(0), lastDist(0), lastTime(0), total(0), totalSquared(0), readIndex(0) {
 }
 
 void FilteredDistance::initSpike(float dist) {
@@ -15,12 +15,17 @@ void FilteredDistance::initSpike(float dist) {
         readings[i] = dist;
     }
     total = dist * NUM_READINGS;
+    totalSquared = dist * dist * NUM_READINGS; // Initialize sum of squared distances
 }
 
 float FilteredDistance::removeSpike(float dist) {
     total -= readings[readIndex];                // Subtract the last reading
-    readings[readIndex] = dist;              // Read the sensor
+    totalSquared -= readings[readIndex] * readings[readIndex]; // Subtract the square of the last reading
+
+    readings[readIndex] = dist;                  // Read the sensor
     total += readings[readIndex];                // Add the reading to the total
+    totalSquared += readings[readIndex] * readings[readIndex]; // Add the square of the reading
+
     readIndex = (readIndex + 1) % NUM_READINGS;  // Advance to the next position in the array
 
     auto average = total / static_cast<float>(NUM_READINGS);  // Calculate the average
@@ -61,4 +66,10 @@ const float FilteredDistance::getDistance() const {
 float FilteredDistance::getAlpha(float cutoff, float dT) {
     float tau = 1.0f / (2 * M_PI * cutoff);
     return 1.0f / (1.0f + tau / dT);
+}
+
+const float FilteredDistance::getVariance() const {
+    float mean = total / static_cast<float>(NUM_READINGS);
+    float meanOfSquares = totalSquared / static_cast<float>(NUM_READINGS);
+    return meanOfSquares - (mean * mean); // Variance formula: E(X^2) - (E(X))^2
 }

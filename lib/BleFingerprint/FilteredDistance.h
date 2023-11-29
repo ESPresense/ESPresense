@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 #define SPIKE_THRESHOLD 1.0f  // Threshold for spike detection
-#define NUM_READINGS 10       // Number of readings to keep track of
+#define NUM_READINGS 12       // Number of readings to keep track of
 
 class FilteredDistance {
    public:
@@ -12,6 +12,8 @@ class FilteredDistance {
     void addMeasurement(float dist);
     const float getMedianDistance() const;
     const float getDistance() const;
+    const float getVariance() const;
+
     bool hasValue() const { return lastTime != 0; }
 
    private:
@@ -27,6 +29,7 @@ class FilteredDistance {
     float readings[NUM_READINGS];  // Array to store readings
     int readIndex;                 // Current position in the array
     float total;                   // Total of the readings
+    float totalSquared;            // Total of the squared readings
 
     void initSpike(float dist);
     float removeSpike(float dist);
