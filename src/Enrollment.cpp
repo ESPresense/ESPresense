@@ -211,8 +211,6 @@ bool Loop() {
             Serial.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
-            pAdvertising->setMaxInterval(3200);
-            pAdvertising->setMinInterval(1600);
             pAdvertising->setScanResponse(false);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
