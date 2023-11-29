@@ -32,6 +32,14 @@
             class: "px-0 py-0 whitespace-nowrap",
         },
         {
+            key: "var",
+            title: "Var",
+            value: (v) => v.var ?? 0,
+            renderValue: (v) => v.var === undefined ? "n/a" : `${v.var?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
+            sortable: true,
+            class: "px-0 py-0 whitespace-nowrap",
+        },
+        {
             key: "id",
             title: "ID",
             value: (v) => v.id ?? "",

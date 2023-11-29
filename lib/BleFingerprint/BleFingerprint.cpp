@@ -422,6 +422,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     filteredDistance.addMeasurement(raw);
     dist = filteredDistance.getDistance();
+    vari = filteredDistance.getVariance();
 
     if (!added) {
         added = true;
@@ -442,6 +443,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
+    if (isnormal(vari)) (*doc)[F("var")] = serialized(String(vari, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
