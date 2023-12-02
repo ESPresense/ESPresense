@@ -19,14 +19,20 @@ static unsigned long lastLoop = 0;
 static int connectionToEnroll = -1;
 static uint16_t major, minor;
 static NimBLEServer *pServer;
-static NimBLEAdvertisementData *oAdvertisementData;
 static NimBLEService *heartRate;
 static NimBLEService *deviceInfo;
+#ifdef CONFIG_BT_NIMBLE_EXT_ADV
+static NimBLEExtAdvertisingCallbacks advertisingCallbacks;
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer *pServer) {
         if (enrolling) {
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
             NimBLEDevice::startAdvertising();
+#else /* CONFIG_BT_NIMBLE_EXT_ADV */
+            NimBLEDevice::startAdvertising(0);
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
         }
     };
 
@@ -42,7 +48,11 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
             Serial.println("Client disconnected");
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
             NimBLEDevice::startAdvertising();
+#else /* CONFIG_BT_NIMBLE_EXT_ADV */
+            NimBLEDevice::startAdvertising(0);
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
         }
     };
 
@@ -54,6 +64,8 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         Serial.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
     }
 };
+
+static ServerCallbacks serverCallbacks;
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     void onRead(NimBLECharacteristic *pCharacteristic) {
@@ -161,7 +173,7 @@ void Setup() {
     NimBLEDevice::setSecurityAuth(true, true, true);
 
     pServer = NimBLEDevice::createServer();
-    pServer->setCallbacks(new ServerCallbacks());
+    pServer->setCallbacks(&serverCallbacks);
 
     heartRate = pServer->createService("180D");
     NimBLECharacteristic *bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY, 2);
@@ -185,38 +197,79 @@ void Setup() {
     major = (nodeId & 0xFFFF0000) >> 16;
     minor = nodeId & 0xFFFF;
 
-    BLEBeacon oBeacon = BLEBeacon();
-    oBeacon.setManufacturerId(0x4C00);
-    oBeacon.setProximityUUID(espresenseUUID);
-    oBeacon.setMajor(major);
-    oBeacon.setMinor(minor);
-    oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
-    oAdvertisementData = new NimBLEAdvertisementData();
-    oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
-    oAdvertisementData->setManufacturerData(oBeacon.getData());
-
     pServer->start();
+}
+
+static bool UpdateAdvertisements() {
+    auto pAdvertising = NimBLEDevice::getAdvertising();
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
+    pAdvertising->reset();
+#else /* CONFIG_BT_NIMBLE_EXT_ADV */
+    pAdvertising->stop(0);
+    pAdvertising->setCallbacks(&advertisingCallbacks);
+    if (!pAdvertising->removeAll()) {
+        Serial.println("Failed to reset advertisement data.");
+        return false;
+    }
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
+
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
+    NimBLEAdvertisementData advertisementData;
+#else /* CONFIG_BT_NIMBLE_EXT_ADV */
+    NimBLEExtAdvertisement advertisementData { BLE_HCI_LE_PHY_1M, BLE_HCI_LE_PHY_1M };
+    advertisementData.setLegacyAdvertising(true);
+    if (enrolling) {
+        advertisementData.setName("ESPresense");
+        advertisementData.setConnectable(true);
+    } else {
+        advertisementData.setPrimaryChannels(true, false, false);
+    }
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
+
+    advertisementData.setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
+
+    if (!enrolling) {
+        BLEBeacon oBeacon = BLEBeacon();
+        oBeacon.setManufacturerId(0x4C00);
+        oBeacon.setProximityUUID(espresenseUUID);
+        oBeacon.setMajor(major);
+        oBeacon.setMinor(minor);
+        oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
+        advertisementData.setManufacturerData(oBeacon.getData());
+        Serial.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
+    } else {
+        advertisementData.setCompleteServices16({heartRate->getUUID()});
+        Serial.printf("%u Advert | HRM\r\n", xPortGetCoreID());
+    }
+
+#ifndef CONFIG_BT_NIMBLE_EXT_ADV
+    if (enrolling) {
+        pAdvertising->setScanResponse(true);
+        pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
+    } else {
+        pAdvertising->setScanResponse(false);
+        pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
+    }
+
+    pAdvertising->setAdvertisementData(advertisementData);
+    pAdvertising->start();
+#else /* CONFIG_BT_NIMBLE_EXT_ADV */
+    if (!pAdvertising->setInstanceData(0, advertisementData)) {
+        Serial.println("Failed to set advertisement data.");
+        return false;
+    }
+    if (!pAdvertising->start(0)) {
+        Serial.println("Failed to start advertising.");
+        return false;
+    }
+#endif /* CONFIG_BT_NIMBLE_EXT_ADV */
+    return true;
 }
 
 bool Loop() {
     if (enrolling != lastEnrolling) {
         HttpWebServer::SendState();
-        auto pAdvertising = NimBLEDevice::getAdvertising();
-        if (enrolling) {
-            pAdvertising->reset();
-            pAdvertising->setScanResponse(true);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
-            pAdvertising->addServiceUUID(heartRate->getUUID());
-            pAdvertising->start();
-            Serial.printf("%u Advert | HRM\r\n", xPortGetCoreID());
-        } else {
-            pAdvertising->reset();
-            pAdvertising->setScanResponse(false);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
-            pAdvertising->setAdvertisementData(*oAdvertisementData);
-            pAdvertising->start();
-            Serial.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
-        }
+        UpdateAdvertisements();
         lastEnrolling = enrolling;
         if (enrolling) enrollingEndMillis = millis() + 120000;
     }
