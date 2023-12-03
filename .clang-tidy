@@ -7,19 +7,19 @@ Checks: >
   performance-*,
   portability-*,
   readability-*,
+  -bugprone-easily-swappable-parameters,
   -google-readability-namespace-comments,
   -google-runtime-int,
   -google-runtime-references,
+  -llvmlibc-callee-namespace,
   -misc-non-private-member-variables-in-classes,
-  -readability-named-parameter,
+  -modernize-macro-to-enum,
+  -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
-  -readability-magic-numbers
-  -llvmlibc-callee-namespace
-  -bugprone-easily-swappable-parameters
-  -readability-magic-numbers
-  -readability-identifier-length
-  -readability-identifier-naming
-  -modernize-macro-to-enum
+  -readability-identifier-length,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -readability-named-parameter
 
 CheckOptions:
   - { key: readability-identifier-naming.NamespaceCase,          value: lower_case }
@@ -27,7 +27,6 @@ CheckOptions:
   - { key: readability-identifier-naming.StructCase,             value: CamelCase  }
   - { key: readability-identifier-naming.TemplateParameterCase,  value: CamelCase  }
   - { key: readability-identifier-naming.FunctionCase,           value: CamelCase  }
-  - { key: readability-identifier-naming.VariableCase,           value: lower_case }
   - { key: readability-identifier-naming.PrivateMemberSuffix,    value: _          }
   - { key: readability-identifier-naming.ProtectedMemberSuffix,  value: _          }
   - { key: readability-identifier-naming.MacroDefinitionCase,    value: UPPER_CASE }
@@ -41,3 +40,4 @@ CheckOptions:
   - { key: readability-identifier-naming.MemberConstantPrefix,     value: k         }
   - { key: readability-identifier-naming.StaticConstantCase,       value: CamelCase }
   - { key: readability-identifier-naming.StaticConstantPrefix,     value: k         }
+  - { key: readability-identifier-naming.VariableCase,             value: CamelCase }

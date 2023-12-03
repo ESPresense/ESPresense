@@ -15,16 +15,16 @@ void FilteredDistance::initSpike(float dist) {
         readings[i] = dist;
     }
     total = dist * NUM_READINGS;
-    totalSquared = dist * dist * NUM_READINGS; // Initialize sum of squared distances
+    totalSquared = dist * dist * NUM_READINGS;  // Initialize sum of squared distances
 }
 
 float FilteredDistance::removeSpike(float dist) {
-    total -= readings[readIndex];                // Subtract the last reading
-    totalSquared -= readings[readIndex] * readings[readIndex]; // Subtract the square of the last reading
+    total -= readings[readIndex];                               // Subtract the last reading
+    totalSquared -= readings[readIndex] * readings[readIndex];  // Subtract the square of the last reading
 
-    readings[readIndex] = dist;                  // Read the sensor
-    total += readings[readIndex];                // Add the reading to the total
-    totalSquared += readings[readIndex] * readings[readIndex]; // Add the square of the reading
+    readings[readIndex] = dist;                                 // Read the sensor
+    total += readings[readIndex];                               // Add the reading to the total
+    totalSquared += readings[readIndex] * readings[readIndex];  // Add the square of the reading
 
     readIndex = (readIndex + 1) % NUM_READINGS;  // Advance to the next position in the array
 
@@ -69,7 +69,9 @@ float FilteredDistance::getAlpha(float cutoff, float dT) {
 }
 
 const float FilteredDistance::getVariance() const {
-    float mean = total / static_cast<float>(NUM_READINGS);
-    float meanOfSquares = totalSquared / static_cast<float>(NUM_READINGS);
-    return meanOfSquares - (mean * mean); // Variance formula: E(X^2) - (E(X))^2
+    auto mean = total / static_cast<float>(NUM_READINGS);
+    auto meanOfSquares = totalSquared / static_cast<float>(NUM_READINGS);
+    auto variance = meanOfSquares - (mean * mean);  // Variance formula: E(X^2) - (E(X))^2
+    if (variance < 0.0f) return 0.0f;
+    return variance;
 }
