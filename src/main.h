@@ -27,6 +27,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "string_utils.h"
+#include "build_timestamp.h"
 #ifdef M5STICK
 #include <AXP192.h>
 #endif

@@ -91,7 +91,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 #ifdef VERSION
     doc["ver"] = String(VERSION);
 #else
-    doc["ver"] = ESP.getSketchMD5();
+    doc["ver"] = ESP.getSketchMD5() + "-" + getBuildTimestamp();
 #endif
 
     if (!BleFingerprintCollection::countIds.isEmpty())
