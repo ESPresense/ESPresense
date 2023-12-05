@@ -22,7 +22,7 @@
     "mime": "^4.0.0",
     "pascal-case": "^4.0.0",
     "postcss": "^8.4.32",
-    "postcss-load-config": "^4.0.2",
+    "postcss-load-config": "^5.0.2",
     "rollup": "^3.29.4",
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-generate-html-template": "^1.7.0",
