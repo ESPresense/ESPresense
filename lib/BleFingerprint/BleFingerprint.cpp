@@ -467,15 +467,25 @@ bool BleFingerprint::fill(JsonObject *doc) {
     float weightedDistances = 0;
     float sumWeights = 0;
     float sumVariances = 0;
-    // FIXME: weight channels by timestamp of last packet, so we can ignore stale values
+    int channelCount = 0;
     for (const auto& channel : channels) {
+        if (channel.lastSeenMillis < millis() - 5000)
+            continue;
         float weight = 1 / std::max(channel.vari, 0.05f);
         weightedDistances += channel.dist * weight;
         sumWeights += weight;
         sumVariances += channel.vari;
+        channelCount++;
+    }
+    // FIXME: weight channels by timestamp of last packet, so we can ignore stale values?
+    if (!channelCount) {
+        weightedDistances = getMinObservedDistance();
+        sumWeights = 1;
+        sumVariances = 0;
+        channelCount = 1;
     }
     float fusedDistance = weightedDistances / sumWeights;
-    float fusedVariance = sumVariances / 3;
+    float fusedVariance = sumVariances / channelCount;
     (*doc)[F("distance")] = serialized(String(fusedDistance, 2));
     (*doc)[F("var")] = serialized(String(fusedVariance, 2));
 
