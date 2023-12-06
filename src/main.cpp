@@ -484,7 +484,7 @@ void reportLoop() {
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
-        BleFingerprintCollection::Seen(advertisedDevice);
+        BleFingerprintCollection::Seen(advertisedDevice, ChannelInfo::popChannelInfo(advertisedDevice->getRSSI()));
     }
 };
 

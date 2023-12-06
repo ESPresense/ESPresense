@@ -13,6 +13,7 @@
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
 #include "CAN.h"
+#include "ChannelInfo.h"
 #include "Enrollment.h"
 #include "GUI.h"
 #include "HttpReleaseUpdate.h"

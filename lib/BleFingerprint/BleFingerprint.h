@@ -60,11 +60,42 @@
 #define ID_TYPE_KNOWN_MAC short(210)
 #define ID_TYPE_ALIAS short(250)
 
+static inline uint8_t ble_channel_to_index(int8_t channel) {
+    auto index = channel - 37;
+    if (index < 0 || index > 2)
+        return 0;
+    return index;
+}
+
+enum class BleChannel {
+    Channel37 = 0,
+    Channel38 = 1,
+    Channel39 = 2,
+    Any
+};
+
+#define ONE_EURO_FCMIN 1e-1f
+#define ONE_EURO_BETA 1e-3f
+#define ONE_EURO_DCUTOFF 5e-3f
+
+struct BleChannelObservation {
+    int rssi { NO_RSSI };
+    float raw { 0 };
+    float dist { 0 };
+    float vari { 0 };
+    unsigned long lastSeenMillis { 0 };
+
+    void observe(unsigned long timestamp, int rssi1m, int rssi);
+
+ private:
+    FilteredDistance filter { ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF };
+};
+
 class BleFingerprint {
    public:
-    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff);
+    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice);
 
-    bool seen(BLEAdvertisedDevice *advertisedDevice);
+    bool seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel);
 
     bool fill(JsonObject *doc);
 
@@ -86,17 +117,24 @@ class BleFingerprint {
 
     const short getIdType() const { return idType; }
 
-    const float getDistance() const { return dist; }
+    const float getMinObservedDistance() const {
+        return std::min_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.dist < b.dist; })->dist;
+    }
 
-    const int getRssi() const { return rssi; }
-    const int getRawRssi() const { return rssi; }
+    const int getMaxObservedRssi() const {
+        return std::max_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.rssi < b.rssi; })->rssi;
+    }
 
     const int get1mRssi() const;
     void set1mRssi(int8_t rssi) { calRssi = rssi; }
 
     const NimBLEAddress getAddress() const { return address; }
 
-    const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
+    unsigned long getLastSeenMillis() const {
+        return std::max_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.lastSeenMillis < b.lastSeenMillis; })->lastSeenMillis;
+    }
+
+    const unsigned long getMsSinceLastSeen() const { return millis() - getLastSeenMillis(); };
 
     const unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
@@ -129,15 +167,15 @@ class BleFingerprint {
     NimBLEAddress address;
     String id, name;
     short int idType = NO_ID_TYPE;
-    int rssi = NO_RSSI;
+    uint8_t lastChannel;
+    std::array<BleChannelObservation, 3> channels;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
-    float raw = 0, dist = 0, vari = 0, lastReported = 0, temp = 0, humidity = 0;
-    unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
+    float lastReported = 0, temp = 0, humidity = 0;
+    unsigned long firstSeenMillis, lastReportedMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-    FilteredDistance filteredDistance;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);

@@ -49,12 +49,12 @@ void Close(BleFingerprint *f, bool close) {
     }
 }
 
-void Seen(BLEAdvertisedDevice *advertisedDevice) {
+void Seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel) {
     BLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
     BleFingerprint *f = GetFingerprint(&copy);
-    if (f->seen(&copy) && onAdd)
+    if (f->seen(&copy, channel) && onAdd)
         onAdd(f);
     if (onSeen) onSeen(false);
 }
@@ -205,7 +205,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     if (it != fingerprints.rend())
         return *it;
 
-    auto created = new BleFingerprint(advertisedDevice, ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF);
+    auto created = new BleFingerprint(advertisedDevice);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;

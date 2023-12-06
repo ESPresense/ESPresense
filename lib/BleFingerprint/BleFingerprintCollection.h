@@ -3,10 +3,6 @@
 
 #include "BleFingerprint.h"
 
-#define ONE_EURO_FCMIN 1e-1f
-#define ONE_EURO_BETA 1e-3f
-#define ONE_EURO_DCUTOFF 5e-3f
-
 #ifndef ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS
 #define ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS 1800
 #endif
@@ -30,7 +26,7 @@ bool Config(String &id, String &json);
 
 void Close(BleFingerprint *f, bool close);
 void Count(BleFingerprint *f, bool counting);
-void Seen(BLEAdvertisedDevice *advertisedDevice);
+void Seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel);
 BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 const std::vector<BleFingerprint *> GetCopy();

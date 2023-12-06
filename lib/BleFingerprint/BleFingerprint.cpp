@@ -16,22 +16,19 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
-    rssi = advertisedDevice->getRSSI();
-    raw = dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    for (auto& channel : channels)
+        channel.observe(firstSeenMillis, get1mRssi(), advertisedDevice->getRSSI());
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
 }
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
-    rssi = other.rssi;
-    dist = other.dist;
-    raw = other.raw;
-    filteredDistance = other.filteredDistance;
+    channels = other.channels;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -66,10 +63,10 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
             allowQuery = newQuery;
             if (allowQuery) {
                 qryAttempts = 0;
-                if (rssi < -80) {
+                if (getMaxObservedRssi() < -80) {
                     qryDelayMillis = 30000;
                     lastQryMillis = millis();
-                } else if (rssi < -70) {
+                } else if (getMaxObservedRssi() < -70) {
                     qryDelayMillis = 5000;
                     lastQryMillis = millis();
                 }
@@ -408,8 +405,16 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
     }
 }
 
-bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
-    lastSeenMillis = millis();
+void BleChannelObservation::observe(unsigned long timestamp, int rssi1m, int rssi) {
+    this->rssi = rssi;
+    raw = pow(10, float(rssi1m - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    filter.addMeasurement(raw);
+    dist = filter.getDistance();
+    vari = filter.getVariance();
+    lastSeenMillis = timestamp;
+}
+
+bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel) {
     reported = false;
 
     seenCount++;
@@ -418,11 +423,8 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
 
     if (ignore || hidden) return false;
 
-    rssi = advertisedDevice->getRSSI();
-    raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filteredDistance.addMeasurement(raw);
-    dist = filteredDistance.getDistance();
-    vari = filteredDistance.getVariance();
+    lastChannel = channel;
+    channels[ble_channel_to_index(channel)].observe(millis(), get1mRssi(), advertisedDevice->getRSSI());
 
     if (!added) {
         added = true;
@@ -439,11 +441,46 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (idType) (*doc)[F("idType")] = idType;
 
     (*doc)[F("rssi@1m")] = get1mRssi();
-    (*doc)[F("rssi")] = rssi;
+    (*doc)[F("rssi")] = getMaxObservedRssi();
+    switch (lastChannel) {
+        case 37:
+            (*doc)[F("rssi37")] = channels[0].rssi;
+            (*doc)[F("raw37")] = serialized(String(channels[0].raw, 2));
+            (*doc)[F("distance37")] = serialized(String(channels[0].dist, 2));
+            (*doc)[F("var37")] = serialized(String(channels[0].vari, 2));
+            break;
+        case 38:
+            (*doc)[F("rssi38")] = channels[1].rssi;
+            (*doc)[F("raw38")] = serialized(String(channels[1].raw, 2));
+            (*doc)[F("distance38")] = serialized(String(channels[1].dist, 2));
+            (*doc)[F("var38")] = serialized(String(channels[1].vari, 2));
+            break;
+        case 39:
+            (*doc)[F("rssi39")] = channels[2].rssi;
+            (*doc)[F("raw39")] = serialized(String(channels[2].raw, 2));
+            (*doc)[F("distance39")] = serialized(String(channels[2].dist, 2));
+            (*doc)[F("var39")] = serialized(String(channels[2].vari, 2));
+            break;
+    }
+    (*doc)[F("channel")] = lastChannel;
 
-    if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
-    if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
-    if (isnormal(vari)) (*doc)[F("var")] = serialized(String(vari, 2));
+    float weightedDistances = 0;
+    float sumWeights = 0;
+    float sumVariances = 0;
+    // FIXME: weight channels by timestamp of last packet, so we can ignore stale values
+    for (const auto& channel : channels) {
+        float weight = 1 / std::max(channel.vari, 0.05f);
+        weightedDistances += channel.dist * weight;
+        sumWeights += weight;
+        sumVariances += channel.vari;
+    }
+    float fusedDistance = weightedDistances / sumWeights;
+    float fusedVariance = sumVariances / 3;
+    (*doc)[F("distance")] = serialized(String(fusedDistance, 2));
+    (*doc)[F("var")] = serialized(String(fusedVariance, 2));
+
+    auto minRaw = std::min_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.raw < b.raw; })->raw;
+    (*doc)[F("raw")] = serialized(String(minRaw, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
@@ -459,17 +496,19 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
     if (reported) return false;
 
+    auto minObservedDistance = getMinObservedDistance();
+
     auto maxDistance = BleFingerprintCollection::maxDistance;
-    if (maxDistance > 0 && dist > maxDistance)
+    if (maxDistance > 0 && minObservedDistance > maxDistance)
         return false;
 
     auto now = millis();
-    if ((abs(dist - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
+    if ((abs(minObservedDistance - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
         return false;
 
     if (fill(doc)) {
         lastReportedMillis = now;
-        lastReported = dist;
+        lastReported = minObservedDistance;
         reported = true;
         return true;
     }
@@ -479,10 +518,10 @@ bool BleFingerprint::report(JsonObject *doc) {
 
 bool BleFingerprint::query() {
     if (!allowQuery || isQuerying) return false;
-    if (rssi < -90) return false; // Too far away
+    if (getMaxObservedRssi() < -90) return false; // Too far away
 
     auto now = millis();
-    if (now - lastSeenMillis > 5) return false; // Haven't seen lately
+    if (now - getLastSeenMillis() > 5000) return false; // Haven't seen lately
     if (now - lastQryMillis < qryDelayMillis) return false; // Too soon
 
     isQuerying = true;
@@ -490,7 +529,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query  | %s | %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Serial.printf("%u Query  | %s | %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), getMaxObservedRssi(), now - getLastSeenMillis());
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -516,29 +555,31 @@ bool BleFingerprint::query() {
     } else {
         qryAttempts++;
         qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-        Serial.printf("%u QryErr | %s | %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+        Serial.printf("%u QryErr | %s | %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), getMaxObservedRssi(), qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
     return true;
 }
 
 bool BleFingerprint::shouldCount() {
-    if (!close && rssi > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
+    if (!close && getMaxObservedRssi() > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
         BleFingerprintCollection::Close(this, true);
         close = true;
-    } else if (close && rssi < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
+    } else if (close && getMaxObservedRssi() < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
         BleFingerprintCollection::Close(this, false);
         close = false;
     }
+
+    auto minObservedDistance = getMinObservedDistance();
 
     bool prevCounting = counting;
     if (ignore || !countable)
         counting = false;
     else if (getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
-    else if (counting && dist > BleFingerprintCollection::countExit)
+    else if (counting && minObservedDistance > BleFingerprintCollection::countExit)
         counting = false;
-    else if (!counting && dist <= BleFingerprintCollection::countEnter)
+    else if (!counting && minObservedDistance <= BleFingerprintCollection::countEnter)
         counting = true;
 
     if (prevCounting != counting) {
@@ -549,5 +590,6 @@ bool BleFingerprint::shouldCount() {
 }
 
 void BleFingerprint::expire() {
-    lastSeenMillis = 0;
+    for (auto& channel : channels)
+        channel.lastSeenMillis = 0;
 }
