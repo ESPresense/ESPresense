@@ -59,6 +59,10 @@ void FilteredDistance::addMeasurement(float dist) {
     }
 }
 
+const float FilteredDistance::getMeanDistance() const {
+    return total / static_cast<float>(NUM_READINGS);
+}
+
 const float FilteredDistance::getDistance() const {
     return lastDist;
 }

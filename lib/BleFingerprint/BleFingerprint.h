@@ -82,12 +82,14 @@ struct BleChannelObservation {
     int rssi { NO_RSSI };
     float raw { 0 };
     float dist { 0 };
+    float mean { 0 };
     float vari { 0 };
+    float ci { 0 };
     unsigned long lastSeenMillis { 0 };
 
     void observe(unsigned long timestamp, int rssi1m, int rssi);
 
- private:
+private:
     FilteredDistance filter { ONE_EURO_FCMIN, ONE_EURO_BETA, ONE_EURO_DCUTOFF };
 };
 

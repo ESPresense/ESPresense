@@ -411,6 +411,8 @@ void BleChannelObservation::observe(unsigned long timestamp, int rssi1m, int rss
     filter.addMeasurement(raw);
     dist = filter.getDistance();
     vari = filter.getVariance();
+    ci = 1.959 * std::sqrt(vari) / std::sqrt(12);
+    mean = filter.getMeanDistance();
     lastSeenMillis = timestamp;
 }
 
@@ -448,46 +450,61 @@ bool BleFingerprint::fill(JsonObject *doc) {
             (*doc)[F("raw37")] = serialized(String(channels[0].raw, 2));
             (*doc)[F("distance37")] = serialized(String(channels[0].dist, 2));
             (*doc)[F("var37")] = serialized(String(channels[0].vari, 2));
+            (*doc)[F("mean37")] = serialized(String(channels[0].mean, 2));
+            (*doc)[F("ci37")] = serialized(String(channels[0].ci, 2));
             break;
         case 38:
             (*doc)[F("rssi38")] = channels[1].rssi;
             (*doc)[F("raw38")] = serialized(String(channels[1].raw, 2));
             (*doc)[F("distance38")] = serialized(String(channels[1].dist, 2));
             (*doc)[F("var38")] = serialized(String(channels[1].vari, 2));
+            (*doc)[F("mean38")] = serialized(String(channels[1].mean, 2));
+            (*doc)[F("ci39")] = serialized(String(channels[1].ci, 2));
             break;
         case 39:
             (*doc)[F("rssi39")] = channels[2].rssi;
             (*doc)[F("raw39")] = serialized(String(channels[2].raw, 2));
             (*doc)[F("distance39")] = serialized(String(channels[2].dist, 2));
             (*doc)[F("var39")] = serialized(String(channels[2].vari, 2));
+            (*doc)[F("mean39")] = serialized(String(channels[2].mean, 2));
+            (*doc)[F("ci39")] = serialized(String(channels[2].ci, 2));
             break;
     }
     (*doc)[F("channel")] = lastChannel;
 
-    float weightedDistances = 0;
+    float weightedDistances = 0, weightedMeans = 0, weightedVariances = 0, weightedCIs = 0;
     float sumWeights = 0;
-    float sumVariances = 0;
     int channelCount = 0;
     for (const auto& channel : channels) {
         if (channel.lastSeenMillis < millis() - 5000)
             continue;
         float weight = 1 / std::max(channel.vari, 0.05f);
         weightedDistances += channel.dist * weight;
+        weightedMeans += channel.mean * weight;
+        weightedVariances += channel.vari * weight;
+        weightedCIs += channel.ci * weight;
         sumWeights += weight;
-        sumVariances += channel.vari;
         channelCount++;
     }
     // FIXME: weight channels by timestamp of last packet, so we can ignore stale values?
     if (!channelCount) {
-        weightedDistances = getMinObservedDistance();
+        weightedDistances = channels[0].dist;
+        weightedMeans = channels[0].mean;
+        weightedVariances = channels[0].vari;
         sumWeights = 1;
-        sumVariances = 0;
         channelCount = 1;
     }
     float fusedDistance = weightedDistances / sumWeights;
-    float fusedVariance = sumVariances / channelCount;
     (*doc)[F("distance")] = serialized(String(fusedDistance, 2));
+
+    float fusedMean = weightedMeans / sumWeights;
+    (*doc)[F("mean")] = serialized(String(fusedMean, 2));
+
+    float fusedVariance = weightedVariances / sumWeights;
     (*doc)[F("var")] = serialized(String(fusedVariance, 2));
+
+    float fusedCI = weightedCIs / sumWeights;
+    (*doc)[F("ci")] = serialized(String(fusedCI, 2));
 
     auto minRaw = std::min_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.raw < b.raw; })->raw;
     (*doc)[F("raw")] = serialized(String(minRaw, 2));

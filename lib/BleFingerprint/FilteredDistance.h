@@ -10,7 +10,7 @@ class FilteredDistance {
    public:
     FilteredDistance(float minCutoff = 1.0f, float beta = 0.0f, float dcutoff = 1.0f);
     void addMeasurement(float dist);
-    const float getMedianDistance() const;
+    const float getMeanDistance() const;
     const float getDistance() const;
     const float getVariance() const;
 
