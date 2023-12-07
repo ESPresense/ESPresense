@@ -284,7 +284,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 mv = *(uint16_t *)(serviceData + 10);
                 battery = serviceData[12];
 #ifdef VERBOSE
-                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
+                Serial.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             } else if (strServiceData.length() == 13) {  // format atc1441
@@ -296,7 +296,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 battery = serviceData[9];
 
 #ifdef VERBOSE
-                Serial.printf("Temp: %.1f°, Humidity: %.1f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[12]);
+                Serial.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[12]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
@@ -450,8 +450,8 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
-    if (temp) (*doc)[F("temp")] = serialized(String(temp, 1));
-    if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 1));
+    if (temp) (*doc)[F("temp")] = serialized(String(temp, 2));
+    if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 2));
     return true;
 }
 
