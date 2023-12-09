@@ -460,7 +460,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("rssi")] = channels[ble_channel_to_index(lastChannel)].rssi;
     (*doc)[F("raw")] = serialized(String(channels[ble_channel_to_index(lastChannel)].raw, 2));
 
-    switch (lastChannel) {
+    /*switch (lastChannel) {
         case 37:
             (*doc)[F("rssi37")] = channels[0].rssi;
             (*doc)[F("raw37")] = serialized(String(channels[0].raw, 2));
@@ -474,7 +474,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
             (*doc)[F("raw39")] = serialized(String(channels[2].raw, 2));
             break;
     }
-    (*doc)[F("channel")] = lastChannel;
+    (*doc)[F("channel")] = lastChannel;*/
 
     (*doc)[F("distance")] = serialized(String(filter.distance(), 2));
     (*doc)[F("mean")] = serialized(String(filter.mean(), 2));

@@ -29,6 +29,7 @@ struct PhysicsBasedFilter {
         }
 
         // shift all existing measurements to the left and insert the new measurement at the end
+        // FIXME: this is kind of wasteful, just remember the insertion index
         std::copy(measurements_.begin() + 1, measurements_.end(), measurements_.begin());
         measurements_.back() = measuredDistance;
 
