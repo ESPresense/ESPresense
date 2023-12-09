@@ -106,9 +106,9 @@ void Connected(bool wifi, bool mqtt) {
 
 void Counting(BleFingerprint *f, bool add) {
     if (add)
-        Serial.printf("\u001b[36m%u C# +1  | %s | %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getMaxObservedRssi(), f->getMinObservedDistance(), f->getMsSinceLastSeen());
+        Serial.printf("\u001b[36m%u C# +1  | %s | %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getMaxObservedRssi(), f->getDistance(), f->getMsSinceLastSeen());
     else
-        Serial.printf("\u001b[35m%u C# -1  | %s | %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getMaxObservedRssi(), f->getMinObservedDistance(), f->getMsSinceLastSeen());
+        Serial.printf("\u001b[35m%u C# -1  | %s | %-58s%ddBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getMaxObservedRssi(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
 void Wifi(unsigned int percent) {

@@ -408,11 +408,6 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
 void BleChannelObservation::observe(unsigned long timestamp, int rssi1m, int rssi) {
     this->rssi = rssi;
     raw = pow(10, float(rssi1m - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filter.addMeasurement(raw);
-    dist = filter.getDistance();
-    vari = filter.getVariance();
-    ci = 1.959 * std::sqrt(vari) / std::sqrt(12);
-    mean = filter.getMeanDistance();
     lastSeenMillis = timestamp;
 }
 
@@ -427,6 +422,18 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice, uint8_t channel
 
     lastChannel = channel;
     channels[ble_channel_to_index(channel)].observe(millis(), get1mRssi(), advertisedDevice->getRSSI());
+
+    int maxRssiRecent = NO_RSSI, maxRssiOverall = NO_RSSI;
+    for (const auto& channel : channels) {
+        if (channel.rssi > maxRssiOverall)
+            maxRssiOverall = channel.rssi;
+        if (channel.rssi > maxRssiRecent && channel.lastSeenMillis > millis() - 5000)
+            maxRssiRecent = channel.rssi;
+    }
+
+    int rssi = (maxRssiRecent != NO_RSSI) ? maxRssiRecent : maxRssiOverall;
+    auto raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    filter.addMeasurement(raw);
 
     if (!added) {
         added = true;
@@ -443,71 +450,30 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (idType) (*doc)[F("idType")] = idType;
 
     (*doc)[F("rssi@1m")] = get1mRssi();
-    (*doc)[F("rssi")] = getMaxObservedRssi();
+    (*doc)[F("rssi")] = channels[ble_channel_to_index(lastChannel)].rssi;
+    (*doc)[F("raw")] = serialized(String(channels[ble_channel_to_index(lastChannel)].raw, 2));
+
     switch (lastChannel) {
         case 37:
             (*doc)[F("rssi37")] = channels[0].rssi;
             (*doc)[F("raw37")] = serialized(String(channels[0].raw, 2));
-            (*doc)[F("distance37")] = serialized(String(channels[0].dist, 2));
-            (*doc)[F("var37")] = serialized(String(channels[0].vari, 2));
-            (*doc)[F("mean37")] = serialized(String(channels[0].mean, 2));
-            (*doc)[F("ci37")] = serialized(String(channels[0].ci, 2));
             break;
         case 38:
             (*doc)[F("rssi38")] = channels[1].rssi;
             (*doc)[F("raw38")] = serialized(String(channels[1].raw, 2));
-            (*doc)[F("distance38")] = serialized(String(channels[1].dist, 2));
-            (*doc)[F("var38")] = serialized(String(channels[1].vari, 2));
-            (*doc)[F("mean38")] = serialized(String(channels[1].mean, 2));
-            (*doc)[F("ci39")] = serialized(String(channels[1].ci, 2));
             break;
         case 39:
             (*doc)[F("rssi39")] = channels[2].rssi;
             (*doc)[F("raw39")] = serialized(String(channels[2].raw, 2));
-            (*doc)[F("distance39")] = serialized(String(channels[2].dist, 2));
-            (*doc)[F("var39")] = serialized(String(channels[2].vari, 2));
-            (*doc)[F("mean39")] = serialized(String(channels[2].mean, 2));
-            (*doc)[F("ci39")] = serialized(String(channels[2].ci, 2));
             break;
     }
     (*doc)[F("channel")] = lastChannel;
 
-    float weightedDistances = 0, weightedMeans = 0, weightedVariances = 0, weightedCIs = 0;
-    float sumWeights = 0;
-    int channelCount = 0;
-    for (const auto& channel : channels) {
-        if (channel.lastSeenMillis < millis() - 5000)
-            continue;
-        float weight = 1 / std::max(channel.vari, 0.05f);
-        weightedDistances += channel.dist * weight;
-        weightedMeans += channel.mean * weight;
-        weightedVariances += channel.vari * weight;
-        weightedCIs += channel.ci * weight;
-        sumWeights += weight;
-        channelCount++;
-    }
-    // FIXME: weight channels by timestamp of last packet, so we can ignore stale values?
-    if (!channelCount) {
-        weightedDistances = channels[0].dist;
-        weightedMeans = channels[0].mean;
-        weightedVariances = channels[0].vari;
-        sumWeights = 1;
-        channelCount = 1;
-    }
-    float fusedDistance = weightedDistances / sumWeights;
-    (*doc)[F("distance")] = serialized(String(fusedDistance, 2));
+    (*doc)[F("distance")] = serialized(String(filter.getDistance(), 2));
+    (*doc)[F("mean")] = serialized(String(filter.getMeanDistance(), 2));
+    (*doc)[F("var")] = serialized(String(filter.getVariance(), 2));
+    (*doc)[F("ci")] = serialized(String(1.959 * std::sqrt(filter.getVariance()) / std::sqrt(12), 2));
 
-    float fusedMean = weightedMeans / sumWeights;
-    (*doc)[F("mean")] = serialized(String(fusedMean, 2));
-
-    float fusedVariance = weightedVariances / sumWeights;
-    (*doc)[F("var")] = serialized(String(fusedVariance, 2));
-
-    float fusedCI = weightedCIs / sumWeights;
-    (*doc)[F("ci")] = serialized(String(fusedCI, 2));
-
-    auto minRaw = std::min_element(channels.begin(), channels.end(), [](const BleChannelObservation& a, const BleChannelObservation& b) { return a.raw < b.raw; })->raw;
-    (*doc)[F("raw")] = serialized(String(minRaw, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
@@ -523,19 +489,19 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
     if (reported) return false;
 
-    auto minObservedDistance = getMinObservedDistance();
+    auto distance = getDistance();
 
     auto maxDistance = BleFingerprintCollection::maxDistance;
-    if (maxDistance > 0 && minObservedDistance > maxDistance)
+    if (maxDistance > 0 && distance > maxDistance)
         return false;
 
     auto now = millis();
-    if ((abs(minObservedDistance - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
+    if ((abs(distance - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
         return false;
 
     if (fill(doc)) {
         lastReportedMillis = now;
-        lastReported = minObservedDistance;
+        lastReported = distance;
         reported = true;
         return true;
     }
@@ -597,16 +563,16 @@ bool BleFingerprint::shouldCount() {
         close = false;
     }
 
-    auto minObservedDistance = getMinObservedDistance();
+    auto distance = getDistance();
 
     bool prevCounting = counting;
     if (ignore || !countable)
         counting = false;
     else if (getMsSinceLastSeen() > BleFingerprintCollection::countMs)
         counting = false;
-    else if (counting && minObservedDistance > BleFingerprintCollection::countExit)
+    else if (counting && distance > BleFingerprintCollection::countExit)
         counting = false;
-    else if (!counting && minObservedDistance <= BleFingerprintCollection::countEnter)
+    else if (!counting && distance <= BleFingerprintCollection::countEnter)
         counting = true;
 
     if (prevCounting != counting) {
