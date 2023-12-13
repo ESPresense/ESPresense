@@ -26,7 +26,7 @@ void Setup() {
         SGP30_status = sgp->begin(SGP30_I2c_Bus == 1 ? Wire : Wire1);
     } else {
         return;
-    }unsigned long
+    }
 
     if (!SGP30_status) {
         Serial.println("[SGP30] Couldn't find a sensor, check your wiring and I2C address!");
