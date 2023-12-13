@@ -15,7 +15,7 @@ long SGP30_status;
 String SGP30_I2c;
 int SGP30_I2c_Bus;
 unsigned long SGP30PreviousMillis = 0;
-int sensorInterval = 5000;
+unsigned long sensorInterval = 60000;
 bool initialized = false;
 
 void Setup() {
@@ -26,7 +26,7 @@ void Setup() {
         SGP30_status = sgp->begin(SGP30_I2c_Bus == 1 ? Wire : Wire1);
     } else {
         return;
-    }
+    }unsigned long
 
     if (!SGP30_status) {
         Serial.println("[SGP30] Couldn't find a sensor, check your wiring and I2C address!");
