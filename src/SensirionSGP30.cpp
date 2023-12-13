@@ -15,7 +15,7 @@ long SGP30_status;
 String SGP30_I2c;
 int SGP30_I2c_Bus;
 unsigned long SGP30PreviousMillis = 0;
-unsigned long sensorInterval = 60000;
+int sensorInterval = 60000;
 bool initialized = false;
 
 void Setup() {
