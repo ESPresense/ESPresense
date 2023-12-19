@@ -130,8 +130,10 @@ namespace DS18B20
             for (int i = 0; i < numSensors; i++){
                 float temperature = sensors.getTempCByIndex(i) + dsTempOffset;
                 Serial.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
-
-                pub((roomsTopic + "/ds18b20_temperature_" + String(i+1)).c_str(), 0, 1, String(temperature, 1).c_str());
+                if( sensors.getTempCByIndex(i) > -127) // Skip null values
+                {
+                    pub((roomsTopic + "/ds18b20_temperature_" + String(i+1)).c_str(), 0, 1, String(temperature, 1).c_str());
+                }
             }
 
             gotNewTemperature = false;
