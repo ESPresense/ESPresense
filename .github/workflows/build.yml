@@ -53,7 +53,7 @@ jobs:
     - name: Rename artifact
       run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
     - name: Upload artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
