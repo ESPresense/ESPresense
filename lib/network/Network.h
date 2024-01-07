@@ -152,7 +152,7 @@ const ethernet_settings ethernetBoards[] = {
     ETH_CLOCK_GPIO0_IN    // eth_clk_mode
   },
 
-  // ESP32-POE
+  // EST-PoE-32
   {
     0,                  // eth_address,
     12,                  // eth_power,
