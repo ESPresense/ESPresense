@@ -23,7 +23,7 @@
     "pascal-case": "^4.0.0",
     "postcss": "^8.4.33",
     "postcss-load-config": "^5.0.3",
-    "rollup": "^4.9.6",
+    "rollup": "^4.12.0",
     "rollup-plugin-css-only": "^4.5.2",
     "rollup-plugin-generate-html-template": "^1.7.0",
     "rollup-plugin-postcss": "^4.0.2",
