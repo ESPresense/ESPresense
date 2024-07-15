@@ -32,7 +32,7 @@
     "svelte-preprocess": "^5.1.4",
     "svelte-spa-router": "^4.0.1",
     "svelte-table": "^0.6.3",
-    "tailwindcss": "^3.4.4",
+    "tailwindcss": "^3.4.5",
     "vite": "^4.5.3"
   }
 }
