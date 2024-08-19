@@ -3,7 +3,7 @@
     import { configs, events, enroll, cancelEnroll } from "../stores";
     let name = "";
     let id = "";
-    let deviceType;
+    let deviceType = "";
     let showModal = false;
 
     const deviceTypes = ["watch", "wallet", "ipad", "phone", "airpods", "laptop", "node", "keys", "therm", "flora", "tile"];
