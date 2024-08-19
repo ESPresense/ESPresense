@@ -1,3 +1,5 @@
++#!/bin/bash
+
 export WORKSPACE_BASE=$(pwd)
 
 docker run \
