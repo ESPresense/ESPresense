@@ -78,8 +78,8 @@ export const events = readable(initialValue, function start(set) {
     };
 });
 
-export function enroll(name) {
-    var d = JSON.stringify({ command: "enroll", payload: name });
+export function enroll(id, name) {
+    var d = JSON.stringify({ command: "enroll", payload: id + "|" + name });
     console.log("Send: " + d);
     socket.send(d);
 }

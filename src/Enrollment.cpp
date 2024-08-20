@@ -14,7 +14,7 @@
 namespace Enrollment {
 static const char hex_digits[] = "0123456789abcdef";
 static bool lastEnrolling = true;
-static String name;
+static String newName, newId;
 static unsigned long lastLoop = 0;
 static int connectionToEnroll = -1;
 static uint16_t major, minor;
@@ -68,11 +68,11 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         Serial.println(pCharacteristic->getValue().c_str());
     };
 
-    void onNotify(NimBLECharacteristic *pCharacteristic){
+    void onNotify(NimBLECharacteristic *pCharacteristic) {
         // Serial.println("Sending notification to clients");
     };
 
-    void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code){
+    void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
         /*             String str = ("Notification/Indication status code: ");
                     str += status;
                     str += ", return code: ";
@@ -242,10 +242,10 @@ bool Loop() {
             if (enrolling && connectionToEnroll > -1) {
                 std::string irk;
                 if (tryGetIrkFromConnection(connectionToEnroll, irk)) {
-                    auto id = name.isEmpty() ? "" : slugify(name);
-                    if (id.isEmpty()) id = (String("irk:") + irk.c_str());
-                    enrolledId = id;
-                    alias(String("irk:") + irk.c_str(), id, name);
+                    if (newId.isEmpty()) newId = newName.isEmpty() ? String("irk:") + irk.c_str() : slugify(newName);
+                    alias(String("irk:") + irk.c_str(), newId, newName);
+                    enrolledId = newId;
+                    newId = newName = "";
                     enrolling = false;
                     pServer->disconnect(connectionToEnroll);
                     connectionToEnroll = -1;
@@ -259,12 +259,19 @@ bool Loop() {
 
 bool Command(String &command, String &pay) {
     if (command == "enroll") {
-        name = pay.equals("PRESS") ? "" : pay;
+        const int separatorIndex = pay.indexOf('|');
+        if (separatorIndex != -1) {
+            newId = pay.substring(0, separatorIndex);
+            newName = pay.substring(separatorIndex + 1);
+        } else {
+            newId = "";
+            newName = pay.equals("PRESS") ? "" : pay;
+        }
         enrolling = true;
         return true;
     }
     if (command == "cancelEnroll") {
-        enrolledId = "";
+        enrolledId = newId = newName = "";
         enrolling = false;
         return true;
     }
