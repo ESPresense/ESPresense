@@ -1,4 +1,4 @@
-+#!/bin/bash
+#!/bin/bash
 
 export WORKSPACE_BASE=$(pwd)
 
@@ -12,4 +12,5 @@ docker run \
     -v $WORKSPACE_BASE:/opt/workspace_base \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -p 3000:3000 \
-    ghcr.io/opendevin/opendevin:main
+    --name openhands-app-$(date +%Y%m%d%H%M%S) \
+    ghcr.io/all-hands-ai/openhands:0.9
