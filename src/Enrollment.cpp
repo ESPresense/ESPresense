@@ -13,7 +13,6 @@
 
 namespace Enrollment {
 static const char hex_digits[] = "0123456789abcdef";
-static bool lastEnrolling = true;
 static String newName, newId;
 static unsigned long lastLoop = 0;
 static int connectionToEnroll = -1;
@@ -199,12 +198,14 @@ void Setup() {
 }
 
 bool Loop() {
+    static bool lastEnrolling = true;
     if (enrolling != lastEnrolling) {
-        HttpWebServer::SendState();
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
             pAdvertising->reset();
             pAdvertising->setScanResponse(true);
+            pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+            pAdvertising->setMinPreferred(0x12);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
             pAdvertising->start();
@@ -218,14 +219,14 @@ bool Loop() {
             Serial.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
-        if (enrolling) enrollingEndMillis = millis() + 120000;
+        HttpWebServer::SendState();
     }
 
     if (enrolling && enrollingEndMillis < millis()) {
         enrolling = false;
     }
 
-    if (millis() - lastLoop > 1000) {
+    if (millis() - lastLoop > 500) {
         lastLoop = millis();
 
         if (enrolling) HttpWebServer::SendState();
@@ -234,8 +235,10 @@ bool Loop() {
             if (pSvc) {
                 NimBLECharacteristic *pChr = pSvc->getCharacteristic("2A37");
                 if (pChr) {
-                    pChr->setValue((short)(micros() && 0x00FF));
-                    pChr->notify(true);
+                    uint8_t heartRate = (uint8_t)(micros() & 0xFF);
+                    uint8_t heartRateMeasurement[2] = { 0b00000110, heartRate };
+                    pChr->setValue(heartRateMeasurement, 2);
+                    pChr->notify();
                 }
             }
 
@@ -268,11 +271,14 @@ bool Command(String &command, String &pay) {
             newName = pay.equals("PRESS") ? "" : pay;
         }
         enrolling = true;
+        enrollingEndMillis = millis() + 120000;
+        HttpWebServer::SendState();
         return true;
     }
     if (command == "cancelEnroll") {
         enrolledId = newId = newName = "";
         enrolling = false;
+        HttpWebServer::SendState();
         return true;
     }
     return false;
