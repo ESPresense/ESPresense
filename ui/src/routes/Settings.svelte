@@ -30,6 +30,7 @@
         <h2><a href="https://espresense.com/configuration/settings#scanning" target="_blank">Scanning</a></h2>
         <p><label>Known BLE mac addresses (no colons, space seperated):<br /><input name="known_macs" bind:value={$extras.known_macs}/></label></p>
         <p><label>Known BLE identity resolving keys, should be 32 hex chars space seperated:<br /><input name="known_irks" bind:value={$extras.known_irks}/></label></p>
+        <p><label>Forget beacon if not seen for (in milliseconds):<br /><input type="number" step="1" min="0" max="3000000" name="forget_ms" placeholder="150000" bind:value={$extras.forget_ms}/></label></p>
         <h2><a href="https://espresense.com/configuration/settings#querying" target="_blank">Querying</a></h2>
         <p><label>Query device ids for characteristics (eg. flora:):<br /><input name="query" bind:value={$extras.query}/></label></p>
         <p><label>Requery interval in seconds:<br /><input type="number" step="1" min="30" max="3600" name="requery_ms" placeholder="300" bind:value={$extras.requery_ms}/></label></p>
@@ -48,7 +49,6 @@
         <p><label>Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone):<br /><input type="number" step="1" min="-100" max="100" name="ref_rssi" placeholder="-65" bind:value={$extras.ref_rssi}/></label></p>
         <p><label>Rssi adjustment for receiver (use only if you know this device has a weak antenna):<br /><input type="number" step="1" min="-100" max="100" name="rx_adj_rssi" placeholder="0" bind:value={$extras.rx_adj_rssi}/></label></p>
         <p><label>Factor used to account for absorption, reflection, or diffraction:<br /><input type="number" step="0.01" min="-100" max="100" name="absorption" placeholder="3.50" bind:value={$extras.absorption}/></label></p>
-        <p><label>Forget beacon if not seen for (in milliseconds):<br /><input type="number" step="1" min="0" max="3000000" name="forget_ms" placeholder="150000" bind:value={$extras.forget_ms}/></label></p>
         <p><label>Rssi expected from this tx power at 1m (used for node iBeacon):<br /><input type="number" step="1" min="-100" max="100" name="tx_ref_rssi" placeholder="-59" bind:value={$extras.tx_ref_rssi}/></label></p>
         <h2><a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a></h2>
         <h4>LED 1:</h4>
