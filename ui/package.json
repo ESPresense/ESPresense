@@ -21,7 +21,7 @@
     "cssnano": "^7.0.5",
     "mime": "^4.0.4",
     "pascal-case": "^4.0.0",
-    "postcss": "^8.4.44",
+    "postcss": "^8.4.45",
     "postcss-load-config": "^6.0.1",
     "rollup": "^4.21.2",
     "rollup-plugin-css-only": "^4.5.2",
