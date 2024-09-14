@@ -286,7 +286,6 @@ void setupNetwork() {
     setTopic = roomsTopic + "/+/set";
     configTopic = CHANNEL + String("/settings/+/config");
     AsyncWiFiSettings.httpSetup();
-
     Updater::MarkOtaSuccess();
 }
 
