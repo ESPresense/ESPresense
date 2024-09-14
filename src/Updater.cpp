@@ -3,7 +3,7 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <esp_ota_ops.h>  // Add this line to include the OTA operations header
+#include <esp_ota_ops.h>
 
 #include "AsyncWiFiSettings.h"
 #include "GUI.h"
