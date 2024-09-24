@@ -7,6 +7,7 @@
 #include "string_utils.h"
 
 #include <M5UnitENV.h>
+#include <SHT4x.h>
 
 namespace ENVIV
 {
