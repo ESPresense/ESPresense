@@ -7,17 +7,18 @@
 #include "string_utils.h"
 
 #include <M5UnitENV.h>
-#include <SHT4x.h>
 
 namespace ENVIV
 {
     BMP280 bmp;
+    SHT4X sht;
     //long BMP280_status;
     String BMP280_I2c;
     int BMP280_I2c_Bus;  
     unsigned long BMP280PreviousMillis = 0;
     int sensorInterval = 60000;
     bool initialized = false;
+    bool initializedsht = false;
     
     void Setup() {
         //Serial.println("starting env IV setup");
@@ -37,6 +38,16 @@ namespace ENVIV
                         BMP280::SAMPLING_X16,    /* Pressure oversampling */
                         BMP280::FILTER_X16,      /* Filtering. */
                         BMP280::STANDBY_MS_500); /* Standby time. */
+
+        if (!sht.begin(&Wire, SHT40_I2C_ADDR_44, 2, 1, 400000U)) {
+            Serial.println("[ENVIV SHT40]  Couldn't find SHT40, check your wiring and I2C address!");
+            while (1) delay(1);
+        } else {
+            initializedsht = true;
+        }
+
+        sht.setPrecision(SHT4X_HIGH_PRECISION);
+        sht.setHeater(SHT4X_NO_HEATER);
     }
 
     void ConnectToWifi()
