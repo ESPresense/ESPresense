@@ -69,8 +69,10 @@ namespace ENVIV
     {
         //Serial.println("env IV send discovery");
         //if (BMP280_I2c.isEmpty()) return true;
-        return sendSensorDiscovery("enviv_temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("enviv_pressure", EC_NONE, "pressure", "hPa");
+        return sendSensorDiscovery("ENV IV Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("ENV IV Pressure", EC_NONE, "pressure", "hPa")
+            && sendSensorDiscovery("SHT40 Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("SHT40 Humidity", EC_NONE, "humidity", "%");
     }
 
     void Loop()
@@ -83,10 +85,14 @@ namespace ENVIV
             bmp.takeForcedMeasurement();
             bmp.readTemperature();
             bmp.readPressure(); 
-        
+
+            sht.update();
+
             pub((roomsTopic + "/enviv_temperature").c_str(), 0, true, String(bmp.cTemp).c_str());
             pub((roomsTopic + "/enviv_pressure").c_str(), 0, true, String(bmp.pressure / 100).c_str());
-
+            pub((roomsTopic + "/sht40_temperature").c_str(), 0, true, String(sht.cTemp).c_str());
+            pub((roomsTopic + "/sht40_humidity").c_str(), 0, true, String(sht.humidity).c_str());
+            
             BMP280PreviousMillis = millis();
         }
     }
