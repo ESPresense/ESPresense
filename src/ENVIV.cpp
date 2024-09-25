@@ -91,8 +91,8 @@ namespace ENVIV
     {
         //Serial.println("env IV send discovery");
         //if (BMP280_I2c.isEmpty()) return true;
-        return sendSensorDiscovery("ENV IV Temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("ENV IV Pressure", EC_NONE, "pressure", "hPa")
+        return sendSensorDiscovery("ENVIV Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("ENVIV Pressure", EC_NONE, "pressure", "hPa")
             && sendSensorDiscovery("SHT40 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("SHT40 Humidity", EC_NONE, "humidity", "%");
     }
