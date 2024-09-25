@@ -65,16 +65,6 @@ namespace ENVIV
         Serial.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
     }
 
-    bool SendDiscovery()
-    {
-        //Serial.println("env IV send discovery");
-        //if (BMP280_I2c.isEmpty()) return true;
-        return sendSensorDiscovery("ENV IV Temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("ENV IV Pressure", EC_NONE, "pressure", "hPa")
-            && sendSensorDiscovery("SHT40 Temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("SHT40 Humidity", EC_NONE, "humidity", "%");
-    }
-
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -96,6 +86,17 @@ namespace ENVIV
             BMP280PreviousMillis = millis();
         }
     }
+    
+    bool SendDiscovery()
+    {
+        //Serial.println("env IV send discovery");
+        //if (BMP280_I2c.isEmpty()) return true;
+        return sendSensorDiscovery("ENV IV Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("ENV IV Pressure", EC_NONE, "pressure", "hPa")
+            && sendSensorDiscovery("SHT40 Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("SHT40 Humidity", EC_NONE, "humidity", "%");
+    }
+
 }
 
 #endif
