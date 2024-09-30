@@ -32,8 +32,6 @@ namespace ENVIV
         } else {
             initialized = true;
         }
-            initialized = true;
-        }
 
         /* Default settings from datasheet. */
         bmp.setSampling(BMP280::MODE_NORMAL,     /* Operating Mode. */
