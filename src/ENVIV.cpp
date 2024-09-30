@@ -47,8 +47,6 @@ namespace ENVIV
         } else {
             initializedsht = true;
         }
-            initializedsht = true;
-        }
 
         sht.setPrecision(SHT4X_HIGH_PRECISION);
         sht.setHeater(SHT4X_NO_HEATER);
