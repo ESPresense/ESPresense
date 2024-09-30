@@ -12,7 +12,6 @@ namespace ENVIV
 {
     BMP280 bmp;
     SHT4X sht;
-    //long BMP280_status;
     String ENVIVBMP280_I2c;
     int ENVIVBMP280_I2c_Bus;  
     unsigned long BMP280PreviousMillis = 0;
@@ -28,7 +27,6 @@ namespace ENVIV
         if (!bmp.begin(&Wire, BMP280_I2C_ADDR, 2, 1, 400000U)) {
             Serial.println("[ENVIV BMP280] Couldn't find a sensor, check your wiring and I2C address!");
             initialized = false;
-            // Optionally, you can proceed without BMP280 or attempt re-initialization later
         } else {
             initialized = true;
         }
@@ -43,7 +41,6 @@ namespace ENVIV
         if (!sht.begin(&Wire, SHT40_I2C_ADDR_44, 2, 1, 400000U)) {
             Serial.println("[ENVIV SHT40]  Couldn't find SHT40, check your wiring and I2C address!");
             initializedsht = false;
-            // Optionally, proceed without SHT40 or attempt re-initialization later
         } else {
             initializedsht = true;
         }
