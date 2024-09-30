@@ -70,21 +70,27 @@ namespace ENVIV
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (!initialized) return;
-        if (!initializedsht) return;
+        // Changing to only return if both sensors aren't working.  If one of the sensors is working, it will publish to that topic and ignore the nonworking sensor.
+        //if (!initialized) return;
+        //if (!initializedsht) return;
+        if (!initialized && !initializedsht) return;
 
         if (BMP280PreviousMillis == 0 || millis() - BMP280PreviousMillis >= sensorInterval) {
+            if (initialized) {
+                bmp.takeForcedMeasurement();
+                bmp.readTemperature();
+                bmp.readPressure();
 
-            bmp.takeForcedMeasurement();
-            bmp.readTemperature();
-            bmp.readPressure(); 
+                pub((roomsTopic + "/enviv_temperature").c_str(), 0, true, String(bmp.cTemp).c_str());
+                pub((roomsTopic + "/enviv_pressure").c_str(), 0, true, String(bmp.pressure / 100).c_str());
+            }
 
-            sht.update();
-
-            pub((roomsTopic + "/enviv_temperature").c_str(), 0, true, String(bmp.cTemp).c_str());
-            pub((roomsTopic + "/enviv_pressure").c_str(), 0, true, String(bmp.pressure / 100).c_str());
-            pub((roomsTopic + "/sht40_temperature").c_str(), 0, true, String(sht.cTemp).c_str());
-            pub((roomsTopic + "/sht40_humidity").c_str(), 0, true, String(sht.humidity).c_str());
+            if (initializedsht) {
+                sht.update();
+    
+                pub((roomsTopic + "/sht40_temperature").c_str(), 0, true, String(sht.cTemp).c_str());
+                pub((roomsTopic + "/sht40_humidity").c_str(), 0, true, String(sht.humidity).c_str());
+            }
             
             BMP280PreviousMillis = millis();
         }
