@@ -27,8 +27,11 @@ namespace ENVIV
 
         if (!bmp.begin(&Wire, BMP280_I2C_ADDR, 2, 1, 400000U)) {
             Serial.println("[ENVIV BMP280] Couldn't find a sensor, check your wiring and I2C address!");
-            while (1) delay(1);
+            initialized = false;
+            // Optionally, you can proceed without BMP280 or attempt re-initialization later
         } else {
+            initialized = true;
+        }
             initialized = true;
         }
 
