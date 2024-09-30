@@ -84,9 +84,11 @@ namespace ENVIV
 
             if (initializedsht) {
                 sht.update();
+                float shttemp = sht.cTemp;
+                float shthumid = sht.humidity;
     
-                pub((roomsTopic + "/sht40_temperature").c_str(), 0, true, String(sht.cTemp).c_str());
-                pub((roomsTopic + "/sht40_humidity").c_str(), 0, true, String(sht.humidity).c_str());
+                pub((roomsTopic + "/sht40_temperature").c_str(), 0, true, String(shttemp).c_str());
+                pub((roomsTopic + "/sht40_humidity").c_str(), 0, true, String(shthumid).c_str());
             }
             
             BMP280PreviousMillis = millis();
