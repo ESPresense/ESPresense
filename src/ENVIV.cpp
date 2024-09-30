@@ -75,11 +75,11 @@ namespace ENVIV
         if (BMP280PreviousMillis == 0 || millis() - BMP280PreviousMillis >= sensorInterval) {
             if (initialized) {
                 bmp.takeForcedMeasurement();
-                bmp.readTemperature();
-                bmp.readPressure();
+                float temperature = bmp.readTemperature();
+                float pressure = bmp.readPressure() / 100.0F;
 
-                pub((roomsTopic + "/enviv_temperature").c_str(), 0, true, String(bmp.cTemp).c_str());
-                pub((roomsTopic + "/enviv_pressure").c_str(), 0, true, String(bmp.pressure / 100).c_str());
+                pub((roomsTopic + "/enviv_temperature").c_str(), 0, true, String(temperature).c_str());
+                pub((roomsTopic + "/enviv_pressure").c_str(), 0, true, String(pressure).c_str());
             }
 
             if (initializedsht) {
