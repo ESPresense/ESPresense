@@ -44,8 +44,11 @@ namespace ENVIV
 
         if (!sht.begin(&Wire, SHT40_I2C_ADDR_44, 2, 1, 400000U)) {
             Serial.println("[ENVIV SHT40]  Couldn't find SHT40, check your wiring and I2C address!");
-            while (1) delay(1);
+            initializedsht = false;
+            // Optionally, proceed without SHT40 or attempt re-initialization later
         } else {
+            initializedsht = true;
+        }
             initializedsht = true;
         }
 
