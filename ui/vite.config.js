@@ -74,13 +74,14 @@ function cppPlugin() {
 }
 
 export default defineConfig({
+    base: '/ui/',
     plugins: [
         svelte({
             emitCss: true,
         }),
         createHtmlPlugin({
             minify: true,
-          }),
+        }),
         cppPlugin()
     ],
     build: {
@@ -122,19 +123,5 @@ export default defineConfig({
             },
         },
         cssCodeSplit: false, // This ensures a single CSS file
-    },
-    server: {
-        proxy: {
-            '^/(json|extras|restart)': {
-                target: 'http://192.168.128.180/',
-                changeOrigin: true,
-                rewrite: (path) => path
-            },
-            '^/ws': {
-                target: 'ws://192.168.128.180/',
-                changeOrigin: true,
-                rewrite: (path) => path
-            },
-        }
     }
 });
