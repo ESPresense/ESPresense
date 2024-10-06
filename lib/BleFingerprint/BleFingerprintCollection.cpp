@@ -6,10 +6,24 @@
 
 namespace BleFingerprintCollection {
 // Public (externed)
-String include{}, exclude{}, query{}, knownMacs{}, knownIrks{}, countIds{};
-float skipDistance = 0.0f, maxDistance = 0.0f, absorption = 3.5f, countEnter = 2, countExit = 4;
-int8_t rxRefRssi = -65, rxAdjRssi = 0, txRefRssi = -59;
-int forgetMs = 0, skipMs = 0, countMs = 10000, requeryMs = 300000;
+String include{DEFAULT_INCLUDE}, 
+       exclude{DEFAULT_EXCLUDE}, 
+       query{DEFAULT_QUERY}, 
+       knownMacs{DEFAULT_KNOWN_MACS}, 
+       knownIrks{DEFAULT_KNOWN_IRKS}, 
+       countIds{DEFAULT_COUNT_IDS};
+float skipDistance = DEFAULT_SKIP_DISTANCE, 
+      maxDistance = DEFAULT_MAX_DISTANCE, 
+      absorption = DEFAULT_ABSORPTION, 
+      countEnter = DEFAULT_COUNT_ENTER, 
+      countExit = DEFAULT_COUNT_EXIT;
+int8_t rxRefRssi = DEFAULT_RX_REF_RSSI, 
+       rxAdjRssi = DEFAULT_RX_ADJ_RSSI, 
+       txRefRssi = DEFAULT_TX_REF_RSSI;
+int forgetMs = DEFAULT_FORGET_MS, 
+    skipMs = DEFAULT_SKIP_MS, 
+    countMs = DEFAULT_COUNT_MS, 
+    requeryMs = DEFAULT_REQUERY_MS;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 std::vector<BleFingerprint *> fingerprints;
@@ -117,6 +131,29 @@ bool Config(String &id, String &json) {
 }
 
 void ConnectToWifi() {
+    knownMacs = AsyncWiFiSettings.string("known_macs", DEFAULT_KNOWN_MACS, "Known BLE mac addresses (no colons, space seperated)");
+    knownIrks = AsyncWiFiSettings.string("known_irks", DEFAULT_KNOWN_IRKS, "Known BLE identity resolving keys, should be 32 hex chars space seperated");
+
+    query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
+    requeryMs = AsyncWiFiSettings.integer("requery_ms", 30, 3600, DEFAULT_REQUERY_MS / 1000, "Requery interval in seconds") * 1000;
+
+    countIds = AsyncWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space seperated)");
+    countEnter = AsyncWiFiSettings.floating("count_enter", 0, 100, DEFAULT_COUNT_ENTER, "Start counting devices less than distance (in meters)");
+    countExit = AsyncWiFiSettings.floating("count_exit", 0, 100, DEFAULT_COUNT_EXIT, "Stop counting devices greater than distance (in meters)");
+    countMs = AsyncWiFiSettings.integer("count_ms", 0, 3000000, DEFAULT_COUNT_MS, "Include devices with age less than (in ms)");
+
+    include = AsyncWiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
+    exclude = AsyncWiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
+    maxDistance = AsyncWiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
+    skipDistance = AsyncWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
+    skipMs = AsyncWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
+
+    rxRefRssi = AsyncWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
+    rxAdjRssi = AsyncWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
+    absorption = AsyncWiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
+    forgetMs = AsyncWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+    txRefRssi = AsyncWiFiSettings.integer("tx_ref_rssi", -100, 100, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
+
     std::istringstream iss(knownIrks.c_str());
     std::string irk_hex;
     while (iss >> irk_hex) {
@@ -129,44 +166,44 @@ void ConnectToWifi() {
 
 bool Command(String &command, String &pay) {
     if (command == "skip_ms") {
-        BleFingerprintCollection::skipMs = pay.toInt();
-        spurt("/skip_ms", pay);
+        BleFingerprintCollection::skipMs = pay.isEmpty() ? DEFAULT_SKIP_MS : pay.toInt();
+        spurt("/skip_ms", String(skipMs));
     } else if (command == "skip_distance") {
-        BleFingerprintCollection::skipDistance = pay.toFloat();
-        spurt("/skip_dist", pay);
+        BleFingerprintCollection::skipDistance = pay.isEmpty() ? DEFAULT_SKIP_DISTANCE : pay.toFloat();
+        spurt("/skip_dist", String(skipDistance));
     } else if (command == "max_distance") {
-        maxDistance = pay.toFloat();
-        spurt("/max_dist", pay);
+        maxDistance = pay.isEmpty() ? DEFAULT_MAX_DISTANCE : pay.toFloat();
+        spurt("/max_dist", String(maxDistance));
     } else if (command == "absorption") {
-        absorption = pay.toFloat();
-        spurt("/absorption", pay);
+        absorption = pay.isEmpty() ? DEFAULT_ABSORPTION : pay.toFloat();
+        spurt("/absorption", String(absorption));
     } else if (command == "rx_adj_rssi") {
-        rxAdjRssi = (int8_t)pay.toInt();
-        spurt("/rx_adj_rssi", pay);
+        rxAdjRssi = pay.isEmpty() ? DEFAULT_RX_ADJ_RSSI : (int8_t)pay.toInt();
+        spurt("/rx_adj_rssi", String(rxAdjRssi));
     } else if (command == "ref_rssi") {
-        rxRefRssi = (int8_t)pay.toInt();
-        spurt("/ref_rssi", pay);
+        rxRefRssi = pay.isEmpty() ? DEFAULT_RX_REF_RSSI : (int8_t)pay.toInt();
+        spurt("/ref_rssi", String(rxRefRssi));
     } else if (command == "tx_ref_rssi") {
-        txRefRssi = (int8_t)pay.toInt();
-        spurt("/tx_ref_rssi", pay);
+        txRefRssi = pay.isEmpty() ? DEFAULT_TX_REF_RSSI : (int8_t)pay.toInt();
+        spurt("/tx_ref_rssi", String(txRefRssi));
     } else if (command == "query") {
-        query = pay;
-        spurt("/query", pay);
+        query = pay.isEmpty() ? DEFAULT_QUERY : pay;
+        spurt("/query", query);
     } else if (command == "include") {
-        include = pay;
-        spurt("/include", pay);
+        include = pay.isEmpty() ? DEFAULT_INCLUDE : pay;
+        spurt("/include", include);
     } else if (command == "exclude") {
-        exclude = pay;
-        spurt("/exclude", pay);
+        exclude = pay.isEmpty() ? DEFAULT_EXCLUDE : pay;
+        spurt("/exclude", exclude);
     } else if (command == "known_macs") {
-        knownMacs = pay;
-        spurt("/known_macs", pay);
+        knownMacs = pay.isEmpty() ? DEFAULT_KNOWN_MACS : pay;
+        spurt("/known_macs", knownMacs);
     } else if (command == "known_irks") {
-        knownIrks = pay;
-        spurt("/known_irks", pay);
+        knownIrks = pay.isEmpty() ? DEFAULT_KNOWN_IRKS : pay;
+        spurt("/known_irks", knownIrks);
     } else if (command == "count_ids") {
-        countIds = pay;
-        spurt("/count_ids", pay);
+        countIds = pay.isEmpty() ? DEFAULT_COUNT_IDS : pay;
+        spurt("/count_ids", countIds);
     } else
         return false;
     return true;

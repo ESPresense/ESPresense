@@ -159,28 +159,6 @@ void setupNetwork() {
 
     AsyncWiFiSettings.markExtra();
 
-    BleFingerprintCollection::knownMacs = AsyncWiFiSettings.string("known_macs", "", "Known BLE mac addresses (no colons, space seperated)");
-    BleFingerprintCollection::knownIrks = AsyncWiFiSettings.string("known_irks", "", "Known BLE identity resolving keys, should be 32 hex chars space seperated");
-
-    BleFingerprintCollection::query = AsyncWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
-    BleFingerprintCollection::requeryMs = AsyncWiFiSettings.integer("requery_ms", 30, 3600, 300, "Requery interval in seconds") * 1000;
-
-    BleFingerprintCollection::countIds = AsyncWiFiSettings.string("count_ids", "", "Include id prefixes (space seperated)");
-    BleFingerprintCollection::countEnter = AsyncWiFiSettings.floating("count_enter", 0, 100, 2, "Start counting devices less than distance (in meters)");
-    BleFingerprintCollection::countExit = AsyncWiFiSettings.floating("count_exit", 0, 100, 4, "Stop counting devices greater than distance (in meters)");
-    BleFingerprintCollection::countMs = AsyncWiFiSettings.integer("count_ms", 0, 3000000, 30000, "Include devices with age less than (in ms)");
-
-    BleFingerprintCollection::include = AsyncWiFiSettings.string("include", DEFAULT_INCLUDE, "Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2)");
-    BleFingerprintCollection::exclude = AsyncWiFiSettings.string("exclude", DEFAULT_EXCLUDE, "Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6)");
-    BleFingerprintCollection::maxDistance = AsyncWiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
-    BleFingerprintCollection::skipDistance = AsyncWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
-    BleFingerprintCollection::skipMs = AsyncWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
-
-    BleFingerprintCollection::rxRefRssi = AsyncWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
-    BleFingerprintCollection::rxAdjRssi = AsyncWiFiSettings.integer("rx_adj_rssi", -100, 100, 0, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
-    BleFingerprintCollection::absorption = AsyncWiFiSettings.floating("absorption", -100, 100, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
-    BleFingerprintCollection::forgetMs = AsyncWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
-    BleFingerprintCollection::txRefRssi = AsyncWiFiSettings.integer("tx_ref_rssi", -100, 100, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
 
     GUI::ConnectToWifi();
 
@@ -518,6 +496,16 @@ void scanTask(void *parameter) {
         } else {
             delay(100);
         }
+    }
+}
+
+extern "C" void app_main() __attribute__((used, visibility("default")));
+extern "C" void app_main() {
+    initArduino();
+    setup();
+    for(;;) {
+        loop();
+        yield();
     }
 }
 

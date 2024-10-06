@@ -47,17 +47,28 @@
 #define DEFAULT_DEBOUNCE_TIMEOUT 0.5
 
 #define DEFAULT_QUERY ""
+#define DEFAULT_REQUERY_MS 300000
+
 #define DEFAULT_INCLUDE ""
 #define DEFAULT_EXCLUDE ""
+#define DEFAULT_KNOWN_MACS ""
+#define DEFAULT_KNOWN_IRKS ""
 
 #define DEFAULT_RX_REF_RSSI (-65)
 #define DEFAULT_TX_REF_RSSI (-59)
 #define DEFAULT_ABSORPTION (3.5)
+#define DEFAULT_RX_ADJ_RSSI 0
 
 #define DEFAULT_FORGET_MS 150000 // Ms to remove fingerprint after not seeing it
-
 #define DEFAULT_SKIP_DISTANCE 0.5 // If beacon has moved less than this skip update
 #define DEFAULT_SKIP_MS 5000 // Ms to skip mqtt update if no movement
+
+#define DEFAULT_COUNT_ENTER 2.0f
+#define DEFAULT_COUNT_EXIT 4.0f
+#define DEFAULT_COUNT_MS 10000
+#define DEFAULT_COUNT_IDS ""
+
+
 
 // I2C Defaults
 #ifdef M5STICK
