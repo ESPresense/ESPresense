@@ -7,6 +7,7 @@ import fs from 'fs/promises';
 import { pascalCase } from "pascal-case";
 import mime from 'mime';
 import { createHtmlPlugin } from 'vite-plugin-html';
+import strip from '@rollup/plugin-strip';
 
 const gzip = promisify(zlib.gzip);
 
@@ -79,6 +80,10 @@ export default defineConfig({
         svelte({
             emitCss: true,
         }),
+        strip({
+            include: '**/*.(js|ts|svelte)',
+            functions: ['console.*', 'assert.*'],
+        }),
         createHtmlPlugin({
             minify: true,
         }),
@@ -90,21 +95,11 @@ export default defineConfig({
         minify: 'terser',
         terserOptions: {
             compress: {
+                ecma: 2020,
                 drop_console: true,
-                drop_debugger: true,
-                ecma: 2015,
-                module: true,
+                passes: 3,
                 toplevel: true,
                 unsafe: true,
-                unsafe_arrows: true,
-                unsafe_comps: true,
-                unsafe_Function: true,
-                unsafe_math: true,
-                unsafe_methods: true,
-                unsafe_proto: true,
-                unsafe_regexp: true,
-                unsafe_undefined: true,
-                passes: 3,
             },
             mangle: {
                 toplevel: true,
