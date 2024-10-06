@@ -499,16 +499,6 @@ void scanTask(void *parameter) {
     }
 }
 
-extern "C" void app_main() __attribute__((used, visibility("default")));
-extern "C" void app_main() {
-    initArduino();
-    setup();
-    for(;;) {
-        loop();
-        yield();
-    }
-}
-
 void setup() {
 #ifdef FAST_MONITOR
     Serial.begin(1500000);
