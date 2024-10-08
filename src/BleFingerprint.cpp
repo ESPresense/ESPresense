@@ -1,7 +1,7 @@
 #include "BleFingerprint.h"
 
-#include "../handlers/MiFloraHandler.h"
-#include "../handlers/NameModelHandler.h"
+#include "MiFloraHandler.h"
+#include "NameModelHandler.h"
 #include "BleFingerprintCollection.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
