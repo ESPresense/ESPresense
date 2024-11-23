@@ -21,7 +21,7 @@
     "svelte-preprocess": "^6.0.3",
     "svelte-spa-router": "^4.0.1",
     "svelte-table": "^0.6.3",
-    "tailwindcss": "^3.4.14",
+    "tailwindcss": "^3.4.15",
     "vite": "^4.5.3",
     "vite-plugin-html": "^3.2.2"
   }
