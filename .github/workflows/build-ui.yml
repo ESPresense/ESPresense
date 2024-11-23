@@ -43,12 +43,31 @@ jobs:
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add src/ui_bundle_css.h src/ui_index_html.h src/ui_index_js.h
-        if [[ -n "$(git status --porcelain)" ]]; then
-          git commit -m "chore: update UI build outputs"
-          git push
+        # Skip if commit is from the bot
+        if [[ "${{ github.event.head_commit.author.name }}" == "github-actions[bot]" ]]; then
+          echo "Skipping bot commit"
+          exit 0
         fi
-
+        
+        # Define header files in an array for better maintainability
+        HEADER_FILES=(
+          "src/ui_bundle_css.h"
+          "src/ui_index_html.h"
+          "src/ui_index_js.h"
+        )
+        
+        # Add files and handle errors
+        for file in "${HEADER_FILES[@]}"; do
+          if [[ -f "$file" ]]; then
+            git add "$file"
+          else
+            echo "Warning: $file not found"
+          fi
+        done
+        if [[ -n "$(git status --porcelain)" ]]; then
+          git commit -m "chore: update UI build outputs [skip ci]" || exit 1
+          git push || exit 1
+        fi
     - name: Create Pull Request
       if: github.event_name != 'pull_request'
       uses: peter-evans/create-pull-request@v6
