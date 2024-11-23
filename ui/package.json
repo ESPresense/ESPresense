@@ -10,7 +10,7 @@
   },
   "devDependencies": {
     "@rollup/plugin-strip": "^3.0.4",
-    "@sveltejs/vite-plugin-svelte": "^2.5.3",
+    "@sveltejs/vite-plugin-svelte": "^4.0.1",
     "autoprefixer": "^10.4.20",
     "cssnano": "^7.0.6",
     "mime": "^4.0.4",
