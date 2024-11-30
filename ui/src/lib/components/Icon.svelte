@@ -1,9 +1,19 @@
-<script>
-  export let name;
-  export let width = "1rem";
-  export let height = "1rem";
-  export let focusable = false;
-  let icons = [
+<script lang="ts">
+  interface IconDef {
+    w: number;
+    h: number;
+    name: string;
+    svg: string;
+  }
+
+  const props = $props();
+  const name = props.name as string;
+  const width = (props.width as string) ?? "1.5rem";
+  const height = (props.height as string) ?? "1.5rem";
+  const focusable = (props.focusable as boolean) ?? false;
+  const class_ = (props.class_ as string) ?? "";
+
+  const icons: IconDef[] = [
     {
       w: 2048,
       h: 1792,
@@ -29,9 +39,19 @@
       svg: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"><path d="m4.2 27.3.5-1c2-3.8 3-7.9 3-12.1v0c0-4.3 3.4-8 7.9-8.2a8 8 0 0 1 8.4 7.8v4.9c0 1.4.8 2.6 2 3.2h0"/><path d="M3.9 14.6c0-7 5.3-12.6 12-12.6s12 5.6 12 12.6V18"/><path d="m7.3 30 .1-.2a31 31 0 0 0 4.8-16.3v0c0-1.8 1.5-3.4 3.5-3.5 2.1-.1 3.9 1.4 3.9 3.3v0c.4 7.7-3.9 16.6-3.9 16.6"/><path d="m16 14-.2 1.4c-.6 5-1.9 9.9-3.8 14.6h0"/><g>`
     }
   ];
-  let displayIcon = icons.find((e) => e.name === name);
+
+  const displayIcon = $derived(icons.find((e) => e.name === name));
 </script>
 
-{#if displayIcon != null}
-  <svg fill="currentColor" class={$$props.class || "m-auto"} {focusable} {width} {height} viewBox="0 0 {displayIcon.w} {displayIcon.h}">{@html displayIcon.svg}</svg>
+{#if displayIcon}
+  <svg
+    fill="currentColor"
+    class={`inline-block ${class_}`}
+    focusable={focusable ? 'true' : 'false'}
+    {width}
+    {height}
+    viewBox="0 0 {displayIcon.w} {displayIcon.h}"
+  >
+    {@html displayIcon.svg}
+  </svg>
 {/if}

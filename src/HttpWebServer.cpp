@@ -10,9 +10,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "string_utils.h"
-#include "ui_bundle_css.h"
-#include "ui_index_html.h"
-#include "ui_index_js.h"
+#include "ui_routes.h"
 
 namespace HttpWebServer {
 
@@ -151,9 +149,7 @@ void Init(AsyncWebServer *server) {
         request->send(response);
     });
 
-    server->on("/ui/", HTTP_GET, serveIndexHtml);
-    server->on("/ui/bundle.css", HTTP_GET, serveBundleCss);
-    server->on("/ui/index.js", HTTP_GET, serveIndexJs);
+    setupUIRoutes(server); // from ui_routes.h
     server->on("/ui", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->redirect("/ui/");
     });

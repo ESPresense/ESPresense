@@ -1,159 +1,187 @@
-<script>
-    import { devices } from "../stores";
+<script lang="ts">
     import SvelteTable from "svelte-table";
+    import { devices } from "$lib/stores";
+    import type { Device, TableColumn } from "$lib/types";
 
-    var filterSelections = {
+    let filterSelections = $state({
         vis: true
-    };
-    var sortBy = "distance";
-    var sortOrder = 1;
-    var selectedRowIds = [];
-    const columns = [
+    });
+    let sortBy = $state("distance");
+    let sortOrder = $state<-1 | 0 | 1>(1);
+    let selectedRowIds = $state([]);
+
+    const columns: TableColumn<Device>[] = [
         {
             key: "vis",
             title: "Visible",
-            value: (v) => v.vis ?? false,
-            renderValue: (v) => v.vis ? "⬤" : "",
+            value: (v: Device) => v.vis ?? false,
+            renderValue: (v: Device) => v.vis ?? false ? "⬤" : "",
             sortable: true,
-            filterOptions: (rows) => {
-                const options = [
-                    { name: "Yes", value: true },
-                    { name: "No", value: false },
-                ];
-                return options;
-            },
+            filterOptions: () => [
+                { name: "Yes", value: true },
+                { name: "No", value: false },
+            ],
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "text-center",
         },
         {
             key: "distance",
             title: "Dist",
-            value: (v) => v.distance ?? 0,
-            renderValue: (v) => v.distance === undefined ? "n/a" : `${v.distance?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
+            value: (v: Device) => v.distance ?? 0,
+            renderValue: (v: Device) => v.distance === undefined ? "n/a" : `${v.distance.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortable: true,
-            class: "px-0 py-0 whitespace-nowrap",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
         },
         {
             key: "var",
             title: "Var",
-            value: (v) => v.var ?? 0,
-            renderValue: (v) => v.var === undefined ? "n/a" : `${v.var?.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
+            value: (v: Device) => v.var ?? 0,
+            renderValue: (v: Device) => v.var === undefined ? "n/a" : `${v.var.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortable: true,
-            class: "px-0 py-0 whitespace-nowrap",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
         },
         {
             key: "id",
             title: "ID",
-            value: (v) => v.id ?? "",
+            value: (v: Device) => v.id ?? "",
             sortable: true,
-            filterOptions: (rows) => {
-                const prefixes = new Set();
+            filterOptions: (rows: Device[]) => {
+                const prefixes = new Set<string>();
                 rows.forEach((row) => {
-                    var prefix = row.id?.substring(0, row.id.indexOf(":") + 1);
-                    if (prefix?.length > 0) {
-                        prefixes.add(prefix);
+                    if (row.id) {
+                        const colonIndex = row.id.indexOf(":");
+                        if (colonIndex !== -1) {
+                            const prefix = row.id.substring(0, colonIndex + 1);
+                            prefixes.add(prefix);
+                        }
                     }
                 });
                 return Array.from(prefixes)
                     .sort()
                     .map((a) => ({ name: a, value: a }));
             },
-            filterValue: (v) => v.id?.substring(0, v.id.indexOf(":") + 1),
-            headerClass: "text-left px-6 py-3",
+            filterValue: (v: Device) => {
+                if (!v.id) return "";
+                const colonIndex = v.id.indexOf(":");
+                return colonIndex !== -1 ? v.id.substring(0, colonIndex + 1) : "";
+            },
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4",
         },
         {
             key: "name",
             title: "Name",
-            value: (v) => v.name ?? "",
+            value: (v: Device) => v.name ?? "",
             sortable: true,
-            filterOptions: (rows) => {
-                let letrs = {};
+            filterOptions: (rows: Device[]) => {
+                const letrs: Record<string, { name: string; value: string }> = {};
                 rows.forEach((row) => {
-                    let letr = row.name?.charAt(0);
-                    if (letr && letrs[letr] === undefined)
+                    const letr = row.name?.charAt(0);
+                    if (letr && !letrs[letr]) {
                         letrs[letr] = {
-                            name: `${letr.toUpperCase()}`,
+                            name: letr.toUpperCase(),
                             value: letr.toLowerCase(),
                         };
+                    }
                 });
-                // fix order
-                letrs = Object.entries(letrs)
-                    .sort()
-                    .reduce((o, [k, v]) => ((o[k] = v), o), {});
-                return Object.values(letrs);
+                return Object.values(letrs).sort((a, b) => a.name.localeCompare(b.name));
             },
-            filterValue: (v) => v.name?.charAt(0).toLowerCase(),
-            headerClass: "text-left px-6 py-3",
+            filterValue: (v: Device) => v.name?.charAt(0)?.toLowerCase() ?? "",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4",
         },
         {
             key: "mac",
             title: "MAC",
-            value: (v) => v.mac ?? "n/a",
+            value: (v: Device) => v.mac ?? "n/a",
             sortable: true,
-            filterOptions: (rows) => {
-                // use first letter of last_name to generate filter
-                let letrs = {};
+            filterOptions: (rows: Device[]) => {
+                const letrs: Record<string, { name: string; value: string }> = {};
                 rows.forEach((row) => {
-                    let letr = row.mac ? row.mac.charAt(0) : "";
-                    if (letr && letrs[letr] === undefined)
+                    const letr = row.mac?.charAt(0);
+                    if (letr && !letrs[letr]) {
                         letrs[letr] = {
-                            name: `${letr.toUpperCase()}`,
+                            name: letr.toUpperCase(),
                             value: letr.toLowerCase(),
                         };
+                    }
                 });
-                // fix order
-                letrs = Object.entries(letrs)
-                    .sort()
-                    .reduce((o, [k, v]) => ((o[k] = v), o), {});
-                return Object.values(letrs);
+                return Object.values(letrs).sort((a, b) => a.name.localeCompare(b.name));
             },
-            filterValue: (v) => v.mac.charAt(0).toLowerCase(),
-            headerClass: "text-left px-6 py-3",
+            filterValue: (v: Device) => v.mac?.charAt(0)?.toLowerCase() ?? "",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 font-mono",
         },
         {
             key: "rssi",
             title: "Rssi",
-            value: (v) => v.rssi,
-            renderValue: (v) => v.rssi ? `${v.rssi} dBm` : "",
+            value: (v: Device) => v.rssi ?? 0,
+            renderValue: (v: Device) => v.rssi ? `${v.rssi} dBm` : "",
             sortable: true,
-            headerClass: "",
-            class: "whitespace-nowrap",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
         },
         {
             key: "rssi@1m",
             title: "Rssi@1m",
-            value: (v) => v["rssi@1m"],
-            renderValue: (v) => v["rssi@1m"] ? `${v["rssi@1m"]} dBm` : "",
+            value: (v: Device) => v["rssi@1m"] ?? 0,
+            renderValue: (v: Device) => v["rssi@1m"] ? `${v["rssi@1m"]} dBm` : "",
             sortable: true,
-            headerClass: "",
-            class: "whitespace-nowrap",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
         },
         {
             key: "int",
             title: "int",
-            value: (v) => v.int ?? 0,
-            renderValue: (v) => v.int ? `${v.int} ms` : "",
+            value: (v: Device) => v.int ?? 0,
+            renderValue: (v: Device) => v.int ? `${v.int} ms` : "",
             sortable: true,
-            headerClass: "",
-            class: "whitespace-nowrap",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
         },
     ];
-    function classNameRow(event) {
-        event.close ? "bg-yellow-100 row" : "row";
+
+    function classNameRow(event: Device) {
+        return event.close ? "bg-yellow-100 dark:bg-yellow-900" : "";
     }
+
+    let tableRows = $derived($devices?.devices || []);
 </script>
 
-<main>
-    {#if $devices?.devices != null}
-        <SvelteTable {columns} rows={$devices.devices} rowKey="mac" bind:filterSelections bind:sortBy bind:sortOrder selectSingle={true} selectOnClick={true} selected={selectedRowIds} classNameTable="min-w-full divide-y divide-gray-200 table-auto" classNameThead="whitespace-nowrap text-left text-xs font-medium text-gray-500 uppercase" classNameTbody="bg-white divide-y divide-gray-200" {classNameRow} classNameRowSelected="bg-blue-100" classNameCell="px-1 py-1 whitespace-no-wrap text-sm leading-5 font-light text-gray-900" classNameInput="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" classNameSelect="px-1 py-1 border rounded-md text-sm leading-5 font-medium text-gray-900 placeholder-gray-500 focus:outline-none focus:shadow-outline-blue focus:border-blue-300 focus:z-10 sm:text-sm sm:leading-5" />
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+    {#if $devices != null}
+        <div class="p-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Fingerprints</h2>
+            <div class="overflow-x-auto">
+                <SvelteTable
+                    {columns}
+                    rows={tableRows}
+                    rowKey="mac"
+                    bind:filterSelections
+                    bind:sortBy
+                    bind:sortOrder
+                    selectSingle={true}
+                    selectOnClick={true}
+                    bind:selected={selectedRowIds}
+                    classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
+                    classNameThead="bg-gray-100 dark:bg-gray-700"
+                    classNameTbody="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                    {classNameRow}
+                    classNameRowSelected="bg-blue-50 dark:bg-blue-900"
+                    classNameCell="text-sm text-gray-900 dark:text-gray-300"
+                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                />
+            </div>
+        </div>
     {:else}
-        <h1>Loading fingerprints...</h1>
+        <div class="flex items-center justify-center min-h-[50vh]">
+            <div class="text-center">
+                <h1 class="text-xl font-medium text-gray-700 dark:text-gray-300">Loading fingerprints...</h1>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we fetch the data.</p>
+            </div>
+        </div>
     {/if}
-</main>
-
-<style>
-    main {
-        padding: 1rem;
-    }
-    h1 {
-        text-align: center;
-    }
-</style>
+</div>
