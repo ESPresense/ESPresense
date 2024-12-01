@@ -1,13 +1,13 @@
 /*
- * Binary arrays for the Web UI app directory (CSS files).
- * Zopfli compression is used for smaller size and improved speeds.
+ * Binary arrays for the Web UI ui_app_immutable_assets_css files.
+ * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
 #include <ESPAsyncWebServer.h>
 #include <Arduino.h>
 
-// app_immutable_assets_index_DUGlLD2F_css
+// app/immutable/assets/index.DUGlLD2F.css
 const uint16_t APP_IMMUTABLE_ASSETS_INDEX_DUGLLD2F_CSS_L = 3838;
 const uint8_t APP_IMMUTABLE_ASSETS_INDEX_DUGLLD2F_CSS[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xec, 0x58, 0x07, 0x97, 0xeb, 0x2a,

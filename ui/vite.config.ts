@@ -10,7 +10,7 @@ export default defineConfig({
             include: '**/*.(js|ts|svelte)',
             functions: ['console.*', 'assert.*'],
         }),
-        cppPlugin()
+        cppPlugin({ basePath: '/ui', outPrefix: 'ui_' })
     ],
     build: {
         sourcemap: false,

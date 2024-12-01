@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import { pascalCase } from "change-case";
@@ -16,21 +16,35 @@ interface CompressedOutput {
     contentType: string;
 }
 
+interface Asset {
+    path: string;
+    name: string;
+    content: string | Buffer | Uint8Array;
+    contentType: string;
+    type: string;
+}
+
+interface CppPluginOptions {
+    outPrefix?: string;   // Prefix for output files
+    basePath?: string;    // Base URL path (e.g., '/ui', '/app', etc.)
+    staticDir?: string;   // Directory for static assets
+    buildDir?: string;    // Directory for build output
+    outputDir?: string;   // Directory for C++ headers
+}
+
 function hexdump(buffer: Uint8Array): string {
-    let lines: string[] = [];
+    const lines: string[] = [];
     for (let i = 0; i < buffer.length; i += 16) {
-        let block = buffer.slice(i, i + 16);
-        let hexArray: string[] = [];
-        for (let value of block) {
-            hexArray.push("0x" + value.toString(16).padStart(2, "0"));
-        }
-        let line = `  ${hexArray.join(", ")}`;
-        lines.push(line);
+        const block = buffer.slice(i, i + 16);
+        const hexArray = Array.from(block).map(value =>
+            "0x" + value.toString(16).padStart(2, "0")
+        );
+        lines.push(`  ${hexArray.join(", ")}`);
     }
     return lines.join(",\n");
 }
 
-async function cppCompressed(input: string | Buffer | Uint8Array, fileName: string, contentType?: string): Promise<CompressedOutput> {
+async function compressAsset(input: string | Buffer | Uint8Array, fileName: string, contentType?: string): Promise<CompressedOutput> {
     const options = {
         blocksplitting: true,
         blocksplittinglast: false,
@@ -39,172 +53,148 @@ async function cppCompressed(input: string | Buffer | Uint8Array, fileName: stri
     };
 
     const result = await zopfliCompress(Buffer.from(input), options);
-    console.info(fileName + " compressed " + result.length + " bytes");
-    const array = hexdump(result);
-    const headerName = fileName.replace(/[.-]/g, "_").toUpperCase();
+    console.info(`${fileName} compressed ${result.length} bytes`);
 
     return {
-        name: headerName,
+        name: fileName.replace(/[.-]/g, "_").toUpperCase(),
         length: result.length,
-        array: array,
+        array: hexdump(result),
         contentType: contentType || mime.getType(fileName) || 'application/octet-stream'
     };
 }
 
-export function cppPlugin(): Plugin {
-    let resolvedAssets = new Map<string, Buffer>();
+export function cppPlugin(options: CppPluginOptions = {}): Plugin {
+    const assets = new Map<string, Asset>();
+
+    const basePath = options.basePath || '';
+
+    // Resolve all paths relative to the current file's directory
+    const staticDir = resolve(__dirname, options.staticDir || '../static');
+    const buildDir = resolve(__dirname, options.buildDir || '../build');
+    const outputDir = resolve(__dirname, options.outputDir || '../../src');
+    const outPrefix = options.outPrefix || 'web_';
+
+    function getGroupName(path: string, type: string): string {
+        const dir = dirname(path);
+        if (dir === '.') return `${outPrefix}${type}`;
+        return outPrefix + dir.replace(/\//g, '_') + '_' + type;
+    }
 
     return {
         name: 'cpp',
+        enforce: 'post',
 
-        // Intercept static file imports
-        async transform(code, id) {
-            // Only capture files from our actual static directory
-            const staticDir = resolve(__dirname, '../static');
-            if (id.startsWith(staticDir)) {
-                const fileName = id.replace(staticDir + '/', '');
-                try {
-                    const content = await fs.readFile(id);
-                    resolvedAssets.set(fileName, content);
-                } catch (error) {
-                    console.error('Error reading static file:', error);
-                }
-                return code;
-            }
-        },
-
-        // Force static files to be included
+        // Collect static files
         async buildStart() {
-            const staticDir = resolve(__dirname, '../static');
             try {
                 const files = await fs.readdir(staticDir);
                 for (const file of files) {
-                    // Skip hidden files
                     if (file.startsWith('.')) continue;
 
                     const filePath = resolve(staticDir, file);
                     const stats = await fs.stat(filePath);
-                    // Only process regular files
                     if (stats.isFile()) {
                         const content = await fs.readFile(filePath);
-                        resolvedAssets.set(file, content);
+                        const ext = file.split('.').pop()?.toLowerCase() || '';
+                        assets.set(file, {
+                            path: file,
+                            name: file.replace(/[.-]/g, '_'),
+                            content,
+                            contentType: mime.getType(file) || 'application/octet-stream',
+                            type: ext
+                        });
                     }
                 }
-                console.log(`Captured ${resolvedAssets.size} static assets`);
+                console.log(`Captured ${assets.size} static assets from ${staticDir}`);
             } catch (error) {
-                console.error('Error reading static directory:', error);
+                if (error.code !== 'ENOENT') {
+                    console.error(`Error reading static directory ${staticDir}:`, error);
+                }
             }
         },
 
         async writeBundle(options: any, bundle: OutputBundle) {
+            // Only process client builds
             const isClientBuild = Object.keys(bundle).some(key =>
                 key.includes('immutable/entry/app') ||
                 key.includes('immutable/entry/start')
             );
-
             if (!isClientBuild) return;
 
-            const outputDir = resolve(__dirname, '../../src');
-            await fs.mkdir(outputDir, { recursive: true });
+            // Group assets by directory path and type
+            const groupedAssets = new Map<string, Asset[]>();
 
-            // Group files by directory
-            const filesByDir = new Map<string, {
-                route: string;
-                name: string;
-                content: string | Buffer | Uint8Array;
-                contentType: string;
-                type: string;
-            }[]>();
-
-            // Process bundle files
+            // Add bundle files to assets
             for (const [fileName, file] of Object.entries(bundle)) {
-                // Skip hidden directories (starting with .)
                 if (fileName.split('/')[0].startsWith('.')) continue;
+                if (fileName.endsWith('.json')) continue;
 
+                const content = file.type === 'chunk'
+                    ? (file as OutputChunk).code
+                    : (file as OutputAsset).source;
                 const ext = fileName.split('.').pop()?.toLowerCase() || '';
-                if (ext === 'json') continue;  // Skip JSON files early
 
-                const dir = fileName.includes('/') ? fileName.split('/')[0] : 'root';
-                const files = filesByDir.get(dir) || [];
-
-                if (file.type === 'chunk') {
-                    files.push({
-                        route: `/ui/${fileName}`,
-                        name: fileName.replace(/[\/\\]/g, '_').replace(/[.-]/g, '_'),
-                        content: (file as OutputChunk).code,
-                        contentType: 'application/javascript',
-                        type: 'js'
-                    });
-                } else if (file.type === 'asset') {
-                    const asset = file as OutputAsset;
-                    files.push({
-                        route: `/ui/${fileName}`,
-                        name: fileName.replace(/[\/\\]/g, '_').replace(/[.-]/g, '_'),
-                        content: asset.source,
-                        contentType: mime.getType(fileName) || 'application/octet-stream',
-                        type: ext
-                    });
-                }
-
-                if (files.length > 0) {
-                    filesByDir.set(dir, files);
-                }
-            }
-
-            // Add static assets
-            const files = filesByDir.get('root') || [];
-            for (const [fileName, content] of resolvedAssets.entries()) {
-                const ext = fileName.split('.').pop()?.toLowerCase() || '';
-                files.push({
-                    route: `/ui/${fileName}`,
-                    name: fileName.replace(/[.-]/g, '_'),
+                const asset = {
+                    path: fileName,
+                    name: fileName.replace(/[\/\\]/g, '_').replace(/[.-]/g, '_'),
                     content,
-                    contentType: mime.getType(fileName) || 'application/octet-stream',
+                    contentType: file.type === 'chunk'
+                        ? 'application/javascript'
+                        : mime.getType(fileName) || 'application/octet-stream',
                     type: ext
-                });
+                };
+
+                const groupName = getGroupName(fileName, ext);
+                const group = groupedAssets.get(groupName) || [];
+                group.push(asset);
+                groupedAssets.set(groupName, group);
             }
 
-            // Add HTML files
-            const buildDir = resolve(__dirname, '../build');
+            // Add HTML files from build
             try {
                 const buildFiles = await fs.readdir(buildDir);
                 for (const file of buildFiles) {
-                    if (file.endsWith('.html')) {
-                        const content = await fs.readFile(resolve(buildDir, file), 'utf-8');
-                        files.push({
-                            route: `/ui/${file}`,
-                            name: file.replace(/[.-]/g, '_'),
-                            content,
-                            contentType: 'text/html',
-                            type: 'html'
-                        });
-                    }
+                    if (!file.endsWith('.html')) continue;
+
+                    const content = await fs.readFile(resolve(buildDir, file), 'utf-8');
+                    const asset = {
+                        path: file,
+                        name: file.replace('.html', '_html').replace(/[.-]/g, '_'),
+                        content,
+                        contentType: 'text/html',
+                        type: 'html'
+                    };
+
+                    const groupName = getGroupName(file, 'html');
+                    const group = groupedAssets.get(groupName) || [];
+                    group.push(asset);
+                    groupedAssets.set(groupName, group);
                 }
             } catch (error) {
-                console.error('Error reading build directory:', error);
+                console.error(`Error reading build directory ${buildDir}:`, error);
+                return;
             }
 
-            if (files.length > 0) {
-                filesByDir.set('root', files);
+            // Add static assets
+            for (const asset of assets.values()) {
+                const groupName = getGroupName(asset.path, asset.type);
+                const group = groupedAssets.get(groupName) || [];
+                group.push(asset);
+                groupedAssets.set(groupName, group);
             }
 
-            // Generate header files
-            const routes: {route: string, func: string}[] = [];
-            const htmlRoutes: {route: string, func: string}[] = [];
+            // Generate headers
+            try {
+                await fs.mkdir(outputDir, { recursive: true });
 
-            for (const [dir, files] of filesByDir.entries()) {
-                const filesByType = new Map<string, typeof files>();
-                for (const file of files) {
-                    const typeFiles = filesByType.get(file.type) || [];
-                    typeFiles.push(file);
-                    filesByType.set(file.type, typeFiles);
-                }
+                const routes: string[] = [];
+                const htmlRoutes: string[] = [];
 
-                for (const [type, typeFiles] of filesByType.entries()) {
-                    const headerName = `ui_${dir}_${type}.h`;
-                    let headerContent = `/*
- * Binary arrays for the Web UI ${dir} directory (${type.toUpperCase()} files).
- * Zopfli compression is used for smaller size and improved speeds.
+                // Generate a header file for each group
+                for (const [groupName, groupAssets] of groupedAssets) {
+                    let header = `/*
+ * Binary arrays for the Web UI ${groupName} files.
+ * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
@@ -213,73 +203,53 @@ export function cppPlugin(): Plugin {
 
 `;
 
-                    const processedNames = new Set();
+                    for (const asset of groupAssets) {
+                        const compressed = await compressAsset(asset.content, asset.name, asset.contentType);
 
-                    for (const file of typeFiles) {
-                        // Skip duplicate content (from extensionless routes)
-                        if (processedNames.has(file.name)) continue;
-                        processedNames.add(file.name);
+                        header += `// ${asset.path}\n`;
+                        header += `const uint16_t ${compressed.name}_L = ${compressed.length};\n`;
+                        header += `const uint8_t ${compressed.name}[] PROGMEM = {\n${compressed.array}\n};\n\n`;
+                        header += `inline void serve${pascalCase(asset.name)}(AsyncWebServerRequest* request) {\n`;
+                        header += `  AsyncWebServerResponse *response = request->beginResponse_P(200, "${asset.contentType}", ${compressed.name}, ${compressed.name}_L);\n`;
+                        header += `  response->addHeader(F("Content-Encoding"), "gzip");\n`;
+                        header += `  request->send(response);\n`;
+                        header += `}\n\n`;
 
-                        const compressed = await cppCompressed(file.content, file.name, file.contentType);
-
-                        headerContent += `// ${file.name}\n`;
-                        headerContent += `const uint16_t ${compressed.name}_L = ${compressed.length};\n`;
-                        headerContent += `const uint8_t ${compressed.name}[] PROGMEM = {\n${compressed.array}\n};\n\n`;
-                        headerContent += `inline void serve${pascalCase(file.name)}(AsyncWebServerRequest* request) {\n`;
-                        headerContent += `  AsyncWebServerResponse *response = request->beginResponse_P(200, "${file.contentType}", ${compressed.name}, ${compressed.name}_L);\n`;
-                        headerContent += `  response->addHeader(F("Content-Encoding"), "gzip");\n`;
-                        headerContent += `  request->send(response);\n`;
-                        headerContent += `}\n\n`;
-
-                        if (type === 'html') {
-                            const baseName = file.route.replace('.html', '');
-                            const funcName = `serve${pascalCase(file.name)}`;
-
-                            // Add both .html and extensionless routes
-                            htmlRoutes.push({
-                                route: file.route,
-                                func: funcName
-                            });
-
-                            // Add extensionless route for everything except index and fallback
-                            if (!['index', 'fallback'].includes(file.name.toLowerCase().replace('_html', ''))) {
-                                htmlRoutes.push({
-                                    route: baseName,
-                                    func: funcName
-                                });
+                        // Add routes
+                        if (asset.type === 'html') {
+                            const routePath = asset.path === 'index.html'
+                                ? basePath + '/'
+                                : basePath + '/' + asset.path.slice(0, -5);  // Remove .html
+                            htmlRoutes.push(`    server->on("${routePath}", HTTP_GET, serve${pascalCase(asset.name)});`);
+                            if (routePath !== basePath + '/') {
+                                htmlRoutes.push(`    server->on("${routePath}.html", HTTP_GET, serve${pascalCase(asset.name)});`);
                             }
                         } else {
-                            routes.push({
-                                route: file.route,
-                                func: `serve${pascalCase(file.name)}`
-                            });
+                            routes.push(`    server->on("${basePath}/${asset.path}", HTTP_GET, serve${pascalCase(asset.name)});`);
                         }
                     }
 
-                    await fs.writeFile(resolve(outputDir, headerName), headerContent);
+                    await fs.writeFile(resolve(outputDir, `${groupName}.h`), header);
                 }
-            }
 
-            // Generate routes header
-            const routesContent = `#pragma once
+                // Generate routes header
+                const routesHeader = `#pragma once
 
 #include <ESPAsyncWebServer.h>
-#include <Arduino.h>
-${Array.from(filesByDir.entries()).flatMap(([dir, files]) => {
-    const types = new Set(files.map(f => f.type));
-    return Array.from(types).map(type => `#include "ui_${dir}_${type}.h"`);
-}).join('\n')}
+${Array.from(groupedAssets.keys()).map(group => `#include "${group}.h"`).join('\n')}
 
-inline void setupUIRoutes(AsyncWebServer* server) {
-${routes.map(r => `    server->on("${r.route}", HTTP_GET, ${r.func});`).join('\n')}
+inline void setupRoutes(AsyncWebServer* server) {
+${routes.join('\n')}
 
-    // HTML routes with and without .html extension
-${htmlRoutes.map(r => `    server->on("${r.route}", HTTP_GET, ${r.func});`).join('\n')}
-
-    // Serve index.html for the root path
-    server->on("/ui/", HTTP_GET, serveIndexHtml);
+    // HTML routes
+${htmlRoutes.join('\n')}
 }`;
-            await fs.writeFile(resolve(outputDir, 'ui_routes.h'), routesContent);
+
+                await fs.writeFile(resolve(outputDir, `${outPrefix}routes.h`), routesHeader);
+                console.log(`Generated C++ headers in ${outputDir}`);
+            } catch (error) {
+                console.error(`Error writing output files to ${outputDir}:`, error);
+            }
         }
     };
 }

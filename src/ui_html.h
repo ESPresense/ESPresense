@@ -1,13 +1,13 @@
 /*
- * Binary arrays for the Web UI root directory (HTML files).
- * Zopfli compression is used for smaller size and improved speeds.
+ * Binary arrays for the Web UI ui_html files.
+ * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
 #include <ESPAsyncWebServer.h>
 #include <Arduino.h>
 
-// devices_html
+// devices.html
 const uint16_t DEVICES_HTML_L = 685;
 const uint8_t DEVICES_HTML[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x9d, 0x54, 0x65, 0x97, 0xeb, 0x2c,
@@ -61,7 +61,7 @@ inline void serveDevicesHtml(AsyncWebServerRequest* request) {
   request->send(response);
 }
 
-// fingerprints_html
+// fingerprints.html
 const uint16_t FINGERPRINTS_HTML_L = 685;
 const uint8_t FINGERPRINTS_HTML[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x9d, 0x54, 0x65, 0x97, 0xeb, 0x2c,
@@ -115,7 +115,7 @@ inline void serveFingerprintsHtml(AsyncWebServerRequest* request) {
   request->send(response);
 }
 
-// index_html
+// index.html
 const uint16_t INDEX_HTML_L = 685;
 const uint8_t INDEX_HTML[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x9d, 0x54, 0x65, 0x97, 0xeb, 0x2c,
@@ -169,7 +169,7 @@ inline void serveIndexHtml(AsyncWebServerRequest* request) {
   request->send(response);
 }
 
-// settings_html
+// settings.html
 const uint16_t SETTINGS_HTML_L = 685;
 const uint8_t SETTINGS_HTML[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x9d, 0x54, 0x65, 0x97, 0xeb, 0x2c,

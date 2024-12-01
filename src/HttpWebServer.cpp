@@ -149,7 +149,7 @@ void Init(AsyncWebServer *server) {
         request->send(response);
     });
 
-    setupUIRoutes(server); // from ui_routes.h
+    setupRoutes(server); // from ui_routes.h
     server->on("/ui", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->redirect("/ui/");
     });

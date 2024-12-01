@@ -1,13 +1,14 @@
 #pragma once
 
 #include <ESPAsyncWebServer.h>
-#include <Arduino.h>
-#include "ui_app_css.h"
-#include "ui_app_js.h"
-#include "ui_root_svg.h"
-#include "ui_root_html.h"
+#include "ui_app_immutable_assets_css.h"
+#include "ui_app_immutable_chunks_js.h"
+#include "ui_app_immutable_entry_js.h"
+#include "ui_app_immutable_nodes_js.h"
+#include "ui_html.h"
+#include "ui_svg.h"
 
-inline void setupUIRoutes(AsyncWebServer* server) {
+inline void setupRoutes(AsyncWebServer* server) {
     server->on("/ui/app/immutable/assets/index.DUGlLD2F.css", HTTP_GET, serveAppImmutableAssetsIndexDuGlLd2FCss);
     server->on("/ui/app/immutable/chunks/index.mFKdhD8C.js", HTTP_GET, serveAppImmutableChunksIndexMFKdhD8CJs);
     server->on("/ui/app/immutable/entry/start.DzDNF7x0.js", HTTP_GET, serveAppImmutableEntryStartDzDnf7x0Js);
@@ -20,15 +21,12 @@ inline void setupUIRoutes(AsyncWebServer* server) {
     server->on("/ui/app/immutable/nodes/5.9ec-vGtq.js", HTTP_GET, serveAppImmutableNodes_5_9ecVGtqJs);
     server->on("/ui/favicon.svg", HTTP_GET, serveFaviconSvg);
 
-    // HTML routes with and without .html extension
-    server->on("/ui/devices.html", HTTP_GET, serveDevicesHtml);
+    // HTML routes
     server->on("/ui/devices", HTTP_GET, serveDevicesHtml);
-    server->on("/ui/fingerprints.html", HTTP_GET, serveFingerprintsHtml);
+    server->on("/ui/devices.html", HTTP_GET, serveDevicesHtml);
     server->on("/ui/fingerprints", HTTP_GET, serveFingerprintsHtml);
-    server->on("/ui/index.html", HTTP_GET, serveIndexHtml);
-    server->on("/ui/settings.html", HTTP_GET, serveSettingsHtml);
-    server->on("/ui/settings", HTTP_GET, serveSettingsHtml);
-
-    // Serve index.html for the root path
+    server->on("/ui/fingerprints.html", HTTP_GET, serveFingerprintsHtml);
     server->on("/ui/", HTTP_GET, serveIndexHtml);
+    server->on("/ui/settings", HTTP_GET, serveSettingsHtml);
+    server->on("/ui/settings.html", HTTP_GET, serveSettingsHtml);
 }

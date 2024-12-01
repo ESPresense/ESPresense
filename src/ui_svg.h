@@ -1,13 +1,13 @@
 /*
- * Binary arrays for the Web UI root directory (SVG files).
- * Zopfli compression is used for smaller size and improved speeds.
+ * Binary arrays for the Web UI ui_svg files.
+ * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
 #include <ESPAsyncWebServer.h>
 #include <Arduino.h>
 
-// favicon_svg
+// favicon.svg
 const uint16_t FAVICON_SVG_L = 456;
 const uint8_t FAVICON_SVG[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x8d, 0x53, 0xc5, 0xb6, 0xdd, 0x30,
