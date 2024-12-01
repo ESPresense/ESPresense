@@ -43,7 +43,7 @@ jobs:
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add src/ui_bundle_css.h src/ui_index_html.h src/ui_index_js.h
+        git add src/ui_*.h
         git status --porcelain && git commit -m "chore: update UI build outputs" && git push || echo "No changes to commit"
 
     - name: Create Pull Request
@@ -60,9 +60,7 @@ jobs:
         delete-branch: true
         base: master
         add-paths: |
-          src/ui_bundle_css.h
-          src/ui_index_html.h
-          src/ui_index_js.h
+          src/ui_*.h
         labels: |
           automated pr
           ui
