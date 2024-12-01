@@ -1,7 +1,5 @@
 #include "HttpWebServer.h"
 
-#include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
 
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
@@ -9,7 +7,6 @@
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
-#include "string_utils.h"
 #include "ui_routes.h"
 
 namespace HttpWebServer {
@@ -157,17 +154,42 @@ void Init(AsyncWebServer *server) {
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
         "/json", [](AsyncWebServerRequest *request, JsonVariant &json) {
-            {
-                DynamicJsonDocument doc(1500);
-                DeserializationError error =
-                    deserializeJson(doc, (uint8_t *)(request->_tempObject));
-                JsonObject root = doc.as<JsonObject>();
-                if (error || root.isNull()) {
-                    request->send(400, "application/json", F("{\"error\":9}"));
+            const String &url = request->url();
+
+            // Handle configs endpoint
+            if (url.indexOf("configs") > 0) {
+                JsonObject root = json.as<JsonObject>();
+
+                if (root.isNull()) {
+                    request->send(400, "application/json", F("{\"error\":\"Invalid JSON\"}"));
                     return;
                 }
+
+                // Extract required fields
+                if (!root.containsKey("id")) {
+                    request->send(400, "application/json", F("{\"error\":\"Missing required field: id\"}"));
+                    return;
+                }
+
+                String id = root["id"].as<String>();
+                // Use id as alias if none provided
+                String alias = root.containsKey("alias") && !root["alias"].as<String>().isEmpty() ? root["alias"].as<String>() : id;
+
+                // Extract optional fields
+                String name = root.containsKey("name") ? root["name"].as<String>() : "";
+                int calRssi = root.containsKey("rssi@1m") ? root["rssi@1m"].as<int>() : -128;
+
+                // Save the config
+                if (sendConfig(id, alias, name, calRssi)) {
+                    request->send(200, "application/json", F("{\"success\":true}"));
+                } else {
+                    request->send(500, "application/json", F("{\"error\":\"Failed to save config\"}"));
+                }
+                return;
             }
-            request->send(200, "application/json", F("{\"success\":true}"));
+
+            // Default response for unhandled endpoints
+            request->send(404, "application/json", F("{\"error\":\"Unknown endpoint\"}"));
         });
     server->addHandler(handler);
     server->addHandler(&ws);

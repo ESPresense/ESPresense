@@ -220,14 +220,16 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
-bool alias(const String &alias, const String &id, const String &name = "")
+
+bool sendConfig(const String &id, const String &alias, const String &name = "", int calRssi = -128)
 {
-    Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), alias.c_str(), id.c_str());
+    Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
-    doc["id"] = id;
+    doc["id"] = alias;
     doc["name"] = name;
+    if (calRssi > -128) doc["rssi@1m"] = calRssi;
     String buffer = String();
     serializeJson(doc, buffer);
-    const String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
+    const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, buffer.c_str());
 }
