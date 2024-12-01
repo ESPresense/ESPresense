@@ -1,6 +1,35 @@
 import { readable, writable } from 'svelte/store';
 import type { Extras, Configs, Devices, WebSocketCommand, StartFunction } from './types';
 
+// Room name store that stops polling once room name is found
+export const roomName = readable<string>('', function start(set) {
+    let errors = 0;
+    let outstanding = false;
+    const interval = setInterval(() => {
+        if (outstanding) return;
+        outstanding = true;
+        fetch("/json")
+            .then(d => d.json())
+            .then((r: { room: string }) => {
+                outstanding = false;
+                errors = 0;
+                if (r.room) {
+                    clearInterval(interval); // Stop polling once we have the room name
+                    set(r.room);
+                }
+            })
+            .catch((ex) => {
+                outstanding = false;
+                if (errors++ > 5) set('');
+                console.log(ex);
+            });
+    }, 1000);
+
+    return function stop() {
+        clearInterval(interval);
+    };
+});
+
 // Dark mode store with persistence
 export const darkMode = writable<boolean>(false, (set) => {
     if (typeof window !== 'undefined') {

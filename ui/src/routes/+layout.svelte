@@ -1,6 +1,17 @@
 <script lang="ts">
   import Sidebar from "$lib/components/Sidebar.svelte";
+  import { roomName } from "$lib/stores";
+  import { page } from "$app/stores";
   import "../app.css";
+
+  // Get the current page name from the URL
+  $: pageName = $page.url.pathname.split('/').pop() || 'Home';
+  $: pageTitle = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+
+  // Update title when room name or page changes
+  $: if (typeof document !== 'undefined') {
+    document.title = `ESPresense ${$roomName ? `(${$roomName})` : ''} - ${pageTitle}`;
+  }
 </script>
 
 <div class="flex h-screen bg-gray-100 dark:bg-gray-900">

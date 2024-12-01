@@ -51,6 +51,15 @@ async function cppCompressed(input: string | Buffer | Uint8Array, fileName: stri
     };
 }
 
+async function isDirectory(path: string): Promise<boolean> {
+    try {
+        const stat = await fs.stat(path);
+        return stat.isDirectory();
+    } catch (error) {
+        return false;
+    }
+}
+
 export function cppPlugin(): Plugin {
     return {
         name: 'cpp',
@@ -109,34 +118,36 @@ export function cppPlugin(): Plugin {
                 }
             }
 
-            // Process HTML files
+            // Process build directory files
             try {
                 const buildDir = resolve(__dirname, '../build');
-                const htmlFiles = await fs.readdir(buildDir);
+                const buildFiles = await fs.readdir(buildDir);
                 const files = filesByDir.get('root') || [];
 
-                // Process all HTML files
-                for (const file of htmlFiles) {
-                    if (file.endsWith('.html')) {
-                        const content = await fs.readFile(resolve(buildDir, file), 'utf-8');
-                        const baseName = file.replace('.html', '');
+                // Process all files in build directory
+                for (const file of buildFiles) {
+                    const filePath = resolve(buildDir, file);
+                    if (await isDirectory(filePath)) continue;
 
-                        // Add the .html route
-                        files.push({
-                            route: `/ui/${file}`,
-                            name: file.replace(/[.-]/g, '_'),
-                            content,
-                            contentType: 'text/html',
-                            type: 'html'
-                        });
-                    }
+                    const content = await fs.readFile(filePath);
+                    const ext = file.split('.').pop()?.toLowerCase() || '';
+                    const contentType = mime.getType(file) || 'application/octet-stream';
+                    const isText = contentType.startsWith('text/') || contentType === 'application/javascript';
+
+                    files.push({
+                        route: `/ui/${file}`,
+                        name: file.replace(/[.-]/g, '_'),
+                        content: isText ? content.toString('utf-8') : content,
+                        contentType,
+                        type: ext
+                    });
                 }
 
                 if (files.length > 0) {
                     filesByDir.set('root', files);
                 }
             } catch (error) {
-                console.error('Error reading HTML files:', error);
+                console.error('Error reading build files:', error);
             }
 
             // Generate header files

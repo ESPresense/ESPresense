@@ -5,18 +5,20 @@
 #include "ui_app_css.h"
 #include "ui_app_js.h"
 #include "ui_root_html.h"
+#include "ui_root_svg.h"
 
 inline void setupUIRoutes(AsyncWebServer* server) {
     server->on("/ui/app/immutable/assets/index.DUGlLD2F.css", HTTP_GET, serveAppImmutableAssetsIndexDuGlLd2FCss);
-    server->on("/ui/app/immutable/chunks/index.BmvMkDwf.js", HTTP_GET, serveAppImmutableChunksIndexBmvMkDwfJs);
-    server->on("/ui/app/immutable/entry/start.B3BE1t1x.js", HTTP_GET, serveAppImmutableEntryStartB3Be1t1xJs);
-    server->on("/ui/app/immutable/entry/app.4p5-oTvo.js", HTTP_GET, serveAppImmutableEntryApp_4p5OTvoJs);
-    server->on("/ui/app/immutable/nodes/0.DbuA8h7J.js", HTTP_GET, serveAppImmutableNodes_0DbuA8h7JJs);
-    server->on("/ui/app/immutable/nodes/1.BgjnE4it.js", HTTP_GET, serveAppImmutableNodes_1BgjnE4itJs);
-    server->on("/ui/app/immutable/nodes/2.DfJExTbZ.js", HTTP_GET, serveAppImmutableNodes_2DfJExTbZJs);
-    server->on("/ui/app/immutable/nodes/3.BvkBeeXb.js", HTTP_GET, serveAppImmutableNodes_3BvkBeeXbJs);
-    server->on("/ui/app/immutable/nodes/4.DlBVN1uD.js", HTTP_GET, serveAppImmutableNodes_4DlBvn1uDJs);
-    server->on("/ui/app/immutable/nodes/5.5Tt33p5p.js", HTTP_GET, serveAppImmutableNodes_5_5Tt33p5pJs);
+    server->on("/ui/app/immutable/chunks/index.mFKdhD8C.js", HTTP_GET, serveAppImmutableChunksIndexMFKdhD8CJs);
+    server->on("/ui/app/immutable/entry/start.DzDNF7x0.js", HTTP_GET, serveAppImmutableEntryStartDzDnf7x0Js);
+    server->on("/ui/app/immutable/entry/app.B9Y0-_K7.js", HTTP_GET, serveAppImmutableEntryAppB9Y0K7Js);
+    server->on("/ui/app/immutable/nodes/0.BUpjl-S3.js", HTTP_GET, serveAppImmutableNodes_0BUpjlS3Js);
+    server->on("/ui/app/immutable/nodes/1.KgnaUiKZ.js", HTTP_GET, serveAppImmutableNodes_1KgnaUiKzJs);
+    server->on("/ui/app/immutable/nodes/2.DRTs-OeU.js", HTTP_GET, serveAppImmutableNodes_2DrTsOeUJs);
+    server->on("/ui/app/immutable/nodes/3.DAisRa9z.js", HTTP_GET, serveAppImmutableNodes_3DAisRa9zJs);
+    server->on("/ui/app/immutable/nodes/4.pU4Xl9Mg.js", HTTP_GET, serveAppImmutableNodes_4PU4Xl9MgJs);
+    server->on("/ui/app/immutable/nodes/5.9ec-vGtq.js", HTTP_GET, serveAppImmutableNodes_5_9ecVGtqJs);
+    server->on("/ui/favicon.svg", HTTP_GET, serveFaviconSvg);
 
     // HTML routes with and without .html extension
     server->on("/ui/devices.html", HTTP_GET, serveDevicesHtml);
