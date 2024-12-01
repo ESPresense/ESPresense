@@ -7,16 +7,16 @@
 #include "ui_root_html.h"
 
 inline void setupUIRoutes(AsyncWebServer* server) {
-    server->on("/ui/app/immutable/assets/index.BldWXf2Y.css", HTTP_GET, serveAppImmutableAssetsIndexBldWXf2YCss);
-    server->on("/ui/app/immutable/chunks/index.Cfxs0Z48.js", HTTP_GET, serveAppImmutableChunksIndexCfxs0Z48Js);
-    server->on("/ui/app/immutable/entry/start.7wBHyld-.js", HTTP_GET, serveAppImmutableEntryStart_7wBHyldJs);
-    server->on("/ui/app/immutable/entry/app.CnArWRR5.js", HTTP_GET, serveAppImmutableEntryAppCnArWrr5Js);
-    server->on("/ui/app/immutable/nodes/0.C58ML_Xs.js", HTTP_GET, serveAppImmutableNodes_0C58MlXsJs);
-    server->on("/ui/app/immutable/nodes/1.C7fgOBYz.js", HTTP_GET, serveAppImmutableNodes_1C7fgObYzJs);
-    server->on("/ui/app/immutable/nodes/2.CUEOGyt7.js", HTTP_GET, serveAppImmutableNodes_2CueoGyt7Js);
-    server->on("/ui/app/immutable/nodes/3.lX1me3QY.js", HTTP_GET, serveAppImmutableNodes_3LX1me3QyJs);
-    server->on("/ui/app/immutable/nodes/4.Cw6_1bY5.js", HTTP_GET, serveAppImmutableNodes_4Cw6_1bY5Js);
-    server->on("/ui/app/immutable/nodes/5.BfFN_Km6.js", HTTP_GET, serveAppImmutableNodes_5BfFnKm6Js);
+    server->on("/ui/app/immutable/assets/index.DUGlLD2F.css", HTTP_GET, serveAppImmutableAssetsIndexDuGlLd2FCss);
+    server->on("/ui/app/immutable/chunks/index.BmvMkDwf.js", HTTP_GET, serveAppImmutableChunksIndexBmvMkDwfJs);
+    server->on("/ui/app/immutable/entry/start.B3BE1t1x.js", HTTP_GET, serveAppImmutableEntryStartB3Be1t1xJs);
+    server->on("/ui/app/immutable/entry/app.4p5-oTvo.js", HTTP_GET, serveAppImmutableEntryApp_4p5OTvoJs);
+    server->on("/ui/app/immutable/nodes/0.DbuA8h7J.js", HTTP_GET, serveAppImmutableNodes_0DbuA8h7JJs);
+    server->on("/ui/app/immutable/nodes/1.BgjnE4it.js", HTTP_GET, serveAppImmutableNodes_1BgjnE4itJs);
+    server->on("/ui/app/immutable/nodes/2.DfJExTbZ.js", HTTP_GET, serveAppImmutableNodes_2DfJExTbZJs);
+    server->on("/ui/app/immutable/nodes/3.BvkBeeXb.js", HTTP_GET, serveAppImmutableNodes_3BvkBeeXbJs);
+    server->on("/ui/app/immutable/nodes/4.DlBVN1uD.js", HTTP_GET, serveAppImmutableNodes_4DlBvn1uDJs);
+    server->on("/ui/app/immutable/nodes/5.5Tt33p5p.js", HTTP_GET, serveAppImmutableNodes_5_5Tt33p5pJs);
 
     // HTML routes with and without .html extension
     server->on("/ui/devices.html", HTTP_GET, serveDevicesHtml);

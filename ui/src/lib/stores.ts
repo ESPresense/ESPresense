@@ -1,6 +1,34 @@
 import { readable, writable } from 'svelte/store';
 import type { Extras, Configs, Devices, WebSocketCommand, StartFunction } from './types';
 
+// Dark mode store with persistence
+export const darkMode = writable<boolean>(false, (set) => {
+    if (typeof window !== 'undefined') {
+        // Initialize from localStorage or system preference
+        const stored = localStorage.getItem('darkMode');
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = stored ? stored === 'true' : systemPrefersDark;
+        set(isDark);
+
+        // Update document class
+        if (isDark) document.documentElement.classList.add('dark');
+    }
+
+    return () => {};
+});
+
+// Subscribe to changes and update localStorage and document class
+if (typeof window !== 'undefined') {
+    darkMode.subscribe(isDark => {
+        localStorage.setItem('darkMode', isDark.toString());
+        if (isDark) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    });
+}
+
 // Export the stores with their types
 export const extras = writable<Extras | null>({}, function start(set) {
     fetch("/extras")
