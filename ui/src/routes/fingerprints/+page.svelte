@@ -143,8 +143,8 @@
         },
     ];
 
-    function classNameRow(event: Device) {
-        return event.close ? "bg-yellow-100 dark:bg-yellow-900" : "";
+    function classNameRow(d: Device) {
+        return d.close ? "bg-yellow-100 dark:bg-yellow-900" : "";
     }
 
     let tableRows = $derived($devices?.devices || []);

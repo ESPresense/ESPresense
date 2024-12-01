@@ -1,4 +1,5 @@
 export interface Device {
+    close: any;
     vis?: boolean;
     distance?: number;
     var?: number;
@@ -12,7 +13,6 @@ export interface Config {
     id?: string;
     name?: string;
     "rssi@1m"?: number;
-    close?: boolean;
 }
 
 export interface Events {

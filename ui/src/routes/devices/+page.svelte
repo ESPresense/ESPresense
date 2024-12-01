@@ -78,7 +78,7 @@
                 const colonIndex = v.alias.indexOf(":");
                 return colonIndex !== -1 ? v.alias.substring(0, colonIndex + 1) : "";
             },
-            headerClass: "px-6 py-4",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
             class: "px-6 py-4",
         },
         {
@@ -106,7 +106,7 @@
                 const colonIndex = v.id.indexOf(":");
                 return colonIndex !== -1 ? v.id.substring(0, colonIndex + 1) : "";
             },
-            headerClass: "px-6 py-4",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
             class: "px-6 py-4",
         },
         {
@@ -128,7 +128,7 @@
                 return Object.values(letrs).sort((a, b) => a.name.localeCompare(b.name));
             },
             filterValue: (v: Config) => v.name?.charAt(0)?.toLowerCase() ?? "",
-            headerClass: "px-6 py-4",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
             class: "px-6 py-4",
         },
         {
@@ -137,13 +137,13 @@
             value: (v: Config) => v["rssi@1m"] ?? 0,
             renderValue: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
             sortable: true,
-            headerClass: "px-6 py-4",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
             class: "px-6 py-4 whitespace-nowrap",
         },
     ];
 
-    function classNameRow(event: Config) {
-        return event.close ? "bg-yellow-100 dark:bg-yellow-900" : "";
+    function classNameRow(c: Config) {
+        return "";
     }
 </script>
 
@@ -171,7 +171,14 @@
                     selectSingle={true}
                     selectOnClick={true}
                     bind:selected={selectedRowIds}
-                    classNameRow={classNameRow}
+                    classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
+                    classNameThead="bg-gray-100 dark:bg-gray-700"
+                    classNameTbody="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                    {classNameRow}
+                    classNameRowSelected="bg-blue-50 dark:bg-blue-900"
+                    classNameCell="text-sm text-gray-900 dark:text-gray-300"
+                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                 />
             </div>
         {:else}
