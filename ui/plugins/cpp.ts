@@ -51,18 +51,51 @@ async function cppCompressed(input: string | Buffer | Uint8Array, fileName: stri
     };
 }
 
-async function isDirectory(path: string): Promise<boolean> {
-    try {
-        const stat = await fs.stat(path);
-        return stat.isDirectory();
-    } catch (error) {
-        return false;
-    }
-}
-
 export function cppPlugin(): Plugin {
+    let resolvedAssets = new Map<string, Buffer>();
+
     return {
         name: 'cpp',
+
+        // Intercept static file imports
+        async transform(code, id) {
+            // Only capture files from our actual static directory
+            const staticDir = resolve(__dirname, '../static');
+            if (id.startsWith(staticDir)) {
+                const fileName = id.replace(staticDir + '/', '');
+                try {
+                    const content = await fs.readFile(id);
+                    resolvedAssets.set(fileName, content);
+                } catch (error) {
+                    console.error('Error reading static file:', error);
+                }
+                return code;
+            }
+        },
+
+        // Force static files to be included
+        async buildStart() {
+            const staticDir = resolve(__dirname, '../static');
+            try {
+                const files = await fs.readdir(staticDir);
+                for (const file of files) {
+                    // Skip hidden files
+                    if (file.startsWith('.')) continue;
+
+                    const filePath = resolve(staticDir, file);
+                    const stats = await fs.stat(filePath);
+                    // Only process regular files
+                    if (stats.isFile()) {
+                        const content = await fs.readFile(filePath);
+                        resolvedAssets.set(file, content);
+                    }
+                }
+                console.log(`Captured ${resolvedAssets.size} static assets`);
+            } catch (error) {
+                console.error('Error reading static directory:', error);
+            }
+        },
+
         async writeBundle(options: any, bundle: OutputBundle) {
             const isClientBuild = Object.keys(bundle).some(key =>
                 key.includes('immutable/entry/app') ||
@@ -118,36 +151,41 @@ export function cppPlugin(): Plugin {
                 }
             }
 
-            // Process build directory files
+            // Add static assets
+            const files = filesByDir.get('root') || [];
+            for (const [fileName, content] of resolvedAssets.entries()) {
+                const ext = fileName.split('.').pop()?.toLowerCase() || '';
+                files.push({
+                    route: `/ui/${fileName}`,
+                    name: fileName.replace(/[.-]/g, '_'),
+                    content,
+                    contentType: mime.getType(fileName) || 'application/octet-stream',
+                    type: ext
+                });
+            }
+
+            // Add HTML files
+            const buildDir = resolve(__dirname, '../build');
             try {
-                const buildDir = resolve(__dirname, '../build');
                 const buildFiles = await fs.readdir(buildDir);
-                const files = filesByDir.get('root') || [];
-
-                // Process all files in build directory
                 for (const file of buildFiles) {
-                    const filePath = resolve(buildDir, file);
-                    if (await isDirectory(filePath)) continue;
-
-                    const content = await fs.readFile(filePath);
-                    const ext = file.split('.').pop()?.toLowerCase() || '';
-                    const contentType = mime.getType(file) || 'application/octet-stream';
-                    const isText = contentType.startsWith('text/') || contentType === 'application/javascript';
-
-                    files.push({
-                        route: `/ui/${file}`,
-                        name: file.replace(/[.-]/g, '_'),
-                        content: isText ? content.toString('utf-8') : content,
-                        contentType,
-                        type: ext
-                    });
-                }
-
-                if (files.length > 0) {
-                    filesByDir.set('root', files);
+                    if (file.endsWith('.html')) {
+                        const content = await fs.readFile(resolve(buildDir, file), 'utf-8');
+                        files.push({
+                            route: `/ui/${file}`,
+                            name: file.replace(/[.-]/g, '_'),
+                            content,
+                            contentType: 'text/html',
+                            type: 'html'
+                        });
+                    }
                 }
             } catch (error) {
-                console.error('Error reading build files:', error);
+                console.error('Error reading build directory:', error);
+            }
+
+            if (files.length > 0) {
+                filesByDir.set('root', files);
             }
 
             // Generate header files

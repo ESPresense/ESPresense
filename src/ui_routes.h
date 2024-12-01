@@ -4,8 +4,8 @@
 #include <Arduino.h>
 #include "ui_app_css.h"
 #include "ui_app_js.h"
-#include "ui_root_html.h"
 #include "ui_root_svg.h"
+#include "ui_root_html.h"
 
 inline void setupUIRoutes(AsyncWebServer* server) {
     server->on("/ui/app/immutable/assets/index.DUGlLD2F.css", HTTP_GET, serveAppImmutableAssetsIndexDuGlLd2FCss);
