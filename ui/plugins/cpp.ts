@@ -6,6 +6,7 @@ import { pascalCase } from "change-case";
 import mime from 'mime';
 import type { OutputBundle, OutputAsset, OutputChunk } from 'rollup';
 import { gzip } from '@gfx/zopfli';
+import chalk from 'chalk';
 
 const zopfliCompress = promisify(gzip);
 
@@ -14,6 +15,7 @@ interface CompressedOutput {
     length: number;
     array: string;
     contentType: string;
+    useCompression: boolean;
 }
 
 interface Asset {
@@ -24,12 +26,30 @@ interface Asset {
     type: string;
 }
 
+interface CompressStats {
+    fileName: string;
+    inputSize: number;
+    compressedSize: number;
+    groupName: string;
+    useCompression: boolean;
+}
+
 interface CppPluginOptions {
     outPrefix?: string;   // Prefix for output files
     basePath?: string;    // Base URL path (e.g., '/ui', '/app', etc.)
     staticDir?: string;   // Directory for static assets
     buildDir?: string;    // Directory for build output
     outputDir?: string;   // Directory for C++ headers
+}
+
+function formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    const kb = bytes / 1024;
+    return `${kb.toFixed(2)} kB`;
+}
+
+function padEnd(str: string, len: number): string {
+    return str.padEnd(len, ' ');
 }
 
 function hexdump(buffer: Uint8Array): string {
@@ -52,19 +72,25 @@ async function compressAsset(input: string | Buffer | Uint8Array, fileName: stri
         verbose: false
     };
 
-    const result = await zopfliCompress(Buffer.from(input), options);
-    console.info(`${fileName} compressed ${result.length} bytes`);
+    const inputBuffer = Buffer.from(input);
+    const compressed = await zopfliCompress(inputBuffer, options);
+    const useCompression = compressed.length < inputBuffer.length;
+
+    // Use whichever is smaller
+    const finalBuffer = useCompression ? compressed : inputBuffer;
 
     return {
         name: fileName.replace(/[.-]/g, "_").toUpperCase(),
-        length: result.length,
-        array: hexdump(result),
-        contentType: contentType || mime.getType(fileName) || 'application/octet-stream'
+        length: finalBuffer.length,
+        array: hexdump(finalBuffer),
+        contentType: contentType || mime.getType(fileName) || 'application/octet-stream',
+        useCompression
     };
 }
 
 export function cppPlugin(options: CppPluginOptions = {}): Plugin {
     const assets = new Map<string, Asset>();
+    const compressedStats: CompressStats[] = [];
 
     const basePath = options.basePath || '';
 
@@ -189,12 +215,13 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
 
                 const routes: string[] = [];
                 const htmlRoutes: string[] = [];
+                let totalInputSize = 0;
+                let totalCompressedSize = 0;
 
                 // Generate a header file for each group
                 for (const [groupName, groupAssets] of groupedAssets) {
                     let header = `/*
  * Binary arrays for the Web UI ${groupName} files.
- * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
@@ -204,14 +231,28 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
 `;
 
                     for (const asset of groupAssets) {
+                        const inputSize = Buffer.from(asset.content).length;
                         const compressed = await compressAsset(asset.content, asset.name, asset.contentType);
+
+                        compressedStats.push({
+                            fileName: asset.path,
+                            inputSize,
+                            compressedSize: compressed.length,
+                            groupName,
+                            useCompression: compressed.useCompression
+                        });
+
+                        totalInputSize += inputSize;
+                        totalCompressedSize += compressed.length;
 
                         header += `// ${asset.path}\n`;
                         header += `const uint16_t ${compressed.name}_L = ${compressed.length};\n`;
                         header += `const uint8_t ${compressed.name}[] PROGMEM = {\n${compressed.array}\n};\n\n`;
                         header += `inline void serve${pascalCase(asset.name)}(AsyncWebServerRequest* request) {\n`;
                         header += `  AsyncWebServerResponse *response = request->beginResponse_P(200, "${asset.contentType}", ${compressed.name}, ${compressed.name}_L);\n`;
-                        header += `  response->addHeader(F("Content-Encoding"), "gzip");\n`;
+                        if (compressed.useCompression) {
+                            header += `  response->addHeader(F("Content-Encoding"), "gzip");\n`;
+                        }
                         header += `  request->send(response);\n`;
                         header += `}\n\n`;
 
@@ -232,8 +273,60 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
                     await fs.writeFile(resolve(outputDir, `${groupName}.h`), header);
                 }
 
-                // Generate routes header
-                const routesHeader = `#pragma once
+                // Output compression stats
+                console.log(chalk.cyan('\nGenerating C++ headers for web UI assets:'));
+                console.log(chalk.dim('─'.repeat(100)));
+
+                // Sort by group and size
+                compressedStats.sort((a, b) => {
+                    if (a.groupName === b.groupName) {
+                        return b.compressedSize - a.compressedSize;
+                    }
+                    return a.groupName.localeCompare(b.groupName);
+                });
+
+                let currentGroup = '';
+                for (const stat of compressedStats) {
+                    if (stat.groupName !== currentGroup) {
+                        if (currentGroup !== '') console.log('');
+                        currentGroup = stat.groupName;
+                    }
+
+                    const ratio = stat.compressedSize / stat.inputSize;
+                    const compressionResult = stat.useCompression ? chalk.dim('gzip') : chalk.yellow('uncompressed');
+                    console.log(
+                        chalk.dim(padEnd(stat.fileName, 70)) +
+                        chalk.blue(padEnd(formatSize(stat.inputSize), 10)) +
+                        compressionResult + ': ' +
+                        chalk.green(formatSize(stat.compressedSize)) +
+                        chalk.dim(` (${(ratio * 100).toFixed(1)}%)`)
+                    );
+                }
+
+                console.log(chalk.dim('\n' + '─'.repeat(100)));
+                console.log(
+                    chalk.cyan('Total compressed size: ') +
+                    chalk.green(formatSize(totalCompressedSize)) +
+                    chalk.dim(` (${((totalCompressedSize / totalInputSize) * 100).toFixed(1)}% of ${formatSize(totalInputSize)})`)
+                );
+                console.log(chalk.green(`Generated C++ headers in ${outputDir}\n`));
+
+                // Generate routes header with size information
+                const sizeComments = Array.from(groupedAssets.entries()).map(([groupName, assets]) => {
+                    const groupStats = compressedStats.filter(stat => stat.groupName === groupName);
+                    const totalGroupBytes = groupStats.reduce((sum, stat) => sum + stat.compressedSize, 0);
+                    return ` * ${groupName}: ${totalGroupBytes.toLocaleString()} bytes`;
+                });
+
+                const routesHeader = `/*
+ * Web UI Routes
+ *
+ * Compressed Size Summary:
+${sizeComments.join('\n')}
+ * Total: ${totalCompressedSize.toLocaleString()} bytes
+ */
+
+#pragma once
 
 #include <ESPAsyncWebServer.h>
 ${Array.from(groupedAssets.keys()).map(group => `#include "${group}.h"`).join('\n')}
@@ -246,9 +339,9 @@ ${htmlRoutes.join('\n')}
 }`;
 
                 await fs.writeFile(resolve(outputDir, `${outPrefix}routes.h`), routesHeader);
-                console.log(`Generated C++ headers in ${outputDir}`);
+
             } catch (error) {
-                console.error(`Error writing output files to ${outputDir}:`, error);
+                console.error(chalk.red(`Error writing output files to ${outputDir}:`), error);
             }
         }
     };
