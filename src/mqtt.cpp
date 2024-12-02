@@ -233,3 +233,10 @@ bool sendConfig(const String &id, const String &alias, const String &name = "", 
     const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, buffer.c_str());
 }
+
+bool deleteConfig(const String &id)
+{
+    Serial.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
+    const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
+    return pub(settingsTopic.c_str(), 0, true, "");
+}

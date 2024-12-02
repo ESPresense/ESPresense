@@ -1,6 +1,5 @@
 #include "HttpWebServer.h"
 
-
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
@@ -151,6 +150,21 @@ void Init(AsyncWebServer *server) {
         request->redirect("/ui/");
     });
     server->on("/json", HTTP_GET, serveJson);
+
+    // Handle DELETE method for configs
+    server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
+        if (!request->hasParam("id")) {
+            request->send(400, "application/json", F("{\"error\":\"Missing required parameter: id\"}"));
+            return;
+        }
+
+        String id = request->getParam("id")->value();
+        if (deleteConfig(id)) {
+            request->send(200, "application/json", F("{\"success\":true}"));
+        } else {
+            request->send(500, "application/json", F("{\"error\":\"Failed to delete config\"}"));
+        }
+    });
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
         "/json", [](AsyncWebServerRequest *request, JsonVariant &json) {
