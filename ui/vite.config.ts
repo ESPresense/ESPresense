@@ -22,16 +22,10 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '/json': {
-                target: 'http://192.168.128.165',
-                changeOrigin: true,
-            },
-            '/extras': {
-                target: 'http://192.168.128.165',
-                changeOrigin: true,
-            },
+            '/json': 'http://192.168.128.154',
+            '/extras': 'http://192.168.128.154',
             '/ws': {
-                target: 'ws://192.168.128.165',
+                target: 'ws://192.168.128.154/',
                 ws: true,
             }
         }
