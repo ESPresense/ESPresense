@@ -1,6 +1,5 @@
 /*
  * Binary arrays for the Web UI ui_app_immutable_assets_css files.
- * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
