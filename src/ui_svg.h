@@ -1,6 +1,5 @@
 /*
  * Binary arrays for the Web UI ui_svg files.
- * Uses Zopfli compression for optimal size and improved speed.
  */
 
 #pragma once
