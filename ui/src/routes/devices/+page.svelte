@@ -7,10 +7,12 @@
     let id = $state("");
     let deviceType = $state("");
     let showModal = $state(false);
+    let showEditModal = $state(false);
     let filterSelections = $state({});
     let sortBy = $state("alias");
     let sortOrder = $state<-1 | 0 | 1>(1);
     let selectedRowIds = $state([]);
+    let editingConfig = $state<Config | null>(null);
 
     const deviceTypes = ["watch", "wallet", "ipad", "phone", "airpods", "laptop", "node", "keys", "therm", "flora", "tile"];
 
@@ -40,6 +42,69 @@
         id = "";
         deviceType = "";
         cancelEnroll();
+    }
+
+    function onCloseEdit() {
+        showEditModal = false;
+        editingConfig = null;
+    }
+
+    async function onSaveEdit() {
+        if (!editingConfig) return;
+
+        try {
+            const response = await fetch('/json/configs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: editingConfig.id,
+                    alias: editingConfig.alias,
+                    name: editingConfig.name,
+                    "rssi@1m": editingConfig["rssi@1m"]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save device');
+            }
+
+            showEditModal = false;
+            editingConfig = null;
+        } catch (error) {
+            console.error('Error saving device:', error);
+            alert('Failed to save device changes');
+        }
+    }
+
+    async function onDeleteConfig() {
+        if (!editingConfig) return;
+
+        if (!confirm(`Are you sure you want to delete the device "${editingConfig.name || editingConfig.alias || editingConfig.id}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/json/configs?id=${encodeURIComponent(editingConfig.id)}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete device');
+            }
+
+            showEditModal = false;
+            editingConfig = null;
+        } catch (error) {
+            console.error('Error deleting device:', error);
+            alert('Failed to delete device');
+        }
+    }
+
+    function onRowClick(event: CustomEvent<{ row: Config }>) {
+        editingConfig = { ...event.detail.row };
+        showEditModal = true;
     }
 
     function formatRemainingTime(seconds: number) {
@@ -143,7 +208,7 @@
     ];
 
     function classNameRow(c: Config) {
-        return "";
+        return "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
     }
 </script>
 
@@ -179,6 +244,7 @@
                     classNameCell="text-sm text-gray-900 dark:text-gray-300"
                     classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                     classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    on:clickRow={onRowClick}
                 />
             </div>
         {:else}
@@ -222,13 +288,13 @@
                                     {/each}
                                 </select>
                                 <input
-                                    class="mt-1 block w-full  border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     type="text"
                                     bind:value={name}
                                     placeholder="Enter name"
                                 />
                                 <input
-                                    class="mt-1 block w-full  border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                     type="text"
                                     bind:value={id}
                                     placeholder={name ? (deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name)) : "Enter custom ID or leave empty for auto-generated"}
@@ -257,6 +323,85 @@
                     >
                         Close
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{/if}
+
+{#if showEditModal && editingConfig}
+    <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity">
+        <div class="flex items-center justify-center w-full h-full p-4">
+            <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+                <div class="flex justify-between items-start p-4 border-b dark:border-gray-700">
+                    <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Edit Device</h3>
+                    <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 rounded-lg text-sm p-2 ml-auto inline-flex items-center dark:hover:bg-gray-700 dark:hover:text-white" onclick={onCloseEdit}>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                        <span class="sr-only">Close</span>
+                    </button>
+                </div>
+                <div class="p-6 space-y-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="edit-device-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ID</label>
+                            <input
+                                id="edit-device-id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.id}
+                                readonly
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-alias" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alias</label>
+                            <input
+                                id="edit-device-alias"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.alias}
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                            <input
+                                id="edit-device-name"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.name}
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-rssi" class="block text-sm font-medium text-gray-700 dark:text-gray-300">RSSI at 1m (dBm)</label>
+                            <input
+                                id="edit-device-rssi"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="number"
+                                bind:value={editingConfig["rssi@1m"]}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-6 space-x-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        onclick={onDeleteConfig}
+                        class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-800"
+                    >
+                        Delete
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button
+                            onclick={onSaveEdit}
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                        >
+                            Save
+                        </button>
+                        <button
+                            onclick={onCloseEdit}
+                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

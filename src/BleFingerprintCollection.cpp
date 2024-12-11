@@ -90,7 +90,27 @@ bool addOrReplace(DeviceConfig config) {
     return true;
 }
 
+bool removeConfig(const String &id) {
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE) {
+        log_e("Couldn't take deviceConfigMutex in removeConfig!");
+        return false;
+    }
+
+    auto it = std::remove_if(deviceConfigs.begin(), deviceConfigs.end(),
+        [&id](const DeviceConfig &config) { return config.id == id; });
+
+    bool removed = it != deviceConfigs.end();
+    deviceConfigs.erase(it, deviceConfigs.end());
+
+    xSemaphoreGive(deviceConfigMutex);
+    return removed;
+}
+
 bool Config(String &id, String &json) {
+    if (json.isEmpty()) {
+        return removeConfig(id);
+    }
+
     DynamicJsonDocument doc(1024);
     deserializeJson(doc, json);
 

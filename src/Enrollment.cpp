@@ -246,7 +246,7 @@ bool Loop() {
                 std::string irk;
                 if (tryGetIrkFromConnection(connectionToEnroll, irk)) {
                     if (newId.isEmpty()) newId = newName.isEmpty() ? String("irk:") + irk.c_str() : slugify(newName);
-                    alias(String("irk:") + irk.c_str(), newId, newName);
+                    sendConfig(String("irk:") + irk.c_str(), newId, newName);
                     enrolledId = newId;
                     newId = newName = "";
                     enrolling = false;
@@ -285,7 +285,7 @@ bool Command(String &command, String &pay) {
 }
 
 bool SendDiscovery() {
-    return alias(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
+    return sendConfig(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
            sendButtonDiscovery("Enroll", EC_CONFIG);
 }
 }  // namespace Enrollment
