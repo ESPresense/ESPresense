@@ -14,7 +14,7 @@
     "@gfx/zopfli": "^1.0.15",
     "@rollup/plugin-strip": "^3.0.4",
     "@sveltejs/adapter-static": "^3.0.6",
-    "@sveltejs/kit": "^2.9.1",
+    "@sveltejs/kit": "^2.15.1",
     "@sveltejs/vite-plugin-svelte": "^4.0.0",
     "@types/node": "^22.10.1",
     "autoprefixer": "^10.4.20",
