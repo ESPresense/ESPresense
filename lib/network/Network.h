@@ -35,7 +35,7 @@ public:
 #define CONFIG_ETH_LILYGO           8
 #define CONFIG_ETH_GLINET_S10_V21   9
 #define CONFIG_ETH_EST_POE_32       10
-#define CONFIG_ETH_LILYGO_LITE      11
+#define CONFIG_ETH_LILYGO_LITE_RTL  11
 
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
