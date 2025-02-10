@@ -19,7 +19,7 @@
     "@types/node": "^22.13.0",
     "autoprefixer": "^10.4.20",
     "change-case": "^5.4.4",
-    "mime": "^4.0.4",
+    "mime": "^4.0.6",
     "postcss": "^8.4.49",
     "svelte": "^5.19.9",
     "svelte-check": "^4.1.1",
