@@ -10,7 +10,7 @@ export default defineConfig({
             include: '**/*.(js|ts|svelte)',
             functions: ['console.*', 'assert.*'],
         }),
-        cppPlugin({ basePath: '/ui', outPrefix: 'ui_' })
+        cppPlugin({ basePath: '', outPrefix: 'ui_' })
     ],
     build: {
         sourcemap: false,
@@ -22,10 +22,11 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '/json': 'http://192.168.128.165',
-            '/extras': 'http://192.168.128.165',
+            '/json': 'http://192.168.129.176',
+            '/wifi': 'http://192.168.129.176',
+            '/restart': 'http://192.168.129.176',
             '/ws': {
-                target: 'ws://192.168.128.165',
+                target: 'ws://192.168.129.176',
                 ws: true,
             }
         }

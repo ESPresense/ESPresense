@@ -1,7 +1,7 @@
 #pragma once
 #include <ArduinoJson.h>
 #include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include "BleFingerprint.h"
 #include <NimBLEClient.h>
 #include <NimBLEDevice.h>

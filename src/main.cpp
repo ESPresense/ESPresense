@@ -132,33 +132,27 @@ void setupNetwork() {
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
-#ifdef VERSION
-    AsyncWiFiSettings.info("ESPresense Version: " + String(VERSION));
-#endif
-    room = AsyncWiFiSettings.string("room", ESPMAC, "Room");
-    auto wifiTimeout = AsyncWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
-    auto portalTimeout = 1000UL * AsyncWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
+    room = HeadlessWiFiSettings.string("room", ESPMAC, "Room");
+    HeadlessWiFiSettings.string("wifi-ssid", "", "WiFi SSID");
+    HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
+    auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
+    auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)"};
-    ethernetType = AsyncWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
-    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#mqtt' target='_blank'>MQTT</a>", false);
-    mqttHost = AsyncWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
-    mqttPort = AsyncWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
-    mqttUser = AsyncWiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
-    mqttPass = AsyncWiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
-    discovery = AsyncWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
-    homeAssistantDiscoveryPrefix = AsyncWiFiSettings.string("discovery_prefix", DEFAULT_HA_DISCOVERY_PREFIX, "Home Assistant discovery topic prefix");
-    publishTele = AsyncWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
-    publishRooms = AsyncWiFiSettings.checkbox("pub_rooms_dep", false, "Send to rooms topic (deprecated in v4)");
-    publishDevices = AsyncWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
+    mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
+    mqttPort = HeadlessWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
+    mqttUser = HeadlessWiFiSettings.pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
+    mqttPass = HeadlessWiFiSettings.pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
+    discovery = HeadlessWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
+    homeAssistantDiscoveryPrefix = HeadlessWiFiSettings.string("discovery_prefix", DEFAULT_HA_DISCOVERY_PREFIX, "Home Assistant discovery topic prefix");
+    publishTele = HeadlessWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
+    publishRooms = HeadlessWiFiSettings.checkbox("pub_rooms_dep", false, "Send to rooms topic (deprecated in v4)");
+    publishDevices = HeadlessWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#updating' target='_blank'>Updating</a>", false);
     Updater::ConnectToWifi();
 
-    AsyncWiFiSettings.info("<a href='ui/#settings' target='_blank'>Click here to edit other settings!</a>", false);
-
-    AsyncWiFiSettings.markExtra();
-
+    HeadlessWiFiSettings.markExtra();
 
     GUI::ConnectToWifi();
 
@@ -184,13 +178,13 @@ void setupNetwork() {
 #endif
 
     unsigned int connectProgress = 0;
-    AsyncWiFiSettings.onWaitLoop = [&connectProgress]() {
+    HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
         SerialImprov::Loop(true);
         return 50;
     };
     unsigned int portalProgress = 0;
-    AsyncWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
+    HeadlessWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
         GUI::Portal(portalProgress++);
         SerialImprov::Loop(false);
 
@@ -199,12 +193,12 @@ void setupNetwork() {
 
         return 50;
     };
-    AsyncWiFiSettings.onHttpSetup = HttpWebServer::Init;
-    AsyncWiFiSettings.hostname = "espresense-" + kebabify(room);
+    HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
+    HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, AsyncWiFiSettings.hostname.c_str());
-    if (!success && !AsyncWiFiSettings.connect(true, wifiTimeout))
+    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
     GUI::Connected(true, false);
@@ -263,7 +257,7 @@ void setupNetwork() {
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
     configTopic = CHANNEL + String("/settings/+/config");
-    AsyncWiFiSettings.httpSetup();
+    HeadlessWiFiSettings.httpSetup();
     Updater::MarkOtaSuccess();
 }
 
@@ -356,8 +350,8 @@ void reconnect(TimerHandle_t xTimer) {
         Serial.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, AsyncWiFiSettings.hostname.c_str());
-        if (!success && !AsyncWiFiSettings.connect(true, 40))
+        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }
 
@@ -370,7 +364,7 @@ void connectToMqtt() {
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessageRaw);
-    mqttClient.setClientId(AsyncWiFiSettings.hostname.c_str());
+    mqttClient.setClientId(HeadlessWiFiSettings.hostname.c_str());
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());

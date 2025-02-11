@@ -1,7 +1,7 @@
 #include "Button.h"
 
 #include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 
 #include "GUI.h"
 #include "defaults.h"
@@ -31,14 +31,14 @@ void Setup() {
 
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
-    button_1Type = AsyncWiFiSettings.dropdown("button_1_type", pinTypes, 0, "Button One pin type");
-    button_1Pin = AsyncWiFiSettings.integer("button_1_pin", -1, "Button One pin (-1 for disable)");
-    button_1Timeout = AsyncWiFiSettings.floating("button_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button One timeout (in seconds)");
+    button_1Type = HeadlessWiFiSettings.dropdown("button_1_type", pinTypes, 0, "Button One pin type");
+    button_1Pin = HeadlessWiFiSettings.integer("button_1_pin", -1, "Button One pin (-1 for disable)");
+    button_1Timeout = HeadlessWiFiSettings.floating("button_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button One timeout (in seconds)");
     button_1Detected = button_1Type & 0x01 ? LOW : HIGH;
 
-    button_2Type = AsyncWiFiSettings.dropdown("button_2_type", pinTypes, 0, "Button Two pin type");
-    button_2Pin = AsyncWiFiSettings.integer("button_2_pin", -1, "Button Two pin (-1 for disable)");
-    button_2Timeout = AsyncWiFiSettings.floating("button_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button Two timeout (in seconds)");
+    button_2Type = HeadlessWiFiSettings.dropdown("button_2_type", pinTypes, 0, "Button Two pin type");
+    button_2Pin = HeadlessWiFiSettings.integer("button_2_pin", -1, "Button Two pin (-1 for disable)");
+    button_2Timeout = HeadlessWiFiSettings.floating("button_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button Two timeout (in seconds)");
     button_2Detected = button_2Type & 0x01 ? LOW : HIGH;
 }
 

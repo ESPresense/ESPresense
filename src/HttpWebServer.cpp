@@ -134,6 +134,11 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     }
 }
 
+void onRestart(AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Restarting...");
+    ESP.restart();
+}
+
 void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
@@ -146,12 +151,10 @@ void Init(AsyncWebServer *server) {
     });
 
     setupRoutes(server); // from ui_routes.h
-    server->on("/ui", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->redirect("/ui/");
-    });
+
+    server->on("/restart", HTTP_POST, onRestart);
     server->on("/json", HTTP_GET, serveJson);
 
-    // Handle DELETE method for configs
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
         if (!request->hasParam("id")) {
             request->send(400, "application/json", F("{\"error\":\"Missing required parameter: id\"}"));

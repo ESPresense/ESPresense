@@ -3,7 +3,7 @@
 #include "I2C.h"
 
 #include <Adafruit_BME280.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 
 #include "defaults.h"
 #include "globals.h"
@@ -18,15 +18,14 @@ int I2C_Bus_2_SDA = 0;
 int I2C_Bus_2_SCL = 0;
 
 void ConnectToWifi() {
-    AsyncWiFiSettings.heading("<a href='https://espresense.com/configuration/settings#i2c-settings' target='_blank'>I2C Settings</a>", false);
 
-    I2C_Bus_1_SDA = AsyncWiFiSettings.integer("I2C_Bus_1_SDA", -1, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_1_SCL = AsyncWiFiSettings.integer("I2C_Bus_1_SCL", -1, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_1_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
+    I2C_Bus_1_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
 
-    I2C_Bus_2_SDA = AsyncWiFiSettings.integer("I2C_Bus_2_SDA", -1, 39, DEFAULT_I2C_BUS_2_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_2_SCL = AsyncWiFiSettings.integer("I2C_Bus_2_SCL", -1, 39, DEFAULT_I2C_BUS_2_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_2_SDA = HeadlessWiFiSettings.integer("I2C_Bus_2_SDA", -1, 39, DEFAULT_I2C_BUS_2_SDA, "SDA pin (-1 to disable)");
+    I2C_Bus_2_SCL = HeadlessWiFiSettings.integer("I2C_Bus_2_SCL", -1, 39, DEFAULT_I2C_BUS_2_SCL, "SCL pin (-1 to disable)");
 
-    I2CDebug = AsyncWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
+    I2CDebug = HeadlessWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
     if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SDA != -1) {
         I2C_Bus_1_Started = Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);

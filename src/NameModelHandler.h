@@ -5,7 +5,7 @@
 #include <sstream>
 #include <AsyncMqttClient.h>
 #include "BleFingerprint.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 
 namespace NameModelHandler {
 

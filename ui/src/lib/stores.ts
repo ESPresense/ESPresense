@@ -1,5 +1,5 @@
 import { readable, writable } from 'svelte/store';
-import type { Extras, Configs, Devices, WebSocketCommand, StartFunction } from './types';
+import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
 // Room name store that stops polling once room name is found
 export const roomName = readable<string>('', function start(set) {
@@ -57,19 +57,6 @@ if (typeof window !== 'undefined') {
         }
     });
 }
-
-// Export the stores with their types
-export const extras = writable<Extras | null>({}, function start(set) {
-    fetch("/extras")
-        .then(d => d.json())
-        .then((r: Extras) => {
-            set(r);
-        })
-        .catch((ex) => {
-            set(null);
-            console.log(ex);
-        });
-});
 
 export const configs = readable<Configs | null>({ room: '', configs: [] }, function start(set) {
     let errors = 0;
@@ -155,3 +142,29 @@ export function cancelEnroll(): void {
     console.log("Send: " + data);
     socket?.send(data);
 }
+
+export const mobileMenuOpen = writable<boolean>(false);
+
+export const extraSettings = writable<ExtraSettings | null>({}, function start(set) {
+    fetch("/wifi/extras")
+        .then(d => d.json())
+        .then((r: ExtraSettings) => {
+            set(r);
+        })
+        .catch((ex) => {
+            set(null);
+            console.log(ex);
+        });
+});
+
+export const mainSettings = writable<MainSettings | null>(null, function start(set) {
+    fetch("/wifi/main")
+        .then(d => d.json())
+        .then((r: MainSettings) => {
+            set(r);
+        })
+        .catch((ex) => {
+            set(null);
+            console.log(ex);
+        });
+});

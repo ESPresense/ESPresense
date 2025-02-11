@@ -9,12 +9,12 @@ const config = {
         adapter: adapter(),
         prerender: {
             crawl: false,
-            entries: ['/', '/settings', '/devices', '/fingerprints'],
+            entries: ['/', '/settings', '/devices', '/fingerprints', '/network'],
             handleHttpError: 'warn',
         },
         appDir: 'app',
         paths: {
-            base: '/ui'
+            base: ''
         },
         version: {
             name: '',

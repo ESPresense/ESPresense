@@ -1,7 +1,7 @@
 #ifdef SENSORS
 #include "SensirionSGP30.h"
 
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <SparkFun_SGP30_Arduino_Library.h>
 
 #include "defaults.h"
@@ -41,8 +41,8 @@ void Setup() {
 }
 
 void ConnectToWifi() {
-    SGP30_I2c_Bus = AsyncWiFiSettings.integer("SGP30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-    SGP30_I2c = AsyncWiFiSettings.string("SGP30_I2c", "", "I2C address (0x58)");
+    SGP30_I2c_Bus = HeadlessWiFiSettings.integer("SGP30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+    SGP30_I2c = HeadlessWiFiSettings.string("SGP30_I2c", "", "I2C address (0x58)");
 }
 
 void SerialReport() {
@@ -62,17 +62,17 @@ void Loop() {
         sgp->measureAirQuality();
         float co2 = sgp->CO2;
         float tvoc = sgp->TVOC;
- 
+
         if (SGP30PreviousSensorMillis > 30000) {  // First 30 seconds after boot, don't report
-            if (SGP30PreviousReportMillis == 0 || millis() - SGP30PreviousReportMillis >= reportInterval) {  
+            if (SGP30PreviousReportMillis == 0 || millis() - SGP30PreviousReportMillis >= reportInterval) {
                 SGP30PreviousReportMillis = millis();
-                
+
                 pub((roomsTopic + "/co2").c_str(), 0, 1, String(co2).c_str());
                 pub((roomsTopic + "/tvoc").c_str(), 0, 1, String(tvoc).c_str());
             }
         }
     }
-} 
+}
 
 bool SendDiscovery() {
     if (SGP30_I2c.isEmpty()) return true;

@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include "string_utils.h"
 
 #include <Adafruit_BMP085.h>
@@ -39,8 +39,8 @@ namespace BMP180
 
     void ConnectToWifi()
     {
-        BMP180_I2c_Bus = AsyncWiFiSettings.integer("BMP180_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BMP180_I2c = AsyncWiFiSettings.string("BMP180_I2c", "", "I2C address (0x77)");
+        BMP180_I2c_Bus = HeadlessWiFiSettings.integer("BMP180_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
+        BMP180_I2c = HeadlessWiFiSettings.string("BMP180_I2c", "", "I2C address (0x77)");
     }
 
     void SerialReport()
