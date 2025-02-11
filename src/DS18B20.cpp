@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -108,8 +108,8 @@ namespace DS18B20
 
     void ConnectToWifi()
     {
-        ds18b20Pin = AsyncWiFiSettings.integer("ds18b20_pin", -1, "DS18B20 sensor pin (-1 for disable)");
-        dsTempOffset = AsyncWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
+        ds18b20Pin = HeadlessWiFiSettings.integer("ds18b20_pin", -1, "DS18B20 sensor pin (-1 for disable)");
+        dsTempOffset = HeadlessWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
     }
 
     void SerialReport()

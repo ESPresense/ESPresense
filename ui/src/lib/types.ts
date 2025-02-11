@@ -53,8 +53,13 @@ export interface TableColumn<T> {
     class?: string;
 }
 
-export interface Extras {
-    [key: string]: any;
+export interface ExtraSettings {
+    values: {
+        [key: string]: any;
+    };
+    defaults: {
+        [key: string]: any;
+    };
 }
 
 export interface WebSocketCommand {
@@ -63,3 +68,45 @@ export interface WebSocketCommand {
 }
 
 export type StartFunction<T> = (set: (value: T) => void) => (() => void) | void;
+
+export interface MainSettings {
+    values: {
+        room: string;
+        wifi_timeout: number;
+        portal_timeout: number;
+        "wifi-ssid": string;
+        "wifi-password": string;
+        eth: string;
+        mqtt_host: string;
+        mqtt_port: number;
+        mqtt_user: string;
+        mqtt_pass: string;
+        discovery: boolean;
+        discovery_prefix: string;
+        pub_tele: boolean;
+        pub_rooms_dep: boolean;
+        pub_devices: boolean;
+        auto_update: boolean;
+        prerelease: boolean;
+        arduino_ota: boolean;
+        update: string;
+    };
+    defaults: {
+        room: string;
+        "wifi-ssid": string;
+        "wifi-password": string;
+        wifi_timeout: number;
+        portal_timeout: number;
+        eth: string;
+        mqtt_host: string;
+        mqtt_port: number;
+        discovery: boolean;
+        discovery_prefix: string;
+        pub_tele: boolean;
+        pub_rooms_dep: boolean;
+        pub_devices: boolean;
+        auto_update: boolean;
+        prerelease: boolean;
+        arduino_ota: boolean;
+    };
+}

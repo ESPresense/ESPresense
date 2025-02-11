@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -106,9 +106,9 @@ namespace DHT
 
     void ConnectToWifi()
     {
-        dht11Pin = AsyncWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
-        dht22Pin = AsyncWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
-        dhtTempOffset = AsyncWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
+        dht11Pin = HeadlessWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
+        dht22Pin = HeadlessWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
+        dhtTempOffset = HeadlessWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
     }
 
     void SerialReport()

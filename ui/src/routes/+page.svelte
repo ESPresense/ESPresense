@@ -4,7 +4,7 @@ import { base } from '$app/paths';
 import { onMount } from 'svelte';
 
 onMount(() => {
-    goto(`${base}/settings`);
+    goto(`${base}/network`);
 });
 </script>
 

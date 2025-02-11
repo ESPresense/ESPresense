@@ -5,7 +5,7 @@
 #include <WiFiClientSecure.h>
 #include <esp_ota_ops.h>
 
-#include "AsyncWiFiSettings.h"
+#include "HeadlessWiFiSettings.h"
 #include "GUI.h"
 #include "HttpReleaseUpdate.h"
 #include "HttpWebServer.h"
@@ -186,10 +186,10 @@ bool SendDiscovery() {
 }
 
 void ConnectToWifi() {
-    autoUpdateEnabled = AsyncWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = AsyncWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
-    arduinoOtaEnabled = AsyncWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
-    updateUrl = AsyncWiFiSettings.string("update", "", "If set will update from this url on next boot");
+    autoUpdateEnabled = HeadlessWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
+    prerelease = HeadlessWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    arduinoOtaEnabled = HeadlessWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
+    updateUrl = HeadlessWiFiSettings.string("update", "", "If set will update from this url on next boot");
 }
 
 void MarkOtaSuccess() {

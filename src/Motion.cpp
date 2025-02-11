@@ -1,7 +1,7 @@
 #include "Motion.h"
 
 #include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 
 #include "GUI.h"
 #include "defaults.h"
@@ -31,14 +31,14 @@ void Setup() {
 
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
-    pirType = AsyncWiFiSettings.dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
-    pirPin = AsyncWiFiSettings.integer("pir_pin", -1, "PIR motion pin (-1 for disable)");
-    pirTimeout = AsyncWiFiSettings.floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
+    pirType = HeadlessWiFiSettings.dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
+    pirPin = HeadlessWiFiSettings.integer("pir_pin", -1, "PIR motion pin (-1 for disable)");
+    pirTimeout = HeadlessWiFiSettings.floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
     pirDetected = pirType & 0x01 ? LOW : HIGH;
 
-    radarType = AsyncWiFiSettings.dropdown("radar_type", pinTypes, 0, "Radar motion pin type");
-    radarPin = AsyncWiFiSettings.integer("radar_pin", -1, "Radar motion pin (-1 for disable)");
-    radarTimeout = AsyncWiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
+    radarType = HeadlessWiFiSettings.dropdown("radar_type", pinTypes, 0, "Radar motion pin type");
+    radarPin = HeadlessWiFiSettings.integer("radar_pin", -1, "Radar motion pin (-1 for disable)");
+    radarTimeout = HeadlessWiFiSettings.floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
     radarDetected = radarType & 0x01 ? LOW : HIGH;
 }
 

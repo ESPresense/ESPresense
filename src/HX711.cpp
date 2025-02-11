@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -26,8 +26,8 @@ namespace HX711
 
     void ConnectToWifi()
     {
-        sckPin = AsyncWiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
-        doutPin = AsyncWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
+        sckPin = HeadlessWiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
+        doutPin = HeadlessWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
     }
 
     void SerialReport()

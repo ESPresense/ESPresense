@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <AsyncTCP.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <ESPAsyncWebServer.h>
 #include <HTTPClient.h>
 #include <NimBLEDevice.h>

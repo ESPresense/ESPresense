@@ -1,7 +1,7 @@
 #ifdef SENSORS
 #include "SHT.h"
 
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <SHTSensor.h>
 
 #include "defaults.h"
@@ -30,7 +30,7 @@ void Setup() {
 }
 
 void ConnectToWifi() {
-    bus = AsyncWiFiSettings.integer("SHT_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
+    bus = HeadlessWiFiSettings.integer("SHT_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
 }
 
 void SerialReport() {
