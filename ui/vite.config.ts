@@ -22,11 +22,11 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '/json': 'http://192.168.129.176',
-            '/wifi': 'http://192.168.129.176',
-            '/restart': 'http://192.168.129.176',
+            '/json': 'http://192.168.129.178',
+            '/wifi': 'http://192.168.129.178',
+            '/restart': 'http://192.168.129.178',
             '/ws': {
-                target: 'ws://192.168.129.176',
+                target: 'ws://192.168.129.178',
                 ws: true,
             }
         }
