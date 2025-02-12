@@ -38,7 +38,7 @@
   }
 </script>
 
-<div class="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
+<div class="flex flex-col md:flex-row min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
   <!-- Mobile menu overlay -->
   {#if $mobileMenuOpen}
     <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity md:hidden" />
@@ -50,13 +50,13 @@
   </div>
 
   <!-- Sidebar -->
-  <nav class="fixed md:static inset-y-0 left-0 transform {$mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 w-72 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out z-30">
+  <nav class="fixed md:relative inset-y-0 left-0 transform {$mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 w-72 bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out z-30 shrink-0">
     <Sidebar />
   </nav>
 
   <!-- Main content -->
-  <main class="flex-1 overflow-auto bg-white dark:bg-gray-900 md:ml-72">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 mt-16 md:mt-0">
+  <main class="flex-1 min-w-0 overflow-auto bg-white dark:bg-gray-900">
+    <div class="max-w-7xl mx-auto px-4 py-4 md:mt-0 mt-[3.5rem]">
       <slot />
     </div>
   </main>
