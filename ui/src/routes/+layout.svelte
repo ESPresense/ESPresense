@@ -38,7 +38,7 @@
   }
 </script>
 
-<div class="flex h-screen bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
+<div class="flex flex-col min-h-screen bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
   <!-- Mobile menu overlay -->
   {#if $mobileMenuOpen}
     <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity md:hidden" />
@@ -56,14 +56,12 @@
 
   <!-- Main content -->
   <main class="flex-1 overflow-auto bg-white dark:bg-gray-900 md:ml-72">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 mt-14 md:mt-0">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-6 py-4 mt-16 md:mt-0">
       <slot />
     </div>
   </main>
 </div>
 
 <style>
-  :global(body) {
-    overflow: hidden;
-  }
+  /* Remove global overflow hidden - we'll handle this via the store */
 </style>
