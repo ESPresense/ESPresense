@@ -51,7 +51,7 @@
 </script>
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
-    {#if extrasData != null}
+    {#if $extrasData != null}
     <form action="wifi/extras" method="post" id="extras" onsubmit={handleSubmit} class="space-y-6">
         <h2>
             <a href="https://espresense.com/configuration/settings#scanning" target="_blank">Scanning</a>
