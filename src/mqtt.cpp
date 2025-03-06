@@ -192,7 +192,7 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
 }
 
-bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb)
+bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb, bool rgbw)
 {
     auto slug = slugify(name);
 
@@ -204,7 +204,15 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["brightness"] = true;
-    doc["rgb"] = rgb;
+
+    if (rgbw) {
+        doc["supported_color_modes"][0] = "rgbw";
+    } else if (rgb) {
+        doc["supported_color_modes"][0] = "rgb";
+    } else {
+        doc["supported_color_modes"][0] = "brightness";
+    }
+
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
     String buffer = String();

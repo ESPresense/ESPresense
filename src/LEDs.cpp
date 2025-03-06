@@ -21,13 +21,19 @@ int led_1_cnt = DEFAULT_LED1_CNT, led_2_cnt, led_3_cnt;
 ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
 std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
+unsigned long lastSave = 0;
 
-LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt) {
-    if (pin == -1) return new LED(index, Control_Type_None);
-    if (type >= 2)
-        return new Addressable(index, cntrl, type - 2, pin, cnt);
-    else
-        return new SinglePWM(index, cntrl, type == 1, pin);
+LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, String stateStr) {
+    LED* led;
+    if (pin == -1) {
+        led = new LED(index, Control_Type_None);
+    } else if (type >= 2) {
+        led = new Addressable(index, cntrl, type - 2, pin, cnt);
+    } else {
+        led = new SinglePWM(index, cntrl, type == 1, pin);
+    }
+    led->setStateString(stateStr);
+    return led;
 }
 
 void ConnectToWifi() {
@@ -38,20 +44,23 @@ void ConnectToWifi() {
     led_1_pin = HeadlessWiFiSettings.integer("led_1_pin", -1, 39, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
     led_1_cnt = HeadlessWiFiSettings.integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
     led_1_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
+    String led_1_state = HeadlessWiFiSettings.string("led_1_state", true, "LED State");
 
     led_2_type = HeadlessWiFiSettings.dropdown("led_2_type", ledTypes, 0, "LED Type");
     led_2_pin = HeadlessWiFiSettings.integer("led_2_pin", -1, 39, -1, "Pin (-1 to disable)");
     led_2_cnt = HeadlessWiFiSettings.integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_2_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
+    String led_2_state = HeadlessWiFiSettings.string("led_2_state", true, "LED State");
 
     led_3_type = HeadlessWiFiSettings.dropdown("led_3_type", ledTypes, 0, "LED Type");
     led_3_pin = HeadlessWiFiSettings.integer("led_3_pin", -1, 39, -1, "Pin (-1 to disable)");
     led_3_cnt = HeadlessWiFiSettings.integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
+    String led_3_state = HeadlessWiFiSettings.string("led_3_state", true, "LED State");
 
-    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt));
-    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt));
-    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt));
+    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_state));
+    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_state));
+    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt, led_3_state));
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(motionLeds), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
@@ -66,15 +75,21 @@ bool sendState(LED* bulb) {
     auto slug = slugify(bulb->getName());
     auto state = bulb->getState();
     doc["state"] = state ? MQTT_STATE_ON_PAYLOAD : MQTT_STATE_OFF_PAYLOAD;
-    if (state) {
-        doc["brightness"] = bulb->getBrightness();
+    doc["color_mode"] = bulb->hasRgbw() ? "rgbw" : bulb->hasRgb() ? "rgb": "brightness";
+    doc["brightness"] = bulb->getBrightness();
+    if (bulb->hasRgbw()) {
         auto color = doc.createNestedObject("color");
         auto c = bulb->getColor();
         color["r"] = c.red;
         color["g"] = c.green;
         color["b"] = c.blue;
-        // doc["white_value"] = bulb->getColor().white;
-        // doc["color_temp"] = bulb->getColorTemperature();
+        color["w"] = c.white;
+    } else if (bulb->hasRgb()) {
+        auto color = doc.createNestedObject("color");
+        auto c = bulb->getColor();
+        color["r"] = c.red;
+        color["g"] = c.green;
+        color["b"] = c.blue;
     }
     serializeJson(doc, buffer);
     String setTopic = Sprintf("%s/%s", roomsTopic.c_str(), slug.c_str());
@@ -83,17 +98,30 @@ bool sendState(LED* bulb) {
 
 void Setup() {
     for (auto& led : leds)
-        led->begin();
+        led->update();
+}
+
+void Save() {
+    for (auto& led : leds)
+        if (led->getControlType() == Control_Type_MQTT && led->getDirty()) {
+            led->setDirty(false);
+            Serial.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
+            spurt(led->getStateFilename(), led->getStateString());
+        }
 }
 
 void Loop() {
     for (auto& led : leds)
         led->service();
+    if (millis() - lastSave > 15000) {
+        lastSave = millis();
+        Save();
+    }
 }
 
 bool SendDiscovery() {
     for (auto& led : leds)
-        if (led->getControlType() == Control_Type_MQTT && !sendLightDiscovery(led->getName(), EC_NONE, led->hasRgb()))
+        if (led->getControlType() == Control_Type_MQTT && !sendLightDiscovery(led->getName(), EC_NONE, led->hasRgb(), led->hasRgbw()))
             return false;
     return true;
 }
@@ -114,8 +142,8 @@ void Connected(bool wifi, bool mqtt) {
 void Seen(bool inprogress) {
     for (auto& led : statusLeds)
         if (led->hasRgb()) {
+            led->setColor(inprogress ? PURPLE : GREEN);
             led->setState(true);
-            led->setColor(inprogress ? PURPLE : ORANGE);
         } else
             led->setState(inprogress);
 }
@@ -155,12 +183,12 @@ LED* findBulb(String& command) {
             return led;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 bool Command(String& command, String& pay) {
     auto bulb = findBulb(command);
-    if (bulb == NULL) return false;
+    if (bulb == nullptr) return false;
     DynamicJsonDocument root(pay.length() + 100);
     auto err = deserializeJson(root, pay);
     if (err) {
@@ -198,31 +226,28 @@ bool Command(String& command, String& pay) {
     return true;
 }
 
-    int count = 0, lastCount = 0;
-    void Counting(bool added)
-    {
-        if (added) {
-            count++;
-        } else {
-            count--;
-        }
-        if (count != lastCount) {
-            lastCount = count;
-            for (auto& led : countLeds)
-                led->setState(count > 0);
-        }
+int count = 0, lastCount = 0;
+void Counting(bool added) {
+    if (added) {
+        count++;
+    } else {
+        count--;
     }
-
-    void Count(unsigned int countVal)
-    {
-        count = countVal;
-        for (auto& led: countLeds)
+    if (count != lastCount) {
+        lastCount = count;
+        for (auto& led : countLeds)
             led->setState(count > 0);
     }
+}
 
-    void Motion(bool pir, bool radar)
-    {
-        for (auto& led: motionLeds)
-            led->setState(pir || radar);
-    }
+void Count(unsigned int countVal) {
+    count = countVal;
+    for (auto& led : countLeds)
+        led->setState(count > 0);
+}
+
+void Motion(bool pir, bool radar) {
+    for (auto& led : motionLeds)
+        led->setState(pir || radar);
+}
 }  // namespace LEDs

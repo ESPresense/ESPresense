@@ -12,8 +12,8 @@ void SinglePWM::init() {
     ledcAttachPin(pin, getIndex());
 }
 
-void SinglePWM::begin() {
-    setDuty(LED::getBrightness());
+void SinglePWM::update() {
+    setDuty(LED::getState() ? LED::getBrightness() : 0);
 }
 
 void SinglePWM::setDuty(uint32_t x) {
@@ -24,16 +24,4 @@ void SinglePWM::setDuty(uint32_t x) {
 }
 
 void SinglePWM::service() {
-}
-
-bool SinglePWM::setState(bool state) {
-    if (!LED::setState(state)) return false;
-    setDuty(state ? LED::getBrightness() : 0);
-    return true;
-}
-
-bool SinglePWM::setBrightness(uint8_t brightness) {
-    if (!LED::setBrightness(brightness)) return false;
-    setDuty(brightness);
-    return true;
 }
