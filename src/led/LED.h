@@ -20,7 +20,7 @@ struct Color {
 class LED {
    public:
     LED(uint8_t index, ControlType controlType);
-    virtual void begin();
+    virtual void update();
     virtual void service();
 
     virtual uint8_t getBrightness(void);
@@ -28,7 +28,7 @@ class LED {
 
     const virtual Color getColor(void);
     virtual bool setColor(uint32_t color);
-    virtual bool setColor(uint8_t red, uint8_t green, uint8_t blue);
+    virtual bool setColor(uint8_t red, uint8_t green, uint8_t blue, uint8_t white = 0);
 
     virtual bool setWhite(uint8_t white);
 
@@ -45,6 +45,13 @@ class LED {
     const String getId();
     const String getName();
 
+    bool getDirty() { return this->dirty; }
+    void setDirty(bool dirty) { this->dirty = dirty; }
+
+    const String getStateFilename();
+    const String getStateString();
+    void setStateString(const String& encoded);
+
     virtual bool hasRgb() { return false; }
     virtual bool hasRgbw() { return false; }
 
@@ -53,5 +60,6 @@ class LED {
     uint8_t index;
     Color color = {255, 255, 128, 128};
     bool state = true;
-    uint8_t brightness = 64;
+    uint8_t brightness = 128;
+    bool dirty = false;
 };

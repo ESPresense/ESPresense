@@ -1,5 +1,4 @@
 #include "Addressable.h"
-
 #include "defaults.h"
 
 Addressable::Addressable(uint8_t index, ControlType controlType, int type, int pin, int cnt) : LED(index, controlType) {
@@ -22,59 +21,50 @@ neoPixelType getNeoPixelType(int type) {
     return NEO_GRB + NEO_KHZ800;
 }
 
-void Addressable::begin() {
-    if (ws2812fx == NULL) {
-        ws2812fx = new WS2812FX(cnt, pin, getNeoPixelType(type), 1, 1);
-        ws2812fx->init();
-        ws2812fx->setColor(255, 255, 128);
-        ws2812fx->setBrightness(64);
-        ws2812fx->setMode(FX_MODE_STATIC);
-        ws2812fx->start();
+void Addressable::update() {
+    if (pixels == nullptr) {
+        pixels = new Adafruit_NeoPixel(cnt, pin, getNeoPixelType(type));
+        pixels->begin();
+        pixels->clear();
     }
+
+    Color color = LED::getColor();
+    uint32_t pixelColor = pixels->Color(color.red, color.green, color.blue);
+    uint8_t brightness = mapBrightness(LED::getBrightness());
+
+    pixels->setBrightness(brightness);
+
+    if (LED::getState()) {
+        // Fill all pixels with the same color for quick operation
+        for (int i = 0; i < cnt; i++) {
+            pixels->setPixelColor(i, pixelColor);
+        }
+    } else {
+        // Turn off all pixels
+        pixels->clear();
+    }
+
+    // Send the updated pixel colors to the hardware
+    pixels->show();
 }
 
 void Addressable::service() {
-    if (ws2812fx == NULL) begin();
-    ws2812fx->service();
+    // No need for continuous service in this implementation
+    // This method is now a no-op, but kept for API compatibility
 }
 
-bool Addressable::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue) {
-    if (!LED::setColor(p_red, p_green, p_blue)) return false;
-    if (ws2812fx == NULL) begin();
-    ws2812fx->setColor(p_red, p_green, p_blue);
-    ws2812fx->setBrightness(LED::getBrightness());
-    LED::setState(true);
-    return true;
+uint8_t Addressable::mapBrightness(uint8_t brightness) {
+    // Special case for zero brightness
+    if (brightness == 0) return 0;
+
+    // For non-zero values, ensure we have at least brightness level 1
+    // and map the rest of the range proportionally
+    long const result = 1 + ((long)(brightness - 1) * (MAX_BRIGHTNESS - 1)) / 254;
+
+    // Ensure we stay within byte range
+    return (uint8_t)min(result, (long)MAX_BRIGHTNESS);
 }
 
-bool Addressable::setBrightness(uint8_t p_brightness) {
-    if (!LED::setBrightness(p_brightness)) return false;
-    if (ws2812fx == NULL) begin();
-    ws2812fx->setBrightness(map(p_brightness, 0, 255, 0, MAX_BRIGHTNESS));
-    LED::setState(p_brightness > 0);
-    return true;
-}
-
-bool Addressable::setState(bool p_state) {
-    if (!LED::setState(p_state)) return false;
-    if (ws2812fx == NULL) begin();
-    ws2812fx->setBrightness(map(p_state ? LED::getBrightness() : 0, 0, 255, 0, MAX_BRIGHTNESS));
-    return true;
-}
-
-bool Addressable::setWhite(uint8_t p_white) {
-    Serial.printf("Addressable::setWhite: p_white=%d\r\n", p_white);
-    if (ws2812fx == NULL) begin();
-    ws2812fx->setColor(p_white, p_white, p_white);
-    return true;
-}
-
-bool Addressable::setEffect(const char* p_effect) {
-    // ws2812fx->setMode(p_effect);
-    return true;
-}
-
-bool Addressable::hasRgbw()
-{
-    return this->type==1 || this->type==3;
+bool Addressable::hasRgbw() {
+    return this->type == 1 || this->type == 3;
 }

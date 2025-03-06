@@ -6,11 +6,8 @@ class SinglePWM : public LED {
    public:
 
     SinglePWM(uint8_t index, ControlType controlType, bool inverted, int pin);
-    void begin() override;
+    void update() override;
     void service() override;
-
-    bool setState(bool state) override;
-    bool setBrightness(uint8_t brightness) override;
 
    private:
     void init();

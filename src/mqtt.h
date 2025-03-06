@@ -21,7 +21,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
 bool sendButtonDiscovery(const String &name, const String &entityCategory);
 bool sendSwitchDiscovery(const String &name, const String &entityCategory);
 bool sendNumberDiscovery(const String &name, const String &entityCategory);
-bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb);
+bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb, bool rgbw);
 
 bool sendDeleteDiscovery(const String &domain, const String &name);
 
