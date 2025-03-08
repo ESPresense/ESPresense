@@ -1,5 +1,6 @@
 import { readable, writable } from 'svelte/store';
 import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
+import { setupI18n } from '../lang/i18n'
 
 // Room name store that stops polling once room name is found
 export const roomName = readable<string>('', function start(set) {
@@ -168,3 +169,20 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
             console.log(ex);
         });
 });
+
+export function storeLocale(locale: string) {
+    localStorage.setItem('locale', locale)
+  }
+
+export const initLocale = () => {
+    let locale_ = "en";
+    if (typeof window !== 'undefined') {
+        locale_ = localStorage.getItem('locale') || 'en';
+    }
+
+    // avoid using lib without init finished
+    setupI18n({
+        withLocale: locale_,
+        fallbackLocale: 'en',
+    })
+}
