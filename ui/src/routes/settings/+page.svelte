@@ -1,5 +1,7 @@
 <script lang="ts">
     import { extraSettings } from '$lib/stores.js';
+    import LocaleSelector from "$lib/components/LocaleSelector.svelte";
+    import { _, setupI18n } from '../../lang/i18n'
 
     let s = $state(false);
     async function handleSubmit(event: SubmitEvent) {
@@ -46,29 +48,40 @@
             s = false;
         }
     }
+    let lang = $state(localStorage.getItem('locale') || 'en')
+
 </script>
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if $extraSettings?.values != null}
     <form action="wifi/extras" method="post" id="extras" onsubmit={handleSubmit} class="space-y-6">
         <h2>
-            <a href="https://espresense.com/configuration/settings#scanning" target="_blank">Scanning</a>
+            {$_('settings.locale_language')}
+        </h2>
+        <LocaleSelector
+            bind:value={lang}
+            on:locale-changed={e =>
+            setupI18n({ withLocale: e.detail }) }
+        />
+
+        <h2>
+            <a href="https://espresense.com/configuration/settings#scanning" target="_blank">{$_('settings.scanning')}</a>
         </h2>
         <p>
             <label>
-                Known BLE mac addresses (no colons, space seperated):<br />
+                {$_('settings.known_ble_mac_addresses')}<br />
                 <input name="known_macs" bind:value={$extraSettings.values['known_macs']}/>
             </label>
         </p>
         <p>
             <label>
-                Known BLE identity resolving keys, should be 32 hex chars space seperated:<br />
+                {$_('settings.known_ble_identity_keys')}<br />
                 <input name="known_irks" bind:value={$extraSettings.values['known_irks']}/>
             </label>
         </p>
         <p>
             <label>
-                Forget beacon if not seen for (in milliseconds):<br />
+                {$_('settings.forget_beacon_if_not_seen')}<br />
                 <input
                     type="number"
                     step="1"
@@ -80,17 +93,17 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#querying" target="_blank">Querying</a>
+            <a href="https://espresense.com/configuration/settings#querying" target="_blank">{$_('settings.querying')}</a>
         </h2>
         <p>
             <label>
-                Query device ids for characteristics (eg. flora:):<br />
+                {$_('settings.query_device_ids_for_char')}<br />
                 <input name="query" bind:value={$extraSettings.values['query']}/>
             </label>
         </p>
         <p>
             <label>
-                Requery interval in seconds:<br />
+                {$_('settings.requery_interval')}<br />
                 <input
                     type="number"
                     step="1"
@@ -102,17 +115,17 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#counting" target="_blank">Counting</a>
+            <a href="https://espresense.com/configuration/settings#counting" target="_blank">{$_('settings.counting')}</a>
         </h2>
         <p>
             <label>
-                Include id prefixes (space seperated):<br />
+                {$_('settings.include_id_prefixes')}<br />
                 <input name="count_ids" bind:value={$extraSettings.values['count_ids']}/>
             </label>
         </p>
         <p>
             <label>
-                Start counting devices less than distance (in meters):<br />
+                {$_('settings.start_counting_devices')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -125,7 +138,7 @@
         </p>
         <p>
             <label>
-                Stop counting devices greater than distance (in meters):<br />
+                {$_('settings.stop_counting_devices')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -138,7 +151,7 @@
         </p>
         <p>
             <label>
-                Include devices with age less than (in ms):<br />
+                {$_('settings.include_devices_with_age')}<br />
                 <input
                     type="number"
                     step="1"
@@ -150,23 +163,23 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#filtering" target="_blank">Filtering</a>
+            <a href="https://espresense.com/configuration/settings#filtering" target="_blank">{$_('settings.filtering')}</a>
         </h2>
         <p>
             <label>
-                Include only sending these ids to mqtt (eg. apple:iphone10-6 apple:iphone13-2):<br />
+                {$_('settings.include_only_sending_ids')}<br />
                 <input name="include" bind:value={$extraSettings.values['include']}/>
             </label>
         </p>
         <p>
             <label>
-                Exclude sending these ids to mqtt (eg. exp:20 apple:iphone10-6):<br />
+                {$_('settings.exclude_sending_ids')}<br />
                 <input name="exclude" bind:value={$extraSettings.values['exclude']}/>
             </label>
         </p>
         <p>
             <label>
-                Maximum distance to report (in meters):<br />
+                {$_('settings.maximum_distance_to_report')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -179,7 +192,7 @@
         </p>
         <p>
             <label>
-                Report early if beacon has moved more than this distance (in meters):<br />
+                {$_('settings.report_early_if_beacon_moved')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -192,7 +205,7 @@
         </p>
         <p>
             <label>
-                Skip reporting if message age is less that this (in milliseconds):<br />
+                {$_('settings.skip_reporting_if_message_age')}<br />
                 <input
                     type="number"
                     step="1"
@@ -204,11 +217,11 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#calibration" target="_blank">Calibration</a>
+            <a href="https://espresense.com/configuration/settings#calibration" target="_blank">{$_('settings.calibration')}</a>
         </h2>
         <p>
             <label>
-                Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone):<br />
+                {$_('settings.rssi_expected_from_0dbm')}<br />
                 <input
                     type="number"
                     step="1"
@@ -221,7 +234,7 @@
         </p>
         <p>
             <label>
-                Rssi adjustment for receiver (use only if you know this device has a weak antenna):<br />
+                {$_('settings.rssi_adjustmemt_for_receiver')}<br />
                 <input
                     type="number"
                     step="1"
@@ -234,7 +247,7 @@
         </p>
         <p>
             <label>
-                Factor used to account for absorption, reflection, or diffraction:<br />
+                {$_('settings.factor_used_to_account')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -247,7 +260,7 @@
         </p>
         <p>
             <label>
-                Rssi expected from this tx power at 1m (used for node iBeacon):<br />
+                {$_('settings.rssi_expected_from_tx')}<br />
                 <input
                     type="number"
                     step="1"
@@ -259,12 +272,12 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
+            <a href="https://espresense.com/configuration/settings#leds" target="_blank">{$_('settings.leds')}</a>
         </h2>
         <h4>LED 1:</h4>
         <p>
             <label>
-                LED Type:<br />
+                {$_('settings.led_type')}<br />
                 <select name="led_1_type" bind:value={$extraSettings.values['led_1_type']}>
                     <option disabled selected hidden>PWM</option>
                     <option value="0">PWM</option>
@@ -278,7 +291,7 @@
         </p>
         <p>
             <label>
-                Pin (-1 to disable):<br />
+                {$_('settings.pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -291,7 +304,7 @@
         </p>
         <p>
             <label>
-                Count (only applies to Addressable LEDs):<br />
+                {$_('settings.count')}<br />
                 <input
                     type="number"
                     step="1"
@@ -304,7 +317,7 @@
         </p>
         <p>
             <label>
-                LED Control:<br />
+                {$_('settings.led_control')}<br />
                 <select name="led_1_cntrl" bind:value={$extraSettings.values['led_1_cntrl']}>
                     <option disabled selected hidden>Status</option>
                     <option value="0">MQTT</option>
@@ -317,7 +330,7 @@
         <h4>LED 2:</h4>
         <p>
             <label>
-                LED Type:<br />
+                {$_('settings.led_type')}<br />
                 <select name="led_2_type" bind:value={$extraSettings.values['led_2_type']}>
                     <option disabled selected hidden>PWM</option>
                     <option value="0">PWM</option>
@@ -331,7 +344,7 @@
         </p>
         <p>
             <label>
-                Pin (-1 to disable):<br />
+                {$_('settings.pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -344,7 +357,7 @@
         </p>
         <p>
             <label>
-                Count (only applies to Addressable LEDs):<br />
+                {$_('settings.count')}<br />
                 <input
                     type="number"
                     step="1"
@@ -357,7 +370,7 @@
         </p>
         <p>
             <label>
-                LED Control:<br />
+                {$_('settings.led_control')}<br />
                 <select name="led_2_cntrl" bind:value={$extraSettings.values['led_2_cntrl']}>
                     <option disabled selected hidden>MQTT</option>
                     <option value="0">MQTT</option>
@@ -370,7 +383,7 @@
         <h4>LED 3:</h4>
         <p>
             <label>
-                LED Type:<br />
+                {$_('settings.led_type')}<br />
                 <select name="led_3_type" bind:value={$extraSettings.values['led_3_type']}>
                     <option disabled selected hidden>PWM</option>
                     <option value="0">PWM</option>
@@ -384,7 +397,7 @@
         </p>
         <p>
             <label>
-                Pin (-1 to disable):<br />
+                {$_('settings.pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -397,7 +410,7 @@
         </p>
         <p>
             <label>
-                Count (only applies to Addressable LEDs):<br />
+                {$_('settings.count')}<br />
                 <input
                     type="number"
                     step="1"
@@ -410,7 +423,7 @@
         </p>
         <p>
             <label>
-                LED Control:<br />
+                {$_('settings.led_control')}<br />
                 <select name="led_3_cntrl" bind:value={$extraSettings.values['led_3_cntrl']}>
                     <option disabled selected hidden>MQTT</option>
                     <option value="0">MQTT</option>
@@ -421,12 +434,12 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
+            <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">{$_('settings.gpio_sensors')}</a>
         </h2>
-        <h4>PIR:</h4>
+        <h4>{$_('settings.pir')}</h4>
         <p>
             <label>
-                PIR motion pin type:<br />
+                {$_('settings.pir_motion_pin_type')}<br />
                 <select name="pir_type" bind:value={$extraSettings.values['pir_type']}>
                     <option disabled selected hidden>Pullup</option>
                     <option value="0">Pullup</option>
@@ -440,7 +453,7 @@
         </p>
         <p>
             <label>
-                PIR motion pin (-1 for disable):<br />
+                {$_('settings.pir_motion_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -451,7 +464,7 @@
         </p>
         <p>
             <label>
-                PIR motion timeout (in seconds):<br />
+                {$_('settings.pir_motion_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -462,10 +475,10 @@
                     bind:value={$extraSettings.values['pir_timeout']}/>
             </label>
         </p>
-        <h4>Radar:</h4>
+        <h4>{$_('settings.radar')}</h4>
         <p>
             <label>
-                Radar motion pin type:<br />
+                {$_('settings.radar_motion_pin_type')}<br />
                 <select name="radar_type" bind:value={$extraSettings.values['radar_type']}>
                     <option disabled selected hidden>Pullup</option>
                     <option value="0">Pullup</option>
@@ -479,7 +492,7 @@
         </p>
         <p>
             <label>
-                Radar motion pin (-1 for disable):<br />
+                {$_('settings.radar_motion_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -490,7 +503,7 @@
         </p>
         <p>
             <label>
-                Radar motion timeout (in seconds):<br />
+                {$_('settings.radar_motion_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -501,10 +514,10 @@
                     bind:value={$extraSettings.values['radar_timeout']}/>
             </label>
         </p>
-        <h4>Switch One:</h4>
+        <h4>{$_('settings.switch_one')}</h4>
         <p>
             <label>
-                Switch One pin type:<br />
+                {$_('settings.switch_one_pin_type')}<br />
                 <select name="switch_1_type" bind:value={$extraSettings.values['switch_1_type']}>
                     <option disabled selected hidden>Pullup</option>
                     <option value="0">Pullup</option>
@@ -518,7 +531,7 @@
         </p>
         <p>
             <label>
-                Switch One pin (-1 for disable):<br />
+                {$_('settings.switch_one_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -529,7 +542,7 @@
         </p>
         <p>
             <label>
-                Switch One timeout (in seconds):<br />
+                {$_('settings.switch_one_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -540,10 +553,10 @@
                     bind:value={$extraSettings.values['switch_1_timeout']}/>
             </label>
         </p>
-        <h4>Switch Two:</h4>
+        <h4>{$_('settings.switch_two')}</h4>
         <p>
             <label>
-                Switch Two pin type:<br />
+                {$_('settings.switch_two_pin_type')}<br />
                 <select name="switch_2_type" bind:value={$extraSettings.values['switch_2_type']}>
                     <option disabled selected hidden>Pullup</option>
                     <option value="0">Pullup</option>
@@ -557,7 +570,7 @@
         </p>
         <p>
             <label>
-                Switch Two pin (-1 for disable):<br />
+                {$_('settings.switch_two_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -568,7 +581,7 @@
         </p>
         <p>
             <label>
-                Switch Two timeout (in seconds):<br />
+                {$_('settings.switch_two_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -579,10 +592,10 @@
                     bind:value={$extraSettings.values['switch_2_timeout']}/>
             </label>
         </p>
-        <h4>Button One:</h4>
+        <h4>{$_('settings.button_one')}</h4>
         <p>
             <label>
-                Button One pin type:<br />
+                {$_('settings.button_one_pin_type')}<br />
                 <select name="button_1_type" bind:value={$extraSettings.values['button_1_type']}>
                     <option disabled selected hidden>Pullup</option>
                     <option value="0">Pullup</option>
@@ -596,7 +609,7 @@
         </p>
         <p>
             <label>
-                Button One pin (-1 for disable):<br />
+                {$_('settings.button_one_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -607,7 +620,7 @@
         </p>
         <p>
             <label>
-                Button One timeout (in seconds):<br />
+                {$_('settings.button_one_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -618,10 +631,24 @@
                     bind:value={$extraSettings.values['button_1_timeout']}/>
             </label>
         </p>
-        <h4>Button Two:</h4>
+        <h4>{$_('settings.button_two')}</h4>
         <p>
             <label>
-                Button Two pin (-1 for disable):<br />
+                {$_('settings.button_two_pin_type')}<br />
+                <select name="button_2_type" bind:value={$extraSettings.values['button_2_type']}>
+                    <option disabled selected hidden>Pullup</option>
+                    <option value="0">Pullup</option>
+                    <option value="1">Pullup Inverted</option>
+                    <option value="2">Pulldown</option>
+                    <option value="3">Pulldown Inverted</option>
+                    <option value="4">Floating</option>
+                    <option value="5">Floating Inverted</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
+                {$_('settings.button_two_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -632,7 +659,7 @@
         </p>
         <p>
             <label>
-                Button Two timeout (in seconds):<br />
+                {$_('settings.button_two_timeout')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -646,7 +673,7 @@
         <h4>DHT:</h4>
         <p>
             <label>
-                DHT11 sensor pin (-1 for disable):<br />
+                {$_('settings.dht11_sensor_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -657,7 +684,7 @@
         </p>
         <p>
             <label>
-                DHT22 sensor pin (-1 for disable):<br />
+                {$_('settings.dht22_sensor_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -668,7 +695,7 @@
         </p>
         <p>
             <label>
-                DHT temperature offset:<br />
+                {$_('settings.dht_temperature_offset')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -680,12 +707,12 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
+            <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">{$_('settings.i2c_settings')}</a>
         </h2>
         <h4>Bus 1:</h4>
         <p>
             <label>
-                SDA pin (-1 to disable):<br />
+                {$_('settings.sda_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -698,7 +725,7 @@
         </p>
         <p>
             <label>
-                SCL pin (-1 to disable):<br />
+                {$_('settings.scl_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -712,7 +739,7 @@
         <h4>Bus 2:</h4>
         <p>
             <label>
-                SDA pin (-1 to disable):<br />
+                {$_('settings.sda_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -725,7 +752,7 @@
         </p>
         <p>
             <label>
-                SCL pin (-1 to disable):<br />
+                {$_('settings.scl_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -739,16 +766,16 @@
         <p>
             <label class="flex items-center space-x-2">
                 <input type="checkbox" name="I2CDebug" bind:checked={$extraSettings.values['I2CDebug']}/>
-                <span>Debug I2C addreses. Look at the serial log to get the correct address (default: &#x2610;)</span>
+                <span>{$_('settings.debug_i2c_addresses')}</span>
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#i2c-sensors" target="_blank">I2C Sensors</a>
+            <a href="https://espresense.com/configuration/settings#i2c-sensors" target="_blank">{$_('settings.i2c_sensors')}</a>
         </h2>
-        <h4>AHTX0 - Temperature + Humidity Sensor:</h4>
+        <h4>{$_('settings.ahtx0_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -761,14 +788,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x38 or 0x39):<br />
+                {$_('settings.i2c_address_38_or_39')}<br />
                 <input name="AHTX0_I2c" bind:value={$extraSettings.values['AHTX0_I2c']}/>
             </label>
         </p>
-        <h4>BH1750 - Ambient Light Sensor:</h4>
+        <h4>{$_('settings.bh1750_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -781,14 +808,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x23 or 0x5C):<br />
+                {$_('settings.i2c_address_23_or_5c')}<br />
                 <input name="BH1750_I2c" bind:value={$extraSettings.values['BH1750_I2c']}/>
             </label>
         </p>
-        <h4>BME280 - Humidity + Temp + Pressure Sensor:</h4>
+        <h4>{$_('settings.bme280_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -801,14 +828,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x76 or 0x77):<br />
+                {$_('settings.i2c_address_76_or_77')}<br />
                 <input name="BME280_I2c" bind:value={$extraSettings.values['BME280_I2c']}/>
             </label>
         </p>
-        <h4>BMP085/BMP180 - Barometric Pressure + Temperature:</h4>
+        <h4>{$_('settings.bmp085_bmp180_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -821,14 +848,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x77):<br />
+                {$_('settings.i2c_address_77')}<br />
                 <input name="BMP180_I2c" bind:value={$extraSettings.values['BMP180_I2c']}/>
             </label>
         </p>
-        <h4>BMP280 - Barometric Pressure + Temperature Sensor:</h4>
+        <h4>{$_('settings.bmp280_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -841,14 +868,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x76 or 0x77):<br />
+                {$_('settings.i2c_address_76_or_77')}<br />
                 <input name="BMP280_I2c" bind:value={$extraSettings.values['BMP280_I2c']}/>
             </label>
         </p>
-        <h4>SHTC1/3, SHTW1/2, SHT3x/4x, SHT85 - Temperature and Humidity Sensor:</h4>
+        <h4>{$_('settings.sht_sensor')}</h4>
         <p>
             <label>
-                I2C Bus (-1 to disable):<br />
+                {$_('settings.i2c_bus_setting')}<br />
                 <input
                     type="number"
                     step="1"
@@ -859,10 +886,10 @@
                     bind:value={$extraSettings.values['SHT_I2c_Bus']}/>
             </label>
         </p>
-        <h4>TSL2561 - Ambient Light Sensor:</h4>
+        <h4>{$_('settings.tsl2561_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -875,23 +902,23 @@
         </p>
         <p>
             <label>
-                I2C address (0x39, 0x49 or 0x29):<br />
+                {$_('settings.i2c_address_39_48_or_29')}<br />
                 <input name="TSL2561_I2c" bind:value={$extraSettings.values['TSL2561_I2c']}/>
             </label>
         </p>
         <p>
             <label>
-                Gain (auto, 1x or 16x):<br />
+                {$_('settings.gain')}<br />
                 <input
                     name="TSL2561_I2c_Gain"
                     placeholder={$extraSettings.defaults['TSL2561_I2c_Gain']}
                     bind:value={$extraSettings.values['TSL2561_I2c_Gain']}/>
             </label>
         </p>
-        <h4>SGP30 - Air Quality Sensor:</h4>
+        <h4>{$_('settings.sgp30_sensor')}</h4>
         <p>
             <label>
-                I2C Bus:<br />
+                {$_('settings.i2c_bus')}<br />
                 <input
                     type="number"
                     step="1"
@@ -904,14 +931,14 @@
         </p>
         <p>
             <label>
-                I2C address (0x58):<br />
+                {$_('settings.i2c_address_58')}<br />
                 <input name="SGP30_I2c" bind:value={$extraSettings.values['SGP30_I2c']}/>
             </label>
         </p>
-        <h4>HX711 - Weight Sensor:</h4>
+        <h4>{$_('settings.hx711_sensor')}</h4>
         <p>
             <label>
-                HX711 SCK (Clock) pin:<br />
+                {$_('settings.hx711_sck')}<br />
                 <input
                     type="number"
                     step="1"
@@ -922,7 +949,7 @@
         </p>
         <p>
             <label>
-                HX711 DOUT (Data) pin:<br />
+                {$_('settings.hx711_dout')}<br />
                 <input
                     type="number"
                     step="1"
@@ -931,10 +958,10 @@
                     bind:value={$extraSettings.values['HX711_doutPin']}/>
             </label>
         </p>
-        <h4>DS18B20:</h4>
+        <h4>{$_('settings.ds18b20_sensor')}</h4>
         <p>
             <label>
-                DS18B20 sensor pin (-1 for disable):<br />
+                {$_('settings.ds18b20_sensor_pin')}<br />
                 <input
                     type="number"
                     step="1"
@@ -945,7 +972,7 @@
         </p>
         <p>
             <label>
-                DS18B20 temperature offset:<br />
+                {$_('settings.ds18b20_temperature_offset')}<br />
                 <input
                     type="number"
                     step="0.01"
@@ -958,7 +985,7 @@
         </p>
         <div class="flex justify-end">
             <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
-                {s ? "Saving..." : "Save"}
+                {s ? $_('settings.saving') : $_('settings.save')}
             </button>
         </div>
     </form>

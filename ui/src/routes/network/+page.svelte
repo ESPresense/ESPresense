@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import { mainSettings } from "$lib/stores";
     import type { MainSettings } from "$lib/types";
+    import { _ } from '../../lang/i18n'
 
     let s = $state(false);
     let wifiNetworks: Record<string, number> = $state({});
@@ -95,17 +96,17 @@
     {#if mainSettingsData != null && $mainSettings?.defaults != null && $mainSettings?.values != null}
         <form onsubmit={handleSubmit} class="space-y-6">
             <!-- Room Configuration -->
-            <h2 class="text-xl font-semibold">Room Configuration</h2>
+            <h2 class="text-xl font-semibold">{$_('network.room_configuration')}</h2>
             <div>
-                <label class="block text-sm font-medium">Room Name</label>
+                <label class="block text-sm font-medium">{$_('network.room_configuration')}</label>
                 <input type="text" name="room" bind:value={$mainSettings.values.room} placeholder={$mainSettings.defaults.room} class="mt-1 block w-full rounded-md" />
             </div>
 
             <!-- WiFi Configuration -->
-            <h2 class="text-xl font-semibold">WiFi Configuration</h2>
+            <h2 class="text-xl font-semibold">{$_('network.wifi_configuration')}</h2>
 
             <div class="mb-2">
-                <label class="block text-sm font-medium mb-1">WiFi SSID</label>
+                <label class="block text-sm font-medium mb-1">{$_('network.wifi_ssid')}</label>
                 <input
                     type="text"
                     name="wifi-ssid"
@@ -118,7 +119,7 @@
             <div>
                 <div class="bg-gray-50 dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
                     <div class="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-                        <label class="text-base font-medium dark:text-white">Available Networks</label>
+                        <label class="text-base font-medium dark:text-white">{$_('network.available_networks')}</label>
                         {#if isScanning}
                             <div class="ios-spinner"></div>
                         {/if}
@@ -153,24 +154,24 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium">WiFi Password</label>
+                <label class="block text-sm font-medium">{$_('network.wifi_password')}</label>
                 <input type="password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium"> Seconds to wait for WiFi before captive portal (-1 = forever) </label>
+                <label class="block text-sm font-medium">{$_('network.seconds_to_wait_for_wifi')}</label>
                 <input type="number" name="wifi_timeout" bind:value={$mainSettings.values.wifi_timeout} placeholder={String($mainSettings.defaults.wifi_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium"> Seconds to wait in captive portal before rebooting </label>
+                <label class="block text-sm font-medium">{$_('network.seconds_to_wait_for_cp')}</label>
                 <input type="number" name="portal_timeout" bind:value={$mainSettings.values.portal_timeout} placeholder={String($mainSettings.defaults.portal_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Ethernet Type</label>
+                <label class="block text-sm font-medium">{$_('network.ethernet_type')}</label>
                 <select name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">
-                    <option value="0">None</option>
+                    <option value="0">{$_('network.none')}</option>
                     <option value="1">WT32-ETH01</option>
                     <option value="2">ESP32-POE</option>
                     <option value="3">WESP32</option>
@@ -185,77 +186,77 @@
             </div>
 
             <!-- MQTT Configuration -->
-            <h2 class="text-xl font-semibold">MQTT Configuration</h2>
+            <h2 class="text-xl font-semibold">{$_('network.mqtt_configuration')}</h2>
             <div>
-                <label class="block text-sm font-medium">Server</label>
+                <label class="block text-sm font-medium">{$_('network.server')}</label>
                 <input type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Port</label>
+                <label class="block text-sm font-medium">{$_('network.port')}</label>
                 <input type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Username</label>
+                <label class="block text-sm font-medium">{$_('network.username')}</label>
                 <!-- Using a password input as in the legacy page -->
                 <input type="password" name="mqtt_user" bind:value={$mainSettings.values.mqtt_user} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Password</label>
+                <label class="block text-sm font-medium">{$_('network.password')}</label>
                 <input type="password" name="mqtt_pass" bind:value={$mainSettings.values.mqtt_pass} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="discovery" value="1" bind:checked={$mainSettings.values.discovery} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Send to discovery topic</span>
+                    <span>{$_('network.send_to_discovery_topic')}</span>
                 </label>
 
                 <div class="ml-6">
-                    <label class="block text-sm font-medium"> Home Assistant discovery topic prefix </label>
+                    <label class="block text-sm font-medium">{$_('network.ha_discovery_topic_prefix')}</label>
                     <input type="text" name="discovery_prefix" bind:value={$mainSettings.values.discovery_prefix} placeholder={$mainSettings.defaults.discovery_prefix} class="mt-1 block w-full rounded-md" />
                 </div>
 
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="pub_tele" value="1" bind:checked={$mainSettings.values.pub_tele} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Send to telemetry topic</span>
+                    <span>{$_('network.send_to_telemetry_topic')}</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="pub_devices" value="1" bind:checked={$mainSettings.values.pub_devices} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Send to devices topic</span>
+                    <span>{$_('network.send_to_devices_topic')}</span>
                 </label>
             </div>
 
             <!-- Updating -->
-            <h2 class="text-xl font-semibold">Updating</h2>
+            <h2 class="text-xl font-semibold">{$_('network.updating')}</h2>
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Automatically update</span>
+                    <span>{$_('network.automatically_update')}</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="prerelease" value="1" bind:checked={$mainSettings.values.prerelease} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Include pre-released versions in auto-update</span>
+                    <span>{$_('network.include_pre_released')}</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
                     <input type="checkbox" name="arduino_ota" value="1" bind:checked={$mainSettings.values.arduino_ota} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Arduino OTA Update</span>
+                    <span>{$_('network.arduino_ota_update')}</span>
                 </label>
 
                 <div>
-                    <label class="block text-sm font-medium"> Update URL (if set will update from this url on next boot) </label>
+                    <label class="block text-sm font-medium">{$_('network.update_url')}</label>
                     <input type="text" name="update" bind:value={$mainSettings.values.update} class="mt-1 block w-full rounded-md" />
                 </div>
             </div>
 
             <div class="flex justify-end">
                 <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
-                    {s ? "Saving..." : "Save"}
+                    {s ? $_('settings.saving') : $_('settings.save')}
                 </button>
             </div>
         </form>
