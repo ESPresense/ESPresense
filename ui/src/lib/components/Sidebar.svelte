@@ -3,6 +3,7 @@
     import SidebarItem from "./SidebarItem.svelte";
     import DarkModeToggle from "./DarkModeToggle.svelte";
     import Icon from "./Icon.svelte";
+    import { _ } from "../../lang/i18n";
 </script>
 
 <div class="h-full w-full">
@@ -14,9 +15,9 @@
         <DarkModeToggle />
     </div>
     <nav class="mt-6 px-6 space-y-1">
-        <SidebarItem icon="network" title="Network" href="{base}/network" />
-        <SidebarItem icon="contact" title="Settings" href="{base}/settings" />
-        <SidebarItem icon="device" title="Devices" href="{base}/devices" />
-        <SidebarItem icon="fingerprint" title="Fingerprints" href="{base}/fingerprints" />
+        <SidebarItem icon="network" title={$_('sidebar.network')} href="{base}/network" />
+        <SidebarItem icon="contact" title={$_('sidebar.settings')} href="{base}/settings" />
+        <SidebarItem icon="device" title={$_('sidebar.devices')} href="{base}/devices" />
+        <SidebarItem icon="fingerprint" title={$_('sidebar.fingerprints')} href="{base}/fingerprints" />
     </nav>
 </div>
