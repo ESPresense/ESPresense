@@ -64,4 +64,4 @@ int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 
-bool discovery, publishTele, publishRooms, publishDevices;
+bool discovery, publishTele, publishDevices;
