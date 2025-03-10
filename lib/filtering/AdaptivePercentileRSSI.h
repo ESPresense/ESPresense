@@ -8,6 +8,9 @@ public:
     AdaptivePercentileRSSI(uint32_t timeWindowMs = 15000, uint16_t initialMaxReadings = 20);
     ~AdaptivePercentileRSSI();
 
+    AdaptivePercentileRSSI(const AdaptivePercentileRSSI& other);
+    AdaptivePercentileRSSI& operator=(const AdaptivePercentileRSSI& other);
+
     void addMeasurement(float rssi);
     float getVariance();
     float getPercentileRSSI(float percentile);

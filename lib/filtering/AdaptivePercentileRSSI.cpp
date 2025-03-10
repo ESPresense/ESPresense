@@ -17,6 +17,51 @@ AdaptivePercentileRSSI::~AdaptivePercentileRSSI() {
     delete[] readings;
 }
 
+AdaptivePercentileRSSI::AdaptivePercentileRSSI(const AdaptivePercentileRSSI& other)
+    : timeWindowMs(other.timeWindowMs),
+      maxReadings(other.maxReadings),
+      head(other.head),
+      tail(other.tail),
+      count(other.count),
+      totalReadings(other.totalReadings),
+      lastRateCheck(other.lastRateCheck) {
+
+    // Allocate new memory and copy the readings
+    readings = new Reading[maxReadings];
+
+    // Deep copy the readings array
+    for (uint16_t i = 0; i < maxReadings; i++) {
+        readings[i] = other.readings[i];
+    }
+}
+
+AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercentileRSSI& other) {
+    if (this != &other) {
+        // Handle self-assignment
+
+        // Clean up existing resources
+        delete[] readings;
+
+        // Copy all member variables
+        timeWindowMs = other.timeWindowMs;
+        maxReadings = other.maxReadings;
+        head = other.head;
+        tail = other.tail;
+        count = other.count;
+        totalReadings = other.totalReadings;
+        lastRateCheck = other.lastRateCheck;
+
+        // Allocate new memory and copy the readings
+        readings = new Reading[maxReadings];
+
+        // Deep copy the readings array
+        for (uint16_t i = 0; i < maxReadings; i++) {
+            readings[i] = other.readings[i];
+        }
+    }
+    return *this;
+}
+
 void AdaptivePercentileRSSI::addMeasurement(float rssi) {
     uint32_t currentTime = millis();
     totalReadings++;
