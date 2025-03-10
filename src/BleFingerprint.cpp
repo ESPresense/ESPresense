@@ -16,12 +16,12 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice, float fcmin, float beta, float dcutoff) : filteredDistance{FilteredDistance(fcmin, beta, dcutoff)} {
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice){
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
-    rssi = advertisedDevice->getRSSI();
-    raw = dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    raw = rssi = advertisedDevice->getRSSI();
+    dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
@@ -31,7 +31,7 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
     dist = other.dist;
     raw = other.raw;
-    filteredDistance = other.filteredDistance;
+    adaptivePercentileRSSI = other.adaptivePercentileRSSI;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -207,7 +207,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%ddBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
+        Serial.printf("Verbose | %s | %-58s%fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
         if (uuid == tileUUID) {
             asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
@@ -265,7 +265,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%ddBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
+        Serial.printf("Verbose | %s | %-58s%fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
 
         if (uuid == exposureUUID) {  // found COVID-19 exposure tracker
@@ -337,7 +337,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Serial.printf("Verbose | %s | %-58s%ddBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
+    Serial.printf("Verbose | %s | %-58s%fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2) {
         String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
@@ -418,11 +418,11 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
 
     if (ignore || hidden) return false;
 
-    rssi = advertisedDevice->getRSSI();
-    raw = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    filteredDistance.addMeasurement(raw);
-    dist = filteredDistance.getDistance();
-    vari = filteredDistance.getVariance();
+    raw = advertisedDevice->getRSSI();
+    adaptivePercentileRSSI.addMeasurement(raw);
+    rssi = adaptivePercentileRSSI.getP75RSSI();
+    dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    vari = adaptivePercentileRSSI.getVariance();
 
     if (!added) {
         added = true;
@@ -439,11 +439,11 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (idType) (*doc)[F("idType")] = idType;
 
     (*doc)[F("rssi@1m")] = get1mRssi();
-    (*doc)[F("rssi")] = rssi;
-
-    if (isnormal(raw)) (*doc)[F("raw")] = serialized(String(raw, 2));
+    if (isnormal(rssi)) (*doc)[F("rssi")] = serialized(String(rssi, 2));
+    if (isnormal(raw)) (*doc)[F("last")] = serialized(String(raw, 2));
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
     if (isnormal(vari)) (*doc)[F("var")] = serialized(String(vari, 2));
+    (*doc)[F("cnt")] = adaptivePercentileRSSI.getReadingCount();
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
@@ -490,7 +490,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query  | %s | %-58s%ddBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Serial.printf("%u Query  | %s | %-58s%fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -516,7 +516,7 @@ bool BleFingerprint::query() {
     } else {
         qryAttempts++;
         qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-        Serial.printf("%u QryErr | %s | %-58s%ddBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+        Serial.printf("%u QryErr | %s | %-58s%fdBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
     return true;
