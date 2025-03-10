@@ -56,7 +56,7 @@
 
 #define DEFAULT_RX_REF_RSSI (-65)
 #define DEFAULT_TX_REF_RSSI (-59)
-#define DEFAULT_ABSORPTION (3.5)
+#define DEFAULT_ABSORPTION (2.7)
 #define DEFAULT_RX_ADJ_RSSI 0
 
 #define DEFAULT_FORGET_MS 150000 // Ms to remove fingerprint after not seeing it
