@@ -31,7 +31,7 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
     dist = other.dist;
     raw = other.raw;
-    AdaptivePercentileRSSI = other.AdaptivePercentileRSSI;
+    adaptivePercentileRSSI = other.adaptivePercentileRSSI;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -419,10 +419,10 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    AdaptivePercentileRSSI.addMeasurement(raw);
-    rssi = AdaptivePercentileRSSI.getP75RSSI();
+    adaptivePercentileRSSI.addMeasurement(raw);
+    rssi = adaptivePercentileRSSI.getP75RSSI();
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    vari = AdaptivePercentileRSSI.getVariance();
+    vari = adaptivePercentileRSSI.getVariance();
 
     if (!added) {
         added = true;
@@ -443,7 +443,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (isnormal(raw)) (*doc)[F("last")] = serialized(String(raw, 2));
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
     if (isnormal(vari)) (*doc)[F("var")] = serialized(String(vari, 2));
-    (*doc)[F("cnt")] = AdaptivePercentileRSSI.getReadingCount();
+    (*doc)[F("cnt")] = adaptivePercentileRSSI.getReadingCount();
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;

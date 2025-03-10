@@ -137,7 +137,7 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-    AdaptivePercentileRSSI AdaptivePercentileRSSI;
+    AdaptivePercentileRSSI adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);
