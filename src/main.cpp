@@ -147,7 +147,6 @@ void setupNetwork() {
     discovery = HeadlessWiFiSettings.checkbox("discovery", true, "Send to discovery topic");
     homeAssistantDiscoveryPrefix = HeadlessWiFiSettings.string("discovery_prefix", DEFAULT_HA_DISCOVERY_PREFIX, "Home Assistant discovery topic prefix");
     publishTele = HeadlessWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
-    publishRooms = HeadlessWiFiSettings.checkbox("pub_rooms_dep", false, "Send to rooms topic (deprecated in v4)");
     publishDevices = HeadlessWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
     Updater::ConnectToWifi();
@@ -388,17 +387,9 @@ bool reportDevice(BleFingerprint *f) {
     serializeJson(doc, buffer);
     String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
 
-    bool p1 = false, p2 = false;
     for (int i = 0; i < 10; i++) {
         if (!mqttClient.connected()) return false;
-        if (!p1 && (!publishRooms || mqttClient.publish(roomsTopic.c_str(), 0, false, buffer.c_str())))
-            p1 = true;
-
-        if (!p2 && (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer.c_str())))
-            p2 = true;
-
-        if (p1 && p2)
-            return true;
+        if (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer.c_str())) return true;
         delay(20);
     }
 
