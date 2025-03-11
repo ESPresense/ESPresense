@@ -18,8 +18,9 @@ bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, 
 {
     size_t const jsonSize = measureJson(jsonDoc);
     char buffer[jsonSize + 1]; // +1 for null terminator
-    serializeJson(jsonDoc, buffer, sizeof(buffer));
-    return pub(topic, qos, retain, buffer, jsonSize, dup, message_id);
+    size_t const buffSize = serializeJson(jsonDoc, buffer, sizeof(buffer));
+    if (buffSize == 0) return false;
+    return pub(topic, qos, retain, buffer, buffSize, dup, message_id);
 }
 
 void commonDiscovery()
