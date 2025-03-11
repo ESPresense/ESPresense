@@ -51,10 +51,10 @@ void SerialReport() {
 
 static void pirLoop() {
     if (pirPin < 0) return;
-    bool detected = digitalRead(pirPin) == pirDetected;
+    bool const detected = digitalRead(pirPin) == pirDetected;
     if (detected) lastPirMilli = millis();
-    unsigned long since = millis() - lastPirMilli;
-    int pirValue = (detected || since < (pirTimeout * 1000)) ? HIGH : LOW;
+    unsigned long const since = millis() - lastPirMilli;
+    int const pirValue = (detected || since < (pirTimeout * 1000)) ? HIGH : LOW;
 
     if (lastPirValue == pirValue) return;
     pub((roomsTopic + "/pir").c_str(), 0, true, pirValue == HIGH ? "ON" : "OFF");
@@ -63,10 +63,10 @@ static void pirLoop() {
 
 static void radarLoop() {
     if (radarPin < 0) return;
-    bool detected = digitalRead(radarPin) == radarDetected;
+    bool const detected = digitalRead(radarPin) == radarDetected;
     if (detected) lastRadarMilli = millis();
-    unsigned long since = millis() - lastRadarMilli;
-    int radarValue = (detected || since < (radarTimeout * 1000)) ? HIGH : LOW;
+    unsigned long const since = millis() - lastRadarMilli;
+    int const radarValue = (detected || since < (radarTimeout * 1000)) ? HIGH : LOW;
 
     if (lastRadarValue == radarValue) return;
     pub((roomsTopic + "/radar").c_str(), 0, true, radarValue == HIGH ? "ON" : "OFF");
@@ -76,7 +76,7 @@ static void radarLoop() {
 void Loop() {
     pirLoop();
     radarLoop();
-    int motionValue = (lastRadarValue == HIGH || lastPirValue == HIGH) ? HIGH : LOW;
+    int const motionValue = (lastRadarValue == HIGH || lastPirValue == HIGH) ? HIGH : LOW;
     if (lastMotionValue == motionValue) return;
     GUI::Motion(lastPirValue == HIGH, lastRadarValue == HIGH);
     pub((roomsTopic + "/motion").c_str(), 0, true, motionValue == HIGH ? "ON" : "OFF");

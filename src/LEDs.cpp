@@ -44,19 +44,19 @@ void ConnectToWifi() {
     led_1_pin = HeadlessWiFiSettings.integer("led_1_pin", -1, 39, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
     led_1_cnt = HeadlessWiFiSettings.integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
     led_1_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
-    String led_1_state = HeadlessWiFiSettings.string("led_1_state", true, "LED State");
+    String const led_1_state = HeadlessWiFiSettings.string("led_1_state", true, "LED State");
 
     led_2_type = HeadlessWiFiSettings.dropdown("led_2_type", ledTypes, 0, "LED Type");
     led_2_pin = HeadlessWiFiSettings.integer("led_2_pin", -1, 39, -1, "Pin (-1 to disable)");
     led_2_cnt = HeadlessWiFiSettings.integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_2_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
-    String led_2_state = HeadlessWiFiSettings.string("led_2_state", true, "LED State");
+    String const led_2_state = HeadlessWiFiSettings.string("led_2_state", true, "LED State");
 
     led_3_type = HeadlessWiFiSettings.dropdown("led_3_type", ledTypes, 0, "LED Type");
     led_3_pin = HeadlessWiFiSettings.integer("led_3_pin", -1, 39, -1, "Pin (-1 to disable)");
     led_3_cnt = HeadlessWiFiSettings.integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
-    String led_3_state = HeadlessWiFiSettings.string("led_3_state", true, "LED State");
+    String const led_3_state = HeadlessWiFiSettings.string("led_3_state", true, "LED State");
 
     leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_state));
     leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_state));
@@ -70,8 +70,7 @@ void SerialReport() {
 }
 
 bool sendState(LED* bulb) {
-    char buffer[512];
-    DynamicJsonDocument doc(512);
+    DynamicJsonDocument doc(256);
     auto slug = slugify(bulb->getName());
     auto state = bulb->getState();
     doc["state"] = state ? MQTT_STATE_ON_PAYLOAD : MQTT_STATE_OFF_PAYLOAD;
@@ -91,9 +90,8 @@ bool sendState(LED* bulb) {
         color["g"] = c.green;
         color["b"] = c.blue;
     }
-    serializeJson(doc, buffer);
-    String setTopic = Sprintf("%s/%s", roomsTopic.c_str(), slug.c_str());
-    return pub(setTopic.c_str(), 0, true, buffer);
+    String const setTopic = Sprintf("%s/%s", roomsTopic.c_str(), slug.c_str());
+    return pub(setTopic.c_str(), 0, true, doc);
 }
 
 void Setup() {

@@ -207,7 +207,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
+        Serial.printf("Verbose | %s | %-58s%.1fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
         if (uuid == tileUUID) {
             asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
@@ -265,7 +265,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
+        Serial.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
 
         if (uuid == exposureUUID) {  // found COVID-19 exposure tracker
@@ -337,7 +337,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Serial.printf("Verbose | %s | %-58s%fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
+    Serial.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2) {
         String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
@@ -490,7 +490,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query  | %s | %-58s%fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Serial.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -516,7 +516,7 @@ bool BleFingerprint::query() {
     } else {
         qryAttempts++;
         qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-        Serial.printf("%u QryErr | %s | %-58s%fdBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+        Serial.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
     return true;

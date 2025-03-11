@@ -118,9 +118,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
 
-    String buffer;
-    serializeJson(doc, buffer);
-    if (pub(teleTopic.c_str(), 0, false, buffer.c_str())) return true;
+    if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 
     teleFails++;
     log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
@@ -276,7 +274,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
 }
 
 void onMqttMessage(const char *topic, const char *payload) {
-    String top = String(topic);
+    String const top = String(topic);
     String pay = String(payload);
 
     auto setPos = top.lastIndexOf("/set");
@@ -373,7 +371,7 @@ void connectToMqtt() {
 bool reportBuffer(BleFingerprint *f) {
     if (!mqttClient.connected()) return false;
     auto report = f->getReport();
-    String topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
+    String const topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
     return mqttClient.publish(topic.c_str(), 0, false, report.getPayload().c_str());
 }
 
@@ -383,15 +381,9 @@ bool reportDevice(BleFingerprint *f) {
     if (!f->report(&obj))
         return false;
 
-    String buffer;
-    serializeJson(doc, buffer);
-    String devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
-
-    for (int i = 0; i < 10; i++) {
-        if (!mqttClient.connected()) return false;
-        if (!publishDevices || mqttClient.publish(devicesTopic.c_str(), 0, false, buffer.c_str())) return true;
-        delay(20);
-    }
+    String const devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
+    if (pub(devicesTopic.c_str(), 0, false, doc))
+        return true;
 
     reportFailed++;
     return false;
