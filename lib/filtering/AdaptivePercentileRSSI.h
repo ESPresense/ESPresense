@@ -12,6 +12,7 @@ public:
     AdaptivePercentileRSSI& operator=(const AdaptivePercentileRSSI& other);
 
     void addMeasurement(float rssi);
+    float getDistanceVariance(float refRSSI, float pathLossExponent);
     float getVariance();
     float getPercentileRSSI(float percentile);
     float getP75RSSI();
