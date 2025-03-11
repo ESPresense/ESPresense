@@ -26,10 +26,10 @@ bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
 
     const char* val = value.c_str();
 
-    float temperature = (val[0] + val[1] * 256) / ((float)10.0);
-    uint8_t moisture = val[7];
-    uint32_t brightness = val[3] + val[4] * 256;
-    float conductivity = val[8] + val[9] * 256;
+    float const temperature = (val[0] + val[1] * 256) / ((float)10.0);
+    uint8_t const moisture = val[7];
+    uint32_t const brightness = val[3] + val[4] * 256;
+    float const conductivity = val[8] + val[9] * 256;
 
     (*doc)[F("temperature")] = temperature;
     (*doc)[F("moisture")] = moisture;
@@ -59,7 +59,7 @@ bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
         return false;
     }
 
-    int8_t battery = val.c_str()[0];
+    int8_t const battery = val.c_str()[0];
     (*doc)[F("battery")] = battery;
 
     floraService->deleteCharacteristics();

@@ -61,7 +61,7 @@ void serveJson(AsyncWebServerRequest *request) {
     if (url.indexOf("devices") > 0) subJson = 1;
     if (url.indexOf("configs") > 0) subJson = 2;
 
-    int paramsNr = request->params();
+    int const paramsNr = request->params();
     for (int i = 0; i < paramsNr; i++) {
         AsyncWebParameter *p = request->getParam(i);
         if (p->name() == "showAll") showAll = true;
@@ -93,9 +93,9 @@ void sendDataWs(AsyncWebSocketClient *client) {
         serializeState(root);
         serializeInfo(root);
         size_t len = measureJson(doc);
-        size_t heap1 = ESP.getFreeHeap();
+        size_t const heap1 = ESP.getFreeHeap();
         buffer = ws.makeBuffer(len);  // will not allocate correct memory sometimes
-        size_t heap2 = ESP.getFreeHeap();
+        size_t const heap2 = ESP.getFreeHeap();
         if (!buffer || heap1 - heap2 < len) {
             ws.closeAll(1013);     // code 1013 = temporary overload, try again later
             ws.cleanupClients(0);  // disconnect all clients to release memory
@@ -161,7 +161,7 @@ void Init(AsyncWebServer *server) {
             return;
         }
 
-        String id = request->getParam("id")->value();
+        String const id = request->getParam("id")->value();
         if (deleteConfig(id)) {
             request->send(200, "application/json", F("{\"success\":true}"));
         } else {

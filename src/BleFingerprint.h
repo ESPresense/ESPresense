@@ -89,7 +89,7 @@ class BleFingerprint {
     const float getDistance() const { return dist; }
 
     const float getRssi() const { return rssi; }
-    const float getRawRssi() const { return rssi; }
+    const float getRawRssi() const { return raw; }
 
     const int get1mRssi() const;
     void set1mRssi(int8_t rssi) { calRssi = rssi; }

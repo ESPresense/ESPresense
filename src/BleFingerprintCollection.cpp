@@ -111,7 +111,7 @@ bool Config(String &id, String &json) {
         return removeConfig(id);
     }
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(512);
     deserializeJson(doc, json);
 
     DeviceConfig config = {};
