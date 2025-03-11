@@ -7,7 +7,7 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* f) {
     std::string sName = pClient->getValue(genericAccessService, nameChar);
     if (!sName.empty() && sMdl.find(sName) == std::string::npos && sName != "Apple Watch") {
         if (f->setId(String("name:") + kebabify(sName).c_str(), ID_TYPE_QUERY_NAME, String(sName.c_str()))) {
-            Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%.2f2fdBm %s\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), sName.c_str());
+            Serial.printf("\u001b[38;5;104m%u Name   | %s | %-58s%.1fdBm %s\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), sName.c_str());
         }
         return true;
     }
