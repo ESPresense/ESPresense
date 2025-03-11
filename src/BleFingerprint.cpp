@@ -422,7 +422,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     adaptivePercentileRSSI.addMeasurement(raw);
     rssi = adaptivePercentileRSSI.getP75RSSI();
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    vari = adaptivePercentileRSSI.getVariance();
+    vari = adaptivePercentileRSSI.getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;

@@ -240,3 +240,42 @@ float AdaptivePercentileRSSI::getVariance() {
     // Handle potential floating-point errors that might result in tiny negative values
     return variance < 0 ? 0 : variance;
 }
+
+float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossExponent) {
+    if (count < 2) return 0;
+
+    uint32_t currentTime = millis();
+    uint16_t validCount = 0;
+    float sumDistance = 0;
+    float sumDistanceSquared = 0;
+
+    uint16_t idx = tail;
+
+    // Calculate sum and sum of squares of distances in one pass
+    for (uint16_t i = 0; i < count; i++) {
+        uint32_t age = currentTime - readings[idx].timestamp;
+
+        // Include only readings within the time window
+        if (age <= timeWindowMs || age > 0xFFFFFFFF - timeWindowMs) {
+            // Convert RSSI to distance
+            float rssi = readings[idx].rssi;
+            float exponent = (refRSSI - rssi) / (10.0f * pathLossExponent);
+            float distance = pow(10.0f, exponent); // d = 10^((P0 - RSSI) / (10 * n))
+
+            sumDistance += distance;
+            sumDistanceSquared += distance * distance;
+            validCount++;
+        }
+
+        idx = (idx + 1) % maxReadings;
+    }
+
+    if (validCount < 2) return 0;
+
+    // Calculate variance using the computational formula: Var(d) = E(d²) - (E(d))²
+    float meanDistance = sumDistance / validCount;
+    float varianceDistance = (sumDistanceSquared / validCount) - (meanDistance * meanDistance);
+
+    // Handle potential floating-point errors
+    return varianceDistance < 0 ? 0 : varianceDistance;
+}
