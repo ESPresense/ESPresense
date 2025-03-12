@@ -30,5 +30,9 @@
     "typescript": "^5.8.2",
     "vite": "^5.4.14",
     "vite-plugin-html": "^3.2.2"
+  },
+  "dependencies": {
+    "svelte-i18n": "^4.0.1",
+    "svelte-kit": "^1.2.0"
   }
 }

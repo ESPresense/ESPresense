@@ -2,6 +2,7 @@
     import SvelteTable from "svelte-table";
     import { devices } from "$lib/stores";
     import type { Device, TableColumn } from "$lib/types";
+    import { _ } from '../../lang/i18n'
 
     let filterSelections = $state({
         vis: true
@@ -13,20 +14,20 @@
     const columns: TableColumn<Device>[] = [
         {
             key: "vis",
-            title: "Visible",
+            title: $_('fingerprints.visible'),
             value: (v: Device) => v.vis ?? false,
             renderValue: (v: Device) => v.vis ?? false ? "⬤" : "",
             sortable: true,
             filterOptions: () => [
-                { name: "Yes", value: true },
-                { name: "No", value: false },
+                { name: $_('fingerprints.yes'), value: true },
+                { name: $_('fingerprints.no'), value: false },
             ],
             headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
             class: "text-center",
         },
         {
             key: "distance",
-            title: "Dist",
+            title: $_('fingerprints.dist'),
             value: (v: Device) => v.distance ?? 0,
             renderValue: (v: Device) => v.distance === undefined ? "n/a" : `${v.distance.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortable: true,
@@ -35,7 +36,7 @@
         },
         {
             key: "var",
-            title: "Var",
+            title: $_('fingerprints.var'),
             value: (v: Device) => v.var ?? 0,
             renderValue: (v: Device) => v.var === undefined ? "n/a" : `${v.var.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortable: true,
@@ -44,7 +45,7 @@
         },
         {
             key: "id",
-            title: "ID",
+            title: $_('fingerprints.id'),
             value: (v: Device) => v.id ?? "",
             sortable: true,
             filterOptions: (rows: Device[]) => {
@@ -72,7 +73,7 @@
         },
         {
             key: "name",
-            title: "Name",
+            title: $_('fingerprints.name'),
             value: (v: Device) => v.name ?? "",
             sortable: true,
             filterOptions: (rows: Device[]) => {
@@ -134,7 +135,7 @@
         },
         {
             key: "int",
-            title: "int",
+            title: $_('fingerprints.int'),
             value: (v: Device) => v.int ?? 0,
             renderValue: (v: Device) => v.int ? `${v.int} ms` : "",
             sortable: true,
@@ -153,7 +154,7 @@
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
     {#if $devices != null}
         <div class="p-6">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Fingerprints</h2>
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">{$_('fingerprints.fingerprints')}</h2>
             <div class="overflow-x-auto">
                 <SvelteTable
                     {columns}
@@ -179,8 +180,8 @@
     {:else}
         <div class="flex items-center justify-center min-h-[50vh]">
             <div class="text-center">
-                <h1 class="text-xl font-medium text-gray-700 dark:text-gray-300">Loading fingerprints...</h1>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we fetch the data.</p>
+                <h1 class="text-xl font-medium text-gray-700 dark:text-gray-300">{$_('fingerprints.loading_fingerprints')}</h1>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{$_('fingerprints.please_wait_while_fetch')}</p>
             </div>
         </div>
     {/if}
