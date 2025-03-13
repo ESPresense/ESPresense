@@ -26,17 +26,23 @@ namespace DS18B20
     /** Task handle for the light value read task */
     TaskHandle_t DSTempTaskHandle = NULL;
 
-    /** Ticker for temperature reading */
-    Ticker tempTicker;
-
     /** Flags for temperature readings finished */
     bool gotNewTemperature = false;
 
-    /* Flag if main loop is running */
+    /** Flag if main loop is running */
     bool dsTasksEnabled = false;
 
-    /* update every 10 seconds */
-    int dsUpdateTime = 10;
+    /** wait before first read, then set to true */
+    bool initialReadDone = false;
+
+    /** update temp every 20 seconds */
+    int dsUpdateTimeS = 20;
+
+    /** setup delay before first read to give the sensor time to settle after initialization, seconds*/
+    int dsFirstReadDelayS = 10;
+
+    /** wait for temps delay, milliseconds; datasheet says 750ms max */
+    int dsWaitTimeMs = 750;
 
     /**
      * Task to reads temperature from DS18B20 sensor
@@ -47,26 +53,19 @@ namespace DS18B20
     {
         while (1) // tempTask loop
         {
+            // avoid 85 C readings on initialization
+            if (!initialReadDone) {
+                delay(dsFirstReadDelayS * 1000);
+                initialReadDone = true;
+            }
+
             if (dsTasksEnabled && !gotNewTemperature)
             {
                 // Read temperature only if old data was processed already
                 sensors.requestTemperatures();
                 gotNewTemperature = true;
             }
-            vTaskSuspend(NULL);
-        }
-    }
-
-    /**
-     * triggerGetTemp
-     * Sets flag dhtUpdated to true for handling in loop()
-     * called by Ticker tempTicker
-     */
-    void triggerGetTemp()
-    {
-        if (DSTempTaskHandle != NULL)
-        {
-            xTaskResumeFromISR(DSTempTaskHandle);
+            delay(dsUpdateTimeS * 1000);
         }
     }
 
@@ -76,29 +75,27 @@ namespace DS18B20
             oneWire.begin(ds18b20Pin);
             sensors.setOneWire(&oneWire);
             sensors.begin();
-            //Need to begin twice for some reason to get the sensors to start
-            sensors.begin();
 
             numSensors = sensors.getDeviceCount();
 
+            if (numSensors == 0) {
+                Serial.println("[ERROR] No DS sensors found");
+                return;
+            } 
             // Start task to get temperature
             xTaskCreatePinnedToCore(
-                    tempTask,           /* Function to implement the task */
-                    "DS",              /* Name of the task */
-                    1024,               /* Stack size in words */
-                    NULL,               /* Task input parameter */
-                    5,                  /* Priority of the task */
-                    &DSTempTaskHandle, /* Task handle. */
-                    1);                 /* Core where the task should run */
+                tempTask,           /* Function to implement the task */
+                "DS",               /* Name of the task */
+                1024,               /* Stack size in words */
+                NULL,               /* Task input parameter */
+                5,                  /* Priority of the task */
+                &DSTempTaskHandle,  /* Task handle. */
+                1);                 /* Core where the task should run */
 
             if (DSTempTaskHandle == NULL)
             {
                 Serial.println("[ERROR] Failed to start task for temperature update");
-            }
-            else
-            {
-                // Start update of environment data every 10 seconds
-                tempTicker.attach(dsUpdateTime, triggerGetTemp);
+                return;
             }
 
             // Signal end of setup() to tasks
@@ -128,9 +125,10 @@ namespace DS18B20
         if (gotNewTemperature)
         {
             for (int i = 0; i < numSensors; i++){
-                float temperature = sensors.getTempCByIndex(i) + dsTempOffset;
+                float rawTemp = sensors.getTempCByIndex(i);
+                float temperature = rawTemp + dsTempOffset;
                 Serial.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
-                if( sensors.getTempCByIndex(i) > -127) // Skip null values
+                if( rawTemp > -127) // Skip null values
                 {
                     pub((roomsTopic + "/ds18b20_temperature_" + String(i+1)).c_str(), 0, 1, String(temperature, 1).c_str());
                 }
@@ -138,6 +136,9 @@ namespace DS18B20
 
             gotNewTemperature = false;
         }
+
+        // since the sensor is slow (up to 750ms to read the temperature), no point in checking too often
+        delay(dsWaitTimeMs / 4);
     }
 
     bool SendDiscovery()
