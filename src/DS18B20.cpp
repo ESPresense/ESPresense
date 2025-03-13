@@ -10,7 +10,6 @@
 
 #include <DallasTemperature.h>
 #include <OneWire.h>
-#include <Ticker.h>
 
 
 namespace DS18B20
