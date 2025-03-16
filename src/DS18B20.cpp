@@ -37,8 +37,8 @@ namespace DS18B20
     /** update temp every 20 seconds */
     int dsUpdateTimeS = 20;
 
-    /** setup delay before first read to give the sensor time to settle after initialization, seconds*/
-    int dsFirstReadDelayS = 10;
+    /** setup delay before first read to give the sensor time to settle after initialization, seconds */
+    int dsFirstReadDelayS = 2;
 
     /** wait for temps delay, milliseconds; datasheet says 750ms max */
     int dsWaitTimeMs = 750;
@@ -55,6 +55,16 @@ namespace DS18B20
             // avoid 85 C readings on initialization
             if (!initialReadDone) {
                 delay(dsFirstReadDelayS * 1000);
+                bool allReadsOk = true;
+                for (int i = 0; i < numSensors; i++) {
+                    float rawTemp = sensors.getTempCByIndex(i);
+                    if (rawTemp == 85) {
+                        allReadsOk = false;
+                    }
+                }
+                if (!allReadsOk) {
+                    continue;
+                }
                 initialReadDone = true;
             }
 
