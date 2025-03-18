@@ -13,7 +13,7 @@ public:
 
     void addMeasurement(float rssi);
     float getDistanceVariance(float refRSSI, float pathLossExponent);
-    float getVariance();
+    float getRSSIVariance();
     float getPercentileRSSI(float percentile);
     float getP75RSSI();
     uint16_t getReadingCount();
