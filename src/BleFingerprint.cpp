@@ -29,7 +29,9 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice){
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
+    rssiVar = other.rssiVar;
     dist = other.dist;
+    distVar = other.distVar;
     raw = other.raw;
     adaptivePercentileRSSI = other.adaptivePercentileRSSI;
 }
@@ -421,8 +423,9 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     raw = advertisedDevice->getRSSI();
     adaptivePercentileRSSI.addMeasurement(raw);
     rssi = adaptivePercentileRSSI.getP75RSSI();
+    rssiVar = adaptivePercentileRSSI.getRSSIVariance();
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    vari = adaptivePercentileRSSI.getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    distVar = adaptivePercentileRSSI.getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
@@ -440,10 +443,10 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     (*doc)[F("rssi@1m")] = get1mRssi();
     if (isnormal(rssi)) (*doc)[F("rssi")] = serialized(String(rssi, 2));
-    if (isnormal(raw)) (*doc)[F("last")] = serialized(String(raw, 2));
+    if (isnormal(rssiVar)) (*doc)[F("rssiVar")] = serialized(String(rssiVar, 2));
+
     if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
-    if (isnormal(vari)) (*doc)[F("var")] = serialized(String(vari, 2));
-    (*doc)[F("cnt")] = adaptivePercentileRSSI.getReadingCount();
+    if (isnormal(distVar)) (*doc)[F("var")] = serialized(String(distVar, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;

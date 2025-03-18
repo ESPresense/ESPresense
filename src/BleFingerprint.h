@@ -129,10 +129,10 @@ class BleFingerprint {
     NimBLEAddress address;
     String id, name;
     short int idType = NO_ID_TYPE;
-    float rssi = NO_RSSI;
+    float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
-    float raw = 0, dist = 0, vari = 0, lastReported = 0, temp = 0, humidity = 0;
+    float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
