@@ -78,41 +78,60 @@ void checkForUpdates() {
 }
 
 void firmwareUpdate() {
+    String url = updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl();
+    bool isSecure = url.startsWith("https://");
 
-    WiFiClientSecure client;
-    client.setTimeout(12);
-    client.setHandshakeTimeout(8);
-    client.setInsecure();
-    {  // WiFiClientSecure needs to be destroyed after HttpReleaseUpdate
-        HttpReleaseUpdate httpUpdate;
-        httpUpdate.onStart([](void) {
-            autoUpdateAttempts++;
-            updateStartedMillis = millis();
-            GUI::Update(UPDATE_STARTED);
-            HttpWebServer::UpdateStart();
-        });
-        httpUpdate.onEnd([](bool success) {
-            if (success)
-                SPIFFS.remove("/update");
-            updateStartedMillis = 0;
-            GUI::Update(UPDATE_COMPLETE);
-            HttpWebServer::UpdateEnd();
-        });
-        httpUpdate.onProgress([](int progress, int total) {
-            GUI::Update((progress / (total / 100)));
-        });
-        auto ret = httpUpdate.update(client, updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl());
-        switch (ret) {
-            case HTTP_UPDATE_FAILED:
-                Serial.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-                break;
-            case HTTP_UPDATE_NO_UPDATES:
-                Serial.printf("No Update!\r\n");
-                break;
-            case HTTP_UPDATE_OK:
-                Serial.printf("Update OK!\r\n");
-                break;
+    HttpReleaseUpdate httpUpdate;
+
+    httpUpdate.onStart([url]() {
+        autoUpdateAttempts++;
+        updateStartedMillis = millis();
+        GUI::Update(UPDATE_STARTED);
+        HttpWebServer::UpdateStart();
+        Serial.printf("Starting firmware update from: %s\n", url.c_str());
+    });
+
+    httpUpdate.onProgress([](int progress, int total) {
+        int percentage = total > 0 ? (progress * 100) / total : 0;
+        GUI::Update(percentage);
+    });
+
+    httpUpdate.onEnd([](bool success) {
+        if (success) {
+            SPIFFS.remove("/update");
+            Serial.println("Firmware update completed successfully!");
+        } else {
+            Serial.println("Firmware update failed to apply");
         }
+        updateStartedMillis = 0;
+        GUI::Update(UPDATE_COMPLETE);
+        HttpWebServer::UpdateEnd();
+    });
+
+    HttpUpdateResult ret;
+
+    if (isSecure) {
+        WiFiClientSecure secureClient;
+        secureClient.setHandshakeTimeout(8);
+        secureClient.setInsecure();     // Allow self-signed certificates
+        secureClient.setTimeout(12);
+        ret = httpUpdate.update(secureClient, url);
+    } else {
+        WiFiClient insecureClient;
+        insecureClient.setTimeout(12);
+        ret = httpUpdate.update(insecureClient, url);
+    }
+
+    switch (ret) {
+        case HTTP_UPDATE_FAILED:
+            Serial.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            break;
+        case HTTP_UPDATE_NO_UPDATES:
+            Serial.printf("No Update!\r\n");
+            break;
+        case HTTP_UPDATE_OK:
+            Serial.printf("Update OK!\r\n");
+            break;
     }
 }
 
