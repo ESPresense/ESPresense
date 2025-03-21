@@ -20,8 +20,10 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice){
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
-    raw = rssi = advertisedDevice->getRSSI();
-    dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    raw = advertisedDevice->getRSSI();
+    rssi = raw - BleFingerprintCollection::rxAdjRssi;
+    adaptivePercentileRSSI.addMeasurement(rssi);
+    dist = pow(10, ((float)get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
@@ -91,11 +93,11 @@ const String BleFingerprint::getMac() const {
 }
 
 const int BleFingerprint::get1mRssi() const {
-    if (calRssi != NO_RSSI) return calRssi + BleFingerprintCollection::rxAdjRssi;
-    if (bcnRssi != NO_RSSI) return bcnRssi + BleFingerprintCollection::rxAdjRssi;
-    if (mdRssi != NO_RSSI) return mdRssi + BleFingerprintCollection::rxAdjRssi;
-    if (asRssi != NO_RSSI) return asRssi + BleFingerprintCollection::rxAdjRssi;
-    return BleFingerprintCollection::rxRefRssi + DEFAULT_TX + BleFingerprintCollection::rxAdjRssi;
+    if (calRssi != NO_RSSI) return calRssi;
+    if (bcnRssi != NO_RSSI) return bcnRssi;
+    if (mdRssi != NO_RSSI) return mdRssi;
+    if (asRssi != NO_RSSI) return asRssi;
+    return BleFingerprintCollection::rxRefRssi + DEFAULT_TX;
 }
 
 void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
@@ -421,7 +423,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    adaptivePercentileRSSI.addMeasurement(raw);
+    adaptivePercentileRSSI.addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
     rssi = adaptivePercentileRSSI.getP75RSSI();
     rssiVar = adaptivePercentileRSSI.getRSSIVariance();
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
@@ -439,14 +441,15 @@ bool BleFingerprint::fill(JsonObject *doc) {
     (*doc)[F("mac")] = getMac();
     (*doc)[F("id")] = id;
     if (!name.isEmpty()) (*doc)[F("name")] = name;
-    if (idType) (*doc)[F("idType")] = idType;
 
-    (*doc)[F("rssi@1m")] = get1mRssi();
-    if (isnormal(rssi)) (*doc)[F("rssi")] = serialized(String(rssi, 2));
+    auto refRssi = get1mRssi();
+    if (refRssi > NO_RSSI) (*doc)[F("rssi@1m")] = refRssi;
+    if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)[F("rssi")] = serialized(String(rssi, 2));
+    (*doc)[F("rxAdj")] = BleFingerprintCollection::rxAdjRssi;
     if (isnormal(rssiVar)) (*doc)[F("rssiVar")] = serialized(String(rssiVar, 2));
 
-    if (isnormal(dist)) (*doc)[F("distance")] = serialized(String(dist, 2));
-    if (isnormal(distVar)) (*doc)[F("var")] = serialized(String(distVar, 2));
+    if (isnormal(dist) || dist == 0) (*doc)[F("distance")] = serialized(String(dist, 2));
+    if (isnormal(distVar) || distVar == 0) (*doc)[F("var")] = serialized(String(distVar, 2));
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
