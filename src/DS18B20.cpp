@@ -54,6 +54,7 @@ namespace DS18B20
         {
             // avoid 85 C readings on initialization
             if (!initialReadDone) {
+                sensors.requestTemperatures();
                 delay(dsFirstReadDelayS * 1000);
                 bool allReadsOk = true;
                 for (int i = 0; i < numSensors; i++) {
