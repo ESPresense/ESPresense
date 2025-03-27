@@ -12,6 +12,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
+            && pub((roomsTopic + "/name").c_str(), 0, true, room.c_str())
             && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str())
             && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str())
             && pub((roomsTopic + "/tx_ref_rssi").c_str(), 0, true, String(BleFingerprintCollection::txRefRssi).c_str())
@@ -296,6 +297,8 @@ void onMqttMessage(const char *topic, const char *payload) {
             ESP.restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
+        else if (command == "name")
+            spurt("/room", pay.isEmpty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))
             ;
         else if (Motion::Command(command, pay))
