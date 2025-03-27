@@ -207,7 +207,7 @@ void AdaptivePercentileRSSI::setTimeWindow(uint32_t newTimeWindowMs) {
     adjustBufferSize(millis());
 }
 
-float AdaptivePercentileRSSI::getVariance() {
+float AdaptivePercentileRSSI::getRSSIVariance() {
     if (count < 2) return 0;
 
     uint32_t currentTime = millis();

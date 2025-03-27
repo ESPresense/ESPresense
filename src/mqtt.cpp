@@ -225,7 +225,7 @@ bool sendConfig(const String &id, const String &alias, const String &name = "", 
     doc.clear();
     doc["id"] = alias;
     doc["name"] = name;
-    if (calRssi > -128) doc["rssi@1m"] = calRssi;
+    if (calRssi > NO_RSSI) doc["rssi@1m"] = calRssi;
 
     const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, doc);
