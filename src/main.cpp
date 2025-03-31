@@ -324,16 +324,47 @@ void onMqttMessage(const char *topic, const char *payload) {
 
 std::string payload_buffer_;
 void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-    if (index == 0)
+    if (index == 0) {
+        // Add safety check for unreasonably large messages
+        if (total > 4096) {  // 4KB max message size
+            Serial.printf("Error: MQTT message too large (%u bytes)\r\n", total);
+            payload_buffer_.clear();
+            return;
+        }
+
+        // Clear any previous data first
+        payload_buffer_.clear();
+
+        // Reserve space for the message - this can fail silently
+        size_t oldCapacity = payload_buffer_.capacity();
         payload_buffer_.reserve(total);
 
-    // append new payload, may contain incomplete MQTT message
-    payload_buffer_.append(payload, len);
+        // Check if reserve actually worked by comparing capacities
+        if (payload_buffer_.capacity() < total) {
+            Serial.printf("Error: Failed to reserve memory for MQTT message (%u bytes)\r\n", total);
+            payload_buffer_.clear();
+            return;
+        }
+    }
 
-    // MQTT fully received
-    if (len + index == total) {
-        onMqttMessage(topic, payload_buffer_.data());
-        payload_buffer_.clear();
+    // Only append if we have a valid buffer with enough capacity
+    if (payload_buffer_.capacity() >= total) {
+        // Append new payload, may contain incomplete MQTT message
+        size_t oldSize = payload_buffer_.size();
+        payload_buffer_.append(payload, len);
+
+        // Check if append actually worked by comparing sizes
+        if (payload_buffer_.size() != oldSize + len) {
+            Serial.printf("Error: Failed to append to MQTT buffer\r\n");
+            payload_buffer_.clear();
+            return;
+        }
+
+        // MQTT fully received
+        if (len + index == total) {
+            onMqttMessage(topic, payload_buffer_.data());
+            payload_buffer_.clear();
+        }
     }
 }
 
