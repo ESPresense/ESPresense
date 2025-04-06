@@ -169,6 +169,7 @@ void setupNetwork() {
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1"};
     ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    mDNS = HeadlessWiFiSettings.checkbox("mdns", DEFAULT_MDNS, "Advertise mDNS");
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = HeadlessWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
@@ -239,6 +240,13 @@ void setupNetwork() {
     if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
+
+    if (mDNS && !MDNS.begin(HeadlessWiFiSettings.hostname.c_str())) {
+        Serial.println("Error setting up MDNS responder!");
+        while(1) {
+            delay(1000);
+        }
+    }
 
     GUI::Connected(true, false);
 

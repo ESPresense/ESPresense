@@ -15,6 +15,8 @@
 #define DEFAULT_PORTAL_TIMEOUT 300
 #endif
 
+#define DEFAULT_MDNS false
+
 #define UPDATE_STARTED -255
 #define UPDATE_COMPLETE 255
 

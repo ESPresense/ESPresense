@@ -190,6 +190,15 @@
                 </select>
             </div>
 
+            <!-- mDNS -->
+            <h2 class="text-xl font-semibold">mDNS</h2>
+            <div class="space-y-4">
+                <label class="flex items-center space-x-2">
+                    <input type="checkbox" name="mdns" value="1" bind:checked={$mainSettings.values.mdns} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>Advertise mDNS</span>
+                </label>
+            </div>
+
             <!-- MQTT Configuration -->
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>
