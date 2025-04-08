@@ -63,6 +63,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && SHT::SendDiscovery()
             && TSL2561::SendDiscovery()
             && SensirionSGP30::SendDiscovery()
+            && SensirionSCD4x::SendDiscovery()
             && HX711::SendDiscovery()
             && DS18B20::SendDiscovery()
 #endif
@@ -171,6 +172,7 @@ void setupNetwork() {
     SHT::ConnectToWifi();
     TSL2561::ConnectToWifi();
     SensirionSGP30::ConnectToWifi();
+    SensirionSCD4x::ConnectToWifi();
     HX711::ConnectToWifi();
     DS18B20::ConnectToWifi();
 #endif
@@ -233,6 +235,7 @@ void setupNetwork() {
     SHT::SerialReport();
     TSL2561::SerialReport();
     SensirionSGP30::SerialReport();
+    SensirionSCD4x::SerialReport();
     HX711::SerialReport();
     DS18B20::SerialReport();
 
@@ -523,6 +526,7 @@ void setup() {
     SHT::Setup();
     TSL2561::Setup();
     SensirionSGP30::Setup();
+    SensirionSCD4x::Setup();
     HX711::Setup();
     DS18B20::Setup();
 #endif
@@ -560,6 +564,7 @@ void loop() {
     SHT::Loop();
     TSL2561::Loop();
     SensirionSGP30::Loop();
+    SensirionSCD4x::Loop();
     HX711::Loop();
     DS18B20::Loop();
 #endif
