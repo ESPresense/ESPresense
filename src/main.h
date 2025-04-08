@@ -44,6 +44,7 @@
 #include "HX711.h"
 #include "SHT.h"
 #include "SensirionSGP30.h"
+#include "SensirionSCD4x.h"
 #include "TSL2561.h"
 #include "DS18B20.h"
 #endif

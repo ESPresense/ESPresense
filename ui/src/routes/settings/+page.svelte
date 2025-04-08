@@ -908,6 +908,26 @@
                 <input name="SGP30_I2c" bind:value={$extraSettings.values['SGP30_I2c']}/>
             </label>
         </p>
+        <h4>SCD4x - CO₂, Temperature and Humidity Sensor:</h4>
+        <p>
+            <label>
+                I2C Bus:<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    max="2"
+                    name="SCD4x_I2c_Bus"
+                    placeholder={$extraSettings.defaults['SCD4x_I2c_Bus']}
+                    bind:value={$extraSettings.values['SCD4x_I2c_Bus']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                I2C address (0x62):<br />
+                <input name="SCD4x_I2c" bind:value={$extraSettings.values['SCD4x_I2c']}/>
+            </label>
+        </p>
         <h4>HX711 - Weight Sensor:</h4>
         <p>
             <label>
