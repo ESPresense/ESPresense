@@ -241,10 +241,12 @@ void setupNetwork() {
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
-    if (mDNS && !MDNS.begin(HeadlessWiFiSettings.hostname.c_str())) {
-        Serial.println("Error setting up MDNS responder!");
-        while(1) {
-            delay(1000);
+    if (mDNS) {
+        if (!MDNS.begin(HeadlessWiFiSettings.hostname.c_str())) {
+            Serial.println("Error setting up MDNS responder! Continuing without mDNS.");
+        } else {
+            Serial.printf("mDNS responder started, device accessible at: %s.local\n", 
+                          HeadlessWiFiSettings.hostname.c_str());
         }
     }
 
