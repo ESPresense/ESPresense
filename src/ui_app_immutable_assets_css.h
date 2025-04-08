@@ -6,9 +6,9 @@
 #include <ESPAsyncWebServer.h>
 #include <Arduino.h>
 
-// app/immutable/assets/index.DN2mWWgh.css
-const uint16_t APP_IMMUTABLE_ASSETS_INDEX_DN2MWWGH_CSS_L = 4419;
-const uint8_t APP_IMMUTABLE_ASSETS_INDEX_DN2MWWGH_CSS[] PROGMEM = {
+// app/immutable/assets/internal.DN2mWWgh.css
+const uint16_t APP_IMMUTABLE_ASSETS_INTERNAL_DN2MWWGH_CSS_L = 4419;
+const uint8_t APP_IMMUTABLE_ASSETS_INTERNAL_DN2MWWGH_CSS[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xec, 0x58, 0x07, 0x97, 0xa3, 0x38,
   0x12, 0xfe, 0x2b, 0xde, 0xdc, 0x7d, 0x4f, 0xf2, 0x39, 0x4e, 0xc0, 0x97, 0x73, 0xce, 0xf7, 0xc2,
   0x66, 0x01, 0x85, 0xd1, 0x8e, 0x90, 0x38, 0x49, 0xb4, 0xed, 0xe1, 0xf1, 0xdf, 0x4f, 0x81, 0xc2,
@@ -288,15 +288,15 @@ const uint8_t APP_IMMUTABLE_ASSETS_INDEX_DN2MWWGH_CSS[] PROGMEM = {
   0x61, 0x00, 0x00
 };
 
-inline void serveAppImmutableAssetsIndexDn2mWWghCss(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_INDEX_DN2MWWGH_CSS, APP_IMMUTABLE_ASSETS_INDEX_DN2MWWGH_CSS_L);
+inline void serveAppImmutableAssetsInternalDn2mWWghCss(AsyncWebServerRequest* request) {
+  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_INTERNAL_DN2MWWGH_CSS, APP_IMMUTABLE_ASSETS_INTERNAL_DN2MWWGH_CSS_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
 
-// app/immutable/assets/index.BfkQNPT2.css
-const uint16_t APP_IMMUTABLE_ASSETS_INDEX_BFKQNPT2_CSS_L = 4454;
-const uint8_t APP_IMMUTABLE_ASSETS_INDEX_BFKQNPT2_CSS[] PROGMEM = {
+// app/immutable/assets/start.BfkQNPT2.css
+const uint16_t APP_IMMUTABLE_ASSETS_START_BFKQNPT2_CSS_L = 4454;
+const uint8_t APP_IMMUTABLE_ASSETS_START_BFKQNPT2_CSS[] PROGMEM = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0xec, 0x58, 0x07, 0x9b, 0xb3, 0x38,
   0x0e, 0xfe, 0x2b, 0xd9, 0x3e, 0xd9, 0x07, 0x73, 0x49, 0xa6, 0x7c, 0xdf, 0x92, 0xeb, 0xbd, 0xf7,
   0x7e, 0xb7, 0xc5, 0x80, 0x08, 0xde, 0x31, 0x36, 0x67, 0x9b, 0x49, 0x18, 0x1e, 0xee, 0xb7, 0x9f,
@@ -578,8 +578,8 @@ const uint8_t APP_IMMUTABLE_ASSETS_INDEX_BFKQNPT2_CSS[] PROGMEM = {
   0xc0, 0xf0, 0xa9, 0x63, 0x00, 0x00
 };
 
-inline void serveAppImmutableAssetsIndexBfkQnpt2Css(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_INDEX_BFKQNPT2_CSS, APP_IMMUTABLE_ASSETS_INDEX_BFKQNPT2_CSS_L);
+inline void serveAppImmutableAssetsStartBfkQnpt2Css(AsyncWebServerRequest* request) {
+  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_START_BFKQNPT2_CSS, APP_IMMUTABLE_ASSETS_START_BFKQNPT2_CSS_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
