@@ -150,7 +150,7 @@
     let tableRows = $derived($devices?.devices || []);
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm">
     {#if $devices != null}
         <div class="p-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Fingerprints</h2>
@@ -171,8 +171,8 @@
                     {classNameRow}
                     classNameRowSelected="bg-blue-50 dark:bg-blue-900"
                     classNameCell="text-sm text-gray-900 dark:text-gray-300"
-                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
+                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                 />
             </div>
         </div>
