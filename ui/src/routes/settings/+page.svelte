@@ -48,7 +48,7 @@
     }
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm p-6">
     {#if $extraSettings?.values != null}
     <form action="wifi/extras" method="post" id="extras" onsubmit={handleSubmit} class="space-y-6">
         <h2>
@@ -977,7 +977,7 @@
             </label>
         </p>
         <div class="flex justify-end">
-            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
+            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-hidden focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                 {s ? "Saving..." : "Save"}
             </button>
         </div>
@@ -986,6 +986,7 @@
 </div>
 
 <style>
+    @reference "tailwindcss";
     :global(input:not([type^="checkbox"])) {
         @apply mt-1 block w-full border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500;
     }
