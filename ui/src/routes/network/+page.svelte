@@ -91,7 +91,7 @@
     const mainSettingsData = $derived($mainSettings as MainSettings);
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm p-6">
     {#if mainSettingsData != null && $mainSettings?.defaults != null && $mainSettings?.values != null}
         <form onsubmit={handleSubmit} class="space-y-6">
             <!-- Room Configuration -->
@@ -116,7 +116,7 @@
             </div>
 
             <div>
-                <div class="bg-gray-50 dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
+                <div class="bg-gray-50 dark:bg-gray-900 rounded-xl shadow-xs border border-gray-200 dark:border-gray-600">
                     <div class="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
                         <label class="text-base font-medium dark:text-white">Available Networks</label>
                         {#if isScanning}
@@ -129,7 +129,7 @@
                                 onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
                                 class="flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                             >
-                                <div class="flex-grow">
+                                <div class="grow">
                                     <div class="text-base dark:text-white">{ssid}</div>
                                 </div>
                                 <div class="flex items-center space-x-2">
@@ -209,7 +209,7 @@
 
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="discovery" value="1" bind:checked={$mainSettings.values.discovery} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="discovery" value="1" bind:checked={$mainSettings.values.discovery} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to discovery topic</span>
                 </label>
 
@@ -219,12 +219,12 @@
                 </div>
 
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="pub_tele" value="1" bind:checked={$mainSettings.values.pub_tele} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="pub_tele" value="1" bind:checked={$mainSettings.values.pub_tele} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to telemetry topic</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="pub_devices" value="1" bind:checked={$mainSettings.values.pub_devices} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="pub_devices" value="1" bind:checked={$mainSettings.values.pub_devices} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to devices topic</span>
                 </label>
             </div>
@@ -233,17 +233,17 @@
             <h2 class="text-xl font-semibold">Updating</h2>
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Automatically update</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="prerelease" value="1" bind:checked={$mainSettings.values.prerelease} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="prerelease" value="1" bind:checked={$mainSettings.values.prerelease} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Include pre-released versions in auto-update</span>
                 </label>
 
                 <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="arduino_ota" value="1" bind:checked={$mainSettings.values.arduino_ota} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input type="checkbox" name="arduino_ota" value="1" bind:checked={$mainSettings.values.arduino_ota} class="h-4 w-4 rounded-sm border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Arduino OTA Update</span>
                 </label>
 
@@ -254,7 +254,7 @@
             </div>
 
             <div class="flex justify-end">
-                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
+                <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-hidden focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                     {s ? "Saving..." : "Save"}
                 </button>
             </div>
@@ -263,6 +263,7 @@
 </div>
 
 <style>
+    @reference "tailwindcss";
     :global(input:not([type="checkbox"])) {
         @apply border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500;
     }
