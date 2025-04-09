@@ -212,13 +212,13 @@
     }
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm">
     <div class="p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
             <button
                 onclick={() => (showModal = true)}
-                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-hidden focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
             >
                 Enroll
             </button>
@@ -242,8 +242,8 @@
                     {classNameRow}
                     classNameRowSelected="bg-blue-50 dark:bg-blue-900"
                     classNameCell="text-sm text-gray-900 dark:text-gray-300"
-                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
+                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                     on:clickRow={onRowClick}
                 />
             </div>
@@ -280,7 +280,7 @@
                             <div class="space-y-4">
                                 <select
                                     bind:value={deviceType}
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                 >
                                     <option value="">Select device type</option>
                                     {#each deviceTypes as type}
@@ -288,13 +288,13 @@
                                     {/each}
                                 </select>
                                 <input
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                     type="text"
                                     bind:value={name}
                                     placeholder="Enter name"
                                 />
                                 <input
-                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                     type="text"
                                     bind:value={id}
                                     placeholder={name ? (deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name)) : "Enter custom ID or leave empty for auto-generated"}
@@ -312,14 +312,14 @@
                         <button
                             onclick={onEnroll}
                             disabled={!name}
-                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-hidden focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Enroll
                         </button>
                     {/if}
                     <button
                         onclick={onClose}
-                        class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                        class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-hidden focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
                     >
                         Close
                     </button>
@@ -346,7 +346,7 @@
                             <label for="edit-device-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ID</label>
                             <input
                                 id="edit-device-id"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                 type="text"
                                 bind:value={editingConfig.id}
                                 readonly
@@ -356,7 +356,7 @@
                             <label for="edit-device-alias" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alias</label>
                             <input
                                 id="edit-device-alias"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                 type="text"
                                 bind:value={editingConfig.alias}
                             />
@@ -365,7 +365,7 @@
                             <label for="edit-device-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                             <input
                                 id="edit-device-name"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                 type="text"
                                 bind:value={editingConfig.name}
                             />
@@ -374,7 +374,7 @@
                             <label for="edit-device-rssi" class="block text-sm font-medium text-gray-700 dark:text-gray-300">RSSI at 1m (dBm)</label>
                             <input
                                 id="edit-device-rssi"
-                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-xs focus:border-blue-500 focus:ring-blue-500"
                                 type="number"
                                 bind:value={editingConfig["rssi@1m"]}
                             />
@@ -384,20 +384,20 @@
                 <div class="flex items-center justify-between p-6 space-x-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                         onclick={onDeleteConfig}
-                        class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-800"
+                        class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:outline-hidden focus:ring-red-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-800"
                     >
                         Delete
                     </button>
                     <div class="flex items-center space-x-4">
                         <button
                             onclick={onSaveEdit}
-                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-hidden focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
                         >
                             Save
                         </button>
                         <button
                             onclick={onCloseEdit}
-                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-hidden focus:ring-blue-300 rounded-lg border border-gray-200 text-sm font-medium px-5 py-2.5 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
                         >
                             Cancel
                         </button>

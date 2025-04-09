@@ -2,9 +2,11 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { cppPlugin } from './plugins/cpp';
 import strip from '@rollup/plugin-strip';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
+        tailwindcss(),
         sveltekit(),
         strip({
             include: '**/*.(js|ts|svelte)',
