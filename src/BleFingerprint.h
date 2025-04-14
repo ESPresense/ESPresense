@@ -125,7 +125,7 @@ class BleFingerprint {
 
    private:
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
     NimBLEAddress address;
     String id, name;
     short int idType = NO_ID_TYPE;

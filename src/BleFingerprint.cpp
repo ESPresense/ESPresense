@@ -80,6 +80,7 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
             }
         }
         id = newId;
+        isNode = newId.startsWith("node:");
         hidden = newHidden;
         added = false;
     }
@@ -466,7 +467,7 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (reported) return false;
 
     auto maxDistance = BleFingerprintCollection::maxDistance;
-    if (maxDistance > 0 && dist > maxDistance)
+    if (maxDistance > 0 && dist > maxDistance && !isNode)
         return false;
 
     auto now = millis();
