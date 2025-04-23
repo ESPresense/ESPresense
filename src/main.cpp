@@ -458,11 +458,11 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setScanCallbacks(new MyAdvertisedDeviceCallbacks(), true);
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-    if (!pBLEScan->start(0, nullptr, false))
+    if (!pBLEScan->start(0, false, true))
         log_e("Error starting continuous ble scan");
 
     while (true) {
@@ -473,7 +473,7 @@ void scanTask(void *parameter) {
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
-            if (!pBLEScan->start(0, nullptr, true))
+            if (!pBLEScan->start(0, false, true))
                 log_e("Error re-starting continuous ble scan");
             delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
         } else {

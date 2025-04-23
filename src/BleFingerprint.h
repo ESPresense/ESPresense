@@ -5,7 +5,6 @@
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
 #include <NimBLEEddystoneTLM.h>
-#include <NimBLEEddystoneURL.h>
 
 #include <memory>
 
