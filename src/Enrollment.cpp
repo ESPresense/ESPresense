@@ -16,6 +16,7 @@ static const char hex_digits[] = "0123456789abcdef";
 static String newName, newId;
 static unsigned long lastLoop = 0;
 static int connectionToEnroll = -1;
+static bool authComplete = false;
 static uint16_t major, minor;
 static NimBLEServer *pServer;
 static NimBLEAdvertisementData *oAdvertisementData;
@@ -33,8 +34,11 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         Serial.print("Connected to: ");
         Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         if (enrolling) {
-            NimBLEDevice::startSecurity(desc->conn_handle);
+            Serial.println("Starting security");
+            authComplete = false;
             connectionToEnroll = desc->conn_handle;
+            NimBLEDevice::startSecurity(desc->conn_handle);
+            Serial.printf("Connection to enroll: %d\r\n", connectionToEnroll);
         }
     };
 
@@ -51,6 +55,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
         Serial.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
+        authComplete = true;
     }
 };
 
@@ -66,44 +71,12 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         Serial.print(": onWrite(), value: ");
         Serial.println(pCharacteristic->getValue().c_str());
     };
-
-    void onNotify(NimBLECharacteristic *pCharacteristic) {
-        // Serial.println("Sending notification to clients");
-    };
-
-    void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
-        /*             String str = ("Notification/Indication status code: ");
-                    str += status;
-                    str += ", return code: ";
-                    str += code;
-                    str += ", ";
-                    str += NimBLEUtils::returnCodeToString(code);
-                    Serial.println(str); */
-    };
-
-    void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
-        String str = "Client ID: ";
-        str += desc->conn_handle;
-        str += " Address: ";
-        str += std::string(NimBLEAddress(desc->peer_ota_addr)).c_str();
-        if (subValue == 0) {
-            str += " Unsubscribed to ";
-        } else if (subValue == 1) {
-            str += " Subscribed to notfications for ";
-        } else if (subValue == 2) {
-            str += " Subscribed to indications for ";
-        } else if (subValue == 3) {
-            str += " Subscribed to notifications and indications for ";
-        }
-        str += std::string(pCharacteristic->getUUID()).c_str();
-        Serial.println(str);
-    };
 };
 
 class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
     void onWrite(NimBLEDescriptor *pDescriptor) {
         std::string dscVal = pDescriptor->getValue();
-        Serial.print("Descriptor witten value:");
+        Serial.print("Descriptor written value:");
         Serial.println(dscVal.c_str());
     };
 
@@ -184,15 +157,16 @@ void Setup() {
     major = (nodeId & 0xFFFF0000) >> 16;
     minor = nodeId & 0xFFFF;
 
-    BLEBeacon oBeacon = BLEBeacon();
+    BLEBeacon oBeacon;
     oBeacon.setManufacturerId(0x4C00);
     oBeacon.setProximityUUID(espresenseUUID);
     oBeacon.setMajor(major);
     oBeacon.setMinor(minor);
     oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
+
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
-    oAdvertisementData->setManufacturerData(oBeacon.getData());
+    oAdvertisementData->setManufacturerData(reinterpret_cast<const uint8_t*>(&oBeacon.getData()), sizeof(BLEBeacon::BeaconData));
 
     pServer->start();
 }
@@ -200,24 +174,23 @@ void Setup() {
 bool Loop() {
     static bool lastEnrolling = true;
     if (enrolling != lastEnrolling) {
-        auto pAdvertising = NimBLEDevice::getAdvertising();
+        auto adv = NimBLEDevice::getAdvertising();
         if (enrolling) {
-            pAdvertising->reset();
-            pAdvertising->setScanResponse(true);
-            pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-            pAdvertising->setMinPreferred(0x12);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
-            pAdvertising->addServiceUUID(heartRate->getUUID());
-            pAdvertising->start();
+            adv->reset();
+            adv->enableScanResponse(true);
+            adv->setPreferredParams(0x06, 0x60);
+            adv->setConnectableMode(BLE_GAP_CONN_MODE_UND);
+            adv->addServiceUUID(heartRate->getUUID());
             Serial.printf("%u Advert | HRM\r\n", xPortGetCoreID());
+
         } else {
-            pAdvertising->reset();
-            pAdvertising->setScanResponse(false);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
-            pAdvertising->setAdvertisementData(*oAdvertisementData);
-            pAdvertising->start();
+            adv->reset();
+            adv->enableScanResponse(false);
+            adv->setConnectableMode(BLE_GAP_CONN_MODE_NON);
+            adv->setAdvertisementData(*oAdvertisementData);
             Serial.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
+        adv->start();
         lastEnrolling = enrolling;
         HttpWebServer::SendState();
     }
@@ -236,23 +209,25 @@ bool Loop() {
                 NimBLECharacteristic *pChr = pSvc->getCharacteristic("2A37");
                 if (pChr) {
                     uint8_t heartRate = (uint8_t)(micros() & 0xFF);
-                    uint8_t heartRateMeasurement[2] = { 0b00000110, heartRate };
+                    uint8_t heartRateMeasurement[2] = {0b00000110, heartRate};
                     pChr->setValue(heartRateMeasurement, 2);
                     pChr->notify();
                 }
             }
 
-            if (enrolling && connectionToEnroll > -1) {
+            if (enrolling && authComplete && connectionToEnroll > -1) {
                 std::string irk;
                 if (tryGetIrkFromConnection(connectionToEnroll, irk)) {
                     if (newId.isEmpty()) newId = newName.isEmpty() ? String("irk:") + irk.c_str() : slugify(newName);
                     sendConfig(String("irk:") + irk.c_str(), newId, newName);
                     enrolledId = newId;
                     newId = newName = "";
-                    enrolling = false;
-                    pServer->disconnect(connectionToEnroll);
-                    connectionToEnroll = -1;
+                } else {
+                    Serial.println("Failed to get IRK");
                 }
+                enrolling = false;
+                pServer->disconnect(connectionToEnroll);
+                connectionToEnroll = -1;
             }
         }
     }
