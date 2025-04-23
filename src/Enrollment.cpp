@@ -33,7 +33,6 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         Serial.print("Connected to: ");
         Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         if (enrolling) {
-            NimBLEDevice::startSecurity(desc->conn_handle);
             connectionToEnroll = desc->conn_handle;
         }
     };
@@ -68,17 +67,17 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     };
 
     void onNotify(NimBLECharacteristic *pCharacteristic) {
-        // Serial.println("Sending notification to clients");
+        Serial.println("Sending notification to clients");
     };
 
     void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
-        /*             String str = ("Notification/Indication status code: ");
-                    str += status;
-                    str += ", return code: ";
-                    str += code;
-                    str += ", ";
-                    str += NimBLEUtils::returnCodeToString(code);
-                    Serial.println(str); */
+        String str = ("Notification/Indication status code: ");
+        str += status;
+        str += ", return code: ";
+        str += code;
+        str += ", ";
+        str += NimBLEUtils::returnCodeToString(code);
+        Serial.println(str);
     };
 
     void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
@@ -156,6 +155,8 @@ bool tryGetIrkFromConnection(uint16_t conn_handle, std::string &irk) {
 }
 
 void Setup() {
+    NimBLEDevice::setSecurityInitKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
+    NimBLEDevice::setSecurityRespKey(BLE_SM_PAIR_KEY_DIST_ENC | BLE_SM_PAIR_KEY_DIST_ID);
     NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
     NimBLEDevice::setSecurityAuth(true, true, true);
 
@@ -163,17 +164,17 @@ void Setup() {
     pServer->setCallbacks(new ServerCallbacks());
 
     heartRate = pServer->createService("180D");
-    NimBLECharacteristic *bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY, 2);
+    NimBLECharacteristic *bpm = heartRate->createCharacteristic("2A37", NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ_ENC, 2);
     bpm->setCallbacks(&chrCallbacks);
 
     deviceInfo = pServer->createService("180A");
-    NimBLECharacteristic *manufName = deviceInfo->createCharacteristic("2A29", NIMBLE_PROPERTY::READ);
+    NimBLECharacteristic *manufName = deviceInfo->createCharacteristic("2A29", NIMBLE_PROPERTY::READ_ENC);
     manufName->setValue("ESPresense");
     manufName->setCallbacks(&chrCallbacks);
-    NimBLECharacteristic *appearance = deviceInfo->createCharacteristic("2A01", NIMBLE_PROPERTY::READ, 2);
+    NimBLECharacteristic *appearance = deviceInfo->createCharacteristic("2A01", NIMBLE_PROPERTY::READ_ENC, 2);
     appearance->setValue((int16_t)0x4142);
     appearance->setCallbacks(&chrCallbacks);
-    NimBLECharacteristic *modelNum = deviceInfo->createCharacteristic("2A24", NIMBLE_PROPERTY::READ);
+    NimBLECharacteristic *modelNum = deviceInfo->createCharacteristic("2A24", NIMBLE_PROPERTY::READ_ENC);
     modelNum->setValue(std::string(room.c_str()));
     modelNum->setCallbacks(&chrCallbacks);
 
@@ -235,10 +236,14 @@ bool Loop() {
             if (pSvc) {
                 NimBLECharacteristic *pChr = pSvc->getCharacteristic("2A37");
                 if (pChr) {
-                    uint8_t heartRate = (uint8_t)(micros() & 0xFF);
-                    uint8_t heartRateMeasurement[2] = { 0b00000110, heartRate };
-                    pChr->setValue(heartRateMeasurement, 2);
-                    pChr->notify();
+                    static unsigned long lastNotify = 0;
+                    if (millis() - lastNotify > 250) {  // throttle to 4Hz
+                        lastNotify = millis();
+                        uint8_t hr = micros() & 0xFF;
+                        uint8_t buf[2] = {0b00000110, hr};
+                        pChr->setValue(buf, 2);
+                        pChr->notify();
+                    }
                 }
             }
 
