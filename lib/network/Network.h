@@ -75,7 +75,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // ESP32-POE
   {
-     0,                  // eth_address,
+     1,                  // eth_address,
     12,                  // eth_power,
     23,                  // eth_mdc,
     18,                  // eth_mdio,
