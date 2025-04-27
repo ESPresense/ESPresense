@@ -22,7 +22,7 @@ public:
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
 };
 
-#define CONFIG_NUM_ETH_TYPES        12
+#define CONFIG_NUM_ETH_TYPES        13
 
 #define CONFIG_ETH_NONE             0
 #define CONFIG_ETH_WT32_ETH01       1
@@ -36,6 +36,7 @@ public:
 #define CONFIG_ETH_GLINET_S10_V21   9
 #define CONFIG_ETH_EST_POE_32       10
 #define CONFIG_ETH_LILYGO_LITE_RTL  11
+#define CONFIG_ETH_ESP32_POE_A1     12
 
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
@@ -81,16 +82,6 @@ const ethernet_settings ethernetBoards[] = {
     18,                  // eth_mdio,
     ETH_PHY_LAN8720,     // eth_type,
     ETH_CLOCK_GPIO17_OUT // eth_clk_mode
-  },
-
-  // ESP32-POE_A1
-  {
-    1,                  // eth_address,
-   12,                  // eth_power,
-   23,                  // eth_mdc,
-   18,                  // eth_mdio,
-   ETH_PHY_LAN8720,     // eth_type,
-   ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   },
 
    // WESP32
@@ -181,6 +172,16 @@ const ethernet_settings ethernetBoards[] = {
     18,                   // eth_mdio,
     ETH_PHY_RTL8201,      // eth_type,
     ETH_CLOCK_GPIO0_IN    // eth_clk_mode
+  },
+
+  // ESP32-POE_A1
+  {
+    1,                  // eth_address,
+   12,                  // eth_power,
+   23,                  // eth_mdc,
+   18,                  // eth_mdio,
+   ETH_PHY_LAN8720,     // eth_type,
+   ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   }
 };
 
