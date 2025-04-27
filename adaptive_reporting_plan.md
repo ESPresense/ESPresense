@@ -63,11 +63,14 @@ Assuming default values:
             timeSlot = 0;
             return;
         }
-        unsigned long hash = 0;
+        // Use a better hash function that distributes across many more slots
+        uint32_t hash = 5381; // djb2 hash initial value
         for (int i = 0; i < id.length(); i++) {
-            hash = (hash * 31 + id[i]) % 4; // Simple rolling hash modulo 4
+            hash = ((hash << 5) + hash) + id[i]; // hash * 33 + character
         }
-        timeSlot = (uint8_t)hash;
+
+        // Calculate timeslot between 0 and (numTimeSlots-1)
+        timeSlot = hash % MAX_TIME_SLOTS;
     }
     ```
 *   **Call `calculateTimeSlot()`:** Invoke this method within `BleFingerprint::setId()` whenever the `id` is assigned or changes.
