@@ -1,3 +1,4 @@
 namespace NTP {
   void Setup();
-  }  // namespace Updater
+  void Loop();
+}

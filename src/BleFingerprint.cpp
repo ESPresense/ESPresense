@@ -1,8 +1,12 @@
 #include "BleFingerprint.h"
 
+#include <math.h>
+#include <stdint.h>
+
+#include "BleFingerprintCollection.h"
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
-#include "BleFingerprintCollection.h"
+#include "defaults.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
@@ -16,7 +20,7 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
-BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice){
+BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
@@ -83,6 +87,17 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
         isNode = newId.startsWith("node:");
         hidden = newHidden;
         added = false;
+        auto timeSlot = calculateTimeSlot();
+        uint64_t baseInterval = (uint64_t)BleFingerprintCollection::skipMs;
+        uint64_t offset_ms = ((uint64_t)timeSlot * (baseInterval / MAX_TIME_SLOTS));
+
+        uint64_t now_ms = getNowMs();
+
+        // Find the start of the *current* reporting interval boundary
+        uint64_t current_interval_start = (now_ms / baseInterval) * baseInterval;
+
+        // Calculate the target time within the current or next interval
+        nextReportMs = current_interval_start + offset_ms;
     }
 
     return true;
@@ -462,6 +477,21 @@ bool BleFingerprint::fill(JsonObject *doc) {
     return true;
 }
 
+uint8_t BleFingerprint::calculateTimeSlot() {
+    if (id.isEmpty()) {
+        return 0;
+    }
+
+    // Use a better hash function that distributes across many more slots
+    uint32_t hash = 5381; // djb2 hash initial value
+    for (int i = 0; i < id.length(); i++) {
+        hash = ((hash << 5) + hash) + id[i]; // hash * 33 + character
+    }
+
+    // Calculate timeslot between 0 and (numTimeSlots-1)
+    return hash % MAX_TIME_SLOTS;
+}
+
 bool BleFingerprint::report(JsonObject *doc) {
     if (ignore || idType <= ID_TYPE_RAND_MAC || hidden) return false;
     if (reported) return false;
@@ -470,18 +500,30 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (maxDistance > 0 && dist > maxDistance && !isNode)
         return false;
 
-    auto now = millis();
-    if ((abs(dist - lastReported) < BleFingerprintCollection::skipDistance) && (lastReportedMillis > 0) && (now - lastReportedMillis < BleFingerprintCollection::skipMs))
-        return false;
+        uint64_t now_ms = getNowMs();
 
-    if (fill(doc)) {
-        lastReportedMillis = now;
-        lastReported = dist;
-        reported = true;
-        return true;
+        if (now_ms < nextReportMs) {
+
+            auto movement = abs(dist - lastReported);
+            auto skipDistance = BleFingerprintCollection::skipDistance;
+            if (skipDistance <= 0.0f || movement < skipDistance) return false;
+
+            auto rounded_log2 = roundf(log2f(powf(2.0f, movement / skipDistance)));
+            int64_t power_of_2_divisor = (u_int64_t)powf(2.0f, rounded_log2);
+            u_int64_t earlyReportMs = (u_int64_t)BleFingerprintCollection::skipMs / max((int64_t)1, min((int64_t)BleFingerprintCollection::maxDivisor, power_of_2_divisor));
+            if (now_ms - earlyReportMs < nextReportMs)
+                return false;
+
+            lastReported = dist;
     }
 
-    return false;
+
+    if (!fill(doc)) return false;
+    nextReportMs = now_ms + (BleFingerprintCollection::skipMs - (now_ms % BleFingerprintCollection::skipMs)) % BleFingerprintCollection::skipMs;
+    lastReportedMs = now_ms;
+    lastReported = dist;
+    reported = true;
+    return true;
 }
 
 bool BleFingerprint::query() {
