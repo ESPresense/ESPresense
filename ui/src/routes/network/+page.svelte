@@ -173,14 +173,15 @@
                     <option value="0">None</option>
                     <option value="1">WT32-ETH01</option>
                     <option value="2">ESP32-POE</option>
-                    <option value="3">WESP32</option>
-                    <option value="4">QuinLED-ESP32</option>
-                    <option value="5">TwilightLord-ESP32</option>
-                    <option value="6">ESP32Deux</option>
-                    <option value="7">KIT-VE</option>
-                    <option value="8">LilyGO-T-ETH-POE</option>
-                    <option value="9">GL-inet GL-S10 v2.1 Ethernet</option>
-                    <option value="10">EST-PoE-32</option>
+                    <option value="3">ESP32-POE_A1</option>
+                    <option value="4">WESP32</option>
+                    <option value="5">QuinLED-ESP32</option>
+                    <option value="6">TwilightLord-ESP32</option>
+                    <option value="7">ESP32Deux</option>
+                    <option value="8">KIT-VE</option>
+                    <option value="9">LilyGO-T-ETH-POE</option>
+                    <option value="10">GL-inet GL-S10 v2.1 Ethernet</option>
+                    <option value="11">EST-PoE-32</option>
                 </select>
             </div>
 
