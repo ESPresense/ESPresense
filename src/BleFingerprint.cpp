@@ -483,9 +483,9 @@ uint8_t BleFingerprint::calculateTimeSlot() {
     }
 
     // Use a better hash function that distributes across many more slots
-    uint32_t hash = 5381; // djb2 hash initial value
+    uint32_t hash = 5381;  // djb2 hash initial value
     for (int i = 0; i < id.length(); i++) {
-        hash = ((hash << 5) + hash) + id[i]; // hash * 33 + character
+        hash = ((hash << 5) + hash) + id[i];  // hash * 33 + character
     }
 
     // Calculate timeslot between 0 and (numTimeSlots-1)
@@ -500,23 +500,20 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (maxDistance > 0 && dist > maxDistance && !isNode)
         return false;
 
-        uint64_t now_ms = getNowMs();
+    uint64_t now_ms = getNowMs();
 
-        if (now_ms < nextReportMs) {
+    if (now_ms < nextReportMs) {
+        auto movement = abs(dist - lastReported);
+        auto skipDistance = BleFingerprintCollection::skipDistance;
+        if (skipDistance <= 0.0f || movement < skipDistance) return false;
 
-            auto movement = abs(dist - lastReported);
-            auto skipDistance = BleFingerprintCollection::skipDistance;
-            if (skipDistance <= 0.0f || movement < skipDistance) return false;
+        int64_t rounded_log2 = log2f(roundf(powf(2.0f, movement / skipDistance)));
+        u_int64_t earlyReportMs = (u_int64_t)BleFingerprintCollection::skipMs / max((int64_t)2, min((int64_t)BleFingerprintCollection::maxDivisor, (int64_t)BleFingerprintCollection::maxDivisor - rounded_log2));
+        if (now_ms < nextReportMs - earlyReportMs)
+            return false;
 
-            auto rounded_log2 = roundf(log2f(powf(2.0f, movement / skipDistance)));
-            int64_t power_of_2_divisor = (u_int64_t)powf(2.0f, rounded_log2);
-            u_int64_t earlyReportMs = (u_int64_t)BleFingerprintCollection::skipMs / max((int64_t)1, min((int64_t)BleFingerprintCollection::maxDivisor, power_of_2_divisor));
-            if (now_ms - earlyReportMs < nextReportMs)
-                return false;
-
-            lastReported = dist;
+        lastReported = dist;
     }
-
 
     if (!fill(doc)) return false;
     nextReportMs = now_ms + (BleFingerprintCollection::skipMs - (now_ms % BleFingerprintCollection::skipMs)) % BleFingerprintCollection::skipMs;
