@@ -91,7 +91,6 @@ bool forceFloraServiceDataMode(BLERemoteService* floraService) {  // Setting the
 void fillDeviceData(DynamicJsonDocument* doc, BleFingerprint* f) {
     (*doc)[F("id")] = f->getId();
     (*doc)[F("mac")] = f->getMac();
-    (*doc)[F("rssi")] = f->getRssi();
 }
 
 bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleFingerprint* f) {

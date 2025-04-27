@@ -13,9 +13,10 @@ public:
 
     void addMeasurement(float rssi);
     float getDistanceVariance(float refRSSI, float pathLossExponent);
-    float getVariance();
+    float getRSSIVariance();
     float getPercentileRSSI(float percentile);
     float getP75RSSI();
+    float getMedianIQR(float k = 1.5f);
     uint16_t getReadingCount();
     float getAverageInterval();
     void setTimeWindow(uint32_t newTimeWindowMs);

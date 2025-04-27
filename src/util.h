@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
+#include <sys/time.h>
 
 #define ENDIAN_CHANGE_U16(x) ((((x)&0xFF00) >> 8) + (((x)&0xFF) << 8))
 
@@ -35,3 +36,5 @@ const BLEUUID modelChar(uint16_t(0x2A24));
 const BLEUUID fwRevChar(uint16_t(0x2A26));
 const BLEUUID hwRevChar(uint16_t(0x2A27));
 const BLEUUID manufChar(uint16_t(0x2A29));
+
+uint64_t getNowMs();

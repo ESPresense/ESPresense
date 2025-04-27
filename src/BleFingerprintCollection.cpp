@@ -20,7 +20,8 @@ float skipDistance = DEFAULT_SKIP_DISTANCE,
       countExit = DEFAULT_COUNT_EXIT;
 int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
        rxAdjRssi = DEFAULT_RX_ADJ_RSSI,
-       txRefRssi = DEFAULT_TX_REF_RSSI;
+       txRefRssi = DEFAULT_TX_REF_RSSI,
+       maxDivisor = DEFAULT_MAX_DIVISOR;
 int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
     countMs = DEFAULT_COUNT_MS,
@@ -173,7 +174,8 @@ void ConnectToWifi() {
     rxAdjRssi = HeadlessWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
     absorption = HeadlessWiFiSettings.floating("absorption", 1, 5, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
-    txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 100, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
+    txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
+    maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
 
     std::istringstream iss(knownIrks.c_str());
     std::string irk_hex;
@@ -225,6 +227,9 @@ bool Command(String &command, String &pay) {
     } else if (command == "count_ids") {
         countIds = pay.isEmpty() ? DEFAULT_COUNT_IDS : pay;
         spurt("/count_ids", countIds);
+    } else if (command == "max_divisor") {
+        maxDivisor = pay.isEmpty() ? DEFAULT_MAX_DIVISOR : pay.toInt();
+        spurt("/max_divisor", String(maxDivisor));
     } else
         return false;
     return true;

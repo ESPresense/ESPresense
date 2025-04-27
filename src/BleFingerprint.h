@@ -1,5 +1,6 @@
 #ifndef _BLEFINGERPRINT_
 #define _BLEFINGERPRINT_
+#include <sys/time.h>
 #include <ArduinoJson.h>
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
@@ -125,15 +126,17 @@ class BleFingerprint {
 
    private:
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
+    uint64_t nextReportMs = 0;
+    uint64_t lastReportedMs = 0;
     NimBLEAddress address;
     String id, name;
     short int idType = NO_ID_TYPE;
-    float rssi = NO_RSSI;
+    float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
-    float raw = 0, dist = 0, vari = 0, lastReported = 0, temp = 0, humidity = 0;
-    unsigned long firstSeenMillis, lastSeenMillis = 0, lastReportedMillis = 0, lastQryMillis = 0;
+    float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
+    unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
@@ -141,6 +144,7 @@ class BleFingerprint {
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);
+    uint8_t calculateTimeSlot(); // Calculate time slot (0-3) based on device ID
     void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
     void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
     void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);

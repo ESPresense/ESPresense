@@ -187,6 +187,53 @@ float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
 float AdaptivePercentileRSSI::getP75RSSI() {
     return getPercentileRSSI(0.75f);
 }
+float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
+{
+    if (count == 0) return 0.0f;
+
+    // 1) Copy all current readings into a scratch array
+    float* vals = new float[count];
+    uint16_t idx = tail;
+
+    for (uint16_t i = 0; i < count; ++i) {
+        vals[i] = readings[idx].rssi;
+        idx = (idx + 1) % maxReadings;
+    }
+
+    // 2) Sort
+    std::sort(vals, vals + count);
+
+    auto interp = [&](float p) -> float {
+        float pos   = p * (count - 1);            // rank (0-based)
+        uint16_t lo = static_cast<uint16_t>(pos);
+        float frac  = pos - lo;
+        return (lo + 1 < count)
+               ? vals[lo] * (1 - frac) + vals[lo + 1] * frac
+               : vals[lo];
+    };
+
+    float q1  = interp(0.25f);
+    float med = interp(0.50f);
+    float q3  = interp(0.75f);
+    float iqr = q3 - q1;
+
+    float lower = q1 - k * iqr;
+    float upper = q3 + k * iqr;
+
+    // 3) Mean of values inside Tukey fence
+    float sum = 0.0f;
+    uint16_t survivors = 0;
+    for (uint16_t i = 0; i < count; ++i) {
+        if (vals[i] >= lower && vals[i] <= upper) {
+            sum += vals[i];
+            ++survivors;
+        }
+    }
+
+    delete[] vals;
+
+    return survivors ? (sum / survivors) : med;   // fallback to median if all clipped
+}
 
 uint16_t AdaptivePercentileRSSI::getReadingCount() {
     return count;
@@ -207,7 +254,7 @@ void AdaptivePercentileRSSI::setTimeWindow(uint32_t newTimeWindowMs) {
     adjustBufferSize(millis());
 }
 
-float AdaptivePercentileRSSI::getVariance() {
+float AdaptivePercentileRSSI::getRSSIVariance() {
     if (count < 2) return 0;
 
     uint32_t currentTime = millis();

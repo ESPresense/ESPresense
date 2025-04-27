@@ -12,6 +12,7 @@
 #include "Battery.h"
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
+#include "NTP.h"
 #include "CAN.h"
 #include "Enrollment.h"
 #include "GUI.h"
