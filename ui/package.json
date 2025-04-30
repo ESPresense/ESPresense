@@ -21,7 +21,7 @@
     "autoprefixer": "^10.4.21",
     "chalk": "^5.4.1",
     "change-case": "^5.4.4",
-    "mime": "^4.0.6",
+    "mime": "^4.0.7",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
     "svelte": "^5.28.2",
