@@ -24,7 +24,7 @@
     "mime": "^4.0.7",
     "nodemon": "^3.1.10",
     "postcss": "^8.5.3",
-    "svelte": "^5.28.2",
+    "svelte": "^5.31.1",
     "svelte-check": "^4.1.7",
     "svelte-table": "^0.6.4",
     "tailwindcss": "^3.4.16",
