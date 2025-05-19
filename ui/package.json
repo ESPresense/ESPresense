@@ -17,7 +17,7 @@
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/kit": "^2.20.8",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
-    "@types/node": "^22.15.7",
+    "@types/node": "^22.15.19",
     "autoprefixer": "^10.4.21",
     "chalk": "^5.4.1",
     "change-case": "^5.4.4",
