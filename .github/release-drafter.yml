@@ -1,15 +1,22 @@
 name-template: 'v$RESOLVED_VERSION'
-tag-template: 'v$RESOLVED_VERSION'
+tag-template: 'next'
 categories:
   - title: 'Features'
     labels:
       - 'feature'
       - 'enhancement'
+    exclude-labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
   - title: 'Bug Fixes'
     labels:
       - 'fix'
       - 'bugfix'
       - 'bug'
+    exclude-labels:
+      - 'feature'
+      - 'enhancement'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
@@ -23,7 +30,8 @@ version-resolver:
     labels:
       - 'patch'
   default: patch
-prerelease-identifier: 'b'  
+prerelease: true
+prerelease-identifier: 'b'
 template: |
   ## Changes
 
