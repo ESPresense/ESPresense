@@ -8,7 +8,7 @@
 
 <button
     type="button"
-    class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-hidden focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:text-gray-200 dark:hover:text-white dark:hover:bg-gray-700"
+    class="md:hidden inline-flex items-center justify-center p-2 rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:text-gray-200 dark:hover:text-white dark:hover:bg-gray-700"
     aria-controls="mobile-menu"
     aria-expanded={$mobileMenuOpen}
     onclick={toggleMenu}
