@@ -212,7 +212,7 @@
     }
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm">
     <div class="p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
