@@ -74,6 +74,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         }
     }
 
+    if (!publishTele)
+        return false;
     auto now = millis();
 
     if (now - lastTeleMillis < 15000)
