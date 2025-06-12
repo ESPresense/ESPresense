@@ -52,16 +52,8 @@
 
             for (const [key, value] of formData.entries()) {
                 if (typeof value === "string") {
-                    params.set(key, value);
+                    params.append(key, value);
                 }
-            }
-
-            // explicitly send unchecked checkboxes as "0" to persist disabled values
-            const checkboxNames = Array.from(
-                form.querySelectorAll<HTMLInputElement>("input[type='checkbox']")
-            ).map((cb) => cb.name);
-            for (const name of new Set(checkboxNames)) {
-                params.set(name, formData.has(name) ? "1" : "0");
             }
             await fetch("/wifi/main", { method: "POST", body: params });
 
@@ -244,6 +236,7 @@
             <h2 class="text-xl font-semibold">Updating</h2>
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
+                    <input type="hidden" name="auto_update" value="0" />
                     <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Automatically update</span>
                 </label>
