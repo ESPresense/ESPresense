@@ -49,11 +49,20 @@
             const form = event.target as HTMLFormElement;
             const formData = new FormData(form);
             const params = new URLSearchParams();
+
             for (const [key, value] of formData.entries()) {
                 if (typeof value === "string") {
                     params.append(key, value);
                 }
             }
+
+            // Ensure unchecked checkboxes post a value
+            form.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+                const input = cb as HTMLInputElement;
+                if (!formData.has(input.name)) {
+                    params.append(input.name, "0");
+                }
+            });
             await fetch("/wifi/main", { method: "POST", body: params });
 
             try {
