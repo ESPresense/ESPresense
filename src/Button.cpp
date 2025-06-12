@@ -88,13 +88,14 @@ bool SendDiscovery() {
 
     if (button_1Pin >= 0){
         if (!sendNumberDiscovery("button_1 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("button_1", EC_NONE);
+        if (!sendButtonDiscovery("button_1", EC_NONE)) return false;
     }
     if (button_2Pin >= 0){
         if (!sendNumberDiscovery("button_2 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("button_2", EC_NONE);
+        if (!sendButtonDiscovery("button_2", EC_NONE)) return false;
     }
-    return sendSensorDiscovery("button", EC_NONE);
+    // The aggregated "button" topic is still published but discovery is disabled per GH#1711
+    return true;
 }
 
 bool Command(String& command, String& pay) {
