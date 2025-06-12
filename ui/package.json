@@ -9,10 +9,12 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "test": "playwright test"
   },
   "devDependencies": {
     "@gfx/zopfli": "^1.0.15",
+    "@playwright/test": "^1.52.0",
     "@rollup/plugin-strip": "^3.0.4",
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/kit": "^2.20.8",
