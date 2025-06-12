@@ -55,6 +55,14 @@
                     params.append(key, value);
                 }
             }
+
+            // Ensure unchecked checkboxes post a value
+            form.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+                const input = cb as HTMLInputElement;
+                if (!formData.has(input.name)) {
+                    params.append(input.name, "0");
+                }
+            });
             await fetch("/wifi/main", { method: "POST", body: params });
 
             try {
@@ -236,7 +244,6 @@
             <h2 class="text-xl font-semibold">Updating</h2>
             <div class="space-y-4">
                 <label class="flex items-center space-x-2">
-                    <input type="hidden" name="auto_update" value="0" />
                     <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Automatically update</span>
                 </label>
