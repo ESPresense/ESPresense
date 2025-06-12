@@ -6,6 +6,9 @@ export interface Device {
     mac?: string;
     rssi?: number;
     int?: number;
+    id?: string;
+    name?: string;
+    "rssi@1m"?: number;
 }
 
 export interface Config {
