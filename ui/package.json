@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test": "playwright test"
+    "test": "playwright test",
+    "postinstall": "playwright install --with-deps"
   },
   "devDependencies": {
     "@gfx/zopfli": "^1.0.15",
