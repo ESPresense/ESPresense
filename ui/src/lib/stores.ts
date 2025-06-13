@@ -145,7 +145,7 @@ export function cancelEnroll(): void {
 
 export const mobileMenuOpen = writable<boolean>(false);
 
-export const extraSettings = writable<ExtraSettings | null>({}, function start(set) {
+export const extraSettings = writable<ExtraSettings | null>(null, function start(set) {
     fetch("/wifi/extras")
         .then(d => d.json())
         .then((r: ExtraSettings) => {
