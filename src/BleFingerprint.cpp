@@ -320,6 +320,9 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
+        } else if (uuid == dexaUUID) {
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("dexa:" + getMac(), ID_TYPE_DEXA);
         } else if (uuid == eddystoneUUID && strServiceData.length() > 0) {
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();

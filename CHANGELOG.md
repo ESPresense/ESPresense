@@ -4,10 +4,223 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [3.3.5]
+
+- See release notes on GitHub
+
+## [3.3.4]
+
+- See release notes on GitHub
+
+## [3.3.3]
+
+- See release notes on GitHub
+
+## [3.3.2]
+
+- See release notes on GitHub
+
+## [3.3.1]
+
+- See release notes on GitHub
+
+## [3.3.0]
+
+- See release notes on GitHub
+
+## [3.2.4]
+
+- See release notes on GitHub
+
+## [3.2.3]
+
+- See release notes on GitHub
+
+## [3.2.2]
+
+- See release notes on GitHub
+
+## [3.2.1]
+
+- See release notes on GitHub
+
+## [3.2.0]
+
+- See release notes on GitHub
+
+## [3.1.1]
+
+- See release notes on GitHub
+
+## [3.1.0]
+
+- See release notes on GitHub
+
+## [3.0.4]
+
+- See release notes on GitHub
+
+## [3.0.3]
+
+- See release notes on GitHub
+
+## [3.0.2]
+
+- See release notes on GitHub
+
+## [3.0.1]
+
+- See release notes on GitHub
+
+## [3.0.0]
+
+- See release notes on GitHub
+
+## [2.3.0]
+
+- See release notes on GitHub
+
+## [2.2.9]
+
+- See release notes on GitHub
+
+## [2.2.8]
+
+- See release notes on GitHub
+
+## [2.2.7]
+
+- See release notes on GitHub
+
+## [2.2.6]
+
+- See release notes on GitHub
+
+## [2.2.5]
+
+- See release notes on GitHub
+
+## [2.2.4]
+
+- See release notes on GitHub
+
+## [2.2.3]
+
+- See release notes on GitHub
+
+## [2.2.2]
+
+- See release notes on GitHub
+
+## [2.2.1]
+
+- See release notes on GitHub
+
+## [2.2.0]
+
+- See release notes on GitHub
+
+## [2.1.2]
+
+- See release notes on GitHub
+
+## [2.1.1]
+
+- See release notes on GitHub
+
+## [2.1.0]
+
+- See release notes on GitHub
+
+## [2.0.37]
+
+- See release notes on GitHub
+
+## [2.0.36]
+
+- See release notes on GitHub
+
+## [2.0.35]
+
+- See release notes on GitHub
+
+## [2.0.34]
+
+- See release notes on GitHub
+
+## [2.0.33]
+
+- See release notes on GitHub
+
+## [2.0.31]
+
+- See release notes on GitHub
+
+## [2.0.30]
+
+- See release notes on GitHub
+
+## [2.0.29]
+
+- See release notes on GitHub
+
+## [2.0.28]
+
+- See release notes on GitHub
+
+## [2.0.27]
+
+- See release notes on GitHub
+
+## [2.0.26]
+
+- See release notes on GitHub
+
+## [2.0.25]
+
+- See release notes on GitHub
+
+## [2.0.24]
+
+- See release notes on GitHub
+
+## [2.0.23]
+
+- See release notes on GitHub
+
+## [2.0.22]
+
+- See release notes on GitHub
+
+## [2.0.21]
+
+- See release notes on GitHub
+
+## [2.0.20]
+
+- See release notes on GitHub
+
+## [2.0.19]
+
+- See release notes on GitHub
+
+## [2.0.18]
+
+- See release notes on GitHub
+
+## [2.0.17]
+
+- See release notes on GitHub
+
+## [2.0.16]
+
+- See release notes on GitHub
+
 ## [2.0.15]
 
 - Allow status led to be disabled (fixes #156) @DTTerastar (#196)
 - Add device configuration url to mqtt discovery
+- Recognize Dexcom sensors (`sd:febc`) and report them as `dexa:{mac}`
 
 ## [2.0.14]
 
