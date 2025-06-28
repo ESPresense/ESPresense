@@ -50,6 +50,7 @@
 #define ID_TYPE_MEATER short(140)
 #define ID_TYPE_TRACTIVE short(142)
 #define ID_TYPE_VANMOOF short(145)
+#define ID_TYPE_DEXA short(146)
 #define ID_TYPE_APPLE_NEARBY short(150)
 #define ID_TYPE_QUERY_MODEL short(155)
 #define ID_TYPE_QUERY_NAME short(160)

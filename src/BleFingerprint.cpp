@@ -265,6 +265,10 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
             asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : FLORA_TX);
             setId("flora:" + getMac(), ID_TYPE_FLORA);
             return;
+        } else if (uuid == dexaUUID) {
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("dexa:" + getMac(), ID_TYPE_DEXA);
+            return;
         }
     }
 
