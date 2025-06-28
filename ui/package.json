@@ -23,7 +23,7 @@
     "change-case": "^5.4.4",
     "mime": "^4.0.7",
     "nodemon": "^3.1.10",
-    "postcss": "^8.5.3",
+    "postcss": "^8.5.6",
     "svelte": "^5.31.1",
     "svelte-check": "^4.2.1",
     "svelte-table": "^0.6.4",
