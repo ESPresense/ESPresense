@@ -264,7 +264,7 @@
     {/if}
 </div>
 
-<style>
+<style lang="postcss">
     @layer components {
         :global(input:not([type="checkbox"])) {
             @apply border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500;
