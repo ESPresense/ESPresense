@@ -17,8 +17,9 @@
     "@sveltejs/adapter-static": "^3.0.8",
     "@sveltejs/kit": "^2.22.0",
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
+    "@tailwindcss/postcss": "^4.1.11",
+    "@tailwindcss/vite": "^4.1.11",
     "@types/node": "^24.0.3",
-    "autoprefixer": "^10.4.21",
     "chalk": "^5.4.1",
     "change-case": "^5.4.4",
     "mime": "^4.0.7",
@@ -27,7 +28,7 @@
     "svelte": "^5.31.1",
     "svelte-check": "^4.2.1",
     "svelte-table": "^0.6.4",
-    "tailwindcss": "^3.4.16",
+    "tailwindcss": "^4.1.11",
     "typescript": "^5.8.3",
     "vite": "^6.3.5"
   }

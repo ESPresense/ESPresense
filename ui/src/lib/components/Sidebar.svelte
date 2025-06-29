@@ -7,7 +7,7 @@
 
 <div class="h-full w-full">
     <div class="flex items-center justify-between mx-6 mt-4 pt-14 md:pt-4">
-        <div class="flex items-center flex-shrink-0">
+        <div class="flex items-center shrink-0">
             <Icon name="logo" width="2.5rem" height="2.5rem" />
             <span class="text-gray-800 dark:text-gray-100 ml-2 text-3xl font-thin">ESPresense</span>
         </div>

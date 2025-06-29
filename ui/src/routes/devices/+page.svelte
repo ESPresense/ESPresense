@@ -86,7 +86,7 @@
         }
 
         try {
-            const response = await fetch(`/json/configs?id=${encodeURIComponent(editingConfig.id)}`, {
+            const response = await fetch(`/json/configs?id=${encodeURIComponent(editingConfig.id ?? '')}`, {
                 method: 'DELETE'
             });
 
