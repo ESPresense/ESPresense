@@ -977,7 +977,7 @@
             </label>
         </p>
         <div class="flex justify-end">
-            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 rounded-lg dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
+            <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                 {s ? "Saving..." : "Save"}
             </button>
         </div>
@@ -985,57 +985,4 @@
     {/if}
 </div>
 
-<style>
-    :global(input:not([type^="checkbox"])) {
-        @apply mt-1 block w-full border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500;
-    }
-    :global(.dark input:not([type^="checkbox"])) {
-        @apply border-gray-500 bg-gray-900 text-white;
-    }
 
-    :global(select) {
-        @apply mt-1 block w-full border-2 border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-blue-500;
-    }
-    :global(.dark select) {
-        @apply border-gray-500 bg-gray-900 text-white;
-    }
-
-    :global(input[type="checkbox"]) {
-        @apply h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500;
-    }
-    :global(.dark input[type="checkbox"]) {
-        @apply border-gray-600;
-    }
-
-    :global(h2) {
-        @apply text-xl font-semibold text-gray-900 mb-4;
-    }
-    :global(.dark h2) {
-        @apply text-white;
-    }
-
-    :global(h4) {
-        @apply text-lg font-medium text-gray-800 mt-6 mb-3;
-    }
-    :global(.dark h4) {
-        @apply text-white;
-    }
-
-    :global(a) {
-        @apply text-blue-600 hover:text-blue-800;
-    }
-    :global(.dark a) {
-        @apply text-blue-400 hover:text-blue-300;
-    }
-
-    :global(label) {
-        @apply block text-sm font-medium text-gray-700 mb-1;
-    }
-    :global(.dark label) {
-        @apply text-white;
-    }
-
-    :global(p) {
-        @apply mb-4;
-    }
-</style>

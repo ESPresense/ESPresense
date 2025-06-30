@@ -23,7 +23,7 @@
   </span>
 
   {#if count > 0}
-    <span class="flex-grow text-right">
+    <span class="grow text-right">
       <button type="button" class="w-6 h-6 text-xs rounded-full text-white bg-red-500">
         <span class="p-1">
           {count}
@@ -31,6 +31,6 @@
       </button>
     </span>
   {:else}
-    <span class="flex-grow text-right"></span>
+    <span class="grow text-right"></span>
   {/if}
 </a>
