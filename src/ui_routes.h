@@ -2,27 +2,28 @@
  * Web UI Routes
  *
  * Compressed Size Summary:
- * ui_app_immutable_assets_css: 4,559 bytes
+ * ui_app_immutable_assets_css: 9,145 bytes
+ * ui_html: 3,245 bytes
  * ui_app_immutable_entry_js: 45,012 bytes
  * ui_app_immutable_nodes_js: 514 bytes
- * ui_html: 3,245 bytes
  * ui_svg: 456 bytes
- * Total: 53,786 bytes
+ * Total: 58,372 bytes
  */
 
 #pragma once
 
 #include <ESPAsyncWebServer.h>
 #include "ui_app_immutable_assets_css.h"
+#include "ui_html.h"
 #include "ui_app_immutable_entry_js.h"
 #include "ui_app_immutable_nodes_js.h"
-#include "ui_html.h"
 #include "ui_svg.h"
 
 inline void setupRoutes(AsyncWebServer* server) {
+    server->on("/app/immutable/assets/internal.Cdi-LVYQ.css", HTTP_GET, serveAppImmutableAssetsInternalCdiLvyqCss);
     server->on("/app/immutable/assets/start.CJnjhWGH.css", HTTP_GET, serveAppImmutableAssetsStartCJnjhWghCss);
-    server->on("/app/immutable/entry/start.CdT-Q7FA.js", HTTP_GET, serveAppImmutableEntryStartCdTQ7FaJs);
     server->on("/app/immutable/entry/app.BqWR24Wl.js", HTTP_GET, serveAppImmutableEntryAppBqWr24WlJs);
+    server->on("/app/immutable/entry/start.CdT-Q7FA.js", HTTP_GET, serveAppImmutableEntryStartCdTQ7FaJs);
     server->on("/app/immutable/nodes/0.DdZ1NaoW.js", HTTP_GET, serveAppImmutableNodes_0DdZ1NaoWJs);
     server->on("/app/immutable/nodes/1.DvjF4vlF.js", HTTP_GET, serveAppImmutableNodes_1DvjF4vlFJs);
     server->on("/app/immutable/nodes/2.DQIjqvCj.js", HTTP_GET, serveAppImmutableNodes_2DqIjqvCjJs);
