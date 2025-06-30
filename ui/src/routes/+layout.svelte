@@ -56,7 +56,7 @@
 
   <!-- Main content -->
   <main class="flex-1 min-w-0 overflow-auto bg-white dark:bg-gray-900">
-    <div class="max-w-7xl mx-auto px-4 py-4 md:mt-0 mt-[3.5rem]">
+    <div class="max-w-7xl mx-auto px-4 py-4 md:mt-0 mt-14">
       <slot />
     </div>
   </main>
