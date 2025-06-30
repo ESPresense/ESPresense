@@ -1,3 +1,70 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  /* Form inputs (excluding checkboxes) */
+  input:not([type="checkbox"]) {
+    @apply mt-1 block w-full border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-900 dark:text-white;
+  }
+
+  /* Select elements */
+  select {
+    @apply mt-1 block w-full border-2 border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-900 dark:text-white;
+  }
+
+  /* Checkboxes */
+  input[type="checkbox"] {
+    @apply h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600;
+  }
+
+  /* Headings */
+  h2 {
+    @apply text-xl font-semibold text-gray-900 mb-4 dark:text-white;
+  }
+
+  h4 {
+    @apply text-lg font-medium text-gray-800 mt-6 mb-3 dark:text-white;
+  }
+
+  /* Links */
+  a {
+    @apply text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300;
+  }
+
+  /* Labels */
+  label {
+    @apply block text-sm font-medium text-gray-700 mb-1 dark:text-white;
+  }
+
+  /* Paragraphs */
+  p {
+    @apply mb-4;
+  }
+}
+
+@layer components {
+  /* iOS Spinner */
+  .ios-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid transparent;
+    border-top-color: #3b82f6;
+    border-right-color: #3b82f6;
+    border-bottom-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
+    opacity: 0.8;
+  }
+
+  .dark .ios-spinner {
+    border-top-color: #60a5fa;
+    border-right-color: #60a5fa;
+    border-bottom-color: #60a5fa;
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

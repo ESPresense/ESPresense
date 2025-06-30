@@ -111,7 +111,7 @@
                     name="wifi-ssid"
                     bind:value={$mainSettings.values["wifi-ssid"]}
                     placeholder="Enter WiFi SSID"
-                    class="block w-full rounded-xl border-gray-600 bg-gray-800 dark:text-white px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500"
+                    class="block w-full rounded-xl px-4 py-3 text-base"
                 />
             </div>
 
@@ -129,7 +129,7 @@
                                 onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
                                 class="flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                             >
-                                <div class="flex-grow">
+                                <div class="grow">
                                     <div class="text-base dark:text-white">{ssid}</div>
                                 </div>
                                 <div class="flex items-center space-x-2">
@@ -264,62 +264,4 @@
     {/if}
 </div>
 
-<style>
-    :global(input:not([type="checkbox"])) {
-        @apply border-2 border-gray-300 bg-white focus:border-blue-500 focus:ring-blue-500;
-    }
-    :global(.dark input:not([type="checkbox"])) {
-        @apply border-gray-500 bg-gray-900 text-white;
-    }
 
-    :global(select) {
-        @apply border-2 border-gray-300 bg-white text-gray-900 focus:border-blue-500 focus:ring-blue-500;
-    }
-    :global(.dark select) {
-        @apply border-gray-500 bg-gray-900 text-white;
-    }
-
-    :global(input[type="checkbox"]) {
-        @apply h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500;
-    }
-    :global(.dark input[type="checkbox"]) {
-        @apply border-gray-600;
-    }
-
-    :global(h2) {
-        @apply text-gray-900 mb-4;
-    }
-    :global(.dark h2) {
-        @apply text-white;
-    }
-
-    :global(label) {
-        @apply text-gray-700 mb-1;
-    }
-    :global(.dark label) {
-        @apply text-white;
-    }
-
-    .ios-spinner {
-        width: 16px;
-        height: 16px;
-        border: 2px solid transparent;
-        border-top-color: #3b82f6;
-        border-right-color: #3b82f6;
-        border-bottom-color: #3b82f6;
-        border-radius: 50%;
-        animation: spin 1s cubic-bezier(0.42, 0.61, 0.58, 0.41) infinite;
-        opacity: 0.8;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    :global(.dark .ios-spinner) {
-        border-top-color: #60a5fa;
-        border-right-color: #60a5fa;
-        border-bottom-color: #60a5fa;
-    }
-</style>
