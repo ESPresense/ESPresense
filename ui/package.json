@@ -25,7 +25,7 @@
     "nodemon": "^3.1.10",
     "postcss": "^8.5.6",
     "svelte": "^5.31.1",
-    "svelte-check": "^4.2.1",
+    "svelte-check": "^4.2.2",
     "svelte-table": "^0.6.4",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.8.3",
