@@ -34,6 +34,14 @@ jobs:
       working-directory: ui
       run: npm ci
 
+    - name: Install Playwright browsers
+      working-directory: ui
+      run: npx playwright install --with-deps
+
+    - name: Run UI tests
+      working-directory: ui
+      run: npm test -- --reporter=list
+
     - name: Build UI
       working-directory: ui
       run: npm run build
