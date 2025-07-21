@@ -19,7 +19,7 @@
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/vite": "^4.1.11",
-    "@types/node": "^24.0.3",
+    "@types/node": "^24.0.15",
     "chalk": "^5.4.1",
     "change-case": "^5.4.4",
     "mime": "^4.0.7",
