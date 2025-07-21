@@ -15,7 +15,7 @@
     "@gfx/zopfli": "^1.0.15",
     "@rollup/plugin-strip": "^3.0.4",
     "@sveltejs/adapter-static": "^3.0.8",
-    "@sveltejs/kit": "^2.22.0",
+    "@sveltejs/kit": "^2.25.1",
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
     "@tailwindcss/postcss": "^4.1.11",
     "@tailwindcss/vite": "^4.1.11",
