@@ -1,7 +1,10 @@
 #include "globals.h"
 #include "defaults.h"
 #include "string_utils.h"
+#include "BleFingerprintCollection.h"
 #include <WiFi.h>
+
+bool deleteConfig(const String &id);
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
 {
@@ -221,6 +224,11 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
 
 bool sendConfig(const String &id, const String &alias, const String &name = "", int calRssi = -128)
 {
+    DeviceConfig existing;
+    if (BleFingerprintCollection::FindDeviceConfigByAlias(alias, existing) && existing.id != id)
+    {
+        deleteConfig(existing.id);
+    }
     Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
     doc["id"] = alias;

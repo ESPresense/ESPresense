@@ -1,7 +1,9 @@
 #include "BleFingerprintCollection.h"
 
 #include "defaults.h"
+#include "mqtt.h"
 #include <Arduino.h>
+#include <algorithm>
 #include <sstream>
 #include <HeadlessWiFiSettings.h>
 
@@ -78,6 +80,17 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 bool addOrReplace(DeviceConfig config) {
     if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
+
+    if (!config.alias.isEmpty()) {
+        for (auto it = deviceConfigs.begin(); it != deviceConfigs.end();) {
+            if (it->alias == config.alias && it->id != config.id) {
+                deleteConfig(it->id);
+                it = deviceConfigs.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
 
     for (auto &it : deviceConfigs) {
         if (it.id == config.id) {
@@ -302,6 +315,21 @@ const std::vector<BleFingerprint *> GetCopy() {
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {
     if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) == pdTRUE) {
         auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [id](DeviceConfig dc) { return dc.id == id; });
+        if (it != deviceConfigs.end()) {
+            config = *it;
+            xSemaphoreGive(deviceConfigMutex);
+            return true;
+        }
+        xSemaphoreGive(deviceConfigMutex);
+        return false;
+    }
+    log_e("Couldn't take deviceConfigMutex!");
+    return false;
+}
+
+bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config) {
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) == pdTRUE) {
+        auto it = std::find_if(deviceConfigs.begin(), deviceConfigs.end(), [alias](DeviceConfig dc) { return dc.alias == alias; });
         if (it != deviceConfigs.end()) {
             config = *it;
             xSemaphoreGive(deviceConfigMutex);
