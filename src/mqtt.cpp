@@ -2,9 +2,8 @@
 #include "defaults.h"
 #include "string_utils.h"
 #include "BleFingerprintCollection.h"
+#include "mqtt.h"
 #include <WiFi.h>
-
-bool deleteConfig(const String &id);
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
 {
