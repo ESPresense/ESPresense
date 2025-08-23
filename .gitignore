@@ -16,3 +16,5 @@ platformio_override.ini
 node_modules
 src/build_timestamp_value.h
 .aider*
+playwright-report
+test-results
