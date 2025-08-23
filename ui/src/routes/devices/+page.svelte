@@ -14,6 +14,20 @@
     let selectedRowIds = $state([]);
     let editingConfig = $state<Config | null>(null);
 
+    function onSelectExisting(event: Event) {
+        const alias = (event.target as HTMLSelectElement).value;
+        if (!alias) {
+            id = "";
+            name = "";
+            return;
+        }
+        const cfg = tableRows.find((c) => c.alias === alias);
+        if (cfg) {
+            id = cfg.alias || "";
+            name = cfg.name || "";
+        }
+    }
+
     const deviceTypes = ["watch", "wallet", "ipad", "phone", "airpods", "laptop", "node", "keys", "therm", "flora", "tile"];
 
     function generateKebabCaseId(name: string, type = "") {
@@ -278,6 +292,15 @@
                             </p>
                         {:else}
                             <div class="space-y-4">
+                                <select
+                                    onchange={onSelectExisting}
+                                    class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                >
+                                    <option value="">Select existing ID</option>
+                                    {#each tableRows.filter(cfg => cfg.alias && cfg.alias.trim() !== '').sort((a, b) => a.alias!.localeCompare(b.alias!)) as cfg}
+                                        <option value={cfg.alias}>{cfg.alias}</option>
+                                    {/each}
+                                </select>
                                 <select
                                     bind:value={deviceType}
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"

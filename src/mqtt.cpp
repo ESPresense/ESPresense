@@ -1,9 +1,11 @@
 #include "globals.h"
 #include "defaults.h"
 #include "string_utils.h"
+#include "BleFingerprintCollection.h"
+#include "mqtt.h"
 #include <WiFi.h>
 
-bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
+bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
     for (int i = 0; i < 10; i++)
     {
@@ -14,7 +16,7 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
     return false;
 }
 
-bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup = false, uint16_t message_id = 0)
+bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
 {
     size_t const jsonSize = measureJson(jsonDoc);
     char buffer[jsonSize + 1]; // +1 for null terminator
@@ -60,7 +62,7 @@ bool sendConnectivityDiscovery()
     return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "")
+bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass)
 {
     auto slug = slugify(name);
 
@@ -78,7 +80,7 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "", const String &units = "")
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass, const String &units)
 {
     auto slug = slugify(name);
 
@@ -97,7 +99,7 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "", const String &units = "", bool frcUpdate = true)
+bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass, const String &units, bool frcUpdate)
 {
     auto slug = slugify(name);
 
@@ -116,7 +118,7 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "")
+bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass)
 {
     auto slug = slugify(name);
 
@@ -219,8 +221,13 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
-bool sendConfig(const String &id, const String &alias, const String &name = "", int calRssi = -128)
+bool sendConfig(const String &id, const String &alias, const String &name, int calRssi)
 {
+    DeviceConfig existing;
+    if (BleFingerprintCollection::FindDeviceConfigByAlias(alias, existing) && existing.id != id)
+    {
+        deleteConfig(existing.id);
+    }
     Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
     doc["id"] = alias;

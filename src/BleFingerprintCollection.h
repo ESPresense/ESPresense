@@ -35,6 +35,7 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 const std::vector<BleFingerprint *> GetCopy();
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
+bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
 
 extern TCallbackBool onSeen;
 extern TCallbackFingerprint onAdd;

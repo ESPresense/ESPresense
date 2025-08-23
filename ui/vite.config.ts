@@ -32,5 +32,10 @@ export default defineConfig({
                 ws: true,
             }
         }
+    },
+    preview: {
+        port: 4173,
+        // Don't proxy API requests in preview mode - let tests handle mocking
+        proxy: {}
     }
 });
