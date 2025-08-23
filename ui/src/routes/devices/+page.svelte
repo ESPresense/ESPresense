@@ -297,7 +297,7 @@
                                     class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 >
                                     <option value="">Select existing ID</option>
-                                    {#each tableRows as cfg}
+                                    {#each tableRows.filter(cfg => cfg.alias && cfg.alias.trim() !== '').sort((a, b) => a.alias!.localeCompare(b.alias!)) as cfg}
                                         <option value={cfg.alias}>{cfg.alias}</option>
                                     {/each}
                                 </select>
