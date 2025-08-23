@@ -149,6 +149,23 @@ test.describe('Device Re-enrollment Functionality', () => {
       await route.fulfill({ json: mockEvents });
     });
 
+    const devicesResponses = [
+      { room: 'Living Room', devices: [] },
+      { room: 'Living Room', devices: [
+        { id: 'device-1', close: true },
+        { id: 'device-2', close: true }
+      ] },
+      { room: 'Living Room', devices: [
+        { id: 'device-2', close: true }
+      ] }
+    ];
+    let deviceCallCount = 0;
+    await page.route('/json/devices?showAll', async route => {
+      const response = devicesResponses[Math.min(deviceCallCount, devicesResponses.length - 1)];
+      deviceCallCount++;
+      await route.fulfill({ json: response });
+    });
+
     await page.goto('/devices');
   });
 
@@ -172,6 +189,17 @@ test.describe('Device Re-enrollment Functionality', () => {
     // Check that input fields are visible
     await expect(page.getByPlaceholder('Enter name')).toBeVisible();
     await expect(page.getByPlaceholder(/Enter custom ID or leave empty for auto-generated/)).toBeVisible();
+  });
+
+  test('should identify device using Find flow', async ({ page }) => {
+    await page.getByRole('button', { name: 'Enroll' }).click();
+    await page.getByRole('button', { name: "Can't connect to HRM? Find" }).click();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('Move the device far away')).toBeVisible();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('Device identified: device-1')).toBeVisible();
+    await page.getByRole('button', { name: 'Use ID' }).click();
+    await expect(page.getByPlaceholder(/Enter custom ID or leave empty for auto-generated/)).toHaveValue('device-1');
   });
 
   test('should populate existing device dropdown with aliases', async ({ page }) => {
