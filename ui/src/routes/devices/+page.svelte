@@ -2,7 +2,7 @@
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
     import { configs, events, enroll, cancelEnroll } from "#lib/stores.js";
-    import type { Config, Events } from "#lib/types.js";
+    import type { Config, Events, Devices, Device } from "#lib/types.js";
     import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
     let name = $state("");
@@ -10,6 +10,9 @@
     let deviceType = $state("");
     let showModal = $state(false);
     let showEditModal = $state(false);
+    let showFindModal = $state(false);
+    let findCandidates = $state<string[]>([]);
+    let findStep = $state<'near' | 'far'>('near');
     let sortBy = $state("alias");
     let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
@@ -46,6 +49,40 @@
             }
             resetEnrollState();
         }
+    }
+
+    async function getCloseDeviceIds(): Promise<string[]> {
+        try {
+            const response = await fetch('/json/devices?showAll');
+            const data: Devices = await response.json();
+            return data.devices
+                .filter((d: Device) => d.close)
+                .map((d: Device) => d.id || d.mac || '')
+                .filter((id) => id);
+        } catch {
+            return [];
+        }
+    }
+
+    async function detect() {
+        const closeIds = await getCloseDeviceIds();
+        if (findStep === 'near') {
+            findCandidates = findCandidates.length === 0 ? closeIds : findCandidates.filter((id) => closeIds.includes(id));
+            if (findCandidates.length > 1) {
+                findStep = 'far';
+            }
+        } else {
+            findCandidates = findCandidates.filter((id) => !closeIds.includes(id));
+            if (findCandidates.length > 1) {
+                findStep = 'near';
+            }
+        }
+    }
+
+    function closeFind() {
+        showFindModal = false;
+        findCandidates = [];
+        findStep = 'near';
     }
 
     function onEnroll() {
@@ -299,6 +336,13 @@
                                 placeholder={name ? suggestAlias(name, deviceType) : "Enter custom ID or leave empty for auto-generated"}
                             />
                             <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
+                            <button
+                                type="button"
+                                class="text-blue-600 dark:text-blue-400 text-sm underline"
+                                onclick={() => (showFindModal = true)}
+                            >
+                                Can't connect to HRM? Find
+                            </button>
                         </div>
                     {/if}
                 {:else}
@@ -326,6 +370,59 @@
         </Dialog.Content>
     </Dialog.Positioner>
 </Dialog>
+
+{#if showFindModal}
+    <Dialog open={showFindModal} onOpenChange={(e) => { if (!e.open) closeFind(); }} modal={false} preventScroll={true}>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-gray-900/50 transition-opacity" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center w-full h-full p-4">
+            <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
+                <Dialog.Title class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Find Device</Dialog.Title>
+                {#if findCandidates.length === 1}
+                    <p class="mb-4 text-gray-900 dark:text-white">Device identified: {findCandidates[0]}</p>
+                    <div class="flex justify-end space-x-2">
+                        <button
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                            onclick={() => { id = findCandidates[0]; closeFind(); }}
+                        >
+                            Use ID
+                        </button>
+                        <Dialog.CloseTrigger
+                            type="button"
+                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                        >
+                            Close
+                        </Dialog.CloseTrigger>
+                    </div>
+                {:else}
+                    <p class="mb-4 text-gray-900 dark:text-white">
+                        {findStep === 'near'
+                            ? 'Bring the device close to this node and click Detect.'
+                            : 'Move the device far away and click Detect.'}
+                    </p>
+                    {#if findCandidates.length > 1}
+                        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{findCandidates.length} devices remaining</p>
+                    {:else if findCandidates.length === 0 && findStep !== 'near'}
+                        <p class="mb-4 text-sm text-red-600">No devices detected. Try again.</p>
+                    {/if}
+                    <div class="flex justify-end space-x-2">
+                        <button
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                            onclick={detect}
+                        >
+                            Detect
+                        </button>
+                        <Dialog.CloseTrigger
+                            type="button"
+                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                        >
+                            Cancel
+                        </Dialog.CloseTrigger>
+                    </div>
+                {/if}
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Dialog>
+{/if}
 
 <Dialog open={showEditModal} onOpenChange={handleEditOpenChange} modal={false} preventScroll={true}>
     <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />
