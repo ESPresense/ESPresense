@@ -3,7 +3,7 @@
   import HamburgerButton from "$lib/components/HamburgerButton.svelte";
   import { roomName, mobileMenuOpen } from "$lib/stores";
   import { page } from "$app/stores";
-  import { onMount } from "svelte";
+  import { onMount, onDestroy } from "svelte";
   import "../app.css";
 
   // Get the current page name from the URL
@@ -23,6 +23,22 @@
     }
   }
 
+  // Close mobile menu on Escape key
+  function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && $mobileMenuOpen) {
+      mobileMenuOpen.set(false);
+    }
+  }
+
+  // Register window-level keydown listener
+  onMount(() => {
+    window.addEventListener('keydown', handleKeyDown);
+  });
+
+  onDestroy(() => {
+    window.removeEventListener('keydown', handleKeyDown);
+  });
+
   // Close mobile menu on route change
   $: if ($page) {
     mobileMenuOpen.set(false);
@@ -41,7 +57,7 @@
 <div class="flex flex-col md:flex-row min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
   <!-- Mobile menu overlay -->
   {#if $mobileMenuOpen}
-    <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity md:hidden" />
+    <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity md:hidden"></div>
   {/if}
 
   <!-- Mobile menu button -->

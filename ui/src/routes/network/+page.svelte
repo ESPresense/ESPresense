@@ -97,16 +97,17 @@
             <!-- Room Configuration -->
             <h2 class="text-xl font-semibold">Room Configuration</h2>
             <div>
-                <label class="block text-sm font-medium">Room Name</label>
-                <input type="text" name="room" bind:value={$mainSettings.values.room} placeholder={$mainSettings.defaults.room} class="mt-1 block w-full rounded-md" />
+                <label for="room-name" class="block text-sm font-medium">Room Name</label>
+                <input id="room-name" type="text" name="room" bind:value={$mainSettings.values.room} placeholder={$mainSettings.defaults.room} class="mt-1 block w-full rounded-md" />
             </div>
 
             <!-- WiFi Configuration -->
             <h2 class="text-xl font-semibold">WiFi Configuration</h2>
 
             <div class="mb-2">
-                <label class="block text-sm font-medium mb-1">WiFi SSID</label>
+                <label for="wifi-ssid" class="block text-sm font-medium mb-1">WiFi SSID</label>
                 <input
+                    id="wifi-ssid"
                     type="text"
                     name="wifi-ssid"
                     bind:value={$mainSettings.values["wifi-ssid"]}
@@ -118,17 +119,19 @@
             <div>
                 <div class="bg-gray-50 dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-600">
                     <div class="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-gray-700">
-                        <label class="text-base font-medium dark:text-white">Available Networks</label>
+                        <div class="text-base font-medium dark:text-white">Available Networks</div>
                         {#if isScanning}
                             <div class="ios-spinner"></div>
                         {/if}
                     </div>
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700">
                         {#each Object.entries(wifiNetworks) as [ssid, rssi]}
-                            <li
-                                onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
-                                class="flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                            >
+                            <li>
+                                <button
+                                    type="button"
+                                    onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
+                                    class="w-full flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 bg-transparent"
+                                >
                                 <div class="grow">
                                     <div class="text-base dark:text-white">{ssid}</div>
                                 </div>
@@ -142,10 +145,11 @@
                                                     : 'bg-gray-300 dark:bg-gray-600'
                                                 }`}
                                                 style={`transform: scale(1, ${0.6 + i * 0.2})`}
-                                            />
+                                            ></div>
                                         {/each}
                                     </div>
                                 </div>
+                                </button>
                             </li>
                         {/each}
                     </ul>
@@ -153,23 +157,23 @@
             </div>
 
             <div>
-                <label class="block text-sm font-medium">WiFi Password</label>
-                <input type="password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
+                <label for="wifi-password" class="block text-sm font-medium">WiFi Password</label>
+                <input id="wifi-password" type="password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium"> Seconds to wait for WiFi before captive portal (-1 = forever) </label>
-                <input type="number" name="wifi_timeout" bind:value={$mainSettings.values.wifi_timeout} placeholder={String($mainSettings.defaults.wifi_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                <label for="wifi-timeout" class="block text-sm font-medium"> Seconds to wait for WiFi before captive portal (-1 = forever) </label>
+                <input id="wifi-timeout" type="number" name="wifi_timeout" bind:value={$mainSettings.values.wifi_timeout} placeholder={String($mainSettings.defaults.wifi_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium"> Seconds to wait in captive portal before rebooting </label>
-                <input type="number" name="portal_timeout" bind:value={$mainSettings.values.portal_timeout} placeholder={String($mainSettings.defaults.portal_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                <label for="portal-timeout" class="block text-sm font-medium"> Seconds to wait in captive portal before rebooting </label>
+                <input id="portal-timeout" type="number" name="portal_timeout" bind:value={$mainSettings.values.portal_timeout} placeholder={String($mainSettings.defaults.portal_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Ethernet Type</label>
-                <select name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">
+                <label for="ethernet-type" class="block text-sm font-medium">Ethernet Type</label>
+                <select id="ethernet-type" name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">
                     <option value="0">None</option>
                     <option value="1">WT32-ETH01</option>
                     <option value="2">ESP32-POE</option>
@@ -189,44 +193,44 @@
             <!-- MQTT Configuration -->
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>
-                <label class="block text-sm font-medium">Server</label>
-                <input type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} class="mt-1 block w-full rounded-md" />
+                <label for="mqtt-host" class="block text-sm font-medium">Server</label>
+                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Port</label>
-                <input type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                <label for="mqtt-port" class="block text-sm font-medium">Port</label>
+                <input id="mqtt-port" type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Username</label>
+                <label for="mqtt-user" class="block text-sm font-medium">Username</label>
                 <!-- Using a password input as in the legacy page -->
-                <input type="password" name="mqtt_user" bind:value={$mainSettings.values.mqtt_user} class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-user" type="password" name="mqtt_user" bind:value={$mainSettings.values.mqtt_user} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
-                <label class="block text-sm font-medium">Password</label>
-                <input type="password" name="mqtt_pass" bind:value={$mainSettings.values.mqtt_pass} class="mt-1 block w-full rounded-md" />
+                <label for="mqtt-pass" class="block text-sm font-medium">Password</label>
+                <input id="mqtt-pass" type="password" name="mqtt_pass" bind:value={$mainSettings.values.mqtt_pass} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div class="space-y-4">
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="discovery" value="1" bind:checked={$mainSettings.values.discovery} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="discovery" class="flex items-center space-x-2">
+                    <input id="discovery" type="checkbox" name="discovery" value="1" bind:checked={$mainSettings.values.discovery} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to discovery topic</span>
                 </label>
 
                 <div class="ml-6">
-                    <label class="block text-sm font-medium"> Home Assistant discovery topic prefix </label>
-                    <input type="text" name="discovery_prefix" bind:value={$mainSettings.values.discovery_prefix} placeholder={$mainSettings.defaults.discovery_prefix} class="mt-1 block w-full rounded-md" />
+                    <label for="discovery-prefix" class="block text-sm font-medium"> Home Assistant discovery topic prefix </label>
+                    <input id="discovery-prefix" type="text" name="discovery_prefix" bind:value={$mainSettings.values.discovery_prefix} placeholder={$mainSettings.defaults.discovery_prefix} class="mt-1 block w-full rounded-md" />
                 </div>
 
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="pub_tele" value="1" bind:checked={$mainSettings.values.pub_tele} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="pub-tele" class="flex items-center space-x-2">
+                    <input id="pub-tele" type="checkbox" name="pub_tele" value="1" bind:checked={$mainSettings.values.pub_tele} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to telemetry topic</span>
                 </label>
 
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="pub_devices" value="1" bind:checked={$mainSettings.values.pub_devices} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="pub-devices" class="flex items-center space-x-2">
+                    <input id="pub-devices" type="checkbox" name="pub_devices" value="1" bind:checked={$mainSettings.values.pub_devices} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Send to devices topic</span>
                 </label>
             </div>
@@ -234,24 +238,24 @@
             <!-- Updating -->
             <h2 class="text-xl font-semibold">Updating</h2>
             <div class="space-y-4">
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="auto-update" class="flex items-center space-x-2">
+                    <input id="auto-update" type="checkbox" name="auto_update" value="1" bind:checked={$mainSettings.values.auto_update} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Automatically update</span>
                 </label>
 
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="prerelease" value="1" bind:checked={$mainSettings.values.prerelease} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="prerelease" class="flex items-center space-x-2">
+                    <input id="prerelease" type="checkbox" name="prerelease" value="1" bind:checked={$mainSettings.values.prerelease} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Include pre-released versions in auto-update</span>
                 </label>
 
-                <label class="flex items-center space-x-2">
-                    <input type="checkbox" name="arduino_ota" value="1" bind:checked={$mainSettings.values.arduino_ota} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <label for="arduino-ota" class="flex items-center space-x-2">
+                    <input id="arduino-ota" type="checkbox" name="arduino_ota" value="1" bind:checked={$mainSettings.values.arduino_ota} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
                     <span>Arduino OTA Update</span>
                 </label>
 
                 <div>
-                    <label class="block text-sm font-medium"> Update URL (if set will update from this url on next boot) </label>
-                    <input type="text" name="update" bind:value={$mainSettings.values.update} class="mt-1 block w-full rounded-md" />
+                    <label for="update-url" class="block text-sm font-medium"> Update URL (if set will update from this url on next boot) </label>
+                    <input id="update-url" type="text" name="update" bind:value={$mainSettings.values.update} class="mt-1 block w-full rounded-md" />
                 </div>
             </div>
 
