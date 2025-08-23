@@ -81,10 +81,13 @@ bool addOrReplace(DeviceConfig config) {
     if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
 
+    std::vector<String> idsToDelete;
+    bool isReplacement = false;
+
     if (!config.alias.isEmpty()) {
         for (auto it = deviceConfigs.begin(); it != deviceConfigs.end();) {
             if (it->alias == config.alias && it->id != config.id) {
-                deleteConfig(it->id);
+                idsToDelete.push_back(it->id);
                 it = deviceConfigs.erase(it);
             } else {
                 ++it;
@@ -95,13 +98,23 @@ bool addOrReplace(DeviceConfig config) {
     for (auto &it : deviceConfigs) {
         if (it.id == config.id) {
             it = config;
-            xSemaphoreGive(deviceConfigMutex);
-            return false;
+            isReplacement = true;
+            break;
         }
     }
-    deviceConfigs.push_back(config);
+    
+    if (!isReplacement) {
+        deviceConfigs.push_back(config);
+    }
+    
     xSemaphoreGive(deviceConfigMutex);
-    return true;
+    
+    // Call deleteConfig outside the critical section to avoid mutex re-entrance
+    for (const String &id : idsToDelete) {
+        deleteConfig(id);
+    }
+    
+    return !isReplacement;
 }
 
 bool removeConfig(const String &id) {
