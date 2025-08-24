@@ -241,15 +241,17 @@ void sendImprovInfoResponse() {
 }
 
 void parseWiFiCommand(char* data) {
-    uint8_t len = data[0];
-    if (!len || len > 126) return;
+    uint8_t data_len = data[0];
+    if (data_len < 2 || data_len > 126) return;
 
     uint8_t ssid_length = data[1];
-    uint8_t ssid_start = 2;
+    size_t ssid_start = 2;
     size_t ssid_end = ssid_start + ssid_length;
+    if (!ssid_length || ssid_end > data_len + 1) return;
 
     uint8_t pass_length = data[ssid_end];
     size_t pass_start = ssid_end + 1;
+    if (pass_length > 126 || pass_start + pass_length > data_len + 1) return;
     size_t pass_end = pass_start + pass_length;
 
     std::string ssid(data + ssid_start, data + ssid_end);
