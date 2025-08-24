@@ -103,7 +103,6 @@ test.describe('Device Alias Flow', () => {
   });
 
   test('should alias device using movement detection', async ({ page }) => {
-    await page.getByRole('button', { name: 'Enroll' }).click();
     await page.getByRole('button', { name: 'Alias' }).click();
     await page.getByRole('button', { name: 'Detect' }).click();
     await expect(page.getByText('Move the device far away')).toBeVisible();
