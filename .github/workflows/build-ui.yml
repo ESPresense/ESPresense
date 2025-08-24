@@ -32,11 +32,11 @@ jobs:
 
     - name: Install Dependencies
       working-directory: ui
-      run: npm ci
+      run: npm install
 
     - name: Install Playwright browsers
       working-directory: ui
-      run: npx playwright install --with-deps
+      run: npx playwright install --with-deps chromium
 
     - name: Run UI tests
       working-directory: ui

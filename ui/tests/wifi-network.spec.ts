@@ -166,3 +166,29 @@ test.describe('WiFi Network Selection', () => {
     await expect(networkButton).toHaveClass(/text-left border-0 bg-transparent/);
   });
 });
+
+
+test('should display SSID with extended characters', async ({ page }) => {
+  await page.route('/wifi/main', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: mockMainSettings });
+    } else if (route.request().method() === 'POST') {
+      await route.fulfill({ json: { success: true } });
+    }
+  });
+
+  await page.route('/wifi/scan', async route => {
+    await route.fulfill({ json: { networks: { "Darrell’s iPhone": -70 } } });
+  });
+
+  await page.route('/json', async route => {
+    await route.fulfill({ json: { room: 'Living Room' } });
+  });
+
+  await page.goto('/network');
+
+  await expect(page.getByText('Darrell’s iPhone')).toBeVisible();
+  const ssidInput = page.getByLabel('WiFi SSID');
+  await page.getByRole('button', { name: 'Darrell’s iPhone' }).click();
+  await expect(ssidInput).toHaveValue('Darrell’s iPhone');
+});
