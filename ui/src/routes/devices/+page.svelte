@@ -76,11 +76,28 @@
         }
     }
 
+    function openAlias() {
+        showAliasModal = true;
+        aliasCandidates = [];
+        aliasStep = 'near';
+        deviceId = "";
+    }
+
     function closeAlias() {
         showAliasModal = false;
         aliasCandidates = [];
         aliasStep = 'near';
         deviceId = "";
+    }
+
+    function useId() {
+        const selected = aliasCandidates[0];
+        showAliasModal = false;
+        aliasCandidates = [];
+        aliasStep = 'near';
+        deviceId = selected;
+        id = selected;
+        showModal = true;
     }
 
     async function onEnroll() {
@@ -276,12 +293,20 @@
     <div class="p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
-            <button
-                onclick={() => (showModal = true)}
-                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-            >
-                Enroll
-            </button>
+            <div class="flex space-x-2">
+                <button
+                    onclick={openAlias}
+                    class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                >
+                    Alias
+                </button>
+                <button
+                    onclick={() => (showModal = true)}
+                    class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                >
+                    Enroll
+                </button>
+            </div>
         </div>
 
         {#if $configs != null}
@@ -369,13 +394,6 @@
                                     placeholder={name ? (deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name)) : "Enter custom ID or leave empty for auto-generated"}
                                 />
                                 <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
-                                <button
-                                    type="button"
-                                    class="text-blue-600 dark:text-blue-400 text-sm underline"
-                                    onclick={() => (showAliasModal = true)}
-                                >
-                                    Alias
-                                </button>
                             </div>
                         {/if}
                     {:else}
@@ -421,7 +439,7 @@
                 <div class="flex justify-end space-x-2">
                     <button
                         class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-                        onclick={() => { deviceId = aliasCandidates[0]; id = aliasCandidates[0]; closeAlias(); }}
+                        onclick={useId}
                     >
                         Use ID
                     </button>
