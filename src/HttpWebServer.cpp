@@ -205,6 +205,26 @@ void Init(AsyncWebServer *server) {
                 return;
             }
 
+            // Handle alias endpoint
+            if (url.indexOf("alias") > 0) {
+                JsonObject root = json.as<JsonObject>();
+                if (root.isNull() || !root.containsKey("id") || !root.containsKey("alias")) {
+                    request->send(400, "application/json", F("{\"error\":\"Missing required fields\"}"));
+                    return;
+                }
+
+                String id = root["id"].as<String>();
+                String alias = root["alias"].as<String>();
+                String name = root.containsKey("name") ? root["name"].as<String>() : "";
+
+                if (sendConfig(id, alias, name)) {
+                    request->send(200, "application/json", F("{\"success\":true}"));
+                } else {
+                    request->send(500, "application/json", F("{\"error\":\"Failed to alias device\"}"));
+                }
+                return;
+            }
+
             // Default response for unhandled endpoints
             request->send(404, "application/json", F("{\"error\":\"Unknown endpoint\"}"));
         });

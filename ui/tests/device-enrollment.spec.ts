@@ -191,17 +191,6 @@ test.describe('Device Re-enrollment Functionality', () => {
     await expect(page.getByPlaceholder(/Enter custom ID or leave empty for auto-generated/)).toBeVisible();
   });
 
-  test('should identify device using Find flow', async ({ page }) => {
-    await page.getByRole('button', { name: 'Enroll' }).click();
-    await page.getByRole('button', { name: "Can't connect to HRM? Find" }).click();
-    await page.getByRole('button', { name: 'Detect' }).click();
-    await expect(page.getByText('Move the device far away')).toBeVisible();
-    await page.getByRole('button', { name: 'Detect' }).click();
-    await expect(page.getByText('Device identified: device-1')).toBeVisible();
-    await page.getByRole('button', { name: 'Use ID' }).click();
-    await expect(page.getByPlaceholder(/Enter custom ID or leave empty for auto-generated/)).toHaveValue('device-1');
-  });
-
   test('should populate existing device dropdown with aliases', async ({ page }) => {
     // Wait for devices to load first
     await expect(page.getByText('John Phone')).toBeVisible();

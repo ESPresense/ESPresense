@@ -1,6 +1,6 @@
 <script lang="ts">
     import SvelteTable from "svelte-table";
-    import { configs, events, enroll, cancelEnroll } from "$lib/stores";
+    import { configs, events, enroll, cancelEnroll, aliasDevice } from "$lib/stores";
     import type { Config, Events, TableColumn, Devices, Device } from "$lib/types";
 
     let name = $state("");
@@ -8,9 +8,10 @@
     let deviceType = $state("");
     let showModal = $state(false);
     let showEditModal = $state(false);
-    let showFindModal = $state(false);
-    let findCandidates = $state<string[]>([]);
-    let findStep = $state<'near' | 'far'>('near');
+    let showAliasModal = $state(false);
+    let aliasCandidates = $state<string[]>([]);
+    let aliasStep = $state<'near' | 'far'>('near');
+    let deviceId = $state("");
     let filterSelections = $state({});
     let sortBy = $state("alias");
     let sortOrder = $state<-1 | 0 | 1>(1);
@@ -62,29 +63,36 @@
 
     async function detect() {
         const closeIds = await getCloseDeviceIds();
-        if (findStep === 'near') {
-            findCandidates = findCandidates.length === 0 ? closeIds : findCandidates.filter((id) => closeIds.includes(id));
-            if (findCandidates.length > 1) {
-                findStep = 'far';
+        if (aliasStep === 'near') {
+            aliasCandidates = aliasCandidates.length === 0 ? closeIds : aliasCandidates.filter((id) => closeIds.includes(id));
+            if (aliasCandidates.length > 1) {
+                aliasStep = 'far';
             }
         } else {
-            findCandidates = findCandidates.filter((id) => !closeIds.includes(id));
-            if (findCandidates.length > 1) {
-                findStep = 'near';
+            aliasCandidates = aliasCandidates.filter((id) => !closeIds.includes(id));
+            if (aliasCandidates.length > 1) {
+                aliasStep = 'near';
             }
         }
     }
 
-    function closeFind() {
-        showFindModal = false;
-        findCandidates = [];
-        findStep = 'near';
+    function closeAlias() {
+        showAliasModal = false;
+        aliasCandidates = [];
+        aliasStep = 'near';
+        deviceId = "";
     }
 
-    function onEnroll() {
+    async function onEnroll() {
         const generatedId = deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name);
-        enroll(id || generatedId, name);
+        const alias = id || generatedId;
+        if (deviceId) {
+            await aliasDevice(deviceId, alias, name);
+        } else {
+            enroll(alias, name);
+        }
         showModal = false;
+        deviceId = "";
     }
 
     function onClose() {
@@ -92,6 +100,7 @@
         name = "";
         id = "";
         deviceType = "";
+        deviceId = "";
         cancelEnroll();
     }
 
@@ -363,9 +372,9 @@
                                 <button
                                     type="button"
                                     class="text-blue-600 dark:text-blue-400 text-sm underline"
-                                    onclick={() => (showFindModal = true)}
+                                    onclick={() => (showAliasModal = true)}
                                 >
-                                    Can't connect to HRM? Find
+                                    Alias
                                 </button>
                             </div>
                         {/if}
@@ -396,42 +405,42 @@
     </div>
 {/if}
 
-{#if showFindModal}
+{#if showAliasModal}
     <div class="fixed inset-0 z-50 flex items-center justify-center">
         <div
             class="absolute inset-0 bg-gray-900 opacity-50"
             role="button"
             tabindex="0"
-            onclick={closeFind}
-            onkeydown={(e) => e.key === 'Enter' && closeFind()}
+            onclick={closeAlias}
+            onkeydown={(e) => e.key === 'Enter' && closeAlias()}
         ></div>
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 w-full max-w-md z-10">
-            <h2 class="text-lg font-semibold mb-4">Find Device</h2>
-            {#if findCandidates.length === 1}
-                <p class="mb-4">Device identified: {findCandidates[0]}</p>
+            <h2 class="text-lg font-semibold mb-4">Alias Device</h2>
+            {#if aliasCandidates.length === 1}
+                <p class="mb-4">Device identified: {aliasCandidates[0]}</p>
                 <div class="flex justify-end space-x-2">
                     <button
                         class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-                        onclick={() => { id = findCandidates[0]; closeFind(); }}
+                        onclick={() => { deviceId = aliasCandidates[0]; id = aliasCandidates[0]; closeAlias(); }}
                     >
                         Use ID
                     </button>
                     <button
                         class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-                        onclick={closeFind}
+                        onclick={closeAlias}
                     >
                         Close
                     </button>
                 </div>
             {:else}
                 <p class="mb-4">
-                    {findStep === 'near'
+                    {aliasStep === 'near'
                         ? 'Bring the device close to this node and click Detect.'
                         : 'Move the device far away and click Detect.'}
                 </p>
-                {#if findCandidates.length > 1}
-                    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{findCandidates.length} devices remaining</p>
-                {:else if findCandidates.length === 0 && findStep !== 'near'}
+                {#if aliasCandidates.length > 1}
+                    <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{aliasCandidates.length} devices remaining</p>
+                {:else if aliasCandidates.length === 0 && aliasStep !== 'near'}
                     <p class="mb-4 text-sm text-red-600">No devices detected. Try again.</p>
                 {/if}
                 <div class="flex justify-end space-x-2">
@@ -443,7 +452,7 @@
                     </button>
                     <button
                         class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-                        onclick={closeFind}
+                        onclick={closeAlias}
                     >
                         Cancel
                     </button>
