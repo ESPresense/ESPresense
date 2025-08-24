@@ -172,6 +172,16 @@ export function cancelEnroll(): void {
     socket?.send(data);
 }
 
+export async function aliasDevice(id: string, alias: string, name: string): Promise<void> {
+    await fetch('/json/configs', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id, alias, name })
+    });
+}
+
 export const mobileMenuOpen = writable<boolean>(false);
 
 export const extraSettings = writable<ExtraSettings | null>(null, function start(set) {

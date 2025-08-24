@@ -1,7 +1,7 @@
 <script lang="ts">
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
-    import { configs, events, enroll, cancelEnroll } from "#lib/stores.js";
+    import { configs, events, enroll, cancelEnroll, aliasDevice } from "#lib/stores.js";
     import type { Config, Events, Devices, Device } from "#lib/types.js";
     import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
@@ -10,9 +10,10 @@
     let deviceType = $state("");
     let showModal = $state(false);
     let showEditModal = $state(false);
-    let showFindModal = $state(false);
-    let findCandidates = $state<string[]>([]);
-    let findStep = $state<'near' | 'far'>('near');
+    let showAliasModal = $state(false);
+    let aliasCandidates = $state<string[]>([]);
+    let aliasStep = $state<'near' | 'far'>('near');
+    let deviceId = $state("");
     let sortBy = $state("alias");
     let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
@@ -38,6 +39,7 @@
         name = "";
         id = "";
         deviceType = "";
+        deviceId = "";
     }
 
     function handleEnrollOpenChange(event: { open: boolean }) {
@@ -66,27 +68,35 @@
 
     async function detect() {
         const closeIds = await getCloseDeviceIds();
-        if (findStep === 'near') {
-            findCandidates = findCandidates.length === 0 ? closeIds : findCandidates.filter((id) => closeIds.includes(id));
-            if (findCandidates.length > 1) {
-                findStep = 'far';
+        if (aliasStep === 'near') {
+            aliasCandidates = aliasCandidates.length === 0 ? closeIds : aliasCandidates.filter((id) => closeIds.includes(id));
+            if (aliasCandidates.length > 1) {
+                aliasStep = 'far';
             }
         } else {
-            findCandidates = findCandidates.filter((id) => !closeIds.includes(id));
-            if (findCandidates.length > 1) {
-                findStep = 'near';
+            aliasCandidates = aliasCandidates.filter((id) => !closeIds.includes(id));
+            if (aliasCandidates.length > 1) {
+                aliasStep = 'near';
             }
         }
     }
 
-    function closeFind() {
-        showFindModal = false;
-        findCandidates = [];
-        findStep = 'near';
+    function closeAlias() {
+        showAliasModal = false;
+        aliasCandidates = [];
+        aliasStep = 'near';
+        deviceId = "";
     }
 
-    function onEnroll() {
-        enroll(id || suggestAlias(name, deviceType), name);
+    async function onEnroll() {
+        const alias = id || suggestAlias(name, deviceType);
+        if (deviceId) {
+            await aliasDevice(deviceId, alias, name);
+            showModal = false;
+            resetEnrollState();
+        } else {
+            enroll(alias, name);
+        }
     }
 
     function handleEditOpenChange(event: { open: boolean }) {
@@ -339,9 +349,9 @@
                             <button
                                 type="button"
                                 class="text-blue-600 dark:text-blue-400 text-sm underline"
-                                onclick={() => (showFindModal = true)}
+                                onclick={() => (showAliasModal = true)}
                             >
-                                Can't connect to HRM? Find
+                                Alias
                             </button>
                         </div>
                     {/if}
@@ -371,18 +381,18 @@
     </Dialog.Positioner>
 </Dialog>
 
-{#if showFindModal}
-    <Dialog open={showFindModal} onOpenChange={(e) => { if (!e.open) closeFind(); }} modal={false} preventScroll={true}>
+{#if showAliasModal}
+    <Dialog open={showAliasModal} onOpenChange={(e) => { if (!e.open) closeAlias(); }} modal={false} preventScroll={true}>
         <Dialog.Backdrop class="fixed inset-0 z-50 bg-gray-900/50 transition-opacity" />
         <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center w-full h-full p-4">
             <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-                <Dialog.Title class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Find Device</Dialog.Title>
-                {#if findCandidates.length === 1}
-                    <p class="mb-4 text-gray-900 dark:text-white">Device identified: {findCandidates[0]}</p>
+                <Dialog.Title class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Alias Device</Dialog.Title>
+                {#if aliasCandidates.length === 1}
+                    <p class="mb-4 text-gray-900 dark:text-white">Device identified: {aliasCandidates[0]}</p>
                     <div class="flex justify-end space-x-2">
                         <button
                             class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-                            onclick={() => { id = findCandidates[0]; closeFind(); }}
+                            onclick={() => { deviceId = aliasCandidates[0]; id = aliasCandidates[0]; closeAlias(); }}
                         >
                             Use ID
                         </button>
@@ -395,13 +405,13 @@
                     </div>
                 {:else}
                     <p class="mb-4 text-gray-900 dark:text-white">
-                        {findStep === 'near'
+                        {aliasStep === 'near'
                             ? 'Bring the device close to this node and click Detect.'
                             : 'Move the device far away and click Detect.'}
                     </p>
-                    {#if findCandidates.length > 1}
-                        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{findCandidates.length} devices remaining</p>
-                    {:else if findCandidates.length === 0 && findStep !== 'near'}
+                    {#if aliasCandidates.length > 1}
+                        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{aliasCandidates.length} devices remaining</p>
+                    {:else if aliasCandidates.length === 0 && aliasStep !== 'near'}
                         <p class="mb-4 text-sm text-red-600">No devices detected. Try again.</p>
                     {/if}
                     <div class="flex justify-end space-x-2">
