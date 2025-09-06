@@ -30,6 +30,14 @@ jobs:
         cache: 'npm'
         cache-dependency-path: ui/package-lock.json
 
+    - name: Setup pnpm cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.pnpm-store
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+
     - name: Install Dependencies
       working-directory: ui
       run: npm install
