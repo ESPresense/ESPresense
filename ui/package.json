@@ -33,6 +33,6 @@
     "svelte-table": "^0.6.4",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.8.3",
-    "vite": "^6.3.5"
+    "vite": "^6.3.6"
   }
 }
