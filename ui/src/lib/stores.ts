@@ -35,7 +35,9 @@ export const darkMode = writable<boolean>(false, (set) => {
     if (typeof window !== 'undefined') {
         // Initialize from localStorage or system preference
         const stored = localStorage.getItem('darkMode');
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const systemPrefersDark = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+            : false;
         const isDark = stored ? stored === 'true' : systemPrefersDark;
         set(isDark);
 
