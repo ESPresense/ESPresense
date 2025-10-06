@@ -17,7 +17,7 @@
     "@gfx/zopfli": "^1.0.15",
     "@playwright/test": "^1.55.0",
     "@rollup/plugin-strip": "^3.0.4",
-    "@sveltejs/adapter-static": "^3.0.9",
+    "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.33.0",
     "@sveltejs/vite-plugin-svelte": "^5.1.0",
     "@tailwindcss/postcss": "^4.1.13",
