@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@gfx/zopfli": "^1.0.15",
-    "@playwright/test": "^1.55.0",
+    "@playwright/test": "^1.56.1",
     "@rollup/plugin-strip": "^3.0.4",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.33.0",
@@ -33,6 +33,6 @@
     "svelte-table": "^0.6.5",
     "tailwindcss": "^4.1.13",
     "typescript": "^5.9.2",
-    "vite": "^6.3.5"
+    "vite": "^6.4.1"
   }
 }
