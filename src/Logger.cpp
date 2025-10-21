@@ -27,6 +27,7 @@ SemaphoreHandle_t tcpWriteMutex = nullptr;
 int (*originalVprintf)(const char*, va_list) = nullptr;
 uint16_t tcpPort = 0;
 Logger* loggerInstance = nullptr;
+bool tcpEnabled = false;
 
 /**
  * @brief Safely writes a byte buffer to the currently connected TCP client if available.
@@ -42,11 +43,14 @@ Logger* loggerInstance = nullptr;
  */
 void SafeTcpWrite(const uint8_t* data, size_t length) {
     if (!data || length == 0) return;
-    if (!tcpClient || !tcpClient->connected()) return;
+    if (!tcpEnabled) return;
     if (!tcpWriteMutex) return;
 
     if (xSemaphoreTake(tcpWriteMutex, portMAX_DELAY) == pdTRUE) {
-        tcpClient->write(reinterpret_cast<const char*>(data), length);
+        AsyncClient* client = tcpClient;
+        if (client && client->connected()) {
+            client->write(reinterpret_cast<const char*>(data), length);
+        }
         xSemaphoreGive(tcpWriteMutex);
     }
 }
@@ -68,7 +72,7 @@ int LoggerVprintf(const char* format, va_list args) {
     va_end(argsForLength);
 
     // Format and send to TCP client if connected
-    if (required > 0 && tcpClient && tcpClient->connected()) {
+    if (required > 0 && tcpEnabled && tcpClient && tcpClient->connected()) {
         std::vector<char> buffer(static_cast<size_t>(required) + 1);
         va_list argsForBuffer;
         va_copy(argsForBuffer, args);
@@ -244,16 +248,24 @@ void Logger::setDebugOutput(bool enable) {
  * @param port TCP port to listen on for log client connections.
  */
 void Logger::enableTcp(uint16_t port) {
-    if (tcpServer) return;  // Already enabled
+    if (tcpEnabled) return;
 
     tcpPort = port;
     tcpWriteMutex = xSemaphoreCreateMutex();
+    if (!tcpWriteMutex) return;
+
     tcpServer = new AsyncServer(tcpPort);
+    if (!tcpServer) {
+        vSemaphoreDelete(tcpWriteMutex);
+        tcpWriteMutex = nullptr;
+        return;
+    }
     tcpServer->onClient(HandleTcpClient, nullptr);
     tcpServer->begin();
 
     // Hook into ESP logging system
     originalVprintf = esp_log_set_vprintf(LoggerVprintf);
+    tcpEnabled = true;
 }
 
 /**
@@ -265,29 +277,39 @@ void Logger::enableTcp(uint16_t port) {
  * Calling this when TCP logging is not enabled has no effect.
  */
 void Logger::disableTcp() {
-    // Restore original vprintf
+    if (!tcpEnabled) return;
+    tcpEnabled = false;
+
+    // Restore original vprintf first so no further writes arrive via the hook.
     if (originalVprintf) {
         esp_log_set_vprintf(originalVprintf);
         originalVprintf = nullptr;
     }
 
-    // Close and cleanup server
+    // Snapshot client pointer under the mutex and clear the global reference.
+    AsyncClient* clientToClose = nullptr;
+    if (tcpWriteMutex && xSemaphoreTake(tcpWriteMutex, portMAX_DELAY) == pdTRUE) {
+        clientToClose = tcpClient;
+        tcpClient = nullptr;
+        xSemaphoreGive(tcpWriteMutex);
+    } else {
+        clientToClose = tcpClient;
+        tcpClient = nullptr;
+    }
+
+    if (clientToClose) {
+        clientToClose->close(true);
+    }
+
     if (tcpServer) {
         tcpServer->end();
         delete tcpServer;
         tcpServer = nullptr;
     }
 
-    // Cleanup mutex
     if (tcpWriteMutex) {
         vSemaphoreDelete(tcpWriteMutex);
         tcpWriteMutex = nullptr;
-    }
-
-    // Close client connection
-    if (tcpClient) {
-        tcpClient->close(true);
-        tcpClient = nullptr;
     }
 }
 
