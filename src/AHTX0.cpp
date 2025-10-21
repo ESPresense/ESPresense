@@ -12,7 +12,6 @@
 namespace AHTX0
 {
     Adafruit_AHTX0* aht;
-    long AHTX0_status;
     String AHTX0_I2c;
     int AHTX0_I2c_Bus;
     unsigned long AHTX0PreviousMillis = 0;
@@ -32,15 +31,16 @@ namespace AHTX0
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
         aht = new Adafruit_AHTX0();
+        bool ok = false;
         if (AHTX0_I2c == "0x38") {
-            AHTX0_status = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x38);
+            ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x38);
         } else if (AHTX0_I2c == "0x39") {
-            AHTX0_status = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x39);
+            ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x39);
         } else {
             return;
         }
 
-        if (!AHTX0_status) {
+        if (!ok) {
             Log.println("[AHTX0] Couldn't find a sensor, check your wiring and I2C address!");
         } else {
             initialized = true;

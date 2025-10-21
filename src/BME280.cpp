@@ -12,7 +12,6 @@
 namespace BME280
 {
     Adafruit_BME280 BME280;
-    long BME280_status;
     String BME280_I2c;
     int BME280_I2c_Bus;
     unsigned long bme280PreviousMillis = 0;
@@ -31,22 +30,22 @@ namespace BME280
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
+        bool ok = false;
         if (BME280_I2c == "0x76" && BME280_I2c_Bus == 1) {
-            BME280_status = BME280.begin(0x76, &Wire);
+            ok = BME280.begin(0x76, &Wire);
         } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 1) {
-            BME280_status = BME280.begin(0x77, &Wire);
+            ok = BME280.begin(0x77, &Wire);
         } else if (BME280_I2c == "0x76" && BME280_I2c_Bus == 2) {
-            BME280_status = BME280.begin(0x76, &Wire1);
+            ok = BME280.begin(0x76, &Wire1);
         } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
-            BME280_status = BME280.begin(0x77, &Wire1);
+            ok = BME280.begin(0x77, &Wire1);
         } else {
             return;
         }
 
-        if (!BME280_status) {
+        if (!ok) {
             Log.println("[BME280] Couldn't find a sensor, check your wiring and I2C address!");
-        } else {
-            initialized = true;
+            return;
         }
 
         BME280.setSampling(
@@ -56,6 +55,8 @@ namespace BME280
             Adafruit_BME280::SAMPLING_X1,  // Humidity
             Adafruit_BME280::FILTER_OFF
         );
+
+        initialized = true;
     }
 
     void ConnectToWifi()
