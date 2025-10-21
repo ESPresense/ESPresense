@@ -39,15 +39,15 @@ void Setup() {
 
     SCD4x_status = scd->wakeUp();
     if (SCD4x_status != NO_ERROR) {
-        Serial.println("[SCD4x] Error trying to execute wakeUp(): ");
+        Log.println("[SCD4x] Error trying to execute wakeUp(): ");
     }
     SCD4x_status = scd->stopPeriodicMeasurement();
     if (SCD4x_status != NO_ERROR) {
-        Serial.println("[SCD4x] Error trying to execute stopPeriodicMeasurement(): ");
+        Log.println("[SCD4x] Error trying to execute stopPeriodicMeasurement(): ");
     }
     SCD4x_status = scd->reinit();
     if (SCD4x_status != NO_ERROR) {
-        Serial.println("[SCD4x] Error trying to execute reinit(): ");
+        Log.println("[SCD4x] Error trying to execute reinit(): ");
     }
 
     uint64_t serialNumber = 0;
@@ -55,19 +55,19 @@ void Setup() {
     // Read out information about the sensor
     SCD4x_status = scd->getSerialNumber(serialNumber);
     if (SCD4x_status != NO_ERROR) {
-        Serial.println("[SCD4x] Error trying to execute getSerialNumber(): ");
+        Log.println("[SCD4x] Error trying to execute getSerialNumber(): ");
     } else {
-        Serial.print("SCD4x sn:     ");
-        Serial.print("0x");
-        Serial.print((uint32_t)(serialNumber >> 32), HEX);
-        Serial.print((uint32_t)(serialNumber & 0xFFFFFFFF), HEX);
-        Serial.println();
+        Log.print("SCD4x sn:     ");
+        Log.print("0x");
+        Log.print((uint32_t)(serialNumber >> 32), HEX);
+        Log.print((uint32_t)(serialNumber & 0xFFFFFFFF), HEX);
+        Log.println();
     }
 
     SCD4x_status = scd->startPeriodicMeasurement();
     if (SCD4x_status != NO_ERROR) {
-        Serial.println("[SCD4x] Error trying to execute startPeriodicMeasurement(): ");
-        Serial.println("[SCD4x] Couldn't find a sensor, check your wiring and I2C address!");
+        Log.println("[SCD4x] Error trying to execute startPeriodicMeasurement(): ");
+        Log.println("[SCD4x] Couldn't find a sensor, check your wiring and I2C address!");
     } else {
         initialized = true;
     }
@@ -81,8 +81,8 @@ void ConnectToWifi() {
 void SerialReport() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (SCD4x_I2c.isEmpty()) return;
-    Serial.print("SCD4x:        ");
-    Serial.println(SCD4x_I2c + " on bus " + SCD4x_I2c_Bus);
+    Log.print("SCD4x:        ");
+    Log.println(SCD4x_I2c + " on bus " + SCD4x_I2c_Bus);
 }
 
 void Loop() {

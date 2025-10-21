@@ -1,4 +1,5 @@
 #include "MiFloraHandler.h"
+#include "Logger.h"
 
 namespace MiFloraHandler {
 
@@ -10,7 +11,7 @@ bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     floraCharacteristic = floraService->getCharacteristic(uuid_sensor_data);
 
     if (floraCharacteristic == nullptr) {
-        Serial.println("-- Can't read characteristics");
+        Log.println("-- Can't read characteristics");
         return false;
     }
 
@@ -20,7 +21,7 @@ bool readSensorData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     value = floraCharacteristic->readValue();
 
     if (value.size() == 0) {
-        Serial.println("Reading Value failed");
+        Log.println("Reading Value failed");
         return false;
     }
 
@@ -47,7 +48,7 @@ bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     floraCharacteristic = floraService->getCharacteristic(uuid_version_battery);
 
     if (floraCharacteristic == nullptr) {
-        Serial.println("-- Can't read characteristics");
+        Log.println("-- Can't read characteristics");
         return false;
     }
     NimBLEAttValue val;
@@ -55,7 +56,7 @@ bool readBatteryData(BLERemoteService* floraService, DynamicJsonDocument* doc) {
     val = floraCharacteristic->readValue();
 
     if (val.size() == 0) {
-        Serial.println("Reading Value failed");
+        Log.println("Reading Value failed");
         return false;
     }
 
@@ -70,12 +71,12 @@ bool forceFloraServiceDataMode(BLERemoteService* floraService) {  // Setting the
     BLERemoteCharacteristic* floraCharacteristic;
 
     // get device mode characteristic, needs to be changed to read data
-    // Serial.println("- Force device in data mode");
+    // Log.println("- Force device in data mode");
     floraCharacteristic = nullptr;
     floraCharacteristic = floraService->getCharacteristic(uuid_write_mode);
 
     if (floraCharacteristic == nullptr) {
-        // Serial.println("-- Failed, skipping device");
+        // Log.println("-- Failed, skipping device");
         return false;
     }
 
@@ -99,15 +100,15 @@ bool getFloraData(DynamicJsonDocument* doc, BLERemoteService* floraService, BleF
     fillDeviceData(doc, f);
 
     if (!MiFloraHandler::readBatteryData(floraService, doc))
-        Serial.println("Failed reading battery data");
+        Log.println("Failed reading battery data");
 
     if (MiFloraHandler::forceFloraServiceDataMode(floraService)) {
     } else {
-        Serial.println("Failed to force data reading mode");
+        Log.println("Failed to force data reading mode");
     }
 
     if (!MiFloraHandler::readSensorData(floraService, doc))
-        Serial.println("Failed reading sensor data");
+        Log.println("Failed reading sensor data");
 
     return true;
 }
@@ -119,7 +120,7 @@ bool requestData(NimBLEClient* pClient, BleFingerprint* fingerprint)  // Getting
     NimBLERemoteService* floraService = pClient->getService(serviceUUID);
 
     if (floraService == nullptr) {
-        Serial.println("Getting MiFlora service failed");
+        Log.println("Getting MiFlora service failed");
         return false;
     }
 

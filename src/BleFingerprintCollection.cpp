@@ -2,6 +2,7 @@
 
 #include "defaults.h"
 #include "mqtt.h"
+#include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
 #include <sstream>
@@ -102,18 +103,18 @@ bool addOrReplace(DeviceConfig config) {
             break;
         }
     }
-    
+
     if (!isReplacement) {
         deviceConfigs.push_back(config);
     }
-    
+
     xSemaphoreGive(deviceConfigMutex);
-    
+
     // Call deleteConfig outside the critical section to avoid mutex re-entrance
     for (const String &id : idsToDelete) {
         deleteConfig(id);
     }
-    
+
     return !isReplacement;
 }
 
@@ -281,7 +282,7 @@ void CleanupOldFingerprints() {
     if (!any) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
-            Serial.println("Bluetooth controller seems stuck, restarting");
+            Log.println("Bluetooth controller seems stuck, restarting");
             ESP.restart();
         }
     }
@@ -298,7 +299,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;
-        // Serial.printf("Detected mac switch for fingerprint id %s\r\n", found->getId().c_str());
+        // Log.printf("Detected mac switch for fingerprint id %s\r\n", found->getId().c_str());
         created->setInitial(*found);
         if (found->getIdType() > ID_TYPE_UNIQUE)
             found->expire();

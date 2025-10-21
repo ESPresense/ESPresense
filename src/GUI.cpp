@@ -4,6 +4,7 @@
 #include "Display.h"
 #include "LEDs.h"
 #include "defaults.h"
+#include "Logger.h"
 
 namespace GUI {
 void Setup(bool beforeWifi) {
@@ -53,34 +54,34 @@ void Loop() {
 
 void Added(BleFingerprint *f) {
     if (f->getIgnore()) return;
-    Serial.printf("%u New %s  | %s | %-58s%.1fdBm\r\n", xPortGetCoreID(), f->getAllowQuery() ? "Q" : " ", f->getMac().c_str(), f->getId().c_str(), f->getRssi());
+    Log.printf("%u New %s  | %s | %-58s%.1fdBm\r\n", xPortGetCoreID(), f->getAllowQuery() ? "Q" : " ", f->getMac().c_str(), f->getId().c_str(), f->getRssi());
 }
 
 void Removed(BleFingerprint *f) {
     if (f->getIgnore() || !f->getAdded()) return;
-    Serial.printf("\u001b[38;5;236m%u Del    | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi());
+    Log.printf("\u001b[38;5;236m%u Del    | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi());
 }
 
 void Close(BleFingerprint *f) {
-    Serial.printf("\u001b[32m%u Close  | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
+    Log.printf("\u001b[32m%u Close  | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
     Display::Status("C:%s\r\n", f->getId().c_str());
 }
 
 void Left(BleFingerprint *f) {
-    Serial.printf("\u001b[33m%u Left   | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
+    Log.printf("\u001b[33m%u Left   | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
     Display::Status("L:%s\r\n", f->getId().c_str());
 }
 void Motion(bool pir, bool radar) {
-    Serial.printf("%u Motion | Pir: %s Radar: %s\r\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
+    Log.printf("%u Motion | Pir: %s Radar: %s\r\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
     LEDs::Motion(pir, radar);
 }
 
 void Switch(bool switch_1, bool switch_2) {
-    Serial.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
+    Log.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
 }
 
 void Button(bool button_1, bool button_2) {
-    Serial.printf("%u Button | Button One: %s Button Two: %s\r\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+    Log.printf("%u Button | Button One: %s Button Two: %s\r\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
 }
 
 void Seen(bool inprogress) {
@@ -90,13 +91,13 @@ void Seen(bool inprogress) {
 void Update(unsigned int percent) {
     LEDs::Update(percent);
     if (percent == UPDATE_STARTED) {
-        Serial.printf("%u Update | %s\r\n", xPortGetCoreID(), "started");
+        Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "started");
         Display::Status("Update:%s\r\n", "started");
     } else if (percent == UPDATE_COMPLETE) {
-        Serial.printf("%u Update | %s\r\n", xPortGetCoreID(), "finished");
+        Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "finished");
         Display::Status("Update:%s\r\n", "finished");
     } else {
-        Serial.printf("%u Update | %d%%\r\n", xPortGetCoreID(), percent);
+        Log.printf("%u Update | %d%%\r\n", xPortGetCoreID(), percent);
     }
 }
 
@@ -106,9 +107,9 @@ void Connected(bool wifi, bool mqtt) {
 
 void Counting(BleFingerprint *f, bool add) {
     if (add)
-        Serial.printf("\u001b[36m%u C# +1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Log.printf("\u001b[36m%u C# +1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
     else
-        Serial.printf("\u001b[35m%u C# -1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Log.printf("\u001b[35m%u C# -1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
 void Wifi(unsigned int percent) {
@@ -125,7 +126,7 @@ void Status(const char *format, ...) {
     va_start(args, format);
     vasprintf(&message, format, args);
     va_end(args);
-    Serial.printf("%u Status | %s", xPortGetCoreID(), message);
+    Log.printf("%u Status | %s", xPortGetCoreID(), message);
     Display::Status(message);
     free(message);
 }

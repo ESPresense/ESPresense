@@ -43,10 +43,10 @@ void ConnectToWifi() {
 }
 
 void SerialReport() {
-    Serial.print("Switch One:   ");
-    Serial.println(switch_1Pin >= 0 ? "enabled" : "disabled");
-    Serial.print("Switch Two:   ");
-    Serial.println(switch_2Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Switch One:   ");
+    Log.println(switch_1Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Switch Two:   ");
+    Log.println(switch_2Pin >= 0 ? "enabled" : "disabled");
 }
 
 static void switch_1Loop() {

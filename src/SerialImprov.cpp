@@ -131,9 +131,11 @@ void handleImprovPacket(bool provisioning) {
 
                     switch (rpcCommandType) {
                         case ImprovRPCType::Command_Wifi:
+                            Log.println("[Improv] Command: WIFI");
                             parseWiFiCommand(rpcData);
                             break;
                         case ImprovRPCType::Request_State: {
+                            Log.println("[Improv] Command: REQUEST_STATE");
                             uint8_t improvState = 0x02;                     // authorized
                             if (provisioning) improvState = 0x03;   // provisioning
                             if (Network.isConnected()) improvState = 0x04;  // provisioned
@@ -142,6 +144,7 @@ void handleImprovPacket(bool provisioning) {
                             break;
                         }
                         case ImprovRPCType::Request_Info:
+                            Log.println("[Improv] Command: REQUEST_INFO");
                             sendImprovInfoResponse();
                             break;
                         default: {
@@ -177,6 +180,7 @@ void sendImprovStateResponse(uint8_t state, bool error) {
     SerialImprov::Packets::PacketBuffer packet = SerialImprov::Packets::BuildStateResponse(state, error);
     serial->write(packet.data, packet.size);
     serial->write('\n');
+    Log.printf("[Improv] State %u (error=%s)\n", state, error ? "yes" : "no");
 }
 
 void sendImprovRPCResponse(byte commandId) {
@@ -196,6 +200,7 @@ void sendImprovRPCResponse(byte commandId) {
         SerialImprov::Packets::BuildRPCResponse(commandId, url, includeUrl);
     serial->write(packet.data, packet.size);
     serial->write('\n');
+    Log.printf("[Improv] RPC response %u (url=%s)\n", commandId, includeUrl ? url : "");
     improvActive = 1;  // no longer provisioning
 }
 
@@ -204,9 +209,9 @@ void sendImprovInfoResponse() {
     Stream* serial = EnsureSerial();
     if (!serial) return;
 
-    char versionBuffer[32] = {};
     const char* versionString = "Dev";
 #ifdef VERSION
+    char versionBuffer[32];
     snprintf_P(versionBuffer, sizeof(versionBuffer), VERSION);
     versionString = versionBuffer;
 #endif
@@ -216,6 +221,7 @@ void sendImprovInfoResponse() {
 
     serial->write(packet.data, packet.size);
     serial->write('\n');
+    Log.println("[Improv] Info response sent");
     DIMPROV_PRINT("Info checksum");
     DIMPROV_PRINTLN(packet.data[packet.size - 1]);
 }

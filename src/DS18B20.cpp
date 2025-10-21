@@ -89,9 +89,9 @@ namespace DS18B20
             numSensors = sensors.getDeviceCount();
 
             if (numSensors == 0) {
-                Serial.println("[ERROR] No DS sensors found");
+                Log.println("[ERROR] No DS sensors found");
                 return;
-            } 
+            }
             // Start task to get temperature
             xTaskCreatePinnedToCore(
                 tempTask,           /* Function to implement the task */
@@ -104,7 +104,7 @@ namespace DS18B20
 
             if (DSTempTaskHandle == NULL)
             {
-                Serial.println("[ERROR] Failed to start task for temperature update");
+                Log.println("[ERROR] Failed to start task for temperature update");
                 return;
             }
 
@@ -122,10 +122,10 @@ namespace DS18B20
     void SerialReport()
     {
         if (ds18b20Pin<0) return;
-        Serial.print("DS18B20 Sensor: ");
-        Serial.println((ds18b20Pin>=0 ? "pin " + String(ds18b20Pin) : "disabled").c_str());
-        Serial.print("DS18B20 Offset:   ");
-        Serial.println(dsTempOffset);
+        Log.print("DS18B20 Sensor: ");
+        Log.println((ds18b20Pin>=0 ? "pin " + String(ds18b20Pin) : "disabled").c_str());
+        Log.print("DS18B20 Offset:   ");
+        Log.println(dsTempOffset);
     }
 
     void Loop()
@@ -137,7 +137,7 @@ namespace DS18B20
             for (int i = 0; i < numSensors; i++){
                 float rawTemp = sensors.getTempCByIndex(i);
                 float temperature = rawTemp + dsTempOffset;
-                Serial.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
+                Log.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
                 if( rawTemp > -127) // Skip null values
                 {
                     pub((roomsTopic + "/ds18b20_temperature_" + String(i+1)).c_str(), 0, 1, String(temperature, 1).c_str());

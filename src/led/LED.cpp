@@ -1,5 +1,6 @@
 #include "LED.h"
 
+#include "Logger.h"
 #include "string_utils.h"
 
 void LED::update() {}
@@ -10,7 +11,7 @@ uint8_t LED::getBrightness() {
 }
 
 bool LED::setBrightness(uint8_t p_brightness) {
-    // Serial.printf("LED::setBrightness(%d)\r\n", p_brightness);
+    // Log.printf("LED::setBrightness(%d)\r\n", p_brightness);
     if (p_brightness == brightness) return false;
     if (p_brightness > 0)
         brightness = p_brightness;
@@ -31,7 +32,7 @@ bool LED::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_whi
     if (p_red == color.red && p_green == color.green && p_blue == color.blue && p_white == color.white) {
         return false;
     }
-    // Serial.printf("LED::setColor(%d, %d, %d)\r\n", p_red, p_green, p_blue);
+    // Log.printf("LED::setColor(%d, %d, %d)\r\n", p_red, p_green, p_blue);
     color.red = p_red;
     color.green = p_green;
     color.blue = p_blue;
@@ -42,7 +43,7 @@ bool LED::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_whi
 }
 
 bool LED::setWhite(uint8_t p_white) {
-    //Serial.printf("LED::setWhite(%d)\r\n", p_white);
+    //Log.printf("LED::setWhite(%d)\r\n", p_white);
     if (!LED::setColor(255, 255, 255) && !LED::setBrightness(p_white)) return false;
     return true;
 }
@@ -52,13 +53,13 @@ uint16_t LED::getColorTemperature(void) {
 }
 
 bool LED::setColorTemperature(uint16_t p_colorTemperature) {
-    //Serial.printf("LED::setColorTemperature(%d)\r\n", p_colorTemperature);
+    //Log.printf("LED::setColorTemperature(%d)\r\n", p_colorTemperature);
     dirty = true;
     return false;
 }
 
 bool LED::setEffect(const char *p_effect) {
-    //Serial.printf("LED::setEffect(%s)\r\n", p_effect);
+    //Log.printf("LED::setEffect(%s)\r\n", p_effect);
     dirty = true;
     return false;
 }
@@ -69,7 +70,7 @@ bool LED::getState() {
 
 bool LED::setState(bool p_state) {
     if (state == p_state) return false;
-    // Serial.printf("LED::setState(%s)\r\n", p_state ? "true" : "false");
+    // Log.printf("LED::setState(%s)\r\n", p_state ? "true" : "false");
     state = p_state;
     dirty = true;
     update();

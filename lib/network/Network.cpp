@@ -1,4 +1,5 @@
 #include "Network.h"
+#include "../../include/Logger.h"
 
 IPAddress NetworkClass::localIP()
 {
@@ -124,23 +125,23 @@ bool NetworkClass::initEthernet(int ethernetType)
 
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
-    Serial.print(F("Connecting to Ethernet"));
+    Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
     initEthernet(ethernetType);
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
-        Serial.print(".");
+        Log.print(".");
         delay(100);
     }
 
     if (ETH.localIP()[0] == 0) {
-        Serial.println(F(" failed."));
+        Log.println(F(" failed."));
         return false;
     }
 
-    Serial.println(F(" success!"));
+    Log.println(F(" success!"));
     return true;
 }
 

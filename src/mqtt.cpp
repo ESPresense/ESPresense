@@ -228,7 +228,7 @@ bool sendConfig(const String &id, const String &alias, const String &name, int c
     {
         deleteConfig(existing.id);
     }
-    Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
+    Log.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
     doc["id"] = alias;
     doc["name"] = name;
@@ -240,7 +240,7 @@ bool sendConfig(const String &id, const String &alias, const String &name, int c
 
 bool deleteConfig(const String &id)
 {
-    Serial.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
+    Log.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
     const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, "");
 }

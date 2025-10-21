@@ -43,10 +43,10 @@ void ConnectToWifi() {
 }
 
 void SerialReport() {
-    Serial.print("Button One:   ");
-    Serial.println(button_1Pin >= 0 ? "enabled" : "disabled");
-    Serial.print("Button Two:   ");
-    Serial.println(button_2Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Button One:   ");
+    Log.println(button_1Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Button Two:   ");
+    Log.println(button_2Pin >= 0 ? "enabled" : "disabled");
 }
 
 static void button_1Loop() {

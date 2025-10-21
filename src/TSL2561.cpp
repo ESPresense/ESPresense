@@ -32,8 +32,8 @@ namespace TSL2561
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (TSL2561_I2c.isEmpty()) return;
-        Serial.print("TSL2561:      ");
-        Serial.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
+        Log.print("TSL2561:      ");
+        Log.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     }
 
     void Loop()
@@ -67,7 +67,7 @@ namespace TSL2561
         } else if (TSL2561_I2c_Gain == "16x") {
             tsl.setGain(TSL2561_GAIN_16X);
         } else {
-            Serial.println("[TSL2561] Invalid gain");
+            Log.println("[TSL2561] Invalid gain");
             return;
         }
 
@@ -83,7 +83,7 @@ namespace TSL2561
                 tsl2561PreviousMillis = millis();
             }
         } else {
-            Serial.println("[TSL2561] Sensor overloaded");
+            Log.println("[TSL2561] Sensor overloaded");
         }
     }
 

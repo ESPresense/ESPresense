@@ -47,23 +47,23 @@ namespace BH1750
 
         if (!state)
         {
-            Serial.println("Error on initialisation BH1750 GY-302");
+            Log.println("Error on initialisation BH1750 GY-302");
         }
         else
         {
-            Serial.println("initialisation BH1750 GY-302 success");
+            Log.println("initialisation BH1750 GY-302 success");
             m = millis();
             rc = BH1750.calibrateTiming();
             m = millis() - m;
-            Serial.print("Lux Sensor BH1750 GY-302 calibrated (Time: ");
-            Serial.print(m);
-            Serial.print(" ms)");
+            Log.print("Lux Sensor BH1750 GY-302 calibrated (Time: ");
+            Log.print(m);
+            Log.print(" ms)");
             if (rc != 0)
             {
-                Serial.print(" - Lux Sensor Error code ");
-                Serial.print(rc);
+                Log.print(" - Lux Sensor Error code ");
+                Log.print(rc);
             }
-            Serial.println();
+            Log.println();
 
             // start first measure and timecount
             BH1750.start(BH1750_QUALITY_HIGH, 1);
@@ -82,8 +82,8 @@ namespace BH1750
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BH1750_I2c.isEmpty()) return;
-        Serial.print("BH1750:       ");
-        Serial.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
+        Log.print("BH1750:       ");
+        Log.println(BH1750_I2c + " on bus " + BH1750_I2c_Bus);
     }
 
     void Loop()

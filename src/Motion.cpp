@@ -43,10 +43,10 @@ void ConnectToWifi() {
 }
 
 void SerialReport() {
-    Serial.print("PIR Sensor:   ");
-    Serial.println(pirPin >= 0 ? "enabled" : "disabled");
-    Serial.print("Radar Sensor: ");
-    Serial.println(radarPin >= 0 ? "enabled" : "disabled");
+    Log.print("PIR Sensor:   ");
+    Log.println(pirPin >= 0 ? "enabled" : "disabled");
+    Log.print("Radar Sensor: ");
+    Log.println(radarPin >= 0 ? "enabled" : "disabled");
 }
 
 static void pirLoop() {

@@ -30,8 +30,8 @@ class ServerCallbacks : public NimBLEServerCallbacks {
     };
 
     void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
-        Serial.print("Connected to: ");
-        Serial.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
+        Log.print("Connected to: ");
+        Log.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
         if (enrolling) {
             connectionToEnroll = desc->conn_handle;
         }
@@ -39,35 +39,35 @@ class ServerCallbacks : public NimBLEServerCallbacks {
 
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
-            Serial.println("Client disconnected");
+            Log.println("Client disconnected");
             NimBLEDevice::startAdvertising();
         }
     };
 
     void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc) {
-        Serial.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
+        Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
     };
 
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
-        Serial.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
+        Log.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
     }
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     void onRead(NimBLECharacteristic *pCharacteristic) {
-        Serial.print(pCharacteristic->getUUID().toString().c_str());
-        Serial.print(": onRead(), value: ");
-        Serial.println(pCharacteristic->getValue().c_str());
+        Log.print(pCharacteristic->getUUID().toString().c_str());
+        Log.print(": onRead(), value: ");
+        Log.println(pCharacteristic->getValue().c_str());
     };
 
     void onWrite(NimBLECharacteristic *pCharacteristic) {
-        Serial.print(pCharacteristic->getUUID().toString().c_str());
-        Serial.print(": onWrite(), value: ");
-        Serial.println(pCharacteristic->getValue().c_str());
+        Log.print(pCharacteristic->getUUID().toString().c_str());
+        Log.print(": onWrite(), value: ");
+        Log.println(pCharacteristic->getValue().c_str());
     };
 
     void onNotify(NimBLECharacteristic *pCharacteristic) {
-        Serial.println("Sending notification to clients");
+        Log.println("Sending notification to clients");
     };
 
     void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
@@ -77,7 +77,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         str += code;
         str += ", ";
         str += NimBLEUtils::returnCodeToString(code);
-        Serial.println(str);
+        Log.println(str);
     };
 
     void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
@@ -95,20 +95,20 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
             str += " Subscribed to notifications and indications for ";
         }
         str += std::string(pCharacteristic->getUUID()).c_str();
-        Serial.println(str);
+        Log.println(str);
     };
 };
 
 class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
     void onWrite(NimBLEDescriptor *pDescriptor) {
         std::string dscVal = pDescriptor->getValue();
-        Serial.print("Descriptor witten value:");
-        Serial.println(dscVal.c_str());
+        Log.print("Descriptor witten value:");
+        Log.println(dscVal.c_str());
     };
 
     void onRead(NimBLEDescriptor *pDescriptor) {
-        Serial.print(pDescriptor->getUUID().toString().c_str());
-        Serial.println(" Descriptor read");
+        Log.print(pDescriptor->getUUID().toString().c_str());
+        Log.println(" Descriptor read");
     };
 };
 
@@ -210,14 +210,14 @@ bool Loop() {
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
             pAdvertising->start();
-            Serial.printf("%u Advert | HRM\r\n", xPortGetCoreID());
+            Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
             pAdvertising->setScanResponse(false);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
             pAdvertising->start();
-            Serial.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
+            Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
         HttpWebServer::SendState();

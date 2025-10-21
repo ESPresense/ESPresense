@@ -32,7 +32,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             online = true;
             reconnectTries = 0;
         } else {
-            Serial.println("Error sending status=online");
+            Log.println("Error sending status=online");
         }
     }
 
@@ -70,7 +70,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         ) {
             sentDiscovery = true;
         } else {
-            Serial.println("Error sending discovery");
+            Log.println("Error sending discovery");
         }
     }
 
@@ -130,7 +130,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 }
 
 void setupNetwork() {
-    Serial.println("Setup network");
+    Log.println("Setup network");
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
@@ -206,22 +206,22 @@ void setupNetwork() {
     GUI::Connected(true, false);
 
 #ifdef FIRMWARE
-    Serial.println("Firmware:     " + String(FIRMWARE));
+    Log.println("Firmware:     " + String(FIRMWARE));
 #endif
 #ifdef VERSION
-    Serial.println("Version:      " + String(VERSION));
+    Log.println("Version:      " + String(VERSION));
 #endif
-    Serial.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
-    Serial.print("IP address:   ");
-    Serial.println(Network.localIP());
-    Serial.print("DNS address:  ");
-    Serial.println(Network.dnsIP());
-    Serial.print("Hostname:     ");
-    Serial.println(Network.getHostname());
-    Serial.print("Room:         ");
-    Serial.println(room);
-    Serial.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
-    Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
+    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.print("IP address:   ");
+    Log.println(Network.localIP());
+    Log.print("DNS address:  ");
+    Log.println(Network.dnsIP());
+    Log.print("Hostname:     ");
+    Log.println(Network.getHostname());
+    Log.print("Room:         ");
+    Log.println(room);
+    Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
+    Log.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Motion::SerialReport();
     Switch::SerialReport();
@@ -242,16 +242,16 @@ void setupNetwork() {
     DS18B20::SerialReport();
 
 #endif
-    Serial.print("Query:        ");
-    Serial.println(BleFingerprintCollection::query);
-    Serial.print("Include:      ");
-    Serial.println(BleFingerprintCollection::include);
-    Serial.print("Exclude:      ");
-    Serial.println(BleFingerprintCollection::exclude);
-    Serial.print("Known Macs:   ");
-    Serial.println(BleFingerprintCollection::knownMacs);
-    Serial.print("Count Ids:    ");
-    Serial.println(BleFingerprintCollection::countIds);
+    Log.print("Query:        ");
+    Log.println(BleFingerprintCollection::query);
+    Log.print("Include:      ");
+    Log.println(BleFingerprintCollection::include);
+    Log.print("Exclude:      ");
+    Log.println(BleFingerprintCollection::exclude);
+    Log.print("Known Macs:   ");
+    Log.println(BleFingerprintCollection::knownMacs);
+    Log.print("Count Ids:    ");
+    Log.println(BleFingerprintCollection::countIds);
 
     localIp = Network.localIP().toString();
     id = slugify(room);
@@ -274,7 +274,7 @@ void onMqttConnect(bool sessionPresent) {
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     GUI::Connected(true, false);
-    Serial.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
+    Log.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
 }
@@ -289,13 +289,13 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.lastIndexOf("/", configPos - 1);
         if (idPos < 0) goto skip;
         auto id = top.substring(idPos + 1, configPos);
-        Serial.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        Log.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
         auto commandPos = top.lastIndexOf("/", setPos - 1);
         if (commandPos < 0) goto skip;
         auto command = top.substring(commandPos + 1, setPos);
-        Serial.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
+        Log.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
         if (command == "restart")
@@ -323,7 +323,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         if (changed) online = false;
     } else {
     skip:
-        Serial.printf("%d Unknown| %s to %s\r\n", xPortGetCoreID(), topic, payload);
+        Log.printf("%d Unknown| %s to %s\r\n", xPortGetCoreID(), topic, payload);
     }
 }
 
@@ -343,16 +343,16 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
 }
 
 void reconnect(TimerHandle_t xTimer) {
-    Serial.printf("%u Reconnect timer\r\n", xPortGetCoreID());
+    Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
     if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
-        Serial.println("Too many reconnect attempts; Restarting");
+        Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
     if (!Network.isConnected()) {
-        Serial.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
+        Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
         if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
@@ -360,7 +360,7 @@ void reconnect(TimerHandle_t xTimer) {
             ESP.restart();
     }
 
-    Serial.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
+    Log.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
@@ -496,7 +496,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Serial.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
@@ -507,6 +507,7 @@ void setup() {
     BleFingerprintCollection::Setup();
     SPIFFS.begin(true);
     setupNetwork();
+    Log.enableTcp(6053);
     Updater::Setup();
     GUI::Setup(false);
     Motion::Setup();
@@ -532,8 +533,8 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Serial.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
-    Serial.println();
+    Log.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.println();
 }
 
 void loop() {
@@ -542,7 +543,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 20000) Log.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();

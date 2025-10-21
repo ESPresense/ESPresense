@@ -23,7 +23,7 @@ void Setup() {
     initialized = sensor->init(bus == 1 ? Wire : Wire1);
 
     if (!initialized) {
-        Serial.println("[SHT] Couldn't find a sensor, check your wiring and I2C address!");
+        Log.println("[SHT] Couldn't find a sensor, check your wiring and I2C address!");
     } else {
         sensor->setAccuracy(SHTSensor::SHT_ACCURACY_MEDIUM);
     }
@@ -36,7 +36,7 @@ void ConnectToWifi() {
 void SerialReport() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (bus < 1 || bus > 2) return;
-    Serial.println("SHT:          Auto-detect on bus " + String(bus));
+    Log.println("SHT:          Auto-detect on bus " + String(bus));
 }
 
 void Loop() {

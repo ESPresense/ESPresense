@@ -103,7 +103,7 @@ void Save() {
     for (auto& led : leds)
         if (led->getControlType() == Control_Type_MQTT && led->getDirty()) {
             led->setDirty(false);
-            Serial.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
+            Log.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
             spurt(led->getStateFilename(), led->getStateString());
         }
 }
@@ -190,7 +190,7 @@ bool Command(String& command, String& pay) {
     DynamicJsonDocument root(pay.length() + 100);
     auto err = deserializeJson(root, pay);
     if (err) {
-        Serial.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
+        Log.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
         return true;
     }
     bool sendNewState = false;

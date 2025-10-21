@@ -33,7 +33,7 @@ namespace BMP280
         }
 
         if (!BMP280_status) {
-            Serial.println("[BMP280] Couldn't find a sensor, check your wiring and I2C address!");
+            Log.println("[BMP280] Couldn't find a sensor, check your wiring and I2C address!");
         } else {
             initialized = true;
         }
@@ -56,8 +56,8 @@ namespace BMP280
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BMP280_I2c.isEmpty()) return;
-        Serial.print("BMP280:       ");
-        Serial.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
+        Log.print("BMP280:       ");
+        Log.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
     }
 
     void Loop()

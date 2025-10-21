@@ -3,6 +3,7 @@
 #include <AsyncMqttClient.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
+#include "Logger.h"
 #include "BleFingerprintCollection.h"
 
 /*----------------------------------------------------------------------------

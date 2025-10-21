@@ -23,6 +23,7 @@
 #include "Button.h"
 #include "Network.h"
 #include "SerialImprov.h"
+#include "Logger.h"
 #include "Updater.h"
 #include "defaults.h"
 #include "globals.h"

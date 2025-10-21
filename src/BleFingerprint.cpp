@@ -7,6 +7,7 @@
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
 #include "defaults.h"
+#include "Logger.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
@@ -50,7 +51,7 @@ bool BleFingerprint::shouldHide(const String &s) {
 bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
     if (idType > 0 && newIdType <= idType) return false;
-    // Serial.printf("setId: %s %d %s OLD idType: %d\r\n", newId.c_str(), newIdType, newName.c_str(), idType);
+    // Log.printf("setId: %s %d %s OLD idType: %d\r\n", newId.c_str(), newIdType, newName.c_str(), idType);
 
     ignore = newIdType < 0;
     idType = newIdType;
@@ -184,7 +185,7 @@ bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
 
     if (ecb.cipher_text[15] != rpa[0] || ecb.cipher_text[14] != rpa[1] || ecb.cipher_text[13] != rpa[2]) return false;
 
-    // Serial.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\r\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
+    // Log.printf("RPA resolved %d %02x%02x%02x %02x%02x%02x\r\n", err, rpa[0], rpa[1], rpa[2], ecb.cipher_text[15], ecb.cipher_text[14], ecb.cipher_text[13]);
 
     return true;
 }
@@ -227,7 +228,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%.1fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
+        Log.printf("Verbose | %s | %-58s%.1fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, advertisedDevice->getServiceUUID(i).toString().c_str());
 #endif
         if (uuid == tileUUID) {
             asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
@@ -289,7 +290,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Serial.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
+        Log.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
 
         if (uuid == exposureUUID) {  // found COVID-19 exposure tracker
@@ -308,7 +309,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 mv = *(uint16_t *)(serviceData + 10);
                 battery = serviceData[12];
 #ifdef VERBOSE
-                Serial.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
+                Log.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, flg: 0x%02hhx, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[14], serviceData[13]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             } else if (strServiceData.length() == 13) {  // format atc1441
@@ -320,7 +321,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 battery = serviceData[9];
 
 #ifdef VERBOSE
-                Serial.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[12]);
+                Log.printf("Temp: %.2f°, Humidity: %.2f%%, mV: %hu, Battery: %hhu%%, cout: %hhu\r\n", temp, humidity, mv, battery, serviceData[12]);
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
@@ -335,7 +336,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                 temp = oBeacon.getTemp();
                 mv = oBeacon.getVolt();
 #ifdef VERBOSE
-                Serial.println(oBeacon.toString().c_str());
+                Log.println(oBeacon.toString().c_str());
 #endif
             } else if (strServiceData[0] == 0x00) {
                 auto serviceData = strServiceData.c_str();
@@ -361,7 +362,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Serial.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
+    Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2) {
         String manuf = Sprintf("%02x%02x", strManufacturerData[1], strManufacturerData[0]);
@@ -540,7 +541,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Serial.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Log.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
@@ -566,7 +567,7 @@ bool BleFingerprint::query() {
     } else {
         qryAttempts++;
         qryDelayMillis = min(int(pow(10, qryAttempts)), 60000);
-        Serial.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+        Log.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
     return true;

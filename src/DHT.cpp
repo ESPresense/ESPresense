@@ -91,7 +91,7 @@ namespace DHT
 
             if (dhtTempTaskHandle == NULL)
             {
-                Serial.println("[ERROR] Failed to start task for temperature update");
+                Log.println("[ERROR] Failed to start task for temperature update");
             }
             else
             {
@@ -114,12 +114,12 @@ namespace DHT
     void SerialReport()
     {
         if (dht11Pin<0 && dht22Pin<0) return;
-        Serial.print("DHT11 Sensor: ");
-        Serial.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
-        Serial.print("DHT22 Sensor: ");
-        Serial.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
-        Serial.print("DHT Offset:   ");
-        Serial.println(dhtTempOffset);
+        Log.print("DHT11 Sensor: ");
+        Log.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
+        Log.print("DHT22 Sensor: ");
+        Log.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
+        Log.print("DHT Offset:   ");
+        Log.println(dhtTempOffset);
     }
 
     void Loop()
@@ -130,7 +130,7 @@ namespace DHT
         {
             float humidity = dhtSensorData.humidity;
             float temperature = dhtSensorData.temperature + dhtTempOffset;
-            Serial.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
+            Log.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
 
             pub((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity, 1).c_str());
             pub((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature, 1).c_str());

@@ -33,8 +33,8 @@ namespace HX711
     void SerialReport()
     {
         if (!sckPin && !doutPin) return;
-        Serial.print("HX711 Weight Sensor: ");
-        Serial.println(String(sckPin) + "/" + String(doutPin));
+        Log.print("HX711 Weight Sensor: ");
+        Log.println(String(sckPin) + "/" + String(doutPin));
     }
 
     void Loop()
