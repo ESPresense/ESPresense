@@ -8,6 +8,23 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
     printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
 }
 
+/**
+ * @brief Publish device telemetry and perform online/discovery announcements.
+ *
+ * Attempts to send status and discovery payloads when the device is not marked online
+ * or discovery has not yet been announced, then builds and publishes a telemetry
+ * JSON document containing device state, diagnostics, and aggregated counters.
+ * Successful status/discovery sends update internal flags such as `online` and
+ * `sentDiscovery`; failed telemetry publishes increment internal failure counters.
+ *
+ * @param totalSeen Total advertisement packets observed since the last report.
+ * @param totalFpSeen Total distinct fingerprints seen since the last report.
+ * @param totalFpQueried Total fingerprints queried (e.g., looked up) since the last report.
+ * @param totalFpReported Total fingerprint reports published since the last report.
+ * @param count Current count value (included only when a count identifier is configured).
+ * @return `true` if the telemetry document was published successfully, `false` otherwise. 
+ * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
+ */
 bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
     if (!online) {
         if (
@@ -32,7 +49,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             online = true;
             reconnectTries = 0;
         } else {
-            Serial.println("Error sending status=online");
+            Log.println("Error sending status=online");
         }
     }
 
@@ -70,7 +87,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         ) {
             sentDiscovery = true;
         } else {
-            Serial.println("Error sending discovery");
+            Log.println("Error sending discovery");
         }
     }
 
@@ -129,8 +146,19 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     return false;
 }
 
+/**
+ * @brief Configure network settings, initialize network-connected subsystems, and establish connectivity.
+ *
+ * Reads runtime settings (Wi‑Fi, Ethernet type, MQTT, discovery/publication flags, timeouts, hostname, room),
+ * initializes and connects subsystem components that require network access, registers wait-loop callbacks for
+ * captive portal and connection progress, and attempts to bring up Ethernet or Wi‑Fi. Logs network and device
+ * information and prepares MQTT/topic strings for later use.
+ *
+ * On unrecoverable connection failure this function will reboot the device (calls ESP.restart()). The captive
+ * portal wait callback can also trigger a restart if the portal timeout elapses.
+ */
 void setupNetwork() {
-    Serial.println("Setup network");
+    Log.println("Setup network");
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
@@ -206,22 +234,22 @@ void setupNetwork() {
     GUI::Connected(true, false);
 
 #ifdef FIRMWARE
-    Serial.println("Firmware:     " + String(FIRMWARE));
+    Log.println("Firmware:     " + String(FIRMWARE));
 #endif
 #ifdef VERSION
-    Serial.println("Version:      " + String(VERSION));
+    Log.println("Version:      " + String(VERSION));
 #endif
-    Serial.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
-    Serial.print("IP address:   ");
-    Serial.println(Network.localIP());
-    Serial.print("DNS address:  ");
-    Serial.println(Network.dnsIP());
-    Serial.print("Hostname:     ");
-    Serial.println(Network.getHostname());
-    Serial.print("Room:         ");
-    Serial.println(room);
-    Serial.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
-    Serial.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
+    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.print("IP address:   ");
+    Log.println(Network.localIP());
+    Log.print("DNS address:  ");
+    Log.println(Network.dnsIP());
+    Log.print("Hostname:     ");
+    Log.println(Network.getHostname());
+    Log.print("Room:         ");
+    Log.println(room);
+    Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
+    Log.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Motion::SerialReport();
     Switch::SerialReport();
@@ -242,16 +270,16 @@ void setupNetwork() {
     DS18B20::SerialReport();
 
 #endif
-    Serial.print("Query:        ");
-    Serial.println(BleFingerprintCollection::query);
-    Serial.print("Include:      ");
-    Serial.println(BleFingerprintCollection::include);
-    Serial.print("Exclude:      ");
-    Serial.println(BleFingerprintCollection::exclude);
-    Serial.print("Known Macs:   ");
-    Serial.println(BleFingerprintCollection::knownMacs);
-    Serial.print("Count Ids:    ");
-    Serial.println(BleFingerprintCollection::countIds);
+    Log.print("Query:        ");
+    Log.println(BleFingerprintCollection::query);
+    Log.print("Include:      ");
+    Log.println(BleFingerprintCollection::include);
+    Log.print("Exclude:      ");
+    Log.println(BleFingerprintCollection::exclude);
+    Log.print("Known Macs:   ");
+    Log.println(BleFingerprintCollection::knownMacs);
+    Log.print("Count Ids:    ");
+    Log.println(BleFingerprintCollection::countIds);
 
     localIp = Network.localIP().toString();
     id = slugify(room);
@@ -272,13 +300,37 @@ void onMqttConnect(bool sessionPresent) {
     GUI::Connected(true, true);
 }
 
+/**
+ * @brief Handle MQTT disconnection events and initiate reconnection.
+ *
+ * Updates the GUI to show disconnected status, logs the disconnect reason, starts the reconnect timer, and marks the device as offline.
+ *
+ * @param reason The MQTT client's disconnection reason code.
+ */
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     GUI::Connected(true, false);
-    Serial.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
+    Log.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
     xTimerStart(reconnectTimer, 0);
     online = false;
 }
 
+/**
+ * @brief Handle an incoming MQTT message by routing configuration or command topics.
+ *
+ * Parses the topic to detect trailing "/config" or "/set" paths. For "/config" topics,
+ * extracts the device id segment and applies the configuration payload. For "/set"
+ * topics, extracts the command segment and executes the corresponding action:
+ * - "restart" triggers a system restart.
+ * - "wifi-ssid" and "wifi-password" store the provided credential.
+ * - "name" updates the room/name value (uses device MAC if payload is empty).
+ * - Other commands are dispatched to registered subsystems; if a dispatched command
+ *   reports a configuration change, the node is marked offline to force re-sync.
+ *
+ * If the topic does not match the expected patterns, the message is logged as unknown.
+ *
+ * @param topic MQTT topic string (null-terminated) expected to end with "/config" or "/set".
+ * @param payload MQTT message payload string (null-terminated).
+ */
 void onMqttMessage(const char *topic, const char *payload) {
     String const top = String(topic);
     String pay = String(payload);
@@ -289,13 +341,13 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.lastIndexOf("/", configPos - 1);
         if (idPos < 0) goto skip;
         auto id = top.substring(idPos + 1, configPos);
-        Serial.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
+        Log.printf("%d Config | %s to %s\r\n", xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos > 1) {
         auto commandPos = top.lastIndexOf("/", setPos - 1);
         if (commandPos < 0) goto skip;
         auto command = top.substring(commandPos + 1, setPos);
-        Serial.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
+        Log.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
         if (command == "restart")
@@ -323,11 +375,23 @@ void onMqttMessage(const char *topic, const char *payload) {
         if (changed) online = false;
     } else {
     skip:
-        Serial.printf("%d Unknown| %s to %s\r\n", xPortGetCoreID(), topic, payload);
+        Log.printf("%d Unknown| %s to %s\r\n", xPortGetCoreID(), topic, payload);
     }
 }
 
 std::string payload_buffer_;
+/**
+ * @brief Reassembles chunked MQTT message payloads and dispatches the complete message.
+ *
+ * Buffers incoming payload fragments until the full MQTT message has been received; when the final fragment arrives, calls onMqttMessage with the original topic and the reconstructed payload, then clears the buffer.
+ *
+ * @param topic Topic string associated with the incoming MQTT message.
+ * @param payload Pointer to the current fragment's data.
+ * @param properties MQTT message properties for the current fragment.
+ * @param len Length in bytes of the current fragment.
+ * @param index Byte offset of the current fragment within the full message.
+ * @param total Total size in bytes of the full MQTT message.
+ */
 void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
     if (index == 0)
         payload_buffer_.reserve(total);
@@ -342,17 +406,27 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
     }
 }
 
+/**
+ * @brief Attempts to re-establish network and MQTT connectivity, restarting the device on repeated failure.
+ *
+ * If both network and MQTT are already connected the function returns immediately.
+ * The function increments an internal reconnect-attempt counter and restarts the device after more than 50 attempts.
+ * When the network is disconnected it tries to restore connectivity using configured Ethernet or Wi‑Fi settings; failing to restore the network triggers a device restart.
+ * After ensuring network connectivity it initiates an MQTT connection attempt.
+ *
+ * @param xTimer FreeRTOS timer handle associated with the reconnect timer (unused).
+ */
 void reconnect(TimerHandle_t xTimer) {
-    Serial.printf("%u Reconnect timer\r\n", xPortGetCoreID());
+    Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
     if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
-        Serial.println("Too many reconnect attempts; Restarting");
+        Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
     if (!Network.isConnected()) {
-        Serial.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
+        Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
         if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
@@ -360,7 +434,7 @@ void reconnect(TimerHandle_t xTimer) {
             ESP.restart();
     }
 
-    Serial.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
+    Log.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
     mqttClient.connect();
 }
 
@@ -484,6 +558,14 @@ void scanTask(void *parameter) {
     }
 }
 
+/**
+ * @brief Initialize hardware, peripherals, services, and background tasks required by the program.
+ *
+ * Configures serial logging and ESP log levels, registers a heap allocation-failure callback, initializes
+ * platform-specific power/hardware (when enabled), filesystem, network, OTA/updater, GUI and application
+ * subsystems (motion, switches, buttons, battery, CAN, NTP, optional sensors), enables TCP remote logging,
+ * starts the BLE scan task, and performs MQTT/reporting setup.
+ */
 void setup() {
 #ifdef FAST_MONITOR
     Serial.begin(1500000);
@@ -496,7 +578,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Serial.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
@@ -507,6 +589,7 @@ void setup() {
     BleFingerprintCollection::Setup();
     SPIFFS.begin(true);
     setupNetwork();
+    Log.enableTcp(6053);
     Updater::Setup();
     GUI::Setup(false);
     Motion::Setup();
@@ -532,17 +615,28 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Serial.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
-    Serial.println();
+    Log.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.println();
 }
 
+/**
+ * @brief Executes the main periodic processing and dispatches per-subsystem loop handlers.
+ *
+ * Runs the primary report processing and repeatedly invokes each subsystem's Loop method.
+ * Every 5 seconds it performs a slow maintenance check that reads available heap memory,
+ * logs a low-memory warning when free memory is less than 20,000 bytes, and runs the updater
+ * loop when free memory exceeds 70,000 bytes.
+ *
+ * Subsystems invoked each iteration include GUI, Motion, Switch, Button, HTTP server,
+ * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
+ */
 void loop() {
     reportLoop();
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Serial.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 20000) Log.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();

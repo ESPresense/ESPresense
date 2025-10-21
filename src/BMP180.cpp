@@ -19,6 +19,16 @@ namespace BMP180
     int sensorInterval = 60000;
     bool initialized = false;
 
+    /**
+     * @brief Initialize the BMP180 sensor if an I2C bus and valid address are configured.
+     *
+     * Attempts to allocate and begin the Adafruit_BMP085 sensor using the selected I2C bus.
+     * If the sensor is successfully started, the module-level `initialized` flag is set to true.
+     * If the sensor cannot be found, an error message is logged.
+     *
+     * This function returns immediately if neither I2C bus is started or if the configured I2C
+     * address is not the expected value for this sensor.
+     */
     void Setup()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -31,7 +41,7 @@ namespace BMP180
         }
 
         if (!BMP180_status) {
-            Serial.println("[BMP180] Couldn't find a sensor, check your wiring and I2C address!");
+            Log.println("[BMP180] Couldn't find a sensor, check your wiring and I2C address!");
         } else {
             initialized = true;
         }
@@ -43,14 +53,24 @@ namespace BMP180
         BMP180_I2c = HeadlessWiFiSettings.string("BMP180_I2c", "", "I2C address (0x77)");
     }
 
+    /**
+     * @brief Logs the BMP180 sensor I2C address and selected I2C bus.
+     *
+     * If neither I2C bus has started or the configured I2C address is empty, the function does nothing.
+     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BMP180_I2c.isEmpty()) return;
-        Serial.print("BMP180:       ");
-        Serial.println(BMP180_I2c + " on bus " + BMP180_I2c_Bus);
+        Log.print("BMP180:       ");
+        Log.println(BMP180_I2c + " on bus " + BMP180_I2c_Bus);
     }
 
+    /**
+     * @brief Periodically reads temperature and pressure from the BMP180 sensor and publishes them to MQTT.
+     *
+     * When an I2C bus is available and the sensor has been initialized, this function reads the sensor at intervals defined by `sensorInterval` (or immediately on first run), publishes temperature (°C) to the topic "<roomsTopic>/bmp180_temperature" and pressure (hPa) to the topic "<roomsTopic>/bmp180_pressure", and updates `BMP180PreviousMillis` to the current time. If neither I2C bus is started or the sensor is not initialized, the function returns without performing any action.
+     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;

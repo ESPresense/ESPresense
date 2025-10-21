@@ -221,6 +221,21 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
+/**
+ * @brief Publish or update a device configuration to the channel settings topic.
+ *
+ * If an existing device configuration is found using the provided alias and its
+ * stored id differs from the given id, that existing configuration is deleted
+ * before publishing the new configuration. The published payload contains the
+ * alias as the device identifier and the provided friendly name. When
+ * calRssi is greater than NO_RSSI, an "rssi@1m" field is included.
+ *
+ * @param id Unique device id used to build the settings topic.
+ * @param alias Device alias to include in the payload as the device identifier.
+ * @param name Friendly name to include in the payload.
+ * @param calRssi Calibration RSSI value; included as "rssi@1m" if greater than NO_RSSI.
+ * @return true if the configuration publish succeeded, false otherwise.
+ */
 bool sendConfig(const String &id, const String &alias, const String &name, int calRssi)
 {
     DeviceConfig existing;
@@ -228,7 +243,7 @@ bool sendConfig(const String &id, const String &alias, const String &name, int c
     {
         deleteConfig(existing.id);
     }
-    Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
+    Log.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
     doc["id"] = alias;
     doc["name"] = name;
@@ -238,9 +253,17 @@ bool sendConfig(const String &id, const String &alias, const String &name, int c
     return pub(settingsTopic.c_str(), 0, true, doc);
 }
 
+/**
+ * @brief Publish a deletion for a device configuration to the MQTT settings topic.
+ *
+ * Sends an empty retained payload to "CHANNEL/settings/{id}/config" to remove the stored configuration for the given device id.
+ *
+ * @param id Device identifier used to build the settings topic.
+ * @return true if the MQTT publish succeeded, false otherwise.
+ */
 bool deleteConfig(const String &id)
 {
-    Serial.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
+    Log.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
     const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, "");
 }

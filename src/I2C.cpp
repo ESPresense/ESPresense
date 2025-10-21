@@ -39,11 +39,18 @@ void ConnectToWifi() {
 void Setup() {
 }
 
+/**
+ * @brief Reports configured I2C buses and, when debugging is enabled, scans started buses for devices.
+ *
+ * @details Logs the SDA/SCL pin assignments for any started I2C buses. If at least one bus is started and the
+ * debug flag is enabled, performs an address scan on each started bus and logs discovered device addresses
+ * and any unknown errors encountered during probing. If no devices are found, logs a corresponding message.
+ */
 void SerialReport() {
     if (I2C_Bus_1_Started)
-        Serial.println(String("I2C Bus 1:    sda=") + I2C_Bus_1_SDA + " scl=" + I2C_Bus_1_SCL);
+        Log.println(String("I2C Bus 1:    sda=") + I2C_Bus_1_SDA + " scl=" + I2C_Bus_1_SCL);
     if (I2C_Bus_2_Started)
-        Serial.println(String("I2C Bus 2:    sda=") + I2C_Bus_2_SDA + " scl=" + I2C_Bus_2_SCL);
+        Log.println(String("I2C Bus 2:    sda=") + I2C_Bus_2_SDA + " scl=" + I2C_Bus_2_SCL);
 
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (!I2CDebug) return;
@@ -52,56 +59,56 @@ void SerialReport() {
     nDevices = 0;
 
     if (I2C_Bus_1_Started) {
-        Serial.println("Scanning I2C for devices on Bus 1...");
+        Log.println("Scanning I2C for devices on Bus 1...");
         for (address = 1; address < 127; address++) {
             Wire.beginTransmission(address);
             error = Wire.endTransmission();
             if (error == 0) {
-                Serial.print("I2C device found on bus 1 at address 0x");
+                Log.print("I2C device found on bus 1 at address 0x");
 
                 if (address < 16) {
-                    Serial.print("0");
+                    Log.print("0");
                 }
 
-                Serial.println(address, HEX);
+                Log.println(address, HEX);
                 nDevices++;
             } else if (error == 4) {
-                Serial.print("Unknown error on bus 1 at address 0x");
+                Log.print("Unknown error on bus 1 at address 0x");
                 if (address < 16) {
-                    Serial.print("0");
+                    Log.print("0");
                 }
-                Serial.println(address, HEX);
+                Log.println(address, HEX);
             }
         }
     }
 
     if (I2C_Bus_2_Started) {
-        Serial.println("Scanning I2C for devices on Bus 2...");
+        Log.println("Scanning I2C for devices on Bus 2...");
 
         for (address = 1; address < 127; address++) {
             Wire1.beginTransmission(address);
             error = Wire1.endTransmission();
             if (error == 0) {
-                Serial.print("I2C device found on bus 2 at address 0x");
+                Log.print("I2C device found on bus 2 at address 0x");
 
                 if (address < 16) {
-                    Serial.print("0");
+                    Log.print("0");
                 }
 
-                Serial.println(address, HEX);
+                Log.println(address, HEX);
                 nDevices++;
             } else if (error == 4) {
-                Serial.print("Unknown error on bus 2 at address 0x");
+                Log.print("Unknown error on bus 2 at address 0x");
                 if (address < 16) {
-                    Serial.print("0");
+                    Log.print("0");
                 }
-                Serial.println(address, HEX);
+                Log.println(address, HEX);
             }
         }
     }
 
     if (nDevices == 0) {
-        Serial.println("No I2C devices found\r\n");
+        Log.println("No I2C devices found\r\n");
     }
 }
 }  // namespace I2C

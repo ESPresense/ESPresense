@@ -19,6 +19,15 @@ namespace BMP280
     int sensorInterval = 60000;
     bool initialized = false;
 
+    /**
+     * @brief Initializes the BMP280 sensor if an I2C bus and valid address are configured.
+     *
+     * Attempts to create and initialize the Adafruit BMP280 on the selected I2C bus (1 or 2)
+     * using the configured address "0x76" or "0x77". On success, sets `initialized` to true,
+     * stores the initialization result in `BMP280_status`, and configures forced measurement
+     * sampling for temperature and pressure. If initialization fails or no valid address/bus
+     * is available, the function returns without initializing the sensor and logs an error.
+     */
     void Setup()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -33,7 +42,7 @@ namespace BMP280
         }
 
         if (!BMP280_status) {
-            Serial.println("[BMP280] Couldn't find a sensor, check your wiring and I2C address!");
+            Log.println("[BMP280] Couldn't find a sensor, check your wiring and I2C address!");
         } else {
             initialized = true;
         }
@@ -52,14 +61,29 @@ namespace BMP280
         BMP280_I2c = HeadlessWiFiSettings.string("BMP280_I2c", "", "I2C address (0x76 or 0x77)");
     }
 
+    /**
+     * @brief Reports the configured BMP280 I2C address and bus to the log.
+     *
+     * If an I2C bus is active and an address is configured, writes a single line
+     * containing the BMP280 I2C address and bus number to the Log. Does nothing
+     * if no I2C bus is started or if the BMP280 address is empty.
+     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BMP280_I2c.isEmpty()) return;
-        Serial.print("BMP280:       ");
-        Serial.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
+        Log.print("BMP280:       ");
+        Log.println(BMP280_I2c + " on bus " + BMP280_I2c_Bus);
     }
 
+    /**
+     * @brief Polls the BMP280 sensor at configured intervals and publishes temperature and pressure.
+     *
+     * If no I2C bus is started or the sensor is not initialized, the function returns without action.
+     * When the configured interval has elapsed (or on the first eligible call), it performs a forced
+     * measurement, reads temperature and pressure (pressure converted to hPa), publishes the values to
+     * roomsTopic+"/bmp280_temperature" and roomsTopic+"/bmp280_pressure", and updates the last-measurement timestamp.
+     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;

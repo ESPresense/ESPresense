@@ -99,11 +99,18 @@ void Setup() {
         led->update();
 }
 
+/**
+ * @brief Persists dirty state for MQTT-controlled LEDs to non-volatile storage.
+ *
+ * Iterates all LEDs and for each LED whose control type is MQTT and whose state is marked dirty,
+ * clears the dirty flag, logs the save action including filename and state, and writes the LED's
+ * state string to its associated state file.
+ */
 void Save() {
     for (auto& led : leds)
         if (led->getControlType() == Control_Type_MQTT && led->getDirty()) {
             led->setDirty(false);
-            Serial.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
+            Log.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
             spurt(led->getStateFilename(), led->getStateString());
         }
 }
@@ -184,13 +191,25 @@ LED* findBulb(String& command) {
     return nullptr;
 }
 
+/**
+ * @brief Apply a JSON command payload to the LED identified by command.
+ *
+ * Parses the provided JSON payload and updates the matched LED's color, brightness,
+ * white value, color temperature, effect, and on/off state when those keys are present.
+ *
+ * @param command Identifier or slug used to locate the target LED.
+ * @param pay JSON payload containing any of the supported keys: `color` (object with `r`, `g`, `b`),
+ *            `brightness`, `white_value`, `color_temp`, `effect`, and `state` (compared to MQTT_STATE_ON_PAYLOAD).
+ * @return true if a matching LED was found and the command was processed (note: returns `true` even if JSON deserialization fails);
+ *         `false` if no LED matching `command` exists.
+ */
 bool Command(String& command, String& pay) {
     auto bulb = findBulb(command);
     if (bulb == nullptr) return false;
     DynamicJsonDocument root(pay.length() + 100);
     auto err = deserializeJson(root, pay);
     if (err) {
-        Serial.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
+        Log.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
         return true;
     }
     bool sendNewState = false;

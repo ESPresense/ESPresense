@@ -79,6 +79,14 @@ namespace DS18B20
         }
     }
 
+    /**
+     * @brief Initialize DS18B20 hardware and start the background temperature task.
+     *
+     * When the configured DS18B20 pin is enabled (ds18b20Pin >= 0), configures the OneWire/DallasTemperature
+     * interfaces, detects the number of temperature devices, and starts a FreeRTOS task that periodically
+     * reads temperatures. On failure to find any devices or to create the task, logs an error and exits
+     * without enabling the task loop.
+     */
     void Setup()
     {
         if (ds18b20Pin>=0) {
@@ -89,9 +97,9 @@ namespace DS18B20
             numSensors = sensors.getDeviceCount();
 
             if (numSensors == 0) {
-                Serial.println("[ERROR] No DS sensors found");
+                Log.println("[ERROR] No DS sensors found");
                 return;
-            } 
+            }
             // Start task to get temperature
             xTaskCreatePinnedToCore(
                 tempTask,           /* Function to implement the task */
@@ -104,7 +112,7 @@ namespace DS18B20
 
             if (DSTempTaskHandle == NULL)
             {
-                Serial.println("[ERROR] Failed to start task for temperature update");
+                Log.println("[ERROR] Failed to start task for temperature update");
                 return;
             }
 
@@ -119,15 +127,30 @@ namespace DS18B20
         dsTempOffset = HeadlessWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
     }
 
+    /**
+     * @brief Log the DS18B20 configuration (pin and temperature offset) when enabled.
+     *
+     * Prints the configured DS18B20 pin and the global temperature offset to the log.
+     * If the DS18B20 pin is negative (sensor disabled), the function returns without logging.
+     */
     void SerialReport()
     {
         if (ds18b20Pin<0) return;
-        Serial.print("DS18B20 Sensor: ");
-        Serial.println((ds18b20Pin>=0 ? "pin " + String(ds18b20Pin) : "disabled").c_str());
-        Serial.print("DS18B20 Offset:   ");
-        Serial.println(dsTempOffset);
+        Log.print("DS18B20 Sensor: ");
+        Log.println((ds18b20Pin>=0 ? "pin " + String(ds18b20Pin) : "disabled").c_str());
+        Log.print("DS18B20 Offset:   ");
+        Log.println(dsTempOffset);
     }
 
+    /**
+     * @brief Publish newly available DS18B20 temperatures and pace sensor polling.
+     *
+     * When the DS18B20 interface is enabled and new temperature data has been flagged,
+     * reads each sensor, applies the configured temperature offset, logs the value,
+     * and publishes valid readings to MQTT topics of the form "<roomsTopic>/ds18b20_temperature_<n>".
+     * Readings with a raw value less than or equal to -127 are treated as invalid and are not published.
+     * After publishing, clears the new-data flag and delays briefly to avoid polling the slow sensor too frequently.
+     */
     void Loop()
     {
         if (ds18b20Pin<0) return;
@@ -137,7 +160,7 @@ namespace DS18B20
             for (int i = 0; i < numSensors; i++){
                 float rawTemp = sensors.getTempCByIndex(i);
                 float temperature = rawTemp + dsTempOffset;
-                Serial.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
+                Log.println("DS18B20 Temp_"+ String(i+1) + ": " + String(temperature, 1) + "'C");
                 if( rawTemp > -127) // Skip null values
                 {
                     pub((roomsTopic + "/ds18b20_temperature_" + String(i+1)).c_str(), 0, 1, String(temperature, 1).c_str());

@@ -44,6 +44,15 @@ String getVersionMarker() {
 #endif
 }
 
+/**
+ * @brief Checks the firmware endpoint for a newer release and initiates an update when found.
+ *
+ * Performs an HTTP HEAD request against the current firmware URL when a version marker is available.
+ * If the response is a 3xx redirect and the redirect Location does not contain the current version marker,
+ * the redirect URL is written to the persistent update entry ("/update") and the device is restarted to
+ * begin the update process. Once a new version has been discovered during the current runtime, subsequent
+ * calls will not trigger additional update actions.
+ */
 void checkForUpdates() {
     auto versionMarker = getVersionMarker();
     if (versionMarker.length() > 0) {
@@ -53,7 +62,7 @@ void checkForUpdates() {
         client.setInsecure();
         {
             auto url = getFirmwareUrl();
-            Serial.printf("Checking for new firmware version at '%s'\r\n", url.c_str());
+            Log.printf("Checking for new firmware version at '%s'\r\n", url.c_str());
             HTTPClient http;
             if (!http.begin(client, url))
                 return;
@@ -61,22 +70,37 @@ void checkForUpdates() {
             bool isRedirect = httpCode > 300 && httpCode < 400;
             if (isRedirect) {
                 if (http.getLocation().indexOf(versionMarker) < 0) {
-                    Serial.printf("Found new version: %s\r\n", http.getLocation().c_str());
+                    Log.printf("Found new version: %s\r\n", http.getLocation().c_str());
                     spurt("/update", http.getLocation());
                     foundNewVersion = true;
                 }
             } else
-                Serial.printf("Error on checking for update (sc=%d)\r\n", httpCode);
+                Log.printf("Error on checking for update (sc=%d)\r\n", httpCode);
             http.end();
 
             if (foundNewVersion) {
-                Serial.println("Rebooting to start update");
+                Log.println("Rebooting to start update");
                 ESP.restart();
             }
         }
     }
 }
 
+/**
+ * @brief Initiates and executes a firmware update from the configured update URL.
+ *
+ * Performs a firmware update using the stored updateUrl if it is an absolute HTTP(S)
+ * URL; otherwise it falls back to the computed firmware URL. Sets up callbacks to
+ * track start, progress, and end events which update GUI state, notify the web
+ * server, increment attempt counters, and log status. Uses a secure TLS client
+ * for HTTPS (accepting self-signed certificates) or an insecure TCP client for HTTP.
+ *
+ * Side effects:
+ * - Increments Updater::autoUpdateAttempts and sets Updater::updateStartedMillis when starting.
+ * - Calls GUI::Update(...) and HttpWebServer::UpdateStart()/UpdateEnd() during the update lifecycle.
+ * - Removes the "/update" file from SPIFFS on successful completion.
+ * - Logs progress, results, and errors via Log.printf/Log.println.
+ */
 void firmwareUpdate() {
     String url = updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl();
     bool isSecure = url.startsWith("https://");
@@ -88,7 +112,7 @@ void firmwareUpdate() {
         updateStartedMillis = millis();
         GUI::Update(UPDATE_STARTED);
         HttpWebServer::UpdateStart();
-        Serial.printf("Starting firmware update from: %s\n", url.c_str());
+        Log.printf("Starting firmware update from: %s\n", url.c_str());
     });
 
     httpUpdate.onProgress([](int progress, int total) {
@@ -99,9 +123,9 @@ void firmwareUpdate() {
     httpUpdate.onEnd([](bool success) {
         if (success) {
             SPIFFS.remove("/update");
-            Serial.println("Firmware update completed successfully!");
+            Log.println("Firmware update completed successfully!");
         } else {
-            Serial.println("Firmware update failed to apply");
+            Log.println("Firmware update failed to apply");
         }
         updateStartedMillis = 0;
         GUI::Update(UPDATE_COMPLETE);
@@ -124,17 +148,28 @@ void firmwareUpdate() {
 
     switch (ret) {
         case HTTP_UPDATE_FAILED:
-            Serial.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            Log.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
             break;
         case HTTP_UPDATE_NO_UPDATES:
-            Serial.printf("No Update!\r\n");
+            Log.printf("No Update!\r\n");
             break;
         case HTTP_UPDATE_OK:
-            Serial.printf("Update OK!\r\n");
+            Log.printf("Update OK!\r\n");
             break;
     }
 }
 
+/**
+ * @brief Configure and enable Arduino OTA update handling.
+ *
+ * Sets up ArduinoOTA event handlers for start, progress, end, and error events,
+ * assigns hostname and port, disables mDNS, and begins the OTA service.
+ *
+ * The configured event handlers update GUI and HTTP server state, record and
+ * clear the update start timestamp, and log error details on failure.
+ *
+ * This function is idempotent: it performs no action if OTA has already been configured.
+ */
 void configureOTA(void) {
     if (arduinoOtaConfgured) return;
     arduinoOtaConfgured = true;
@@ -154,17 +189,17 @@ void configureOTA(void) {
             GUI::Update((progress / (total / 100)));
         })
         .onError([](ota_error_t error) {
-            Serial.printf("Error[%u]: ", error);
+            Log.printf("Error[%u]: ", error);
             if (error == OTA_AUTH_ERROR)
-                Serial.println("Auth Failed");
+                Log.println("Auth Failed");
             else if (error == OTA_BEGIN_ERROR)
-                Serial.println("Begin Failed");
+                Log.println("Begin Failed");
             else if (error == OTA_CONNECT_ERROR)
-                Serial.println("Connect Failed");
+                Log.println("Connect Failed");
             else if (error == OTA_RECEIVE_ERROR)
-                Serial.println("Receive Failed");
+                Log.println("Receive Failed");
             else if (error == OTA_END_ERROR)
-                Serial.println("End Failed");
+                Log.println("End Failed");
             updateStartedMillis = 0;
         });
     ArduinoOTA.setHostname(WiFi.getHostname());
@@ -172,7 +207,7 @@ void configureOTA(void) {
     ArduinoOTA.setMdnsEnabled(false);  // We just don't have the memory
     ArduinoOTA.begin();
 
-    Serial.println("ArduinoOTA configured and ready");
+    Log.println("ArduinoOTA configured and ready");
 }
 
 bool setup = false;

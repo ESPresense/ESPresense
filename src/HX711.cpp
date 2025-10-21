@@ -30,13 +30,29 @@ namespace HX711
         doutPin = HeadlessWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");
     }
 
+    /**
+     * @brief Logs configured HX711 clock and data pin numbers.
+     *
+     * If the sensor pins are configured, writes a single log line containing the SCK/DOUT pin pair in the format "sck/dout".
+     */
     void SerialReport()
     {
         if (!sckPin && !doutPin) return;
-        Serial.print("HX711 Weight Sensor: ");
-        Serial.println(String(sckPin) + "/" + String(doutPin));
+        Log.print("HX711 Weight Sensor: ");
+        Log.println(String(sckPin) + "/" + String(doutPin));
     }
 
+    /**
+     * @brief Periodically reads raw 24-bit values from the configured HX711 load cell and publishes them.
+     *
+     * When pins are configured and the device is ready, this function reads a 24-bit sample from the HX711,
+     * applies the configured gain cycles, sign-extends the 24-bit value to a 32-bit unsigned representation,
+     * updates the internal read timestamp, and publishes the numeric value as a string to the MQTT topic
+     * "<roomsTopic>/raw_weight" with QoS 0 and the retained flag set.
+     *
+     * The function returns immediately if pins are not configured, if the minimum interval since the last read
+     * has not elapsed, or if the HX711 indicates it is not ready.
+     */
     void Loop()
     {
         if (!sckPin && !doutPin) return;

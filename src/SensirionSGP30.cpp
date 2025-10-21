@@ -22,6 +22,20 @@ int sensorInterval = 1000;  // SGP30/40/41 are designed to operate at 1Hz: so pu
 int reportInterval = 60000; // Report every minute to MQTT (to avoid flooding)
 bool initialized = false;
 
+/**
+ * @brief Initialize and configure the SGP30 air-quality sensor if an I2C bus is active.
+ *
+ * Attempts to instantiate the SGP30 object and begin communication on the configured
+ * I2C bus/address. If the sensor is found, starts air-quality measurement and marks
+ * the sensor as initialized; if not found, logs an error message.
+ *
+ * @details
+ * - No action is taken if neither I2C bus is started or if the configured I2C address
+ *   is not "0x58".
+ * - On successful initialization, calls sensor startup routine and sets the
+ *   module-level `initialized` flag to true.
+ * - On failure to begin communication, leaves `initialized` false and logs a diagnostic message.
+ */
 void Setup() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
@@ -33,7 +47,7 @@ void Setup() {
     }
 
     if (!SGP30_status) {
-        Serial.println("[SGP30] Couldn't find a sensor, check your wiring and I2C address!");
+        Log.println("[SGP30] Couldn't find a sensor, check your wiring and I2C address!");
     } else {
         sgp->initAirQuality();
         initialized = true;
@@ -45,13 +59,28 @@ void ConnectToWifi() {
     SGP30_I2c = HeadlessWiFiSettings.string("SGP30_I2c", "", "I2C address (0x58)");
 }
 
+/**
+ * @brief Logs the configured SGP30 I2C address and bus to the system log.
+ *
+ * If neither I2C bus has started or the configured I2C address string is empty, the function returns without logging.
+ */
 void SerialReport() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (SGP30_I2c.isEmpty()) return;
-    Serial.print("SGP30:        ");
-    Serial.println(SGP30_I2c + " on bus " + SGP30_I2c_Bus);
+    Log.print("SGP30:        ");
+    Log.println(SGP30_I2c + " on bus " + SGP30_I2c_Bus);
 }
 
+/**
+ * @brief Performs periodic SGP30 measurements and publishes CO2 and TVOC readings at configured intervals after startup.
+ *
+ * Reads the SGP30 sensor at the cadence defined by `sensorInterval` and, once more than 30 seconds have elapsed since boot,
+ * publishes CO2 and TVOC values to MQTT topics when the `reportInterval` has elapsed or for the first report.
+ *
+ * The function returns immediately if neither I2C bus has started or if the sensor was not initialized. It updates
+ * `SGP30PreviousSensorMillis` on each measurement and `SGP30PreviousReportMillis` when a report is published. Published
+ * topics are `roomsTopic + "/co2"` and `roomsTopic + "/tvoc"`.
+ */
 void Loop() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (!initialized) return;
