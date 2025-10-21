@@ -45,8 +45,9 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param desc Pointer to the connection descriptor containing the peer address and connection handle.
      */
     void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
+        std::string addr = NimBLEAddress(desc->peer_ota_addr).toString();
         Log.print("Connected to: ");
-        Log.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
+        Log.println(addr.c_str());
         if (enrolling) {
             connectionToEnroll = desc->conn_handle;
         }
@@ -96,7 +97,8 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * @param pCharacteristic Pointer to the characteristic being read; its UUID and current value are output to the log.
      */
     void onRead(NimBLECharacteristic *pCharacteristic) {
-        Log.print(pCharacteristic->getUUID().toString().c_str());
+        std::string uuid = pCharacteristic->getUUID().toString();
+        Log.print(uuid.c_str());
         Log.print(": onRead(), value: ");
         Log.println(pCharacteristic->getValue().c_str());
     };
@@ -107,7 +109,8 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * @param pCharacteristic Pointer to the NimBLE characteristic that was written by a client.
      */
     void onWrite(NimBLECharacteristic *pCharacteristic) {
-        Log.print(pCharacteristic->getUUID().toString().c_str());
+        std::string uuid = pCharacteristic->getUUID().toString();
+        Log.print(uuid.c_str());
         Log.print(": onWrite(), value: ");
         Log.println(pCharacteristic->getValue().c_str());
     };
@@ -193,7 +196,8 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      * @param pDescriptor Descriptor that was read.
      */
     void onRead(NimBLEDescriptor *pDescriptor) {
-        Log.print(pDescriptor->getUUID().toString().c_str());
+        std::string uuid = pDescriptor->getUUID().toString();
+        Log.print(uuid.c_str());
         Log.println(" Descriptor read");
     };
 };

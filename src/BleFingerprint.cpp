@@ -397,7 +397,8 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                       ID_TYPE_EBEACON);
             }
         } else {
-            fingerprint = fingerprint + uuid.toString().c_str();
+            std::string uuidStr = uuid.toString();
+            fingerprint = fingerprint + uuidStr.c_str();
         }
     }
     if (!fingerprint.isEmpty()) {

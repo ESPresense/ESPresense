@@ -3,6 +3,13 @@
 #include <Arduino.h>
 #include <utility>
 
+#ifdef ARDUINO
+using LoggerSerialType = decltype(::Serial);
+#else
+class HardwareSerial;
+using LoggerSerialType = HardwareSerial;
+#endif
+
 class Logger : public Stream {
 public:
     static Logger& instance();
@@ -19,12 +26,12 @@ public:
 
     // HardwareSerial passthrough methods
     template <typename... Args>
-    auto begin(Args&&... args) -> decltype(((HardwareSerial*)nullptr)->begin(std::forward<Args>(args)...)) {
+    auto begin(Args&&... args) -> decltype(std::declval<LoggerSerialType&>().begin(std::forward<Args>(args)...)) {
         return serial_.begin(std::forward<Args>(args)...);
     }
 
     template <typename... Args>
-    auto end(Args&&... args) -> decltype(((HardwareSerial*)nullptr)->end(std::forward<Args>(args)...)) {
+    auto end(Args&&... args) -> decltype(std::declval<LoggerSerialType&>().end(std::forward<Args>(args)...)) {
         return serial_.end(std::forward<Args>(args)...);
     }
 
@@ -40,17 +47,17 @@ public:
     bool isSerialEnabled() const;
 
     // Direct serial access (if needed)
-    HardwareSerial& raw();
-    HardwareSerial* operator->();
-    operator HardwareSerial&();
+    LoggerSerialType& raw();
+    LoggerSerialType* operator->();
+    operator LoggerSerialType&();
 
 private:
-    explicit Logger(HardwareSerial& serial);
+    explicit Logger(LoggerSerialType& serial);
     ~Logger() = default;
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
-    HardwareSerial& serial_;
+    LoggerSerialType& serial_;
     bool serialEnabled_ = true;
 };
 

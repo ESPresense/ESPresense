@@ -16,7 +16,7 @@
 #undef Serial
 #endif
 
-extern HardwareSerial Serial;
+using SerialType = decltype(::Serial);
 
 namespace {
 
@@ -134,7 +134,7 @@ void HandleTcpClient(void*, AsyncClient* client) {
  * @param serial Reference to the HardwareSerial used for serial logging.
  */
 
-Logger::Logger(HardwareSerial& serial) : serial_(serial), serialEnabled_(true) {
+Logger::Logger(LoggerSerialType& serial) : serial_(serial), serialEnabled_(true) {
     loggerInstance = this;
 }
 
@@ -144,7 +144,7 @@ Logger::Logger(HardwareSerial& serial) : serial_(serial), serialEnabled_(true) {
  * @return Logger& Reference to the singleton Logger associated with the global Serial interface.
  */
 Logger& Logger::instance() {
-    static Logger instance(Serial);
+    static Logger instance(::Serial);
     return instance;
 }
 
@@ -272,7 +272,9 @@ void Logger::enableTcp(uint16_t port) {
  * @brief Disables TCP logging and releases all associated resources.
  *
  * Restores any previously installed log vprintf hook, stops and destroys the TCP server,
- * deletes the TCP write mutex, and closes any active TCP client connection.
+ * deletes the TCP write mutex, and closes any active TCP client connection. Uses a finite
+ * mutex timeout (5 seconds) to avoid hanging during shutdown; proceeds with cleanup even
+ * if the mutex cannot be acquired, logging a warning in that case.
  *
  * Calling this when TCP logging is not enabled has no effect.
  */
@@ -287,12 +289,23 @@ void Logger::disableTcp() {
     }
 
     // Snapshot client pointer under the mutex and clear the global reference.
+    // Use finite timeout to avoid hanging during shutdown.
     AsyncClient* clientToClose = nullptr;
-    if (tcpWriteMutex && xSemaphoreTake(tcpWriteMutex, portMAX_DELAY) == pdTRUE) {
-        clientToClose = tcpClient;
-        tcpClient = nullptr;
-        xSemaphoreGive(tcpWriteMutex);
+    if (tcpWriteMutex) {
+        if (xSemaphoreTake(tcpWriteMutex, pdMS_TO_TICKS(5000)) == pdTRUE) {
+            // Successfully acquired mutex - safely snapshot and clear
+            clientToClose = tcpClient;
+            tcpClient = nullptr;
+            xSemaphoreGive(tcpWriteMutex);
+        } else {
+            // Timeout - proceed without mutex to avoid deadlock
+            // This is safe because tcpEnabled is now false, preventing new writes
+            log_w("Logger::disableTcp() mutex timeout - proceeding without lock");
+            clientToClose = tcpClient;
+            tcpClient = nullptr;
+        }
     } else {
+        // No mutex exists - just snapshot
         clientToClose = tcpClient;
         tcpClient = nullptr;
     }
@@ -345,7 +358,7 @@ bool Logger::isSerialEnabled() const {
  *
  * @return HardwareSerial& Reference to the wrapped HardwareSerial instance.
  */
-HardwareSerial& Logger::raw() {
+LoggerSerialType& Logger::raw() {
     return serial_;
 }
 
@@ -354,7 +367,7 @@ HardwareSerial& Logger::raw() {
  *
  * @return HardwareSerial* Pointer to the underlying HardwareSerial instance.
  */
-HardwareSerial* Logger::operator->() {
+LoggerSerialType* Logger::operator->() {
     return &serial_;
 }
 
@@ -363,7 +376,7 @@ HardwareSerial* Logger::operator->() {
  *
  * @return HardwareSerial& Reference to the underlying HardwareSerial instance.
  */
-Logger::operator HardwareSerial&() {
+Logger::operator LoggerSerialType&() {
     return serial_;
 }
 
@@ -376,7 +389,7 @@ Logger& Log = Logger::instance();
  *
  * @param serial Reference to the underlying HardwareSerial used for stubbed logger operations.
  */
-Logger::Logger(HardwareSerial& serial) : serial_(serial) {}
+Logger::Logger(LoggerSerialType& serial) : serial_(serial) {}
 
 /**
  * @brief Returns the process-wide Logger singleton instance.
@@ -386,7 +399,7 @@ Logger::Logger(HardwareSerial& serial) : serial_(serial) {}
  * @return Logger& Reference to the global Logger singleton.
  */
 Logger& Logger::instance() {
-    static HardwareSerial dummySerial;
+    static LoggerSerialType dummySerial;
     static Logger instance(dummySerial);
     return instance;
 }
@@ -482,22 +495,22 @@ bool Logger::isSerialEnabled() const { return true; }
  *
  * @return HardwareSerial& Reference to the underlying serial interface.
  */
-HardwareSerial& Logger::raw() { return serial_; }
+LoggerSerialType& Logger::raw() { return serial_; }
 /**
  * @brief Provides pointer-like access to the underlying serial instance.
  *
  * Allows using Logger with pointer syntax (e.g., Log->begin(...)) to call
  * HardwareSerial methods directly.
  *
- * @return HardwareSerial* Pointer to the underlying HardwareSerial instance.
+ * @return LoggerSerialType* Pointer to the underlying serial instance.
  */
-HardwareSerial* Logger::operator->() { return &serial_; }
+LoggerSerialType* Logger::operator->() { return &serial_; }
 /**
- * @brief Accesses the underlying HardwareSerial instance used by this Logger.
+ * @brief Accesses the underlying serial instance used by this Logger.
  *
- * @return HardwareSerial& Reference to the underlying HardwareSerial.
+ * @return LoggerSerialType& Reference to the underlying serial.
  */
-Logger::operator HardwareSerial&() { return serial_; }
+Logger::operator LoggerSerialType&() { return serial_; }
 
 Logger& Log = Logger::instance();
 
