@@ -181,7 +181,7 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      */
     void onWrite(NimBLEDescriptor *pDescriptor) {
         std::string dscVal = pDescriptor->getValue();
-        Log.print("Descriptor witten value:");
+        Log.print("Descriptor written value:");
         Log.println(dscVal.c_str());
     };
 
