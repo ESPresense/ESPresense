@@ -27,6 +27,15 @@ int sensorInterval = 5000;  // SCD40/41 are designed to operate at 0.2Hz: so pul
 int reportInterval = 60000; // Report every minute to MQTT (to avoid flooding)
 bool initialized = false;
 
+/**
+ * @brief Initialize the Sensirion SCD4x sensor and start periodic measurements when configured.
+ *
+ * Performs sensor setup when an I2C bus is available and the configured I2C address matches the supported value.
+ * The routine constructs the driver, initializes the sensor interface, attempts wake-up, stops any ongoing
+ * periodic measurement, reinitializes the sensor, reads and logs the serial number, and starts periodic measurement.
+ * On successful start of periodic measurement the module-level `initialized` flag is set; errors encountered during
+ * any step are logged.
+ */
 void Setup() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
@@ -73,11 +82,28 @@ void Setup() {
     }
 }
 
+/**
+ * @brief Loads SCD4x I2C configuration from persistent headless Wi‑Fi settings.
+ *
+ * Reads the configured I2C bus number and I2C address string and stores them in
+ * the module-level SCD4x_I2c_Bus and SCD4x_I2c variables.
+ *
+ * The I2C bus is read using the key "SCD4x_I2c_Bus" and constrained to the
+ * valid range 1–2; DEFAULT_I2C_BUS is used if no value is present. The I2C
+ * address is read using the key "SCD4x_I2c" and defaults to an empty string
+ * when not configured.
+ */
 void ConnectToWifi() {
     SCD4x_I2c_Bus = HeadlessWiFiSettings.integer("SCD4x_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     SCD4x_I2c = HeadlessWiFiSettings.string("SCD4x_I2c", "", "I2C address (0x62)");
 }
 
+/**
+ * @brief Report the configured SCD4x I2C address and bus if available.
+ *
+ * Prints the sensor's I2C address and the selected I2C bus when either I2C bus 1 or
+ * bus 2 has been started and an I2C address has been configured.
+ */
 void SerialReport() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (SCD4x_I2c.isEmpty()) return;
@@ -85,6 +111,18 @@ void SerialReport() {
     Log.println(SCD4x_I2c + " on bus " + SCD4x_I2c_Bus);
 }
 
+/**
+ * @brief Periodically reads SCD4x sensor data and publishes CO2, temperature, and humidity.
+ *
+ * Checks that an I2C bus is available and the sensor was initialized, then on a configured
+ * sensor interval verifies data readiness, reads a measurement, and—after the first 30 seconds
+ * since startup—publishes CO2, humidity, and temperature to their respective MQTT topics
+ * when the report interval has elapsed.
+ *
+ * This function updates internal timing state (SCD4xPreviousSensorMillis and
+ * SCD4xPreviousReportMillis) and writes the last sensor status to SCD4x_status. If the sensor
+ * is not ready or any I2C operation returns an error, the function returns without publishing.
+ */
 void Loop() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (!initialized) return;
@@ -122,6 +160,11 @@ void Loop() {
     }
 }
 
+/**
+ * Publish discovery messages for CO2, temperature, and humidity sensors if the SCD4x I2C address is configured.
+ *
+ * @return `true` if no I2C address is configured or all discovery messages were sent successfully, `false` otherwise.
+ */
 bool SendDiscovery() {
     if (SCD4x_I2c.isEmpty()) return true;
 

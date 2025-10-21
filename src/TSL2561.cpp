@@ -28,6 +28,11 @@ namespace TSL2561
         TSL2561_I2c_Gain = HeadlessWiFiSettings.string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
     }
 
+    /**
+     * @brief Logs the configured TSL2561 I2C address and selected I2C bus.
+     *
+     * If neither I2C bus is started or the configured I2C address is empty, this function does nothing.
+     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -36,6 +41,16 @@ namespace TSL2561
         Log.println(TSL2561_I2c + " on bus " + TSL2561_I2c_Bus);
     }
 
+    /**
+     * @brief Reads the TSL2561 ambient light sensor and publishes periodic illuminance readings.
+     *
+     * Initializes the sensor on the configured I2C bus and gain, sets a 402 ms integration
+     * time, and reads the current illuminance. If a nonzero lux value is read and the
+     * configured publish interval has elapsed, the lux value is published to
+     * "<roomsTopic>/tsl2561_lux". If the configured I2C address or gain is invalid the
+     * function returns without publishing; if the sensor reports overload (zero lux) this
+     * condition is logged.
+     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;

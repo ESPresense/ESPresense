@@ -39,6 +39,13 @@ void ConnectToWifi() {
 void Setup() {
 }
 
+/**
+ * @brief Reports configured I2C buses and, when debugging is enabled, scans started buses for devices.
+ *
+ * @details Logs the SDA/SCL pin assignments for any started I2C buses. If at least one bus is started and the
+ * debug flag is enabled, performs an address scan on each started bus and logs discovered device addresses
+ * and any unknown errors encountered during probing. If no devices are found, logs a corresponding message.
+ */
 void SerialReport() {
     if (I2C_Bus_1_Started)
         Log.println(String("I2C Bus 1:    sda=") + I2C_Bus_1_SDA + " scl=" + I2C_Bus_1_SCL);

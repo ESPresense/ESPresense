@@ -3,6 +3,15 @@
 #include "Logger.h"
 
 namespace NameModelHandler {
+/**
+ * @brief Extracts the BLE device name or model from the connected client and assigns a corresponding identifier to the fingerprint.
+ *
+ * Prefers the device name when present and not equal to "Apple Watch"; otherwise uses the device model if available.
+ *
+ * @param pClient BLE client used to read the Device Information and Generic Access characteristics.
+ * @param f Fingerprint object to which the identifier will be assigned.
+ * @return true if either a name or model value was found and an identifier assignment was attempted, `false` if neither value was available.
+ */
 bool requestData(NimBLEClient* pClient, BleFingerprint* f) {
     std::string sMdl = pClient->getValue(deviceInformationService, modelChar);
     std::string sName = pClient->getValue(genericAccessService, nameChar);

@@ -8,6 +8,23 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
     printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
 }
 
+/**
+ * @brief Publish device telemetry and perform online/discovery announcements.
+ *
+ * Attempts to send status and discovery payloads when the device is not marked online
+ * or discovery has not yet been announced, then builds and publishes a telemetry
+ * JSON document containing device state, diagnostics, and aggregated counters.
+ * Successful status/discovery sends update internal flags such as `online` and
+ * `sentDiscovery`; failed telemetry publishes increment internal failure counters.
+ *
+ * @param totalSeen Total advertisement packets observed since the last report.
+ * @param totalFpSeen Total distinct fingerprints seen since the last report.
+ * @param totalFpQueried Total fingerprints queried (e.g., looked up) since the last report.
+ * @param totalFpReported Total fingerprint reports published since the last report.
+ * @param count Current count value (included only when a count identifier is configured).
+ * @return `true` if the telemetry document was published successfully, `false` otherwise. 
+ * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
+ */
 bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
     if (!online) {
         if (
@@ -129,6 +146,17 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     return false;
 }
 
+/**
+ * @brief Configure network settings, initialize network-connected subsystems, and establish connectivity.
+ *
+ * Reads runtime settings (Wi‑Fi, Ethernet type, MQTT, discovery/publication flags, timeouts, hostname, room),
+ * initializes and connects subsystem components that require network access, registers wait-loop callbacks for
+ * captive portal and connection progress, and attempts to bring up Ethernet or Wi‑Fi. Logs network and device
+ * information and prepares MQTT/topic strings for later use.
+ *
+ * On unrecoverable connection failure this function will reboot the device (calls ESP.restart()). The captive
+ * portal wait callback can also trigger a restart if the portal timeout elapses.
+ */
 void setupNetwork() {
     Log.println("Setup network");
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
@@ -272,6 +300,13 @@ void onMqttConnect(bool sessionPresent) {
     GUI::Connected(true, true);
 }
 
+/**
+ * @brief Handle MQTT disconnection events and initiate reconnection.
+ *
+ * Updates the GUI to show disconnected status, logs the disconnect reason, starts the reconnect timer, and marks the device as offline.
+ *
+ * @param reason The MQTT client's disconnection reason code.
+ */
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     GUI::Connected(true, false);
     Log.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
@@ -279,6 +314,23 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
     online = false;
 }
 
+/**
+ * @brief Handle an incoming MQTT message by routing configuration or command topics.
+ *
+ * Parses the topic to detect trailing "/config" or "/set" paths. For "/config" topics,
+ * extracts the device id segment and applies the configuration payload. For "/set"
+ * topics, extracts the command segment and executes the corresponding action:
+ * - "restart" triggers a system restart.
+ * - "wifi-ssid" and "wifi-password" store the provided credential.
+ * - "name" updates the room/name value (uses device MAC if payload is empty).
+ * - Other commands are dispatched to registered subsystems; if a dispatched command
+ *   reports a configuration change, the node is marked offline to force re-sync.
+ *
+ * If the topic does not match the expected patterns, the message is logged as unknown.
+ *
+ * @param topic MQTT topic string (null-terminated) expected to end with "/config" or "/set".
+ * @param payload MQTT message payload string (null-terminated).
+ */
 void onMqttMessage(const char *topic, const char *payload) {
     String const top = String(topic);
     String pay = String(payload);
@@ -328,6 +380,18 @@ void onMqttMessage(const char *topic, const char *payload) {
 }
 
 std::string payload_buffer_;
+/**
+ * @brief Reassembles chunked MQTT message payloads and dispatches the complete message.
+ *
+ * Buffers incoming payload fragments until the full MQTT message has been received; when the final fragment arrives, calls onMqttMessage with the original topic and the reconstructed payload, then clears the buffer.
+ *
+ * @param topic Topic string associated with the incoming MQTT message.
+ * @param payload Pointer to the current fragment's data.
+ * @param properties MQTT message properties for the current fragment.
+ * @param len Length in bytes of the current fragment.
+ * @param index Byte offset of the current fragment within the full message.
+ * @param total Total size in bytes of the full MQTT message.
+ */
 void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
     if (index == 0)
         payload_buffer_.reserve(total);
@@ -342,6 +406,16 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
     }
 }
 
+/**
+ * @brief Attempts to re-establish network and MQTT connectivity, restarting the device on repeated failure.
+ *
+ * If both network and MQTT are already connected the function returns immediately.
+ * The function increments an internal reconnect-attempt counter and restarts the device after more than 50 attempts.
+ * When the network is disconnected it tries to restore connectivity using configured Ethernet or Wi‑Fi settings; failing to restore the network triggers a device restart.
+ * After ensuring network connectivity it initiates an MQTT connection attempt.
+ *
+ * @param xTimer FreeRTOS timer handle associated with the reconnect timer (unused).
+ */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
     if (Network.isConnected() && mqttClient.connected()) return;
@@ -484,6 +558,14 @@ void scanTask(void *parameter) {
     }
 }
 
+/**
+ * @brief Initialize hardware, peripherals, services, and background tasks required by the program.
+ *
+ * Configures serial logging and ESP log levels, registers a heap allocation-failure callback, initializes
+ * platform-specific power/hardware (when enabled), filesystem, network, OTA/updater, GUI and application
+ * subsystems (motion, switches, buttons, battery, CAN, NTP, optional sensors), enables TCP remote logging,
+ * starts the BLE scan task, and performs MQTT/reporting setup.
+ */
 void setup() {
 #ifdef FAST_MONITOR
     Serial.begin(1500000);
@@ -537,6 +619,17 @@ void setup() {
     Log.println();
 }
 
+/**
+ * @brief Executes the main periodic processing and dispatches per-subsystem loop handlers.
+ *
+ * Runs the primary report processing and repeatedly invokes each subsystem's Loop method.
+ * Every 5 seconds it performs a slow maintenance check that reads available heap memory,
+ * logs a low-memory warning when free memory is less than 20,000 bytes, and runs the updater
+ * loop when free memory exceeds 70,000 bytes.
+ *
+ * Subsystems invoked each iteration include GUI, Motion, Switch, Button, HTTP server,
+ * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
+ */
 void loop() {
     reportLoop();
     static unsigned long lastSlowLoop = 0;

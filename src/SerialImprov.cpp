@@ -70,7 +70,17 @@ void sendImprovStateResponse(uint8_t state, bool error = false);
 void sendImprovRPCResponse(byte commandId);
 void sendImprovInfoResponse();
 
-// blocking function to parse an Improv Serial packet
+/**
+ * @brief Parse and handle a single Improv Serial packet from the configured serial stream.
+ *
+ * Validates the Improv packet header, version, type, length, and checksum, then dispatches
+ * the contained RPC command (e.g., WiFi provisioning, state request, info request) and
+ * emits the appropriate responses and state updates. Returns after a full packet is handled
+ * or on validation timeout/failure.
+ *
+ * @param provisioning When true, state responses for request-state commands will indicate
+ *                     provisioning rather than authorized or provisioned states.
+ */
 void handleImprovPacket(bool provisioning) {
     uint8_t header[6] = {'I', 'M', 'P', 'R', 'O', 'V'};
 
@@ -171,6 +181,18 @@ void handleImprovPacket(bool provisioning) {
     }
 }
 
+/**
+ * @brief Sends an Improv protocol state packet over the configured serial interface.
+ *
+ * Sends a state response packet followed by a newline, updates the global
+ * improvError when `error` is true, and may emit an immediate error state
+ * (0x00) if a prior transient error is recorded. If no serial stream is
+ * available the call is a no-op. A log message is produced describing the
+ * sent state and error flag.
+ *
+ * @param state State code to send.
+ * @param error If true, mark and communicate an error state.
+ */
 void sendImprovStateResponse(uint8_t state, bool error) {
     if (!error && improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
     if (error) improvError = state;
@@ -183,6 +205,13 @@ void sendImprovStateResponse(uint8_t state, bool error) {
     Log.printf("[Improv] State %u (error=%s)\n", state, error ? "yes" : "no");
 }
 
+/**
+ * @brief Builds and sends an Improv RPC response for the given command and marks provisioning complete.
+ *
+ * If a recent improv error state is set (greater than 0 and less than 3), a protocol error state is emitted before the RPC response. When the network is connected, the device's local HTTP URL is included in the response. The constructed packet is written to the configured serial stream and the global provisioning flag is set to indicate provisioning is no longer active. Activity is also logged.
+ *
+ * @param commandId RPC command identifier to include in the response.
+ */
 void sendImprovRPCResponse(byte commandId) {
     if (improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
     Stream* serial = EnsureSerial();
@@ -204,6 +233,14 @@ void sendImprovRPCResponse(byte commandId) {
     improvActive = 1;  // no longer provisioning
 }
 
+/**
+ * @brief Send an Improv "info" response over the configured serial stream.
+ *
+ * Builds and transmits an info packet containing device name, firmware version,
+ * device type, and room identifier, then writes a trailing newline and emits a log line.
+ *
+ * If no serial stream is available the function returns without sending.
+ */
 void sendImprovInfoResponse() {
     if (improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
     Stream* serial = EnsureSerial();

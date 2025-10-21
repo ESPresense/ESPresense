@@ -1,6 +1,11 @@
 #include "Network.h"
 #include "../../include/Logger.h"
 
+/**
+ * @brief Returns the device's current local IP address, preferring Ethernet when configured.
+ *
+ * @return IPAddress The local IP address: the Ethernet IP if Ethernet is enabled and non-zero, otherwise the WiFi IP if non-zero, otherwise INADDR_NONE.
+ */
 IPAddress NetworkClass::localIP()
 {
   IPAddress localIP;
@@ -123,6 +128,16 @@ bool NetworkClass::initEthernet(int ethernetType)
 #endif
 }
 
+/**
+ * @brief Attempt to bring up the Ethernet interface, set its hostname, and wait for an assigned IP address.
+ *
+ * Configures the Ethernet interface and blocks until a non-zero local IP is obtained or the timeout elapses.
+ *
+ * @param ethernetType Index identifying which Ethernet board configuration to initialize.
+ * @param wait_seconds Maximum time to wait for an IP address in seconds; a negative value means wait indefinitely.
+ * @param hostname NUL-terminated hostname to assign to the Ethernet interface.
+ * @return true if the interface obtained a non-zero local IP address within the timeout, false otherwise.
+ */
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
     Log.print(F("Connecting to Ethernet"));

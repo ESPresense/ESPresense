@@ -29,6 +29,20 @@ void Setup() {
     if (radarPin >= 0) pinMode(radarPin, pinTypes[radarType]);
 }
 
+/**
+ * @brief Presents Wi-Fi setup UI to configure PIR and Radar input settings.
+ *
+ * Displays configuration controls for PIR and Radar pin type, pin number (use -1 to disable),
+ * and debounce timeout (seconds). Stores the chosen values into the module's global state so
+ * subsequent setup and runtime loops use the configured pins and timeouts.
+ *
+ * Globals modified:
+ * - pirType, pirPin, pirTimeout, pirDetected
+ * - radarType, radarPin, radarTimeout, radarDetected
+ *
+ * The pin type control offers the available pull/floating options and the timeout control
+ * defaults to the module's default debounce timeout.
+ */
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     pirType = HeadlessWiFiSettings.dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
@@ -42,6 +56,11 @@ void ConnectToWifi() {
     radarDetected = radarType & 0x01 ? LOW : HIGH;
 }
 
+/**
+ * @brief Reports whether the PIR and Radar sensors are enabled.
+ *
+ * Prints the enabled/disabled status of the PIR and Radar sensors to the logging output.
+ */
 void SerialReport() {
     Log.print("PIR Sensor:   ");
     Log.println(pirPin >= 0 ? "enabled" : "disabled");
@@ -49,6 +68,14 @@ void SerialReport() {
     Log.println(radarPin >= 0 ? "enabled" : "disabled");
 }
 
+/**
+ * @brief Monitors the PIR input and publishes PIR on/off events when the sensor state changes.
+ *
+ * If the PIR pin is disabled, the function returns immediately. When motion is detected it updates
+ * the last detection timestamp and maintains a HIGH state for the configured timeout period.
+ * On a change of PIR state this publishes "ON" or "OFF" to the room's "/pir" topic and updates
+ * the internal lastPirValue.
+ */
 static void pirLoop() {
     if (pirPin < 0) return;
     bool const detected = digitalRead(pirPin) == pirDetected;

@@ -19,6 +19,14 @@ namespace AHTX0
     int sensorInterval = 60000;
     bool initialized = false;
 
+    /**
+     * @brief Initialize the AHTX0 temperature/humidity sensor using configured I2C settings.
+     *
+     * Attempts to create and start the AHTX0 sensor on the configured I2C bus and address.
+     * If initialization succeeds, sets the module's initialized flag to true.
+     * If no I2C bus is active or the configured address is unsupported, the function returns without action.
+     * On initialization failure, logs an error message indicating the sensor was not found.
+     */
     void Setup()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -45,6 +53,12 @@ namespace AHTX0
         AHTX0_I2c = HeadlessWiFiSettings.string("AHTX0_I2c", "", "I2C address (0x38 or 0x39)");
     }
 
+    /**
+     * @brief Logs the configured AHTX0 sensor I2C address and bus.
+     *
+     * If neither I2C bus has been started or the configured I2C address string is empty, the function does nothing.
+     * Otherwise it writes a single diagnostic line in the form "AHTX0_I2c Sensor: <address> on bus <bus>" to the Log.
+     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -53,6 +67,17 @@ namespace AHTX0
         Log.println(AHTX0_I2c + " on bus " + AHTX0_I2c_Bus);
     }
 
+    /**
+     * @brief Periodically reads the AHTX0 sensor and publishes temperature and humidity.
+     *
+     * If neither I2C bus has started or the sensor was not initialized, the function returns immediately.
+     * When called and the configured interval has elapsed (or on first run), it reads temperature and
+     * relative humidity from the AHTX0 sensor and publishes the values to MQTT topics:
+     * roomsTopic + "/ahtx0_temperature" and roomsTopic + "/ahtx0_humidity".
+     * The function also updates the internal timestamp used to enforce the read interval.
+     *
+     * @note Published messages use QoS 1 and are retained.
+     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
