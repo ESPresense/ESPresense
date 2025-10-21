@@ -48,6 +48,18 @@ bool BleFingerprint::shouldHide(const String &s) {
     return (BleFingerprintCollection::exclude.length() > 0 && prefixExists(BleFingerprintCollection::exclude, s));
 }
 
+/**
+ * @brief Assigns a new identifier and related metadata to this fingerprint and updates scheduling/state.
+ *
+ * Updates the fingerprint's id and idType (respecting valid idType transitions), applies device configuration
+ * overrides (calibrated RSSI, alias, and name), and recalculates derived flags and timing used for reporting
+ * and querying (ignore, countable, allowQuery, hidden, isNode, qryDelayMillis, nextReportMs, etc.).
+ *
+ * @param newId The identifier to assign (e.g., "mac:...", "name:...", "node:...").
+ * @param newIdType Numeric type code for the identifier; negative values mark the fingerprint as ignored.
+ * @param newName Optional human-readable name to assign if not overridden by device config.
+ * @return true if the id was accepted and state updated; `false` if the requested idType transition is invalid.
+ */
 bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
     if (idType > 0 && newIdType <= idType) return false;
@@ -160,6 +172,15 @@ struct encryption_block {
     uint8_t cipher_text[16];
 };
 
+/**
+ * @brief Determines whether a Resolvable Private Address (RPA) was generated from a given IRK.
+ *
+ * Compares the RPA against the value derived from the supplied IRK using the BLE RPA resolution algorithm.
+ *
+ * @param rpa Pointer to the 6-byte Resolvable Private Address (least-significant byte first).
+ * @param irk Pointer to the 16-byte Identity Resolving Key.
+ * @return true if the RPA matches the value derived from the IRK, false otherwise.
+ */
 bool ble_ll_resolv_rpa(const uint8_t *rpa, const uint8_t *irk) {
     struct encryption_block ecb;
 
@@ -224,6 +245,20 @@ void BleFingerprint::fingerprintAddress() {
     }
 }
 
+/**
+ * @brief Derives a service-advertisement based fingerprint and assigns a corresponding ID and adjusted RSSI.
+ *
+ * Examines the advertised service UUIDs from the provided device. If a known service UUID is found,
+ * assigns a specific vendor/type ID (e.g., tile, sonos, itag, trackr, etc.), sets `asRssi` using the
+ * reference RX level and TX power if available, and returns immediately. If none of the known UUIDs
+ * match, constructs a generic fingerprint string prefixed with "ad:" followed by the concatenated
+ * service UUIDs and an optional TX power suffix, sets `asRssi`, and sets the ID to `ID_TYPE_AD`.
+ *
+ * @param advertisedDevice The advertised device to inspect for service UUIDs.
+ * @param serviceAdvCount Number of service UUID entries present in `advertisedDevice`.
+ * @param haveTxPower True if a TX power value is present in the advertisement; otherwise false.
+ * @param txPower Advertised TX power in dBm (typically a negative value) when `haveTxPower` is true.
+ */
 void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
@@ -283,6 +318,18 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
     setId(fingerprint, ID_TYPE_AD);
 }
 
+/**
+ * @brief Extracts and processes service data entries from an advertised BLE device to update fingerprint fields.
+ *
+ * Examines each service data entry and, for recognized UUIDs, updates identity, RSSI reference values,
+ * telemetry fields (temperature, humidity, voltage, battery), and beacon-related RSSI candidates.
+ * Unrecognized service data UUIDs are appended into a composite service-data fingerprint which becomes the ID.
+ *
+ * @param advertisedDevice The advertised device containing service data entries.
+ * @param serviceDataCount Number of service data entries present on the advertised device.
+ * @param haveTxPower True if the advertisement included TX power; used to adjust RSSI reference candidates.
+ * @param txPower The advertised TX power value (in dBm) when haveTxPower is true.
+ */
 void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
     asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
     String fingerprint = "";
@@ -359,6 +406,22 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
     }
 }
 
+/**
+ * @brief Parse manufacturer-specific advertisement data and derive device fingerprint metadata.
+ *
+ * Inspects the manufacturer data payload from the provided advertised device and, depending on
+ * known manufacturer IDs and beacon formats, assigns an appropriate identifier and identifier
+ * type, and updates beacon/manufacturer RSSI candidates used for downstream distance/typing logic.
+ *
+ * Recognized payloads include Apple iBeacon and Apple Nearby/FindMy variants, Sonos, Garmin,
+ * iTrack, Mi-Fit, select Microsoft and Samsung formats, AltBeacon, and a generic manufacturer
+ * fallback. When TX power is provided (haveTxPower == true) the TX value may be applied to the
+ * computed manufacturer RSSI candidate.
+ *
+ * @param advertisedDevice The advertised device whose manufacturer data will be parsed.
+ * @param haveTxPower True if the advertisement included a TX power field; used to adjust RSSI candidates.
+ * @param txPower The TX power value from the advertisement (meaningful only when haveTxPower is true).
+ */
 void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
@@ -528,6 +591,15 @@ bool BleFingerprint::report(JsonObject *doc) {
     return true;
 }
 
+/**
+ * @brief Attempts a BLE query for this fingerprint when querying is allowed and timing/RSSI constraints are met.
+ *
+ * Initiates a client connection to the device address, invokes the appropriate data request handler
+ * (MiFloraHandler for "flora:" IDs, otherwise NameModelHandler), and updates internal query state
+ * such as `isQuerying`, `lastQryMillis`, `qryAttempts`, and `qryDelayMillis`.
+ *
+ * @returns `true` if a query attempt was initiated, `false` otherwise.
+ */
 bool BleFingerprint::query() {
     if (!allowQuery || isQuerying) return false;
     if (rssi < -90) return false; // Too far away

@@ -78,6 +78,15 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
     if (onSeen) onSeen(false);
 }
 
+/**
+ * @brief Add a device configuration or replace an existing one with the same id.
+ *
+ * If the provided config has a non-empty alias, any existing configs with the same alias but a different id
+ * are removed and their ids are scheduled for deletion (deletion occurs after the function returns).
+ *
+ * @param config DeviceConfig to add or use to replace an existing entry with the same `id`.
+ * @return true if a new configuration was added, false if an existing configuration was replaced.
+ */
 bool addOrReplace(DeviceConfig config) {
     if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
@@ -262,6 +271,15 @@ bool Command(String &command, String &pay) {
     return true;
 }
 
+/**
+ * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
+ *
+ * Runs at most once every 5 seconds; for each fingerprint whose time since last seen
+ * exceeds `forgetMs` this function invokes the `onDel` callback (if set), deletes
+ * the fingerprint object, and removes it from the internal collection. If no
+ * fingerprints remain and the system uptime exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`,
+ * the function logs a message and calls `ESP.restart()`.
+ */
 void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
@@ -288,6 +306,18 @@ void CleanupOldFingerprints() {
     }
 }
 
+/**
+ * @brief Obtain the fingerprint associated with an advertised BLE device.
+ *
+ * Returns an existing fingerprint that matches the device's MAC address or creates
+ * and registers a new fingerprint if none exists. When a new fingerprint is created
+ * and an existing fingerprint with the same logical ID is found, the new fingerprint
+ * inherits the existing fingerprint's initial state and the existing fingerprint may
+ * be expired depending on its ID type.
+ *
+ * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
+ * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
+ */
 BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto mac = advertisedDevice->getAddress();
 

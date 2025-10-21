@@ -72,6 +72,15 @@ namespace DHT
         }
     }
 
+    /**
+     * @brief Initialize configured DHT sensors and start periodic temperature/humidity collection.
+     *
+     * Initializes DHT11 and/or DHT22 drivers for any configured pins, creates the background
+     * temperature task, attaches the periodic trigger using the module's update interval,
+     * and enables DHT task execution. If no DHT pins are configured, the function does nothing.
+     *
+     * If task creation fails an error is logged and periodic updates are not started.
+     */
     void Setup()
     {
         if (dht11Pin>=0) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
@@ -111,6 +120,12 @@ namespace DHT
         dhtTempOffset = HeadlessWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
     }
 
+    /**
+     * @brief Reports configured DHT sensor pins and temperature offset to the log.
+     *
+     * Prints the configured pin number for DHT11 and DHT22 (or "disabled" if not configured)
+     * and the configured temperature offset. Does nothing if both sensors are disabled.
+     */
     void SerialReport()
     {
         if (dht11Pin<0 && dht22Pin<0) return;
@@ -122,6 +137,14 @@ namespace DHT
         Log.println(dhtTempOffset);
     }
 
+    /**
+     * @brief Processes newly read DHT sensor data: logs measurements and publishes them.
+     *
+     * If neither DHT11 nor DHT22 is configured, the function does nothing.
+     * When a new reading is available, the stored temperature is adjusted by the configured offset,
+     * the temperature and humidity are logged, the humidity is published to `roomsTopic + "/humidity"`
+     * and the temperature to `roomsTopic + "/temperature"` (QoS 0, retained), and the new-reading flag is cleared.
+     */
     void Loop()
     {
         if (dht11Pin<0 && dht22Pin<0) return;

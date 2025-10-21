@@ -44,6 +44,15 @@ String getVersionMarker() {
 #endif
 }
 
+/**
+ * @brief Checks the firmware endpoint for a newer release and initiates an update when found.
+ *
+ * Performs an HTTP HEAD request against the current firmware URL when a version marker is available.
+ * If the response is a 3xx redirect and the redirect Location does not contain the current version marker,
+ * the redirect URL is written to the persistent update entry ("/update") and the device is restarted to
+ * begin the update process. Once a new version has been discovered during the current runtime, subsequent
+ * calls will not trigger additional update actions.
+ */
 void checkForUpdates() {
     auto versionMarker = getVersionMarker();
     if (versionMarker.length() > 0) {
@@ -77,6 +86,21 @@ void checkForUpdates() {
     }
 }
 
+/**
+ * @brief Initiates and executes a firmware update from the configured update URL.
+ *
+ * Performs a firmware update using the stored updateUrl if it is an absolute HTTP(S)
+ * URL; otherwise it falls back to the computed firmware URL. Sets up callbacks to
+ * track start, progress, and end events which update GUI state, notify the web
+ * server, increment attempt counters, and log status. Uses a secure TLS client
+ * for HTTPS (accepting self-signed certificates) or an insecure TCP client for HTTP.
+ *
+ * Side effects:
+ * - Increments Updater::autoUpdateAttempts and sets Updater::updateStartedMillis when starting.
+ * - Calls GUI::Update(...) and HttpWebServer::UpdateStart()/UpdateEnd() during the update lifecycle.
+ * - Removes the "/update" file from SPIFFS on successful completion.
+ * - Logs progress, results, and errors via Log.printf/Log.println.
+ */
 void firmwareUpdate() {
     String url = updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl();
     bool isSecure = url.startsWith("https://");
@@ -135,6 +159,17 @@ void firmwareUpdate() {
     }
 }
 
+/**
+ * @brief Configure and enable Arduino OTA update handling.
+ *
+ * Sets up ArduinoOTA event handlers for start, progress, end, and error events,
+ * assigns hostname and port, disables mDNS, and begins the OTA service.
+ *
+ * The configured event handlers update GUI and HTTP server state, record and
+ * clear the update start timestamp, and log error details on failure.
+ *
+ * This function is idempotent: it performs no action if OTA has already been configured.
+ */
 void configureOTA(void) {
     if (arduinoOtaConfgured) return;
     arduinoOtaConfgured = true;

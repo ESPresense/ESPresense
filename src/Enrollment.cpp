@@ -23,12 +23,27 @@ static NimBLEService *heartRate;
 static NimBLEService *deviceInfo;
 
 class ServerCallbacks : public NimBLEServerCallbacks {
+    /**
+     * @brief Restarts BLE advertising if enrollment mode is active when a client connects.
+     *
+     * @param pServer Server instance that reported the connection.
+     */
     void onConnect(NimBLEServer *pServer) {
         if (enrolling) {
             NimBLEDevice::startAdvertising();
         }
     };
 
+    /**
+     * @brief Handle a new BLE connection and record it for enrollment when active.
+     *
+     * If enrollment mode is active, stores the connection handle from the provided
+     * connection descriptor into the global `connectionToEnroll` so the connection
+     * can be used for the enrollment process.
+     *
+     * @param pServer Pointer to the NimBLE server for the connection.
+     * @param desc Pointer to the connection descriptor containing the peer address and connection handle.
+     */
     void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
         Log.print("Connected to: ");
         Log.println(NimBLEAddress(desc->peer_ota_addr).toString().c_str());
@@ -37,6 +52,12 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         }
     };
 
+    /**
+     * @brief Handle a BLE client disconnection and resume advertising if enrolling.
+     *
+     * When enrollment mode is active, this callback restarts BLE advertising so the
+     * device remains discoverable for new connections.
+     */
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
             Log.println("Client disconnected");
@@ -44,32 +65,73 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         }
     };
 
+    /**
+     * @brief Logs the updated MTU size and connection handle for a BLE connection.
+     *
+     * @param MTU Negotiated MTU size for the connection.
+     * @param desc Pointer to the BLE connection descriptor containing the connection handle.
+     */
     void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc) {
         Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
     };
 
+    /**
+     * @brief Callback invoked when BLE authentication for a connection completes.
+     *
+     * Logs whether the link became encrypted and the associated connection handle.
+     *
+     * @param desc Pointer to the connection descriptor containing `sec_state.encrypted` and `conn_handle`.
+     */
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
         Log.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
     }
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
+    /**
+     * @brief Handle a characteristic read event by logging its UUID and current value.
+     *
+     * Logs the characteristic's UUID and the value returned to the reader.
+     *
+     * @param pCharacteristic Pointer to the characteristic being read; its UUID and current value are output to the log.
+     */
     void onRead(NimBLECharacteristic *pCharacteristic) {
         Log.print(pCharacteristic->getUUID().toString().c_str());
         Log.print(": onRead(), value: ");
         Log.println(pCharacteristic->getValue().c_str());
     };
 
+    /**
+     * @brief Handle a characteristic write event by logging the characteristic UUID and its new value.
+     *
+     * @param pCharacteristic Pointer to the NimBLE characteristic that was written by a client.
+     */
     void onWrite(NimBLECharacteristic *pCharacteristic) {
         Log.print(pCharacteristic->getUUID().toString().c_str());
         Log.print(": onWrite(), value: ");
         Log.println(pCharacteristic->getValue().c_str());
     };
 
+    /**
+     * @brief Callback invoked when a characteristic notification is being sent to subscribed clients.
+     *
+     * Called with the characteristic that is notifying so implementers can react to or log the notification event.
+     *
+     * @param pCharacteristic Pointer to the characteristic that is sending the notification.
+     */
     void onNotify(NimBLECharacteristic *pCharacteristic) {
         Log.println("Sending notification to clients");
     };
 
+    /**
+     * @brief Logs the final status of a notification or indication for a characteristic.
+     *
+     * Records the characteristic, the notification/indication status, and the BLE stack return code.
+     *
+     * @param pCharacteristic Pointer to the characteristic for which the status was reported.
+     * @param status The notification/indication status value.
+     * @param code Numeric BLE stack return code associated with the operation.
+     */
     void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
         String str = ("Notification/Indication status code: ");
         str += status;
@@ -80,6 +142,16 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         Log.println(str);
     };
 
+    /**
+     * @brief Log a client's subscription state change for a characteristic.
+     *
+     * Logs the connection id, peer address, subscription action, and the characteristic UUID
+     * when a client subscribes or unsubscribes to notifications/indications.
+     *
+     * @param pCharacteristic Pointer to the characteristic whose subscription changed.
+     * @param desc Pointer to the GAP connection descriptor for the client (provides conn_handle and peer address).
+     * @param subValue Subscription value where `0` = unsubscribed, `1` = notifications, `2` = indications, `3` = notifications and indications.
+     */
     void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
         String str = "Client ID: ";
         str += desc->conn_handle;
@@ -100,12 +172,26 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
 };
 
 class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
+    /**
+     * @brief Log the value written to a BLE descriptor.
+     *
+     * Logs the descriptor's current value when a client writes to it.
+     *
+     * @param pDescriptor Pointer to the NimBLEDescriptor that was written.
+     */
     void onWrite(NimBLEDescriptor *pDescriptor) {
         std::string dscVal = pDescriptor->getValue();
         Log.print("Descriptor witten value:");
         Log.println(dscVal.c_str());
     };
 
+    /**
+     * @brief Callback invoked when a BLE descriptor is read by a client.
+     *
+     * Logs the descriptor's UUID and a read event message.
+     *
+     * @param pDescriptor Descriptor that was read.
+     */
     void onRead(NimBLEDescriptor *pDescriptor) {
         Log.print(pDescriptor->getUUID().toString().c_str());
         Log.println(" Descriptor read");
@@ -198,6 +284,18 @@ void Setup() {
     pServer->start();
 }
 
+/**
+ * @brief Periodic BLE runtime loop that manages advertising mode, heart-rate notifications, and enrollment processing.
+ *
+ * Performs state transitions when enrolling mode changes (switches between connectable HRM advertising and non-connectable iBeacon advertising),
+ * enforces the enrollment timeout, sends periodic state updates to the HTTP server, emits Heart Rate Measurement notifications to connected clients,
+ * and, when an enrolling connection provides an IRK, finalizes enrollment by sending node configuration, recording the enrolled ID, and disconnecting the enrolling peer.
+ *
+ * The function may modify global enrollment-related state (e.g., enrolling, enrollingEndMillis, newId, newName, enrolledId, connectionToEnroll)
+ * and interacts with the BLE server and advertising objects. It also calls HttpWebServer::SendState() and sendConfig().
+ *
+ * @return bool Always returns `true`.
+ */
 bool Loop() {
     static bool lastEnrolling = true;
     if (enrolling != lastEnrolling) {

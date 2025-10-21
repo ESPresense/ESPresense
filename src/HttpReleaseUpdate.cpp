@@ -5,6 +5,13 @@
 #include <esp_partition.h>
 #include "Logger.h"
 
+/**
+ * @brief Performs an OTA update by fetching the firmware from the given URL using the provided WiFi client.
+ *
+ * @param client TCP client instance used for the HTTP connection.
+ * @param url Full URL pointing to the firmware binary.
+ * @return HttpUpdateResult `HTTP_UPDATE_OK` when the update completes successfully, `HTTP_UPDATE_NO_UPDATES` if the server indicates no new firmware, or another `HttpUpdateResult` value representing the failure reason.
+ */
 HttpUpdateResult HttpReleaseUpdate::update(WiFiClient& client, const String& url) {
     HTTPClient http;
     http.useHTTP10(true);
@@ -69,6 +76,20 @@ String HttpReleaseUpdate::getLastErrorString(void) {
     return String();
 }
 
+/**
+ * @brief Performs an HTTP-based firmware update using the provided HTTP client.
+ *
+ * Initiates an HTTP GET via the given client, interprets the response, and if a valid firmware
+ * payload is available writes it to flash. The function updates the internal error state,
+ * invokes start/progress/end callbacks when configured, and ends the HTTP session before returning.
+ * It may trigger a device restart if the update completes and reboot-on-update is enabled.
+ *
+ * @param http HTTP client already configured for the update request.
+ * @return HttpUpdateResult
+ *         - `HTTP_UPDATE_OK` if the firmware was written successfully.
+ *         - `HTTP_UPDATE_NO_UPDATES` if the server responded with "Not Modified".
+ *         - `HTTP_UPDATE_FAILED` for any failure (HTTP errors, missing/oversized payload, write/verify errors, etc.).
+ */
 HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
     HttpUpdateResult ret = HTTP_UPDATE_FAILED;
 #ifdef VERSION
@@ -150,6 +171,19 @@ exit:
     return ret;
 }
 
+/**
+ * @brief Writes a firmware image from a stream into flash and finalizes the OTA update.
+ *
+ * Performs the OTA update sequence: initializes the updater for the provided size, streams exactly
+ * `size` bytes from `in` into flash, and finalizes the update. If a progress callback is set it
+ * will be invoked at the start and completion of the write.
+ *
+ * @param in Input stream that provides the firmware image bytes; exactly `size` bytes are expected.
+ * @param size Expected number of bytes to write to flash.
+ * @return true if the update was written and finalized successfully, false on any failure.
+ *
+ * On failure, the instance's internal last-error code is updated to the updater error.
+ */
 bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
     StreamString error;
 

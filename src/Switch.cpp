@@ -29,6 +29,21 @@ void Setup() {
     if (switch_2Pin >= 0) pinMode(switch_2Pin, pinTypes[switch_2Type]);
 }
 
+/**
+ * @brief Load switch configuration from persisted Wi-Fi settings and derive detection levels.
+ *
+ * Reads configured pin type, pin number, and timeout for both Switch One and Switch Two from
+ * HeadlessWiFiSettings, storing values into the corresponding module variables:
+ * `switch_1Type`, `switch_1Pin`, `switch_1Timeout`, `switch_1Detected` and
+ * `switch_2Type`, `switch_2Pin`, `switch_2Timeout`, `switch_2Detected`.
+ *
+ * The available pin type options presented are: "Pullup", "Pullup Inverted", "Pulldown",
+ * "Pulldown Inverted", "Floating", and "Floating Inverted". A pin value of -1 disables the
+ * corresponding switch. Timeouts are specified in seconds and default to DEFAULT_DEBOUNCE_TIMEOUT.
+ *
+ * The detected logic level for each switch is derived from the selected type: if the type's
+ * least-significant bit is set, the detection level is `LOW`; otherwise it is `HIGH`.
+ */
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     switch_1Type = HeadlessWiFiSettings.dropdown("switch_1_type", pinTypes, 0, "Switch One pin type");
@@ -42,6 +57,12 @@ void ConnectToWifi() {
     switch_2Detected = switch_2Type & 0x01 ? LOW : HIGH;
 }
 
+/**
+ * @brief Logs the enabled/disabled status of both configured switches.
+ *
+ * Writes a status line for Switch One and Switch Two to the logging facility,
+ * indicating "enabled" when the configured pin is >= 0 and "disabled" otherwise.
+ */
 void SerialReport() {
     Log.print("Switch One:   ");
     Log.println(switch_1Pin >= 0 ? "enabled" : "disabled");
@@ -49,6 +70,18 @@ void SerialReport() {
     Log.println(switch_2Pin >= 0 ? "enabled" : "disabled");
 }
 
+/**
+ * @brief Monitors Switch 1 input and publishes state changes.
+ *
+ * Reads the configured input pin for Switch 1 and treats the configured detection
+ * level as the active state. When the input becomes active, updates the last
+ * change timestamp and considers the switch ON while the hold window defined by
+ * switch_1Timeout (seconds) has not elapsed. When the computed switch state
+ * differs from the previously published state, publishes "ON" or "OFF" to
+ * roomsTopic + "/switch_1" and updates lastswitch_1Value.
+ *
+ * If switch_1Pin is negative, the function returns without action.
+ */
 static void switch_1Loop() {
     if (switch_1Pin < 0) return;
     bool detected = digitalRead(switch_1Pin) == switch_1Detected;
