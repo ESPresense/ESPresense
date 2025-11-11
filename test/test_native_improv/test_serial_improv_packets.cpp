@@ -1,4 +1,5 @@
 #include <array>
+#include <cstdio>
 #include <cstring>
 #include <string>
 
@@ -146,5 +147,12 @@ int main() {
     RUN_TEST(test_info_response_payload);
     RUN_TEST(test_decode_wifi_credentials_success);
     RUN_TEST(test_decode_wifi_credentials_rejects_invalid);
-    return UNITY_END();
+    const int result = UNITY_END();
+    std::printf("RENODE_TEST_RESULT=%d\n", result);
+    return result;
 }
+
+#ifdef ARDUINO
+void setup() {}
+void loop() {}
+#endif
