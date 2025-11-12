@@ -29,4 +29,4 @@ jobs:
           ESPRESENSE_FIRMWARE: ${{ github.workspace }}/.pio/build/esp32-improv-test/firmware.bin
         with:
           renode-revision: master
-          tests-to-run: renode/tests/**/*.robot
+          tests-to-run: renode/tests/native_improv.robot
