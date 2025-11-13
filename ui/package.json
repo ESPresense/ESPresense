@@ -34,5 +34,9 @@
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",
     "vite": "^6.4.1"
+  },
+  "dependencies": {
+    "@skeletonlabs/skeleton": "^4.3.2",
+    "@skeletonlabs/skeleton-svelte": "^4.3.2"
   }
 }
