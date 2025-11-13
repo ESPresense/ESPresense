@@ -8,7 +8,6 @@
     let id = $state("");
     let deviceType = $state("");
     let showModal = $state(false);
-    let shouldCancelEnroll = $state(true);
     let showEditModal = $state(false);
     let filterSelections = $state({});
     let sortBy = $state("alias");
@@ -54,20 +53,17 @@
     function handleEnrollOpenChange(event: { open: boolean }) {
         showModal = event.open;
         if (!event.open) {
-            if (shouldCancelEnroll) {
+            // Only cancel if we're currently in the enrolling state
+            if (($events as Events)?.state?.enrolling) {
                 cancelEnroll();
             }
             resetEnrollState();
-            shouldCancelEnroll = true;
-        } else {
-            shouldCancelEnroll = true;
         }
     }
 
     function onEnroll() {
         const generatedId = deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name);
         enroll(id || generatedId, name);
-        shouldCancelEnroll = false;
         showModal = false;
     }
 
@@ -144,7 +140,6 @@
 
     $effect(() => {
         if (($events as Events)?.state?.enrolling) {
-            shouldCancelEnroll = true;
             showModal = true;
         }
     });
