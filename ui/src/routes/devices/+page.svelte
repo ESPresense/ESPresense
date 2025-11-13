@@ -64,7 +64,6 @@
     function onEnroll() {
         const generatedId = deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name);
         enroll(id || generatedId, name);
-        showModal = false;
     }
 
     function handleEditOpenChange(event: { open: boolean }) {
@@ -137,12 +136,6 @@
         const remainingSeconds = seconds % 60;
         return [minutes, remainingSeconds].map((val) => val.toString().padStart(2, "0")).join(":");
     }
-
-    $effect(() => {
-        if (($events as Events)?.state?.enrolling) {
-            showModal = true;
-        }
-    });
 
     const columns: TableColumn<Config>[] = [
         {
