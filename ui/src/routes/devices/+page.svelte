@@ -143,7 +143,10 @@
     }
 
     $effect(() => {
-        if (($events as Events)?.state?.enrolling) showModal = true;
+        if (($events as Events)?.state?.enrolling) {
+            shouldCancelEnroll = true;
+            showModal = true;
+        }
     });
 
     const columns: TableColumn<Config>[] = [
