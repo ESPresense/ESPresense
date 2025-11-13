@@ -291,7 +291,7 @@
 </div>
 
 <Dialog open={showModal} onOpenChange={handleEnrollOpenChange} modal={false} preventScroll={true}>
-    <Dialog.Backdrop class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+    <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />
     <Dialog.Positioner class="fixed inset-0 flex items-center justify-center w-full h-full p-4">
         <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
             <div class="flex justify-between items-start p-4 border-b dark:border-gray-700">
@@ -373,7 +373,7 @@
 </Dialog>
 
 <Dialog open={showEditModal} onOpenChange={handleEditOpenChange} modal={false} preventScroll={true}>
-    <Dialog.Backdrop class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+    <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />
     <Dialog.Positioner class="fixed inset-0 flex items-center justify-center w-full h-full p-4">
         <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
             <div class="flex justify-between items-start p-4 border-b dark:border-gray-700">
