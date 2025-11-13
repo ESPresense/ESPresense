@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@skeletonlabs/skeleton-svelte";
 
 @custom-variant dark (&:where(.dark, .dark *));
 

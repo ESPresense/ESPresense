@@ -16,7 +16,7 @@
   }
 
   // Close mobile menu when clicking outside
-  function handleClickOutside(event: MouseEvent) {
+  function handleClickOutside(event: PointerEvent) {
     const target = event.target as HTMLElement;
     if ($mobileMenuOpen && !target.closest('nav') && !target.closest('button')) {
       mobileMenuOpen.set(false);
@@ -54,7 +54,7 @@
   }
 </script>
 
-<div class="flex flex-col md:flex-row min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900" on:click={handleClickOutside}>
+<div class="flex flex-col md:flex-row min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900" on:pointerdown={handleClickOutside}>
   <!-- Mobile menu overlay -->
   {#if $mobileMenuOpen}
     <div class="fixed inset-0 bg-gray-600 bg-opacity-75 transition-opacity md:hidden"></div>
