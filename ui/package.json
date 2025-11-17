@@ -28,7 +28,7 @@
     "chalk": "^5.6.2",
     "change-case": "^5.4.4",
     "mime": "^4.1.0",
-    "nodemon": "^3.1.10",
+    "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
     "svelte": "^5.43.5",
     "svelte-check": "^4.3.3",
