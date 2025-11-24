@@ -22,7 +22,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: flawfinder_scan
         uses: david-a-wheeler/flawfinder@2.0.19

@@ -15,7 +15,7 @@ jobs:
       matrix:
         env: [esp32, esp32c3, esp32c3-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Cache pip
       uses: actions/cache@v4
       with:
