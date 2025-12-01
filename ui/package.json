@@ -18,7 +18,7 @@
     "@playwright/test": "^1.56.1",
     "@rollup/plugin-strip": "^3.0.4",
     "@skeletonlabs/skeleton": "^4.5.1",
-    "@skeletonlabs/skeleton-svelte": "^4.4.0",
+    "@skeletonlabs/skeleton-svelte": "^4.7.1",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.49.0",
     "@sveltejs/vite-plugin-svelte": "^5.1.1",
