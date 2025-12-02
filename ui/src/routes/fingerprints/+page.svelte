@@ -116,7 +116,7 @@
         },
         {
             key: "rssi",
-            title: "Rssi",
+            title: "RSSI",
             value: (v: Device) => v.rssi ?? 0,
             renderValue: (v: Device) => v.rssi ? `${v.rssi} dBm` : "",
             sortable: true,
@@ -125,7 +125,7 @@
         },
         {
             key: "rssi@1m",
-            title: "Rssi@1m",
+            title: "RSSI@1m",
             value: (v: Device) => v["rssi@1m"] ?? 0,
             renderValue: (v: Device) => v["rssi@1m"] ? `${v["rssi@1m"]} dBm` : "",
             sortable: true,

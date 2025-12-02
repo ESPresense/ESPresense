@@ -218,7 +218,7 @@
         },
         {
             key: "rssi@1m",
-            title: "Rssi@1m",
+            title: "RSSI@1m",
             value: (v: Config) => v["rssi@1m"] ?? 0,
             renderValue: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
             sortable: true,

@@ -208,7 +208,7 @@
         </h2>
         <p>
             <label>
-                Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone):<br />
+                RSSI expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone):<br />
                 <input
                     type="number"
                     step="1"
@@ -221,7 +221,7 @@
         </p>
         <p>
             <label>
-                Rssi adjustment for receiver (use only if you know this device has a weak antenna):<br />
+                RSSI adjustment for receiver (use only if you know this device has a weak antenna):<br />
                 <input
                     type="number"
                     step="1"
@@ -247,7 +247,7 @@
         </p>
         <p>
             <label>
-                Rssi expected from this tx power at 1m (used for node iBeacon):<br />
+                RSSI expected from this tx power at 1m (used for node iBeacon):<br />
                 <input
                     type="number"
                     step="1"
