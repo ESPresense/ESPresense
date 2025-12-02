@@ -8,6 +8,7 @@ const char *const EC_NONE = "";
 static const char *const DEVICE_CLASS_NONE = "";
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0);
+bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup = false, uint16_t message_id = 0);
 void commonDiscovery();
 
 bool sendConnectivityDiscovery();
@@ -21,8 +22,9 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
 bool sendButtonDiscovery(const String &name, const String &entityCategory);
 bool sendSwitchDiscovery(const String &name, const String &entityCategory);
 bool sendNumberDiscovery(const String &name, const String &entityCategory);
-bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb);
+bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb, bool rgbw);
 
 bool sendDeleteDiscovery(const String &domain, const String &name);
 
-bool alias(const String &alias, const String &id, const String &name);
+bool sendConfig(const String &id, const String &alias, const String &name = "", int calRssi = -128);
+bool deleteConfig(const String &id);

@@ -15,7 +15,7 @@ jobs:
       matrix:
         env: [esp32, esp32c3, esp32c3-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Cache pip
       uses: actions/cache@v4
       with:
@@ -29,7 +29,7 @@ jobs:
         path: ~/.platformio/.cache
         key: ${{ runner.os }}-pio
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.x'
     - name: Install dependencies
@@ -53,7 +53,7 @@ jobs:
     - name: Rename artifact
       run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
     - name: Upload artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v5
       with:
         name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
@@ -63,7 +63,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         path: artifacts/
     - name: Release

@@ -1,26 +1,23 @@
-#include <Arduino.h>
-#include <WS2812FX.h>
+#ifndef ADDRESSABLE_H
+#define ADDRESSABLE_H
 
+#include <Adafruit_NeoPixel.h>
 #include "LED.h"
 
 class Addressable : public LED {
-   public:
+public:
     Addressable(uint8_t index, ControlType controlType, int type, int pin, int cnt);
-    void begin() override;
+    void update() override;
     void service() override;
-
-    bool setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue) override;
-    bool setWhite(uint8_t p_white) override;
-    bool setBrightness(uint8_t brightness) override;
-    bool setState(bool p_state) override;
-    bool setEffect(const char* p_effect) override;
     bool hasRgb() override { return true; }
     bool hasRgbw() override;
 
-   private:
-    WS2812FX* ws2812fx = NULL;
+private:
     int type;
     int pin;
     int cnt;
-    int cntrl;
+    Adafruit_NeoPixel* pixels = nullptr;
+    uint8_t mapBrightness(uint8_t brightness);
 };
+
+#endif // ADDRESSABLE_H

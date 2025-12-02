@@ -1,18 +1,12 @@
 #include "HttpWebServer.h"
 
-#include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
-
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
-#include "string_utils.h"
-#include "ui_bundle_css.h"
-#include "ui_index_html.h"
-#include "ui_index_js.h"
+#include "ui_routes.h"
 
 namespace HttpWebServer {
 
@@ -67,7 +61,7 @@ void serveJson(AsyncWebServerRequest *request) {
     if (url.indexOf("devices") > 0) subJson = 1;
     if (url.indexOf("configs") > 0) subJson = 2;
 
-    int paramsNr = request->params();
+    int const paramsNr = request->params();
     for (int i = 0; i < paramsNr; i++) {
         AsyncWebParameter *p = request->getParam(i);
         if (p->name() == "showAll") showAll = true;
@@ -99,9 +93,9 @@ void sendDataWs(AsyncWebSocketClient *client) {
         serializeState(root);
         serializeInfo(root);
         size_t len = measureJson(doc);
-        size_t heap1 = ESP.getFreeHeap();
+        size_t const heap1 = ESP.getFreeHeap();
         buffer = ws.makeBuffer(len);  // will not allocate correct memory sometimes
-        size_t heap2 = ESP.getFreeHeap();
+        size_t const heap2 = ESP.getFreeHeap();
         if (!buffer || heap1 - heap2 < len) {
             ws.closeAll(1013);     // code 1013 = temporary overload, try again later
             ws.cleanupClients(0);  // disconnect all clients to release memory
@@ -140,6 +134,11 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
     }
 }
 
+void onRestart(AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Restarting...");
+    ESP.restart();
+}
+
 void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
@@ -151,27 +150,63 @@ void Init(AsyncWebServer *server) {
         request->send(response);
     });
 
-    server->on("/ui/", HTTP_GET, serveIndexHtml);
-    server->on("/ui/bundle.css", HTTP_GET, serveBundleCss);
-    server->on("/ui/index.js", HTTP_GET, serveIndexJs);
-    server->on("/ui", HTTP_GET, [](AsyncWebServerRequest *request) {
-        request->redirect("/ui/");
-    });
+    setupRoutes(server); // from ui_routes.h
+
+    server->on("/restart", HTTP_POST, onRestart);
     server->on("/json", HTTP_GET, serveJson);
+
+    server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
+        if (!request->hasParam("id")) {
+            request->send(400, "application/json", F("{\"error\":\"Missing required parameter: id\"}"));
+            return;
+        }
+
+        String const id = request->getParam("id")->value();
+        if (deleteConfig(id)) {
+            request->send(200, "application/json", F("{\"success\":true}"));
+        } else {
+            request->send(500, "application/json", F("{\"error\":\"Failed to delete config\"}"));
+        }
+    });
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
         "/json", [](AsyncWebServerRequest *request, JsonVariant &json) {
-            {
-                DynamicJsonDocument doc(1500);
-                DeserializationError error =
-                    deserializeJson(doc, (uint8_t *)(request->_tempObject));
-                JsonObject root = doc.as<JsonObject>();
-                if (error || root.isNull()) {
-                    request->send(400, "application/json", F("{\"error\":9}"));
+            const String &url = request->url();
+
+            // Handle configs endpoint
+            if (url.indexOf("configs") > 0) {
+                JsonObject root = json.as<JsonObject>();
+
+                if (root.isNull()) {
+                    request->send(400, "application/json", F("{\"error\":\"Invalid JSON\"}"));
                     return;
                 }
+
+                // Extract required fields
+                if (!root.containsKey("id")) {
+                    request->send(400, "application/json", F("{\"error\":\"Missing required field: id\"}"));
+                    return;
+                }
+
+                String id = root["id"].as<String>();
+                // Use id as alias if none provided
+                String alias = root.containsKey("alias") && !root["alias"].as<String>().isEmpty() ? root["alias"].as<String>() : id;
+
+                // Extract optional fields
+                String name = root.containsKey("name") ? root["name"].as<String>() : "";
+                int calRssi = root.containsKey("rssi@1m") ? root["rssi@1m"].as<int>() : -128;
+
+                // Save the config
+                if (sendConfig(id, alias, name, calRssi)) {
+                    request->send(200, "application/json", F("{\"success\":true}"));
+                } else {
+                    request->send(500, "application/json", F("{\"error\":\"Failed to save config\"}"));
+                }
+                return;
             }
-            request->send(200, "application/json", F("{\"success\":true}"));
+
+            // Default response for unhandled endpoints
+            request->send(404, "application/json", F("{\"error\":\"Unknown endpoint\"}"));
         });
     server->addHandler(handler);
     server->addHandler(&ws);

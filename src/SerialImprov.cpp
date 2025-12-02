@@ -1,8 +1,13 @@
 #include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
+
+#include <cstdio>
+#include <pgmspace.h>
+#include <string>
 
 #include "Network.h"
 #include "SPIFFS.h"
+#include "SerialImprovPackets.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -23,6 +28,21 @@ namespace SerialImprov {
 
 byte improvActive = 0;
 byte improvError = 0;
+
+namespace {
+#ifdef ARDUINO
+Stream* improvSerial = &Serial;
+#else
+Stream* improvSerial = nullptr;
+#endif
+
+Stream* EnsureSerial() {
+#ifdef ARDUINO
+    if (!improvSerial) improvSerial = &Serial;
+#endif
+    return improvSerial;
+}
+}  // namespace
 
 void parseWiFiCommand(char* rpcData);
 
@@ -50,7 +70,17 @@ void sendImprovStateResponse(uint8_t state, bool error = false);
 void sendImprovRPCResponse(byte commandId);
 void sendImprovInfoResponse();
 
-// blocking function to parse an Improv Serial packet
+/**
+ * @brief Parse and handle a single Improv Serial packet from the configured serial stream.
+ *
+ * Validates the Improv packet header, version, type, length, and checksum, then dispatches
+ * the contained RPC command (e.g., WiFi provisioning, state request, info request) and
+ * emits the appropriate responses and state updates. Returns after a full packet is handled
+ * or on validation timeout/failure.
+ *
+ * @param provisioning When true, state responses for request-state commands will indicate
+ *                     provisioning rather than authorized or provisioned states.
+ */
 void handleImprovPacket(bool provisioning) {
     uint8_t header[6] = {'I', 'M', 'P', 'R', 'O', 'V'};
 
@@ -64,14 +94,17 @@ void handleImprovPacket(bool provisioning) {
     char rpcData[128];
     rpcData[0] = 0;
 
+    Stream* serial = EnsureSerial();
+    if (!serial) return;
+
     while (!timeout) {
-        if (Serial.available() < 1) {
+        if (serial->available() < 1) {
             delay(1);
             waitTime--;
             if (!waitTime) timeout = true;
             continue;
         }
-        byte next = Serial.read();
+        byte next = serial->read();
 
         DIMPROV_PRINT("Received improv byte: ");
         DIMPROV_PRINTF("%x\r\n", next);
@@ -108,9 +141,11 @@ void handleImprovPacket(bool provisioning) {
 
                     switch (rpcCommandType) {
                         case ImprovRPCType::Command_Wifi:
+                            Log.println("[Improv] Command: WIFI");
                             parseWiFiCommand(rpcData);
                             break;
                         case ImprovRPCType::Request_State: {
+                            Log.println("[Improv] Command: REQUEST_STATE");
                             uint8_t improvState = 0x02;                     // authorized
                             if (provisioning) improvState = 0x03;   // provisioning
                             if (Network.isConnected()) improvState = 0x04;  // provisioned
@@ -119,6 +154,7 @@ void handleImprovPacket(bool provisioning) {
                             break;
                         }
                         case ImprovRPCType::Request_Info:
+                            Log.println("[Improv] Command: REQUEST_INFO");
                             sendImprovInfoResponse();
                             break;
                         default: {
@@ -145,121 +181,102 @@ void handleImprovPacket(bool provisioning) {
     }
 }
 
+/**
+ * @brief Sends an Improv protocol state packet over the configured serial interface.
+ *
+ * Sends a state response packet followed by a newline, updates the global
+ * improvError when `error` is true, and may emit an immediate error state
+ * (0x00) if a prior transient error is recorded. If no serial stream is
+ * available the call is a no-op. A log message is produced describing the
+ * sent state and error flag.
+ *
+ * @param state State code to send.
+ * @param error If true, mark and communicate an error state.
+ */
 void sendImprovStateResponse(uint8_t state, bool error) {
     if (!error && improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
     if (error) improvError = state;
-    char out[11] = {'I', 'M', 'P', 'R', 'O', 'V'};
-    out[6] = IMPROV_VERSION;
-    out[7] = error ? ImprovPacketType::Error_State : ImprovPacketType::Current_State;
-    out[8] = 1;
-    out[9] = state;
+    Stream* serial = EnsureSerial();
+    if (!serial) return;
 
-    uint8_t checksum = 0;
-    for (uint8_t i = 0; i < 10; i++) checksum += out[i];
-    out[10] = checksum;
-    Serial.write((uint8_t*)out, 11);
-    Serial.write('\n');
+    SerialImprov::Packets::PacketBuffer packet = SerialImprov::Packets::BuildStateResponse(state, error);
+    serial->write(packet.data, packet.size);
+    serial->write('\n');
+    Log.printf("[Improv] State %u (error=%s)\n", state, error ? "yes" : "no");
 }
 
+/**
+ * @brief Builds and sends an Improv RPC response for the given command and marks provisioning complete.
+ *
+ * If a recent improv error state is set (greater than 0 and less than 3), a protocol error state is emitted before the RPC response. When the network is connected, the device's local HTTP URL is included in the response. The constructed packet is written to the configured serial stream and the global provisioning flag is set to indicate provisioning is no longer active. Activity is also logged.
+ *
+ * @param commandId RPC command identifier to include in the response.
+ */
 void sendImprovRPCResponse(byte commandId) {
     if (improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
-    uint8_t packetLen = 12;
-    char out[64] = {'I', 'M', 'P', 'R', 'O', 'V'};
-    out[6] = IMPROV_VERSION;
-    out[7] = ImprovPacketType::RPC_Response;
-    out[8] = 2;  // Length (set below)
-    out[9] = commandId;
-    out[10] = 0;     // Data len (set below)
-    out[11] = '\0';  // URL len (set below)
+    Stream* serial = EnsureSerial();
+    if (!serial) return;
 
+    char url[32] = {0};
+    bool includeUrl = false;
     if (Network.isConnected()) {
         IPAddress localIP = Network.localIP();
-        uint8_t len = sprintf(out + 12, "http://%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
-        if (len > 24) return;  // sprintf fail?
-        out[11] = len;
-        out[10] = 1 + len;
-        out[8] = 3 + len;  // RPC command type + data len + url len + url
-        packetLen = 13 + len;
+        uint8_t len = snprintf(url, sizeof(url), "http://%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
+        if (len > 0 && len < sizeof(url)) includeUrl = true;
     }
 
-    uint8_t checksum = 0;
-    for (uint8_t i = 0; i < packetLen - 1; i++) checksum += out[i];
-    out[packetLen - 1] = checksum;
-    Serial.write((uint8_t*)out, packetLen);
-    Serial.write('\n');
+    SerialImprov::Packets::PacketBuffer packet =
+        SerialImprov::Packets::BuildRPCResponse(commandId, url, includeUrl);
+    serial->write(packet.data, packet.size);
+    serial->write('\n');
+    Log.printf("[Improv] RPC response %u (url=%s)\n", commandId, includeUrl ? url : "");
     improvActive = 1;  // no longer provisioning
 }
 
+/**
+ * @brief Send an Improv "info" response over the configured serial stream.
+ *
+ * Builds and transmits an info packet containing device name, firmware version,
+ * device type, and room identifier, then writes a trailing newline and emits a log line.
+ *
+ * If no serial stream is available the function returns without sending.
+ */
 void sendImprovInfoResponse() {
     if (improvError > 0 && improvError < 3) sendImprovStateResponse(0x00, true);
-    uint8_t packetLen = 12;
-    char out[128] = {'I', 'M', 'P', 'R', 'O', 'V'};
-    out[6] = IMPROV_VERSION;
-    out[7] = ImprovPacketType::RPC_Response;
-    // out[8] = 2; //Length (set below)
-    out[9] = ImprovRPCType::Request_Info;
-    // out[10] = 0; //Data len (set below)
-    out[11] = 10;  // Firmware len ("WLED")
-    out[12] = 'E';
-    out[13] = 'S';
-    out[14] = 'P';
-    out[15] = 'r';
-    out[16] = 'e';
-    out[17] = 's';
-    out[18] = 'e';
-    out[19] = 'n';
-    out[20] = 's';
-    out[21] = 'e';
-    uint8_t lengthSum = 23;
-#ifdef VERSION
-    uint8_t vlen = sprintf_P(out + lengthSum, VERSION);
-#else
-    uint8_t vlen = sprintf_P(out + lengthSum, "Dev");
-#endif
-    out[22] = vlen;
-    lengthSum += vlen;
-    uint8_t hlen = 7;
-    hlen = 5;
-    strcpy(out + lengthSum + 1, "esp32");
-    out[lengthSum] = hlen;
-    lengthSum += hlen + 1;
-    strcpy(out + lengthSum + 1, room.c_str());
-    uint8_t nlen = room.length();
-    out[lengthSum] = nlen;
-    lengthSum += nlen + 1;
+    Stream* serial = EnsureSerial();
+    if (!serial) return;
 
-    packetLen = lengthSum + 1;
-    out[8] = lengthSum - 9;
-    out[10] = lengthSum - 11;
-    uint8_t checksum = 0;
-    for (uint8_t i = 0; i < packetLen - 1; i++) checksum += out[i];
-    out[packetLen - 1] = checksum;
-    Serial.write((uint8_t*)out, packetLen);
-    Serial.write('\n');
+    const char* versionString = "Dev";
+#ifdef VERSION
+    char versionBuffer[32];
+    snprintf_P(versionBuffer, sizeof(versionBuffer), VERSION);
+    versionString = versionBuffer;
+#endif
+
+    SerialImprov::Packets::PacketBuffer packet =
+        SerialImprov::Packets::BuildInfoResponse("ESPresense", versionString, "esp32", room.c_str());
+
+    serial->write(packet.data, packet.size);
+    serial->write('\n');
+    Log.println("[Improv] Info response sent");
     DIMPROV_PRINT("Info checksum");
-    DIMPROV_PRINTLN(checksum);
+    DIMPROV_PRINTLN(packet.data[packet.size - 1]);
 }
 
 void parseWiFiCommand(char* data) {
-    uint8_t len = data[0];
-    if (!len || len > 126) return;
-
-    uint8_t ssid_length = data[1];
-    uint8_t ssid_start = 2;
-    size_t ssid_end = ssid_start + ssid_length;
-
-    uint8_t pass_length = data[ssid_end];
-    size_t pass_start = ssid_end + 1;
-    size_t pass_end = pass_start + pass_length;
-
-    std::string ssid(data + ssid_start, data + ssid_end);
-    std::string password(data + pass_start, data + pass_end);
+    const uint8_t data_len = static_cast<uint8_t>(data[0]);
+    std::string ssid;
+    std::string password;
+    if (!SerialImprov::Packets::DecodeWifiCredentials(
+            reinterpret_cast<const uint8_t*>(data), data_len, ssid, password)) {
+        return;
+    }
 
     sendImprovStateResponse(0x03);  // provisioning
     improvActive = 2;
 
-    spurt("/wifi-ssid", ssid.c_str());
-    spurt("/wifi-password", password.c_str());
+    spurt("/wifi-ssid", String(ssid.c_str()));
+    spurt("/wifi-password", String(password.c_str()));
 
     ESP.restart();
 }
@@ -276,15 +293,26 @@ void Loop(bool provisioning) {
         setup = true;
         Setup();
     }
-    while (Serial.available() > 0) {
+    Stream* serial = EnsureSerial();
+    if (!serial) return;
+
+    while (serial->available() > 0) {
         yield();
-        byte next = Serial.peek();
+        int next = serial->peek();
         if (next == 'I') {
             handleImprovPacket(provisioning);
             return;
         }
-        Serial.read();
+        serial->read();
     }
+}
+
+void SetSerial(Stream* stream) {
+#ifdef ARDUINO
+    improvSerial = stream ? stream : &Serial;
+#else
+    improvSerial = stream;
+#endif
 }
 
 }  // namespace SerialImprov

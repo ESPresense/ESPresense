@@ -1,9 +1,11 @@
 #include "globals.h"
 #include "defaults.h"
 #include "string_utils.h"
+#include "BleFingerprintCollection.h"
+#include "mqtt.h"
 #include <WiFi.h>
 
-bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length = 0, bool dup = false, uint16_t message_id = 0)
+bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
     for (int i = 0; i < 10; i++)
     {
@@ -12,6 +14,15 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
         delay(25);
     }
     return false;
+}
+
+bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
+{
+    size_t const jsonSize = measureJson(jsonDoc);
+    char buffer[jsonSize + 1]; // +1 for null terminator
+    size_t const buffSize = serializeJson(jsonDoc, buffer, sizeof(buffer));
+    if (buffSize == 0) return false;
+    return pub(topic, qos, retain, buffer, buffSize, dup, message_id);
 }
 
 void commonDiscovery()
@@ -47,13 +58,11 @@ bool sendConnectivityDiscovery()
     doc["pl_on"] = "online";
     doc["pl_off"] = "offline";
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/connectivity/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID);
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "")
+bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass)
 {
     auto slug = slugify(name);
 
@@ -67,13 +76,11 @@ bool sendTeleBinarySensorDiscovery(const String &name, const String &entityCateg
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass = "", const String &units = "")
+bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, const String &temp, const String &devClass, const String &units)
 {
     auto slug = slugify(name);
 
@@ -88,13 +95,11 @@ bool sendTeleSensorDiscovery(const String &name, const String &entityCategory, c
     if (!units.isEmpty()) doc["unit_of_meas"] = units;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(),CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "", const String &units = "", bool frcUpdate = true)
+bool sendSensorDiscovery(const String &name, const String &entityCategory, const String &devClass, const String &units, bool frcUpdate)
 {
     auto slug = slugify(name);
 
@@ -109,13 +114,11 @@ bool sendSensorDiscovery(const String &name, const String &entityCategory, const
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
     doc["frc_upd"] = frcUpdate;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass = "")
+bool sendBinarySensorDiscovery(const String &name, const String &entityCategory, const String &devClass)
 {
     auto slug = slugify(name);
 
@@ -128,10 +131,8 @@ bool sendBinarySensorDiscovery(const String &name, const String &entityCategory,
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
     if (!devClass.isEmpty()) doc["dev_cla"] = devClass;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
 bool sendButtonDiscovery(const String &name, const String &entityCategory)
@@ -147,10 +148,8 @@ bool sendButtonDiscovery(const String &name, const String &entityCategory)
     doc["cmd_t"] = "~/" + slug + "/set";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/button/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
 bool sendSwitchDiscovery(const String &name, const String &entityCategory)
@@ -166,10 +165,8 @@ bool sendSwitchDiscovery(const String &name, const String &entityCategory)
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["entity_category"] = entityCategory;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
-    String discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str(), 0);
+    String const discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
 bool sendNumberDiscovery(const String &name, const String &entityCategory)
@@ -186,13 +183,11 @@ bool sendNumberDiscovery(const String &name, const String &entityCategory)
     doc["step"] = "0.1";
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/number/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
-bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb)
+bool sendLightDiscovery(const String &name, const String &entityCategory, bool rgb, bool rgbw)
 {
     auto slug = slugify(name);
 
@@ -204,13 +199,19 @@ bool sendLightDiscovery(const String &name, const String &entityCategory, bool r
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
     doc["brightness"] = true;
-    doc["rgb"] = rgb;
+
+    if (rgbw) {
+        doc["supported_color_modes"][0] = "rgbw";
+    } else if (rgb) {
+        doc["supported_color_modes"][0] = "rgb";
+    } else {
+        doc["supported_color_modes"][0] = "brightness";
+    }
+
     if (!entityCategory.isEmpty()) doc["entity_category"] = entityCategory;
 
-    String buffer = String();
-    serializeJson(doc, buffer);
     const String discoveryTopic = Sprintf("%s/light/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, buffer.c_str());
+    return pub(discoveryTopic.c_str(), 0, true, doc);
 }
 
 bool sendDeleteDiscovery(const String &domain, const String &name)
@@ -220,14 +221,49 @@ bool sendDeleteDiscovery(const String &domain, const String &name)
     return pub(discoveryTopic.c_str(), 0, false, "");
 }
 
-bool alias(const String &alias, const String &id, const String &name = "")
+/**
+ * @brief Publish or update a device configuration to the channel settings topic.
+ *
+ * If an existing device configuration is found using the provided alias and its
+ * stored id differs from the given id, that existing configuration is deleted
+ * before publishing the new configuration. The published payload contains the
+ * alias as the device identifier and the provided friendly name. When
+ * calRssi is greater than NO_RSSI, an "rssi@1m" field is included.
+ *
+ * @param id Unique device id used to build the settings topic.
+ * @param alias Device alias to include in the payload as the device identifier.
+ * @param name Friendly name to include in the payload.
+ * @param calRssi Calibration RSSI value; included as "rssi@1m" if greater than NO_RSSI.
+ * @return true if the configuration publish succeeded, false otherwise.
+ */
+bool sendConfig(const String &id, const String &alias, const String &name, int calRssi)
 {
-    Serial.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), alias.c_str(), id.c_str());
+    DeviceConfig existing;
+    if (BleFingerprintCollection::FindDeviceConfigByAlias(alias, existing) && existing.id != id)
+    {
+        deleteConfig(existing.id);
+    }
+    Log.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
     doc.clear();
-    doc["id"] = id;
+    doc["id"] = alias;
     doc["name"] = name;
-    String buffer = String();
-    serializeJson(doc, buffer);
-    const String settingsTopic = CHANNEL + String("/settings/") + alias + "/config";
-    return pub(settingsTopic.c_str(), 0, true, buffer.c_str());
+    if (calRssi > NO_RSSI) doc["rssi@1m"] = calRssi;
+
+    const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
+    return pub(settingsTopic.c_str(), 0, true, doc);
+}
+
+/**
+ * @brief Publish a deletion for a device configuration to the MQTT settings topic.
+ *
+ * Sends an empty retained payload to "CHANNEL/settings/{id}/config" to remove the stored configuration for the given device id.
+ *
+ * @param id Device identifier used to build the settings topic.
+ * @return true if the MQTT publish succeeded, false otherwise.
+ */
+bool deleteConfig(const String &id)
+{
+    Log.printf("%u Delete | %s\r\n", xPortGetCoreID(), id.c_str());
+    const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
+    return pub(settingsTopic.c_str(), 0, true, "");
 }

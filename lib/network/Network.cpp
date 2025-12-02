@@ -1,5 +1,11 @@
 #include "Network.h"
+#include "../../include/Logger.h"
 
+/**
+ * @brief Returns the device's current local IP address, preferring Ethernet when configured.
+ *
+ * @return IPAddress The local IP address: the Ethernet IP if Ethernet is enabled and non-zero, otherwise the WiFi IP if non-zero, otherwise INADDR_NONE.
+ */
 IPAddress NetworkClass::localIP()
 {
   IPAddress localIP;
@@ -122,25 +128,35 @@ bool NetworkClass::initEthernet(int ethernetType)
 #endif
 }
 
+/**
+ * @brief Attempt to bring up the Ethernet interface, set its hostname, and wait for an assigned IP address.
+ *
+ * Configures the Ethernet interface and blocks until a non-zero local IP is obtained or the timeout elapses.
+ *
+ * @param ethernetType Index identifying which Ethernet board configuration to initialize.
+ * @param wait_seconds Maximum time to wait for an IP address in seconds; a negative value means wait indefinitely.
+ * @param hostname NUL-terminated hostname to assign to the Ethernet interface.
+ * @return true if the interface obtained a non-zero local IP address within the timeout, false otherwise.
+ */
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
-    Serial.print(F("Connecting to Ethernet"));
+    Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
     initEthernet(ethernetType);
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
-        Serial.print(".");
+        Log.print(".");
         delay(100);
     }
 
     if (ETH.localIP()[0] == 0) {
-        Serial.println(F(" failed."));
+        Log.println(F(" failed."));
         return false;
     }
 
-    Serial.println(F(" success!"));
+    Log.println(F(" success!"));
     return true;
 }
 

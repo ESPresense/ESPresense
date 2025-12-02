@@ -1,7 +1,7 @@
 #include "Button.h"
 
 #include <AsyncMqttClient.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 
 #include "GUI.h"
 #include "defaults.h"
@@ -29,26 +29,54 @@ void Setup() {
     if (button_2Pin >= 0) pinMode(button_2Pin, pinTypes[button_2Type]);
 }
 
+/**
+ * @brief Populate headless Wi‑Fi settings for both buttons and derive their detection levels.
+ *
+ * Reads configuration values for Button 1 and Button 2 (pin type, pin number, and timeout)
+ * from HeadlessWiFiSettings and stores them in the corresponding globals:
+ * `button_1Type`, `button_1Pin`, `button_1Timeout`, `button_1Detected`,
+ * `button_2Type`, `button_2Pin`, `button_2Timeout`, and `button_2Detected`.
+ *
+ * The available pin type options are: "Pullup", "Pullup Inverted", "Pulldown",
+ * "Pulldown Inverted", "Floating", "Floating Inverted". A pin value of -1 disables the button.
+ * Timeouts are constrained to 0–300 seconds with a default of DEFAULT_DEBOUNCE_TIMEOUT.
+ *
+ * The detection level for each button is set based on the selected pin type's least-significant bit:
+ * if that bit is 1, the button is considered detected on `LOW`; otherwise it is detected on `HIGH`.
+ */
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
-    button_1Type = AsyncWiFiSettings.dropdown("button_1_type", pinTypes, 0, "Button One pin type");
-    button_1Pin = AsyncWiFiSettings.integer("button_1_pin", -1, "Button One pin (-1 for disable)");
-    button_1Timeout = AsyncWiFiSettings.floating("button_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button One timeout (in seconds)");
+    button_1Type = HeadlessWiFiSettings.dropdown("button_1_type", pinTypes, 0, "Button One pin type");
+    button_1Pin = HeadlessWiFiSettings.integer("button_1_pin", -1, "Button One pin (-1 for disable)");
+    button_1Timeout = HeadlessWiFiSettings.floating("button_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button One timeout (in seconds)");
     button_1Detected = button_1Type & 0x01 ? LOW : HIGH;
 
-    button_2Type = AsyncWiFiSettings.dropdown("button_2_type", pinTypes, 0, "Button Two pin type");
-    button_2Pin = AsyncWiFiSettings.integer("button_2_pin", -1, "Button Two pin (-1 for disable)");
-    button_2Timeout = AsyncWiFiSettings.floating("button_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button Two timeout (in seconds)");
+    button_2Type = HeadlessWiFiSettings.dropdown("button_2_type", pinTypes, 0, "Button Two pin type");
+    button_2Pin = HeadlessWiFiSettings.integer("button_2_pin", -1, "Button Two pin (-1 for disable)");
+    button_2Timeout = HeadlessWiFiSettings.floating("button_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button Two timeout (in seconds)");
     button_2Detected = button_2Type & 0x01 ? LOW : HIGH;
 }
 
+/**
+ * @brief Logs whether Button One and Button Two are enabled.
+ *
+ * Writes "enabled" or "disabled" for each button to the global Log output based on their configured pin (enabled if pin >= 0).
+ */
 void SerialReport() {
-    Serial.print("Button One:   ");
-    Serial.println(button_1Pin >= 0 ? "enabled" : "disabled");
-    Serial.print("Button Two:   ");
-    Serial.println(button_2Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Button One:   ");
+    Log.println(button_1Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Button Two:   ");
+    Log.println(button_2Pin >= 0 ? "enabled" : "disabled");
 }
 
+/**
+ * @brief Polls Button 1 input, updates its debounce/hold state, and publishes changes.
+ *
+ * Reads the configured pin for Button 1, updates the last-detected timestamp when pressed,
+ * computes the current effective state considering the configured timeout, and if the
+ * state changed publishes "ON" or "OFF" to the roomsTopic "/button_1" topic and updates
+ * the module's stored last state.
+ */
 static void button_1Loop() {
     if (button_1Pin < 0) return;
     bool detected = digitalRead(button_1Pin) == button_1Detected;

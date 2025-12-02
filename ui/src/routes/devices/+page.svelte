@@ -1,0 +1,444 @@
+<script lang="ts">
+    import SvelteTable from "svelte-table";
+    import { Dialog } from "@skeletonlabs/skeleton-svelte";
+    import { configs, events, enroll, cancelEnroll } from "$lib/stores";
+    import type { Config, Events, TableColumn } from "$lib/types";
+
+    let name = $state("");
+    let id = $state("");
+    let deviceType = $state("");
+    let showModal = $state(false);
+    let showEditModal = $state(false);
+    let filterSelections = $state({});
+    let sortBy = $state("alias");
+    let sortOrder = $state<-1 | 0 | 1>(1);
+    let selectedRowIds = $state([]);
+    let editingConfig = $state<Config | null>(null);
+
+    function onSelectExisting(event: Event) {
+        const alias = (event.target as HTMLSelectElement).value;
+        if (!alias) {
+            id = "";
+            name = "";
+            return;
+        }
+        const cfg = tableRows.find((c) => c.alias === alias);
+        if (cfg) {
+            id = cfg.alias || "";
+            name = cfg.name || "";
+        }
+    }
+
+    const deviceTypes = ["watch", "wallet", "ipad", "phone", "airpods", "laptop", "node", "keys", "therm", "flora", "tile"];
+
+    function generateKebabCaseId(name: string, type = "") {
+        const words = name.toLowerCase().split(/\s+/);
+        const filteredWords = words.filter((word) => word !== type.toLowerCase());
+        return filteredWords
+            .join("-")
+            .replace(/[']/g, "")
+            .replace(/[^a-z0-9-]+/g, "-")
+            .replace(/(^-|-$)/g, "");
+    }
+
+    let modalTitle = $derived(($events as Events)?.room ? `Enroll Device - ${($events as Events).room}` : "Enroll Device");
+    let tableRows = $derived($configs?.configs || []);
+
+    function resetEnrollState() {
+        name = "";
+        id = "";
+        deviceType = "";
+    }
+
+    function handleEnrollOpenChange(event: { open: boolean }) {
+        showModal = event.open;
+        if (!event.open) {
+            // Only cancel if we're currently in the enrolling state
+            if (($events as Events)?.state?.enrolling) {
+                cancelEnroll();
+            }
+            resetEnrollState();
+        }
+    }
+
+    function onEnroll() {
+        const generatedId = deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name);
+        enroll(id || generatedId, name);
+    }
+
+    function handleEditOpenChange(event: { open: boolean }) {
+        showEditModal = event.open;
+        if (!event.open) {
+            editingConfig = null;
+        }
+    }
+
+    async function onSaveEdit() {
+        if (!editingConfig) return;
+
+        try {
+            const response = await fetch('/json/configs', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    id: editingConfig.id,
+                    alias: editingConfig.alias,
+                    name: editingConfig.name,
+                    "rssi@1m": editingConfig["rssi@1m"]
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to save device');
+            }
+
+            showEditModal = false;
+            editingConfig = null;
+        } catch (error) {
+            console.error('Error saving device:', error);
+            alert('Failed to save device changes');
+        }
+    }
+
+    async function onDeleteConfig() {
+        if (!editingConfig) return;
+
+        if (!confirm(`Are you sure you want to delete the device "${editingConfig.name || editingConfig.alias || editingConfig.id}"?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/json/configs?id=${encodeURIComponent(editingConfig.id ?? '')}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete device');
+            }
+
+            showEditModal = false;
+            editingConfig = null;
+        } catch (error) {
+            console.error('Error deleting device:', error);
+            alert('Failed to delete device');
+        }
+    }
+
+    function onRowClick(event: CustomEvent<{ row: Config }>) {
+        editingConfig = { ...event.detail.row };
+        showEditModal = true;
+    }
+
+    function formatRemainingTime(seconds: number) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return [minutes, remainingSeconds].map((val) => val.toString().padStart(2, "0")).join(":");
+    }
+
+    const columns: TableColumn<Config>[] = [
+        {
+            key: "alias",
+            title: "Alias",
+            value: (v: Config) => v.alias ?? "",
+            sortable: true,
+            filterOptions: (rows: Config[]) => {
+                const prefixes = new Set<string>();
+                rows.forEach((row) => {
+                    if (row.alias) {
+                        const colonIndex = row.alias.indexOf(":");
+                        if (colonIndex !== -1) {
+                            const prefix = row.alias.substring(0, colonIndex + 1);
+                            prefixes.add(prefix);
+                        }
+                    }
+                });
+                return Array.from(prefixes)
+                    .sort()
+                    .map((a) => ({ name: a, value: a }));
+            },
+            filterValue: (v: Config) => {
+                if (!v.alias) return "";
+                const colonIndex = v.alias.indexOf(":");
+                return colonIndex !== -1 ? v.alias.substring(0, colonIndex + 1) : "";
+            },
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4",
+        },
+        {
+            key: "id",
+            title: "ID",
+            value: (v: Config) => v.id ?? "",
+            sortable: true,
+            filterOptions: (rows: Config[]) => {
+                const prefixes = new Set<string>();
+                rows.forEach((row) => {
+                    if (row.id) {
+                        const colonIndex = row.id.indexOf(":");
+                        if (colonIndex !== -1) {
+                            const prefix = row.id.substring(0, colonIndex + 1);
+                            prefixes.add(prefix);
+                        }
+                    }
+                });
+                return Array.from(prefixes)
+                    .sort()
+                    .map((a) => ({ name: a, value: a }));
+            },
+            filterValue: (v: Config) => {
+                if (!v.id) return "";
+                const colonIndex = v.id.indexOf(":");
+                return colonIndex !== -1 ? v.id.substring(0, colonIndex + 1) : "";
+            },
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4",
+        },
+        {
+            key: "name",
+            title: "Name",
+            value: (v: Config) => v.name ?? "",
+            sortable: true,
+            filterOptions: (rows: Config[]) => {
+                const letrs: Record<string, { name: string; value: string }> = {};
+                rows.forEach((row) => {
+                    const letr = row.name?.charAt(0);
+                    if (letr && !letrs[letr]) {
+                        letrs[letr] = {
+                            name: letr.toUpperCase(),
+                            value: letr.toLowerCase(),
+                        };
+                    }
+                });
+                return Object.values(letrs).sort((a, b) => a.name.localeCompare(b.name));
+            },
+            filterValue: (v: Config) => v.name?.charAt(0)?.toLowerCase() ?? "",
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4",
+        },
+        {
+            key: "rssi@1m",
+            title: "Rssi@1m",
+            value: (v: Config) => v["rssi@1m"] ?? 0,
+            renderValue: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
+            sortable: true,
+            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
+            class: "px-6 py-4 whitespace-nowrap",
+        },
+    ];
+
+    function classNameRow(c: Config) {
+        return "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
+    }
+</script>
+
+<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+    <div class="p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
+            <button
+                onclick={() => (showModal = true)}
+                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+            >
+                Enroll
+            </button>
+        </div>
+
+        {#if $configs != null}
+            <div class="overflow-x-auto">
+                <SvelteTable
+                    {columns}
+                    rows={tableRows}
+                    rowKey="id"
+                    bind:filterSelections
+                    bind:sortBy
+                    bind:sortOrder
+                    selectSingle={true}
+                    selectOnClick={true}
+                    bind:selected={selectedRowIds}
+                    classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
+                    classNameThead="bg-gray-100 dark:bg-gray-700"
+                    classNameTbody="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
+                    {classNameRow}
+                    classNameRowSelected="bg-blue-50 dark:bg-blue-900"
+                    classNameCell="text-sm text-gray-900 dark:text-gray-300"
+                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                    on:clickRow={onRowClick}
+                />
+            </div>
+        {:else}
+            <div class="flex items-center justify-center min-h-[50vh]">
+                <div class="text-center">
+                    <h1 class="text-xl font-medium text-gray-700 dark:text-gray-300">Loading configured devices...</h1>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Please wait while we fetch the data.</p>
+                </div>
+            </div>
+        {/if}
+    </div>
+</div>
+
+<Dialog open={showModal} onOpenChange={handleEnrollOpenChange} modal={false} preventScroll={true}>
+    <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />
+    <Dialog.Positioner class="fixed inset-0 flex items-center justify-center w-full h-full p-4">
+        <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+            <div class="flex justify-between items-start p-4 border-b dark:border-gray-700">
+                <Dialog.Title class="text-xl font-semibold text-gray-900 dark:text-white">{modalTitle}</Dialog.Title>
+                <Dialog.CloseTrigger
+                    type="button"
+                    class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 ml-auto inline-flex items-center dark:hover:bg-gray-700 dark:hover:text-white"
+                >
+                    <span class="sr-only">Close</span>
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </Dialog.CloseTrigger>
+            </div>
+            <div class="p-6 space-y-6">
+                {#if !($events as Events)?.state?.enrolling}
+                    {#if ($events as Events)?.state?.enrolledId}
+                        <p class="text-sm leading-5 text-gray-600 dark:text-gray-400">
+                            The device has been enrolled. ESPresense has disconnected; you can delete the pairing on your device. The new device ID is:
+                            <span class="font-semibold text-gray-900 dark:text-white">{($events as Events).state?.enrolledId}</span>.
+                        </p>
+                    {:else}
+                        <div class="space-y-4">
+                            <select
+                                onchange={onSelectExisting}
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value="">Select existing ID</option>
+                                {#each tableRows.filter(cfg => cfg.alias && cfg.alias.trim() !== '').sort((a, b) => a.alias!.localeCompare(b.alias!)) as cfg}
+                                    <option value={cfg.alias}>{cfg.alias}</option>
+                                {/each}
+                            </select>
+                            <select
+                                bind:value={deviceType}
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                            >
+                                <option value="">Select device type</option>
+                                {#each deviceTypes as type}
+                                    <option value={type}>{type}</option>
+                                {/each}
+                            </select>
+                            <input
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={name}
+                                placeholder="Enter name"
+                            />
+                            <input
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={id}
+                                placeholder={name ? (deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name)) : "Enter custom ID or leave empty for auto-generated"}
+                            />
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
+                        </div>
+                    {/if}
+                {:else}
+                    <p class="text-sm leading-5 text-gray-600 dark:text-gray-400">To begin, navigate to your device's Bluetooth settings (on Apple Watch use the BluetoothLE app) and pair with the ESPresense device.</p>
+                    <p class="mt-4 text-sm leading-5 text-gray-600 dark:text-gray-400">Start the pairing process now. Time remaining: {formatRemainingTime(($events as Events).state?.remain ?? 0)}</p>
+                {/if}
+            </div>
+            <div class="flex items-center justify-end p-6 space-x-4 border-t border-gray-200 dark:border-gray-700">
+                {#if !($events as Events)?.state?.enrolling && !($events as Events)?.state?.enrolledId}
+                    <button
+                        onclick={onEnroll}
+                        disabled={!name}
+                        class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Enroll
+                    </button>
+                {/if}
+                <Dialog.CloseTrigger
+                    type="button"
+                    class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                >
+                    Close
+                </Dialog.CloseTrigger>
+            </div>
+        </Dialog.Content>
+    </Dialog.Positioner>
+</Dialog>
+
+<Dialog open={showEditModal} onOpenChange={handleEditOpenChange} modal={false} preventScroll={true}>
+    <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />
+    <Dialog.Positioner class="fixed inset-0 flex items-center justify-center w-full h-full p-4">
+        <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full">
+            <div class="flex justify-between items-start p-4 border-b dark:border-gray-700">
+                <Dialog.Title class="text-xl font-semibold text-gray-900 dark:text-white">Edit Device</Dialog.Title>
+                <Dialog.CloseTrigger
+                    type="button"
+                    class="text-gray-400 bg-transparent hover:bg-gray-200 hover:text-gray-900 p-2 ml-auto inline-flex items-center dark:hover:bg-gray-700 dark:hover:text-white"
+                >
+                    <span class="sr-only">Close</span>
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>
+                </Dialog.CloseTrigger>
+            </div>
+            {#if editingConfig}
+                <div class="p-6 space-y-6">
+                    <div class="space-y-4">
+                        <div>
+                            <label for="edit-device-id" class="block text-sm font-medium text-gray-700 dark:text-gray-300">ID</label>
+                            <input
+                                id="edit-device-id"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.id}
+                                readonly
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-alias" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alias</label>
+                            <input
+                                id="edit-device-alias"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.alias}
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
+                            <input
+                                id="edit-device-name"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="text"
+                                bind:value={editingConfig.name}
+                            />
+                        </div>
+                        <div>
+                            <label for="edit-device-rssi" class="block text-sm font-medium text-gray-700 dark:text-gray-300">RSSI at 1m (dBm)</label>
+                            <input
+                                id="edit-device-rssi"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                                type="number"
+                                bind:value={editingConfig["rssi@1m"]}
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between p-6 space-x-4 border-t border-gray-200 dark:border-gray-700">
+                    <button
+                        onclick={onDeleteConfig}
+                        class="text-white bg-red-600 hover:bg-red-700 focus:ring-4 focus:outline-none focus:ring-red-300 text-center dark:bg-red-500 dark:hover:bg-red-600 dark:focus:ring-red-800"
+                    >
+                        Delete
+                    </button>
+                    <div class="flex items-center space-x-4">
+                        <button
+                            onclick={onSaveEdit}
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                        >
+                            Save
+                        </button>
+                        <Dialog.CloseTrigger
+                            type="button"
+                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
+                        >
+                            Cancel
+                        </Dialog.CloseTrigger>
+                    </div>
+                </div>
+            {/if}
+        </Dialog.Content>
+    </Dialog.Positioner>
+</Dialog>

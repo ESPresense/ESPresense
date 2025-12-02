@@ -4,7 +4,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "defaults.h"
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <AsyncMqttClient.h>
 #include "string_utils.h"
 
@@ -72,6 +72,15 @@ namespace DHT
         }
     }
 
+    /**
+     * @brief Initialize configured DHT sensors and start periodic temperature/humidity collection.
+     *
+     * Initializes DHT11 and/or DHT22 drivers for any configured pins, creates the background
+     * temperature task, attaches the periodic trigger using the module's update interval,
+     * and enables DHT task execution. If no DHT pins are configured, the function does nothing.
+     *
+     * If task creation fails an error is logged and periodic updates are not started.
+     */
     void Setup()
     {
         if (dht11Pin>=0) dhtSensor.setup(dht11Pin, DHTesp::DHT11);
@@ -91,7 +100,7 @@ namespace DHT
 
             if (dhtTempTaskHandle == NULL)
             {
-                Serial.println("[ERROR] Failed to start task for temperature update");
+                Log.println("[ERROR] Failed to start task for temperature update");
             }
             else
             {
@@ -106,22 +115,36 @@ namespace DHT
 
     void ConnectToWifi()
     {
-        dht11Pin = AsyncWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
-        dht22Pin = AsyncWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
-        dhtTempOffset = AsyncWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
+        dht11Pin = HeadlessWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
+        dht22Pin = HeadlessWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
+        dhtTempOffset = HeadlessWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
     }
 
+    /**
+     * @brief Reports configured DHT sensor pins and temperature offset to the log.
+     *
+     * Prints the configured pin number for DHT11 and DHT22 (or "disabled" if not configured)
+     * and the configured temperature offset. Does nothing if both sensors are disabled.
+     */
     void SerialReport()
     {
         if (dht11Pin<0 && dht22Pin<0) return;
-        Serial.print("DHT11 Sensor: ");
-        Serial.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
-        Serial.print("DHT22 Sensor: ");
-        Serial.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
-        Serial.print("DHT Offset:   ");
-        Serial.println(dhtTempOffset);
+        Log.print("DHT11 Sensor: ");
+        Log.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
+        Log.print("DHT22 Sensor: ");
+        Log.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
+        Log.print("DHT Offset:   ");
+        Log.println(dhtTempOffset);
     }
 
+    /**
+     * @brief Processes newly read DHT sensor data: logs measurements and publishes them.
+     *
+     * If neither DHT11 nor DHT22 is configured, the function does nothing.
+     * When a new reading is available, the stored temperature is adjusted by the configured offset,
+     * the temperature and humidity are logged, the humidity is published to `roomsTopic + "/humidity"`
+     * and the temperature to `roomsTopic + "/temperature"` (QoS 0, retained), and the new-reading flag is cleared.
+     */
     void Loop()
     {
         if (dht11Pin<0 && dht22Pin<0) return;
@@ -130,7 +153,7 @@ namespace DHT
         {
             float humidity = dhtSensorData.humidity;
             float temperature = dhtSensorData.temperature + dhtTempOffset;
-            Serial.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
+            Log.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
 
             pub((roomsTopic + "/humidity").c_str(), 0, 1, String(humidity, 1).c_str());
             pub((roomsTopic + "/temperature").c_str(), 0, 1, String(temperature, 1).c_str());

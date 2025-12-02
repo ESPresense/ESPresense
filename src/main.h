@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <AsyncTCP.h>
-#include <AsyncWiFiSettings.h>
+#include <HeadlessWiFiSettings.h>
 #include <ESPAsyncWebServer.h>
 #include <HTTPClient.h>
 #include <NimBLEDevice.h>
@@ -12,6 +12,7 @@
 #include "Battery.h"
 #include "BleFingerprint.h"
 #include "BleFingerprintCollection.h"
+#include "NTP.h"
 #include "CAN.h"
 #include "Enrollment.h"
 #include "GUI.h"
@@ -22,6 +23,7 @@
 #include "Button.h"
 #include "Network.h"
 #include "SerialImprov.h"
+#include "Logger.h"
 #include "Updater.h"
 #include "defaults.h"
 #include "globals.h"
@@ -44,6 +46,7 @@
 #include "HX711.h"
 #include "SHT.h"
 #include "SensirionSGP30.h"
+#include "SensirionSCD4x.h"
 #include "TSL2561.h"
 #include "DS18B20.h"
 #endif
@@ -64,4 +67,4 @@ int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 
-bool discovery, publishTele, publishRooms, publishDevices;
+bool discovery, publishTele, publishDevices;
