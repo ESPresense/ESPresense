@@ -7,26 +7,38 @@ const mockDevices = {
 		{
 			id: 'apple:1005:1-2',
 			name: 'iPhone 13',
+			mac: 'aa:bb:cc:dd:ee:ff',
 			rssi: -45,
+			'rssi@1m': -65,
 			distance: 1.2,
-			interval: 100,
-			lastSeen: 1000
+			var: 0.15,
+			int: 100,
+			vis: true,
+			close: false
 		},
 		{
 			id: 'apple:1005:1-3',
 			name: 'MacBook Pro',
+			mac: '11:22:33:44:55:66',
 			rssi: -65,
+			'rssi@1m': -70,
 			distance: 3.5,
-			interval: 200,
-			lastSeen: 2000
+			var: 0.25,
+			int: 200,
+			vis: true,
+			close: false
 		},
 		{
 			id: 'tile:1234',
 			name: 'Tile Tracker',
+			mac: '77:88:99:aa:bb:cc',
 			rssi: -55,
+			'rssi@1m': -60,
 			distance: 2.1,
-			interval: 150,
-			lastSeen: 1500
+			var: 0.18,
+			int: 150,
+			vis: true,
+			close: false
 		}
 	]
 };
@@ -86,11 +98,14 @@ test.describe('DataTable - Devices Page', () => {
 		// Wait for table to load
 		await page.waitForSelector('table');
 
-		// Check table headers exist
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
+
+		// Check table headers exist (using abbreviated column names)
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
-		await expect(page.locator('th:has-text("Id")')).toBeVisible();
+		await expect(page.locator('th:has-text("ID")')).toBeVisible();
 		await expect(page.locator('th:has-text("RSSI")')).toBeVisible();
-		await expect(page.locator('th:has-text("Distance")')).toBeVisible();
+		await expect(page.locator('th:has-text("Dist")')).toBeVisible();
 
 		// Check data is displayed
 		await expect(page.locator('text=iPhone 13')).toBeVisible();
@@ -100,6 +115,9 @@ test.describe('DataTable - Devices Page', () => {
 
 	test('should sort table by clicking column headers', async ({ page }) => {
 		await page.goto('/devices');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		// Get all rows
@@ -153,6 +171,9 @@ test.describe('DataTable - Devices Page', () => {
 
 	test('should handle row clicks', async ({ page }) => {
 		await page.goto('/devices');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		// Click on a row
@@ -167,6 +188,9 @@ test.describe('DataTable - Devices Page', () => {
 
 	test('should not trigger row click when clicking interactive elements', async ({ page }) => {
 		await page.goto('/devices');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		// If there's a button or link in the row, clicking it shouldn't trigger row click
@@ -206,9 +230,12 @@ test.describe('DataTable - Fingerprints Page', () => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
 
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
+
 		// Check headers
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
-		await expect(page.locator('th:has-text("Id")')).toBeVisible();
+		await expect(page.locator('th:has-text("ID")')).toBeVisible();
 
 		// Check data
 		await expect(page.locator('text=Alice Phone')).toBeVisible();
@@ -219,6 +246,9 @@ test.describe('DataTable - Fingerprints Page', () => {
 	test('should filter fingerprints by query status', async ({ page }) => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 
 		// Look for filter dropdown if it exists
 		const filterSelect = page.locator('select').first();
@@ -248,6 +278,9 @@ test.describe('DataTable - Fingerprints Page', () => {
 
 	test('should sort fingerprints alphabetically by name', async ({ page }) => {
 		await page.goto('/fingerprints');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		const nameHeader = page.locator('th:has-text("Name")');
@@ -357,6 +390,9 @@ test.describe('DataTable - Component Functionality', () => {
 		});
 
 		await page.goto('/devices');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		// Table should still render
@@ -388,6 +424,9 @@ test.describe('DataTable - Component Functionality', () => {
 
 	test('should apply custom row classes', async ({ page }) => {
 		await page.goto('/devices');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 		await page.waitForSelector('table tbody tr');
 
 		// Rows should have cursor-pointer class
@@ -428,13 +467,13 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
+
 		// Check if any custom components are rendered (buttons, icons, etc.)
 		// This depends on the actual implementation in devices page
 		const tableButtons = page.locator('table button');
 		const tableLinks = page.locator('table a');
-
-		// At least one of these should exist if custom components are used
-		const hasCustomComponents = (await tableButtons.count()) > 0 || (await tableLinks.count()) > 0;
 
 		// Just verify table is functional
 		expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
@@ -443,6 +482,9 @@ test.describe('DataTable - Component Functionality', () => {
 	test('should update filtered rows when filter changes', async ({ page }) => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
+
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
 
 		const filterSelect = page.locator('select').first();
 
@@ -473,6 +515,9 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
+		// Wait for data to load from store polling
+		await page.waitForTimeout(1500);
+
 		// Sort by multiple columns in sequence
 		await page.locator('th:has-text("Name")').click();
 		await page.waitForTimeout(100);
@@ -480,7 +525,7 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.locator('th:has-text("RSSI")').click();
 		await page.waitForTimeout(100);
 
-		await page.locator('th:has-text("Distance")').click();
+		await page.locator('th:has-text("Dist")').click();
 		await page.waitForTimeout(100);
 
 		// Table should still be functional
@@ -488,6 +533,6 @@ test.describe('DataTable - Component Functionality', () => {
 		expect(await rows.count()).toBeGreaterThan(0);
 
 		// Last sorted column should have indicator
-		await expect(page.locator('th:has-text("Distance") >> span')).toBeVisible();
+		await expect(page.locator('th:has-text("Dist") >> span')).toBeVisible();
 	});
 });

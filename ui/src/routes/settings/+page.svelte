@@ -1,49 +1,26 @@
 <script lang="ts">
     import { extraSettings } from '$lib/stores.js';
+    import { saveSettingsWithRetry } from '$lib/utils/settings.js';
 
-    let s = $state(false);
-    async function handleSubmit(event: SubmitEvent) {
+    /** Tracks whether the form is currently being saved */
+    let isSaving = $state<boolean>(false);
+
+    /**
+     * Handles form submission for extra settings.
+     * Saves settings to the device and triggers a restart with automatic retry.
+     */
+    async function handleSubmit(event: SubmitEvent): Promise<void> {
         try {
             event.preventDefault();
-            s = true;
+            isSaving = true;
             const form = event.target as HTMLFormElement;
             const formData = new FormData(form);
-            const params = new URLSearchParams();
-            for (const [key, value] of formData.entries()) {
-                if (typeof value === "string") {
-                    params.append(key, value);
-                }
-            }
-            await fetch("/wifi/extras", { method: "POST", body: params });
-
-            try {
-                await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
-            } catch (error) {
-                // often the restart request will fail, so we ignore the error
-            }
-
-            // Reload settings after save, with retries
-            let retries = 5;
-            let data;
-            while (retries > 0) {
-                try {
-                    const response = await fetch("/wifi/extras");
-                    data = await response.json();
-                    extraSettings.set(data);
-                    break; // Exit loop on success
-                } catch (error) {
-                    retries--;
-                    if (retries === 0) {
-                        console.error("Failed to reload settings after multiple retries:", error);
-                        // Optionally display an error message to the user
-                        break;
-                    }
-                    // Wait for 1 second before retrying
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-                }
-            }
+            await saveSettingsWithRetry('/wifi/extras', formData, extraSettings);
+        } catch (error) {
+            console.error('Failed to save extra settings:', error);
+            // TODO: Show user-friendly error toast notification
         } finally {
-            s = false;
+            isSaving = false;
         }
     }
 </script>
@@ -260,7 +237,7 @@
         </p>
         <div class="flex justify-end">
             <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
-                {s ? "Saving..." : "Save"}
+                {isSaving ? "Saving..." : "Save"}
             </button>
         </div>
     </form>
