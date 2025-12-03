@@ -60,7 +60,7 @@
       name: "hardware",
       w: 24,
       h: 24,
-      svg: `<rect x="6" y="6" width="12" height="12" rx="2" ry="2"/><path d="M10 2v4M14 2v4M10 18v4M14 18v4M2 10h4M2 14h4M18 10h4M18 14h4M10 10h4v4h-4z"/>`
+      svg: `<path d="M8 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H8zM7 2h2v4H7zM11 2h2v4h-2zM15 2h2v4h-2zM7 18h2v4H7zM11 18h2v4h-2zM15 18h2v4h-2zM2 7h4v2H2zM2 11h4v2H2zM2 15h4v2H2zM18 7h4v2h-4zM18 11h4v2h-4zM18 15h4v2h-4zM10 10h4v4h-4z" />`
     },
     {
       name: "logo",
