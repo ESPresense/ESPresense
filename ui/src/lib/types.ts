@@ -44,18 +44,6 @@ export interface LetterMap {
     };
 }
 
-export interface TableColumn<T> {
-    key: string;
-    title: string;
-    value: (v: T) => any;
-    renderValue?: (v: T) => string;
-    sortable?: boolean;
-    filterOptions?: (rows: T[]) => Array<{ name: string; value: string | boolean }>;
-    filterValue?: (v: T) => string;
-    headerClass?: string;
-    class?: string;
-}
-
 export interface ExtraSettings {
     values: {
         [key: string]: any;
