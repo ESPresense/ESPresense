@@ -9,7 +9,7 @@ const config = {
         adapter: adapter(),
         prerender: {
             crawl: false,
-            entries: ['/', '/settings', '/devices', '/fingerprints', '/network'],
+            entries: ['/', '/settings', '/hardware', '/devices', '/fingerprints', '/network'],
             handleHttpError: 'warn',
         },
         appDir: 'app',

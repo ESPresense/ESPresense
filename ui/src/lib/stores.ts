@@ -157,6 +157,18 @@ export const extraSettings = writable<ExtraSettings | null>(null, function start
         });
 });
 
+export const hardwareSettings = writable<ExtraSettings | null>(null, function start(set) {
+    fetch("/wifi/hardware")
+        .then(d => d.json())
+        .then((r: ExtraSettings) => {
+            set(r);
+        })
+        .catch((ex) => {
+            set(null);
+            console.log(ex);
+        });
+});
+
 export const mainSettings = writable<MainSettings | null>(null, function start(set) {
     fetch("/wifi/main")
         .then(d => d.json())

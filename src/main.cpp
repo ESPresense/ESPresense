@@ -183,9 +183,12 @@ void setupNetwork() {
 
     HeadlessWiFiSettings.markExtra();
 
+    BleFingerprintCollection::ConnectToWifi();
+
+    HeadlessWiFiSettings.markEndpoint("hardware");
+
     GUI::ConnectToWifi();
 
-    BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
     Switch::ConnectToWifi();
     Button::ConnectToWifi();
