@@ -16,6 +16,7 @@
     <nav class="mt-6 px-6 space-y-1">
         <SidebarItem icon="network" title="Network" href="{base}/network" />
         <SidebarItem icon="contact" title="Settings" href="{base}/settings" />
+        <SidebarItem icon="hardware" title="Hardware" href="{base}/hardware" />
         <SidebarItem icon="device" title="Devices" href="{base}/devices" />
         <SidebarItem icon="fingerprint" title="Fingerprints" href="{base}/fingerprints" />
     </nav>
