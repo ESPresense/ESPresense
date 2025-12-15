@@ -21,7 +21,7 @@
     "@skeletonlabs/skeleton-svelte": "^4.7.4",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.49.1",
-    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@tailwindcss/vite": "^4.1.17",
     "@types/node": "^24.10.1",
@@ -35,6 +35,6 @@
     "svelte-table": "^0.6.5",
     "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3",
-    "vite": "^6.4.1"
+    "vite": "^7.2.7"
   }
 }
