@@ -65,8 +65,8 @@
                 <input
                     type="number"
                     step="1"
-                    min="-1"
-                    max="39"
+                    min="0"
+                    max="1000"
                     name="led_1_cnt"
                     placeholder={$hardwareSettings.defaults['led_1_cnt']}
                     bind:value={$hardwareSettings.values['led_1_cnt']}/>
@@ -118,8 +118,8 @@
                 <input
                     type="number"
                     step="1"
-                    min="-1"
-                    max="39"
+                    min="0"
+                    max="1000"
                     name="led_2_cnt"
                     placeholder={$hardwareSettings.defaults['led_2_cnt']}
                     bind:value={$hardwareSettings.values['led_2_cnt']}/>
@@ -171,8 +171,8 @@
                 <input
                     type="number"
                     step="1"
-                    min="-1"
-                    max="39"
+                    min="0"
+                    max="1000"
                     name="led_3_cnt"
                     placeholder={$hardwareSettings.defaults['led_3_cnt']}
                     bind:value={$hardwareSettings.values['led_3_cnt']}/>
@@ -391,6 +391,20 @@
         <h4>Button Two:</h4>
         <p>
             <label>
+                Button Two pin type:<br />
+                <select name="button_2_type" bind:value={$hardwareSettings.values['button_2_type']}>
+                    <option disabled selected hidden>Pullup</option>
+                    <option value="0">Pullup</option>
+                    <option value="1">Pullup Inverted</option>
+                    <option value="2">Pulldown</option>
+                    <option value="3">Pulldown Inverted</option>
+                    <option value="4">Floating</option>
+                    <option value="5">Floating Inverted</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
                 Button Two pin (-1 for disable):<br />
                 <input
                     type="number"
@@ -509,7 +523,7 @@
         <p>
             <label class="flex items-center space-x-2">
                 <input type="checkbox" name="I2CDebug" bind:checked={$hardwareSettings.values['I2CDebug']}/>
-                <span>Debug I2C addreses. Look at the serial log to get the correct address (default: &#x2610;)</span>
+                <span>Debug I2C addresses. Look at the serial log to get the correct address (default: &#x2610;)</span>
             </label>
         </p>
         <h2>
@@ -622,7 +636,7 @@
                 <input
                     type="number"
                     step="1"
-                    min="1"
+                    min="-1"
                     max="2"
                     name="SHT_I2c_Bus"
                     placeholder={$hardwareSettings.defaults['SHT_I2c_Bus']}
@@ -754,4 +768,3 @@
     </form>
     {/if}
 </div>
-

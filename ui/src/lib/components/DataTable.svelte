@@ -43,11 +43,29 @@
 
     let sortColumn = $state("");
     let sortDirection = $state<"asc" | "desc">("asc");
+    let sortInitialized = $state(false);
+    let lastPropSortBy = $state("");
 
     $effect(() => {
-        const defaultColumn = columns.find((c) => c.defaultSort);
-        sortColumn = sortBy || defaultColumn?.key || "";
-        sortDirection = defaultColumn?.defaultSortDirection || "asc";
+        const currentSortBy = sortBy;
+        const columnKeys = columns.map((c) => c.key);
+        const hasCurrentSort = sortColumn && columnKeys.includes(sortColumn);
+
+        if (currentSortBy && currentSortBy !== lastPropSortBy) {
+            const column = columns.find((c) => c.key === currentSortBy);
+            sortColumn = column?.key || "";
+            sortDirection = column?.defaultSortDirection || "asc";
+            lastPropSortBy = currentSortBy;
+            sortInitialized = true;
+            return;
+        }
+
+        if (!sortInitialized || !hasCurrentSort) {
+            const defaultColumn = columns.find((c) => c.defaultSort);
+            sortColumn = currentSortBy || defaultColumn?.key || "";
+            sortDirection = defaultColumn?.defaultSortDirection || "asc";
+            sortInitialized = true;
+        }
     });
 
     function handleSort(column: Column) {
@@ -89,8 +107,12 @@
             let aVal = column.sortValue ? column.sortValue(a) : column.value ? column.value(a) : a[column.key];
             let bVal = column.sortValue ? column.sortValue(b) : column.value ? column.value(b) : b[column.key];
 
-            if (aVal === null || aVal === undefined) aVal = "";
-            if (bVal === null || bVal === undefined) bVal = "";
+            const aNullish = aVal === null || aVal === undefined;
+            const bNullish = bVal === null || bVal === undefined;
+
+            if (aNullish && bNullish) return 0;
+            if (aNullish) return 1;
+            if (bNullish) return -1;
 
             if (typeof aVal === "string" && typeof bVal === "string") {
                 aVal = aVal.toLowerCase();
@@ -144,10 +166,20 @@
     <thead>
         <tr>
             {#each columns as column}
-                <th class:cursor-pointer={column.sortable} class={classNameTh} onclick={() => handleSort(column)}>
-                    {column.title}
-                    {#if column.sortable && sortColumn === column.key}
-                        <span class="ml-1">{sortDirection === "asc" ? "↑" : "↓"}</span>
+                <th class:cursor-pointer={column.sortable} class={classNameTh}>
+                    {#if column.sortable}
+                        <button
+                            type="button"
+                            class="flex items-center gap-1 w-full text-left"
+                            onclick={() => handleSort(column)}
+                        >
+                            {column.title}
+                            {#if sortColumn === column.key}
+                                <span>{sortDirection === "asc" ? "↑" : "↓"}</span>
+                            {/if}
+                        </button>
+                    {:else}
+                        {column.title}
                     {/if}
                 </th>
             {/each}

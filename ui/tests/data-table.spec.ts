@@ -198,7 +198,7 @@ test.describe('DataTable - Devices Page', () => {
 		const button = page.locator('table tbody tr button').first();
 		if (await button.isVisible()) {
 			await button.click();
-			// Should not navigate or open modal
+			await expect(page.locator('dialog[open], [role="dialog"]')).toHaveCount(0);
 		}
 	});
 });
@@ -391,16 +391,11 @@ test.describe('DataTable - Component Functionality', () => {
 
 		await page.goto('/devices');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
-
-		// Table should still render
-		const rows = page.locator('table tbody tr');
-		expect(await rows.count()).toBe(1);
+		// Table should render once data is available
+		await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 5000 });
 
 		// Null values should be handled (empty string or default)
-		const firstRow = rows.first();
+		const firstRow = page.locator('table tbody tr').first();
 		await expect(firstRow).toBeVisible();
 	});
 

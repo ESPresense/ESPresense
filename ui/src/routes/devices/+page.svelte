@@ -212,6 +212,7 @@
             key: "rssi@1m",
             title: "RSSI@1m",
             value: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
+            sortValue: (v: Config) => v["rssi@1m"] ?? Number.POSITIVE_INFINITY,
             sortable: true
         },
     ];
