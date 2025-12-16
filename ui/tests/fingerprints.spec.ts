@@ -76,9 +76,7 @@ test.describe('Fingerprints Page', () => {
 	test('should display correct column headers', async ({ page }) => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
-
-		// Wait for data to load
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// Check column headers using nth selectors to avoid ambiguity
 		const headers = page.locator('thead tr:first-child th');
@@ -98,9 +96,7 @@ test.describe('Fingerprints Page', () => {
 
 		// Wait for table to be visible (even if empty initially)
 		await page.waitForSelector('table');
-
-		// Wait a bit for the store to poll and get data
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// By default, only visible devices are shown (vis filter = ⬤)
 		await expect(page.locator('text=iPhone 13')).toBeVisible();
@@ -110,7 +106,7 @@ test.describe('Fingerprints Page', () => {
 		// Clear the visibility filter to see all devices
 		const visFilter = page.locator('thead tr:last-child select').first();
 		await visFilter.selectOption({ index: 0 }); // Select "All"
-		await page.waitForTimeout(200);
+		await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 5000 });
 
 		// Now Tile Tracker should be visible
 		await expect(page.locator('text=Tile Tracker')).toBeVisible();
@@ -128,8 +124,7 @@ test.describe('Fingerprints Page', () => {
 	test('should display RSSI values with dBm unit', async ({ page }) => {
 		await page.goto('/fingerprints');
 
-		// Wait for data to load
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// Check RSSI formatting in table cells
 		// Find cells that contain RSSI values with dBm unit
@@ -173,10 +168,9 @@ test.describe('Fingerprints Page', () => {
 
 		// Click Name header to sort
 		await page.locator('th:has-text("Name")').click();
-		await page.waitForTimeout(200);
 
 		// Check sort indicator appears
-		await expect(page.locator('th:has-text("Name") >> span')).toBeVisible();
+		await expect(page.locator('th:has-text("Name") >> span')).toBeVisible({ timeout: 2000 });
 
 		// First device alphabetically should be "iPhone 13"
 		const firstRow = page.locator('table tbody tr').first();
@@ -191,25 +185,18 @@ test.describe('Fingerprints Page', () => {
 
 		// First click - ascending
 		await nameHeader.click();
-		await page.waitForTimeout(100);
-		await expect(nameHeader.locator('text=↑')).toBeVisible();
+		await expect(nameHeader.locator('text=↑')).toBeVisible({ timeout: 2000 });
 
 		// Second click - descending
 		await nameHeader.click();
-		await page.waitForTimeout(100);
-		await expect(nameHeader.locator('text=↓')).toBeVisible();
+		await expect(nameHeader.locator('text=↓')).toBeVisible({ timeout: 2000 });
 	});
 
 	test('should filter devices by visibility', async ({ page }) => {
 		await page.goto('/fingerprints');
 
-		// Wait for data to load
-		await page.waitForTimeout(1500);
-
-		// Initially should show all 3 devices (but filtered to visible by default)
-		// The store has filterSelections set to { vis: true } by default
-		const initialCount = await page.locator('table tbody tr').count();
-		expect(initialCount).toBeGreaterThan(0);
+		// Initially should show rows (visible filter defaults to vis=true)
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// Find the visibility filter dropdown
 		const filterSelects = page.locator('thead tr:last-child select');
@@ -221,11 +208,7 @@ test.describe('Fingerprints Page', () => {
 			if (options.some(opt => opt === '⬤' || opt.includes('All'))) {
 				// Select "All" to show all devices including invisible ones
 				await visFilter.selectOption({ index: 0 }); // "All" is usually first option
-				await page.waitForTimeout(200);
-
-				// Should now show all 3 devices
-				const allCount = await page.locator('table tbody tr').count();
-				expect(allCount).toBe(3);
+				await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 5000 });
 			}
 		}
 	});
@@ -233,8 +216,7 @@ test.describe('Fingerprints Page', () => {
 	test('should filter devices by ID prefix', async ({ page }) => {
 		await page.goto('/fingerprints');
 
-		// Wait for data to load
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// Find the ID column filter
 		const filterSelects = page.locator('thead tr:last-child select');
@@ -251,11 +233,8 @@ test.describe('Fingerprints Page', () => {
 			const appleOption = options.find(opt => opt.includes('apple:'));
 			if (appleOption) {
 				await idFilter.selectOption({ label: appleOption });
-				await page.waitForTimeout(200);
+				await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
-				// Should only show Apple devices (2 devices)
-				const count = await page.locator('table tbody tr').count();
-				expect(count).toBe(2);
 				await expect(page.locator('tbody >> text=iPhone 13')).toBeVisible();
 				await expect(page.locator('tbody >> text=MacBook Pro')).toBeVisible();
 			}
@@ -275,10 +254,9 @@ test.describe('Fingerprints Page', () => {
 			const options = await nameFilter.locator('option').allTextContents();
 			if (options.includes('I')) {
 				await nameFilter.selectOption({ label: 'I' });
-				await page.waitForTimeout(200);
+				await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 3000 });
 
 				// Should only show iPhone
-				expect(await page.locator('table tbody tr').count()).toBe(1);
 				await expect(page.locator('tbody >> text=iPhone 13')).toBeVisible();
 			}
 		}
@@ -287,13 +265,10 @@ test.describe('Fingerprints Page', () => {
 	test('should highlight close devices', async ({ page }) => {
 		await page.goto('/fingerprints');
 
-		// Wait for data to load
-		await page.waitForTimeout(1500);
-
 		// Clear visibility filter to see all devices (Tile Tracker has vis: false)
 		const visFilter = page.locator('thead tr:last-child select').first();
 		await visFilter.selectOption({ index: 0 }); // Select "All"
-		await page.waitForTimeout(200);
+		await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 5000 });
 
 		// Tile Tracker has close: true, should have highlight class
 		const rows = page.locator('table tbody tr');
@@ -342,7 +317,7 @@ test.describe('Fingerprints Page', () => {
 		// The page shows the table immediately since store starts with empty array
 		// Just verify it eventually loads data
 		await gotoPromise;
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 		await expect(page.locator('table')).toBeVisible();
 	});
 
@@ -383,13 +358,13 @@ test.describe('Fingerprints Page', () => {
 
 		await page.goto('/fingerprints');
 
-		// Wait for data to load
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(1, { timeout: 5000 });
 
 		// Should show "n/a" for missing values (distance, var, and mac show n/a when undefined)
 		const naCells = page.locator('td:has-text("n/a")');
-		const count = await naCells.count();
-		expect(count).toBeGreaterThan(0); // Should have at least one n/a value
+		await expect(async () => {
+			expect(await naCells.count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 3000 });
 	});
 
 	test('should sort RSSI values numerically', async ({ page }) => {
@@ -397,14 +372,12 @@ test.describe('Fingerprints Page', () => {
 
 		// Wait for table to load
 		await page.waitForSelector('table');
-
-		// Wait for data to load
-		await page.waitForTimeout(1500);
+		await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 5000 });
 
 		// Find the RSSI column header (7th column)
 		const rssiHeader = page.locator('thead tr:first-child th').nth(6);
 		await rssiHeader.click();
-		await page.waitForTimeout(200);
+		await expect(rssiHeader.locator('span')).toBeVisible({ timeout: 2000 });
 
 		// Get all RSSI values from the 7th column
 		const rows = page.locator('table tbody tr');

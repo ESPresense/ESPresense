@@ -204,15 +204,12 @@ test.describe('Hardware Settings Page', () => {
 		const initialGetCount = getCallCount;
 		await page.locator('button[type="submit"]').click();
 
-		// Wait for save to complete
-		await page.waitForTimeout(6000); // Retries take ~5 seconds
-
-		// Verify API calls
-		expect(hardwarePostCalled).toBe(true);
-		expect(restartCalled).toBe(true);
-
-		// Verify retry logic - should have tried to reload settings
-		expect(getCallCount).toBeGreaterThan(initialGetCount);
+		// Wait for save and retry cycle to finish by observing GET retries
+		await expect(async () => {
+			expect(hardwarePostCalled).toBe(true);
+			expect(restartCalled).toBe(true);
+			expect(getCallCount).toBeGreaterThan(initialGetCount);
+		}).toPass({ timeout: 10000 });
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
@@ -263,11 +260,8 @@ test.describe('Hardware Settings Page', () => {
 		// Try to submit
 		await page.locator('button[type="submit"]').click();
 
-		// Wait a bit for potential error handling
-		await page.waitForTimeout(1000);
-
 		// Button should return to normal state even on error
-		await expect(page.locator('button[type="submit"]')).toHaveText('Save');
+		await expect(page.locator('button[type="submit"]')).toHaveText('Save', { timeout: 3000 });
 	});
 
 	test('should validate pin number ranges', async ({ page }) => {
@@ -311,7 +305,6 @@ test.describe('Hardware Settings Page', () => {
 	test('should retry loading settings after restart', async ({ page }) => {
 		let getCallCount = 0;
 		let postCalled = false;
-		let failFirstRetries = true;
 
 		await page.route('**/wifi/hardware', async (route) => {
 			if (route.request().method() === 'GET') {
@@ -329,7 +322,6 @@ test.describe('Hardware Settings Page', () => {
 				else if (postCalled && getCallCount <= 4) {
 					await route.abort('failed');
 				} else {
-					failFirstRetries = false;
 					await route.fulfill({
 						status: 200,
 						contentType: 'application/json',
@@ -351,7 +343,9 @@ test.describe('Hardware Settings Page', () => {
 		await page.locator('button[type="submit"]').click();
 
 		// Wait for retries (5 retries × 1s delay = 5s, plus some buffer)
-		await page.waitForTimeout(7000);
+		await expect(async () => {
+			expect(getCallCount).toBeGreaterThan(initialGetCount + 2);
+		}).toPass({ timeout: 10000 });
 
 		// Should have retried multiple times after the initial load
 		expect(getCallCount).toBeGreaterThan(initialGetCount + 2);

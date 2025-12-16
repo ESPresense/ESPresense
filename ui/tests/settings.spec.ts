@@ -185,12 +185,11 @@ test.describe('Settings Page', () => {
 		// Submit form
 		await page.locator('button[type="submit"]').click();
 
-		// Wait for API calls
-		await page.waitForTimeout(1000);
-
 		// Verify API calls were made
-		expect(postCalled).toBe(true);
-		expect(restartCalled).toBe(true);
+		await expect(async () => {
+			expect(postCalled).toBe(true);
+			expect(restartCalled).toBe(true);
+		}).toPass({ timeout: 3000 });
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
@@ -252,8 +251,10 @@ test.describe('Settings Page', () => {
 		// Submit form
 		await page.locator('button[type="submit"]').click();
 
-		// Wait for retries
-		await page.waitForTimeout(7000);
+		// Wait for retries (5 retries × 1s delay = 5s, plus buffer)
+		await expect(async () => {
+			expect(getCallCount).toBeGreaterThan(initialGetCount + 2);
+		}).toPass({ timeout: 10000 });
 
 		// Should have retried multiple times
 		expect(getCallCount).toBeGreaterThan(initialGetCount + 2);
@@ -287,11 +288,8 @@ test.describe('Settings Page', () => {
 		// Try to submit
 		await page.locator('button[type="submit"]').click();
 
-		// Wait for potential error handling
-		await page.waitForTimeout(1000);
-
 		// Button should return to normal state
-		await expect(page.locator('button[type="submit"]')).toHaveText('Save');
+		await expect(page.locator('button[type="submit"]')).toHaveText('Save', { timeout: 3000 });
 	});
 
 	test('should NOT have hardware settings', async ({ page }) => {
@@ -393,10 +391,15 @@ test.describe('Settings Page', () => {
 		await page.goto('/settings');
 
 		// Form should not be visible while loading
-		expect(await page.locator('form#extras').isVisible()).toBe(false);
+		await expect(page.locator('form#extras')).toBeHidden();
 
-		// Resolve promise
+		// Resolve promise and wait for response to complete
+		const responsePromise = page.waitForResponse('**/wifi/extras');
 		resolveSettings!(null);
+		await responsePromise;
+
+		// Form should now be visible after settings load
+		await expect(page.locator('form#extras')).toBeVisible();
 	});
 
 	test('should have consistent styling with hardware page', async ({ page }) => {

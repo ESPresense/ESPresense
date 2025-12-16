@@ -98,8 +98,9 @@ test.describe('DataTable - Devices Page', () => {
 		// Wait for table to load
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Check table headers exist (using abbreviated column names)
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
@@ -116,9 +117,9 @@ test.describe('DataTable - Devices Page', () => {
 	test('should sort table by clicking column headers', async ({ page }) => {
 		await page.goto('/devices');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Get all rows
 		const getFirstRowName = async () => {
@@ -133,17 +134,19 @@ test.describe('DataTable - Devices Page', () => {
 		const nameHeader = page.locator('th:has-text("Name")');
 		await nameHeader.click();
 
-		// Wait for sort
-		await page.waitForTimeout(100);
-
-		// First item should be "Alice Phone" or similar alphabetically
-		const afterFirstSort = await getFirstRowName();
+		let afterFirstSort = initialFirst;
+		await expect(async () => {
+			afterFirstSort = await getFirstRowName();
+			expect(afterFirstSort).not.toBe(initialFirst);
+		}).toPass({ timeout: 2000 });
 
 		// Click again to reverse sort
 		await nameHeader.click();
-		await page.waitForTimeout(100);
-
-		const afterSecondSort = await getFirstRowName();
+		let afterSecondSort = afterFirstSort;
+		await expect(async () => {
+			afterSecondSort = await getFirstRowName();
+			expect(afterSecondSort).not.toBe(afterFirstSort);
+		}).toPass({ timeout: 2000 });
 
 		// After reversing, order should be different
 		expect(afterFirstSort).not.toBe(afterSecondSort);
@@ -156,25 +159,19 @@ test.describe('DataTable - Devices Page', () => {
 		// Click RSSI header to sort
 		const rssiHeader = page.locator('th:has-text("RSSI")');
 		await rssiHeader.click();
-		await page.waitForTimeout(100);
-
-		// Should show up arrow (ascending)
-		await expect(rssiHeader.locator('text=↑')).toBeVisible();
+		await expect(rssiHeader.locator('text=↑')).toBeVisible({ timeout: 2000 });
 
 		// Click again to reverse
 		await rssiHeader.click();
-		await page.waitForTimeout(100);
-
-		// Should show down arrow (descending)
-		await expect(rssiHeader.locator('text=↓')).toBeVisible();
+		await expect(rssiHeader.locator('text=↓')).toBeVisible({ timeout: 2000 });
 	});
 
 	test('should handle row clicks', async ({ page }) => {
 		await page.goto('/devices');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Click on a row
 		const firstRow = page.locator('table tbody tr').first();
@@ -189,9 +186,9 @@ test.describe('DataTable - Devices Page', () => {
 	test('should not trigger row click when clicking interactive elements', async ({ page }) => {
 		await page.goto('/devices');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// If there's a button or link in the row, clicking it shouldn't trigger row click
 		// This tests the isInteractiveTarget logic
@@ -230,8 +227,9 @@ test.describe('DataTable - Fingerprints Page', () => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Check headers
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
@@ -247,8 +245,9 @@ test.describe('DataTable - Fingerprints Page', () => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Look for filter dropdown if it exists
 		const filterSelect = page.locator('select').first();
@@ -256,7 +255,6 @@ test.describe('DataTable - Fingerprints Page', () => {
 		if (await filterSelect.isVisible()) {
 			// Select "query: true" filter
 			await filterSelect.selectOption('true');
-			await page.waitForTimeout(100);
 
 			// Only Alice Phone and Charlie Tracker should be visible (they have query: true)
 			await expect(page.locator('text=Alice Phone')).toBeVisible();
@@ -267,7 +265,6 @@ test.describe('DataTable - Fingerprints Page', () => {
 
 			// Select "All" to show everything again
 			await filterSelect.selectOption('');
-			await page.waitForTimeout(100);
 
 			// All should be visible now
 			await expect(page.locator('text=Alice Phone')).toBeVisible();
@@ -279,15 +276,17 @@ test.describe('DataTable - Fingerprints Page', () => {
 	test('should sort fingerprints alphabetically by name', async ({ page }) => {
 		await page.goto('/fingerprints');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		const nameHeader = page.locator('th:has-text("Name")');
 
 		// Click to sort ascending
 		await nameHeader.click();
-		await page.waitForTimeout(100);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 2000 });
 
 		// Get all names in order
 		const rows = page.locator('table tbody tr');
@@ -307,7 +306,9 @@ test.describe('DataTable - Fingerprints Page', () => {
 
 		// Click again to reverse
 		await nameHeader.click();
-		await page.waitForTimeout(100);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 2000 });
 
 		// Get names again
 		const namesReversed: string[] = [];
@@ -405,24 +406,18 @@ test.describe('DataTable - Component Functionality', () => {
 
 		// Sort by Name
 		await page.locator('th:has-text("Name")').click();
-		await page.waitForTimeout(100);
+		await expect(page.locator('th:has-text("Name") >> text=↑')).toBeVisible({ timeout: 2000 });
 
-		// Verify sort indicator is present
-		await expect(page.locator('th:has-text("Name") >> text=↑')).toBeVisible();
-
-		// Simulate data update (the store polls every second)
-		await page.waitForTimeout(1500);
-
-		// Sort indicator should still be there
-		await expect(page.locator('th:has-text("Name") >> text=↑')).toBeVisible();
+		// Sort indicator should still be there after data refresh
+		await expect(page.locator('th:has-text("Name") >> text=↑')).toBeVisible({ timeout: 5000 });
 	});
 
 	test('should apply custom row classes', async ({ page }) => {
 		await page.goto('/devices');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
-		await page.waitForSelector('table tbody tr');
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Rows should have cursor-pointer class
 		const firstRow = page.locator('table tbody tr').first();
@@ -436,7 +431,6 @@ test.describe('DataTable - Component Functionality', () => {
 
 		// Sort by RSSI (numeric)
 		await page.locator('th:has-text("RSSI")').click();
-		await page.waitForTimeout(100);
 
 		const rows = page.locator('table tbody tr');
 		const count = await rows.count();
@@ -462,8 +456,9 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		// Check if any custom components are rendered (buttons, icons, etc.)
 		// This depends on the actual implementation in devices page
@@ -488,8 +483,9 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		const filterSelect = page.locator('select').first();
 
@@ -500,19 +496,16 @@ test.describe('DataTable - Component Functionality', () => {
 
 			// Apply filter
 			await filterSelect.selectOption('true');
-			await page.waitForTimeout(100);
 
 			// Row count should decrease
-			const filteredRowCount = await page.locator('table tbody tr').count();
-			expect(filteredRowCount).toBeLessThan(initialRowCount);
-			expect(filteredRowCount).toBe(2); // Alice and Charlie
+			await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 2000 });
+			expect(2).toBeLessThan(initialRowCount);
 
 			// Clear filter
 			await filterSelect.selectOption('');
-			await page.waitForTimeout(100);
 
 			// Back to original count
-			expect(await page.locator('table tbody tr').count()).toBe(initialRowCount);
+			await expect(page.locator('table tbody tr')).toHaveCount(initialRowCount, { timeout: 2000 });
 		}
 	});
 
@@ -520,8 +513,9 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
-		// Wait for data to load from store polling
-		await page.waitForTimeout(1500);
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
 
 		const rows = page.locator('table tbody tr');
 		const initialRowCount = await rows.count();
@@ -529,13 +523,8 @@ test.describe('DataTable - Component Functionality', () => {
 
 		// Sort by multiple columns in sequence
 		await page.locator('th:has-text("Name")').click();
-		await page.waitForTimeout(100);
-
 		await page.locator('th:has-text("RSSI")').click();
-		await page.waitForTimeout(100);
-
 		await page.locator('th:has-text("Dist")').click();
-		await page.waitForTimeout(100);
 
 		// Table should still be functional and retain all rows after sorting
 		const postSortRowCount = await rows.count();
