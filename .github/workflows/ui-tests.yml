@@ -1,0 +1,36 @@
+name: UI Tests
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'ui/**'
+  pull_request:
+    paths:
+      - 'ui/**'
+  workflow_dispatch:
+
+jobs:
+  ui-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ui
+        run: npm install
+
+      - name: Install Playwright browsers
+        working-directory: ui
+        run: npx playwright install --with-deps chromium
+
+      - name: Run UI tests
+        working-directory: ui
+        run: npm test
