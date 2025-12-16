@@ -1,18 +1,16 @@
 <script lang="ts">
-    import SvelteTable from "svelte-table";
+    import DataTable, { type Column } from "$lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
     import { configs, events, enroll, cancelEnroll } from "$lib/stores";
-    import type { Config, Events, TableColumn } from "$lib/types";
+    import type { Config, Events } from "$lib/types";
 
     let name = $state("");
     let id = $state("");
     let deviceType = $state("");
     let showModal = $state(false);
     let showEditModal = $state(false);
-    let filterSelections = $state({});
     let sortBy = $state("alias");
-    let sortOrder = $state<-1 | 0 | 1>(1);
-    let selectedRowIds = $state([]);
+    let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
 
     function onSelectExisting(event: Event) {
@@ -126,8 +124,8 @@
         }
     }
 
-    function onRowClick(event: CustomEvent<{ row: Config }>) {
-        editingConfig = { ...event.detail.row };
+    function onRowClick(row: Config) {
+        editingConfig = { ...row };
         showEditModal = true;
     }
 
@@ -137,7 +135,7 @@
         return [minutes, remainingSeconds].map((val) => val.toString().padStart(2, "0")).join(":");
     }
 
-    const columns: TableColumn<Config>[] = [
+    const columns: Column[] = [
         {
             key: "alias",
             title: "Alias",
@@ -162,9 +160,7 @@
                 if (!v.alias) return "";
                 const colonIndex = v.alias.indexOf(":");
                 return colonIndex !== -1 ? v.alias.substring(0, colonIndex + 1) : "";
-            },
-            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
-            class: "px-6 py-4",
+            }
         },
         {
             key: "id",
@@ -190,9 +186,7 @@
                 if (!v.id) return "";
                 const colonIndex = v.id.indexOf(":");
                 return colonIndex !== -1 ? v.id.substring(0, colonIndex + 1) : "";
-            },
-            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
-            class: "px-6 py-4",
+            }
         },
         {
             key: "name",
@@ -212,24 +206,18 @@
                 });
                 return Object.values(letrs).sort((a, b) => a.name.localeCompare(b.name));
             },
-            filterValue: (v: Config) => v.name?.charAt(0)?.toLowerCase() ?? "",
-            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
-            class: "px-6 py-4",
+            filterValue: (v: Config) => v.name?.charAt(0)?.toLowerCase() ?? ""
         },
         {
             key: "rssi@1m",
             title: "RSSI@1m",
-            value: (v: Config) => v["rssi@1m"] ?? 0,
-            renderValue: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
-            sortable: true,
-            headerClass: "px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider",
-            class: "px-6 py-4 whitespace-nowrap",
+            value: (v: Config) => (v["rssi@1m"] != null ? `${v["rssi@1m"]} dBm` : ""),
+            sortValue: (v: Config) => v["rssi@1m"] ?? Number.POSITIVE_INFINITY,
+            sortable: true
         },
     ];
 
-    function classNameRow(c: Config) {
-        return "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
-    }
+    const rowClass = "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
 </script>
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
@@ -246,25 +234,16 @@
 
         {#if $configs != null}
             <div class="overflow-x-auto">
-                <SvelteTable
+                <DataTable
                     {columns}
                     rows={tableRows}
-                    rowKey="id"
+                    {sortBy}
                     bind:filterSelections
-                    bind:sortBy
-                    bind:sortOrder
-                    selectSingle={true}
-                    selectOnClick={true}
-                    bind:selected={selectedRowIds}
                     classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
-                    classNameThead="bg-gray-100 dark:bg-gray-700"
-                    classNameTbody="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700"
-                    {classNameRow}
-                    classNameRowSelected="bg-blue-50 dark:bg-blue-900"
-                    classNameCell="text-sm text-gray-900 dark:text-gray-300"
-                    classNameInput="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    classNameSelect="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                    on:clickRow={onRowClick}
+                    classNameTh="px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider bg-gray-100 dark:bg-gray-700"
+                    classNameTd="px-6 py-4 text-sm text-gray-900 dark:text-gray-300 whitespace-nowrap"
+                    rowClass={rowClass}
+                    onclickRow={(event) => onRowClick(event.row)}
                 />
             </div>
         {:else}

@@ -21,7 +21,7 @@ export const roomName = readable<string>('', function start(set) {
             .catch((ex) => {
                 outstanding = false;
                 if (errors++ > 5) set('');
-                console.log(ex);
+                console.error('Failed to fetch room name:', ex);
             });
     }, 1000);
 
@@ -74,7 +74,7 @@ export const configs = readable<Configs | null>({ room: '', configs: [] }, funct
             .catch((ex) => {
                 outstanding = false;
                 if (errors++ > 5) set(null);
-                console.log(ex);
+                console.error('Failed to fetch configs:', ex);
             });
     }, 1000);
 
@@ -99,7 +99,7 @@ export const devices = readable<Devices | null>({ room: '', devices: [] }, funct
             .catch((ex) => {
                 outstanding = false;
                 if (errors++ > 5) set(null);
-                console.log(ex);
+                console.error('Failed to fetch devices:', ex);
             });
     }, 1000);
 
@@ -153,7 +153,19 @@ export const extraSettings = writable<ExtraSettings | null>(null, function start
         })
         .catch((ex) => {
             set(null);
-            console.log(ex);
+            console.error('Failed to fetch extra settings:', ex);
+        });
+});
+
+export const hardwareSettings = writable<ExtraSettings | null>(null, function start(set) {
+    fetch("/wifi/hardware")
+        .then(d => d.json())
+        .then((r: ExtraSettings) => {
+            set(r);
+        })
+        .catch((ex) => {
+            set(null);
+            console.error('Failed to fetch hardware settings:', ex);
         });
 });
 
@@ -165,6 +177,6 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
         })
         .catch((ex) => {
             set(null);
-            console.log(ex);
+            console.error('Failed to fetch main settings:', ex);
         });
 });

@@ -242,9 +242,8 @@ test.describe('Device Re-enrollment Functionality', () => {
     // Wait for name input to be populated first
     await expect(nameInput).toHaveValue('John Phone');
     
-    // Then check ID input (after giving it a moment to update)
-    await page.waitForTimeout(100);
-    await expect(idInput).toHaveValue('phone:john-phone');
+    // Then check ID input with auto-wait for update
+    await expect(idInput).toHaveValue('phone:john-phone', { timeout: 2000 });
   });
 
   test('should allow enrolling a new device under existing alias', async ({ page }) => {
@@ -270,8 +269,7 @@ test.describe('Device Re-enrollment Functionality', () => {
     
     // Keep the existing alias - use more flexible selector
     const idInput = page.locator('input[type="text"]').last();
-    await page.waitForTimeout(100);
-    await expect(idInput).toHaveValue('phone:john-phone');
+    await expect(idInput).toHaveValue('phone:john-phone', { timeout: 2000 });
     
     // Mock enrollment process
     await page.route('/json/enroll', async route => {

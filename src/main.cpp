@@ -181,11 +181,20 @@ void setupNetwork() {
 
     Updater::ConnectToWifi();
 
+    // Mark endpoint boundary: settings registered after this belong to /wifi/extras endpoint
     HeadlessWiFiSettings.markExtra();
 
+    // Register BLE scanning and fingerprinting settings (part of extras endpoint)
+    BleFingerprintCollection::ConnectToWifi();
+
+    // Mark endpoint boundary: settings registered after this belong to /wifi/hardware endpoint
+    // IMPORTANT: This order matters! BleFingerprintCollection must be registered before
+    // this line to ensure BLE settings appear in /wifi/extras, not /wifi/hardware
+    HeadlessWiFiSettings.markEndpoint("hardware");
+
+    // Register hardware settings (LEDs, PIR, I2C, etc.) - part of hardware endpoint
     GUI::ConnectToWifi();
 
-    BleFingerprintCollection::ConnectToWifi();
     Motion::ConnectToWifi();
     Switch::ConnectToWifi();
     Button::ConnectToWifi();
@@ -663,4 +672,5 @@ void loop() {
     HX711::Loop();
     DS18B20::Loop();
 #endif
+
 }
