@@ -1,68 +1,60 @@
 import { test, expect } from '@playwright/test';
 
-// Mock data for devices and fingerprints pages
-const mockDevices = {
+// Mock data for devices page (uses /json/configs endpoint)
+const mockConfigs = {
 	room: 'test-room',
-	devices: [
+	configs: [
 		{
 			id: 'apple:1005:1-2',
-			name: 'iPhone 13',
-			mac: 'aa:bb:cc:dd:ee:ff',
-			rssi: -45,
-			'rssi@1m': -65,
-			distance: 1.2,
-			var: 0.15,
-			int: 100,
-			vis: true,
-			close: false
+			alias: 'apple:iphone-13',
+			name: 'Zara iPhone',
+			'rssi@1m': -65
 		},
 		{
 			id: 'apple:1005:1-3',
+			alias: 'apple:macbook-pro',
 			name: 'MacBook Pro',
-			mac: '11:22:33:44:55:66',
-			rssi: -65,
-			'rssi@1m': -70,
-			distance: 3.5,
-			var: 0.25,
-			int: 200,
-			vis: true,
-			close: false
+			'rssi@1m': -70
 		},
 		{
 			id: 'tile:1234',
-			name: 'Tile Tracker',
-			mac: '77:88:99:aa:bb:cc',
-			rssi: -55,
-			'rssi@1m': -60,
-			distance: 2.1,
-			var: 0.18,
-			int: 150,
-			vis: true,
-			close: false
+			alias: 'tile:tracker',
+			name: 'Alice Tracker',
+			'rssi@1m': -60
 		}
 	]
 };
 
-const mockFingerprints = {
+// Mock data for fingerprints page (uses /json/devices endpoint)
+const mockDevices = {
 	room: 'test-room',
-	configs: [
+	devices: [
 		{
-			id: 'aabbccddeeff',
+			id: 'apple:alice-phone',
 			name: 'Alice Phone',
-			calRssi: -65,
-			query: true
+			rssi: -45,
+			'rssi@1m': -65,
+			distance: 1.2,
+			var: 0.15,
+			vis: true
 		},
 		{
-			id: '112233445566',
+			id: 'apple:bob-watch',
 			name: 'Bob Watch',
-			calRssi: -70,
-			query: false
+			rssi: -65,
+			'rssi@1m': -70,
+			distance: 3.5,
+			var: 0.25,
+			vis: false
 		},
 		{
-			id: '778899aabbcc',
+			id: 'tile:charlie-tracker',
 			name: 'Charlie Tracker',
-			calRssi: -60,
-			query: true
+			rssi: -55,
+			'rssi@1m': -60,
+			distance: 2.1,
+			var: 0.18,
+			vis: true
 		}
 	]
 };
@@ -78,11 +70,11 @@ test.describe('DataTable - Devices Page', () => {
 			});
 		});
 
-		await page.route('**/json/devices?showAll', async (route) => {
+		await page.route('**/json/configs', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify(mockDevices)
+				body: JSON.stringify(mockConfigs)
 			});
 		});
 
@@ -102,16 +94,16 @@ test.describe('DataTable - Devices Page', () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 5000 });
 
-		// Check table headers exist (using abbreviated column names)
+		// Check table headers exist
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
 		await expect(page.locator('th:has-text("ID")')).toBeVisible();
-		await expect(page.locator('th:has-text("RSSI")')).toBeVisible();
-		await expect(page.locator('th:has-text("Dist")')).toBeVisible();
+		await expect(page.locator('th:has-text("Alias")')).toBeVisible();
+		await expect(page.locator('th:has-text("RSSI@1m")')).toBeVisible();
 
 		// Check data is displayed
-		await expect(page.locator('text=iPhone 13')).toBeVisible();
+		await expect(page.locator('text=Zara iPhone')).toBeVisible();
 		await expect(page.locator('text=MacBook Pro')).toBeVisible();
-		await expect(page.locator('text=Tile Tracker')).toBeVisible();
+		await expect(page.locator('text=Alice Tracker')).toBeVisible();
 	});
 
 	test('should sort table by clicking column headers', async ({ page }) => {
@@ -210,11 +202,11 @@ test.describe('DataTable - Fingerprints Page', () => {
 			});
 		});
 
-		await page.route('**/json/configs', async (route) => {
+		await page.route('**/json/devices*', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify(mockFingerprints)
+				body: JSON.stringify(mockDevices)
 			});
 		});
 
@@ -231,17 +223,19 @@ test.describe('DataTable - Fingerprints Page', () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 5000 });
 
-		// Check headers
+		// Check headers (fingerprints page has Visible, Dist, Var, ID, Name, RSSI columns)
 		await expect(page.locator('th:has-text("Name")')).toBeVisible();
 		await expect(page.locator('th:has-text("ID")')).toBeVisible();
+		await expect(page.locator('th:has-text("Dist")')).toBeVisible();
 
-		// Check data
+		// Fingerprints page defaults to showing only vis:true items
+		// So Alice Phone and Charlie Tracker should be visible (they have vis: true)
 		await expect(page.locator('text=Alice Phone')).toBeVisible();
-		await expect(page.locator('text=Bob Watch')).toBeVisible();
 		await expect(page.locator('text=Charlie Tracker')).toBeVisible();
+		// Bob Watch has vis: false, so it's hidden by default filter
 	});
 
-	test('should filter fingerprints by query status', async ({ page }) => {
+	test('should filter fingerprints by visibility status', async ({ page }) => {
 		await page.goto('/fingerprints');
 		await page.waitForSelector('table');
 
@@ -253,15 +247,14 @@ test.describe('DataTable - Fingerprints Page', () => {
 		const filterSelect = page.locator('select').first();
 
 		if (await filterSelect.isVisible()) {
-			// Select "query: true" filter
-			await filterSelect.selectOption('true');
+			// Select visible: false filter
+			await filterSelect.selectOption('false');
 
-			// Only Alice Phone and Charlie Tracker should be visible (they have query: true)
-			await expect(page.locator('text=Alice Phone')).toBeVisible();
-			await expect(page.locator('text=Charlie Tracker')).toBeVisible();
+			// Only Bob Watch should be visible (vis: false)
+			await expect(page.locator('tbody >> text=Bob Watch')).toBeVisible();
 
-			// Bob Watch should not be visible (query: false)
-			await expect(page.locator('tbody >> text=Bob Watch')).not.toBeVisible();
+			// Alice Phone and Charlie Tracker should not be visible (vis: true)
+			await expect(page.locator('tbody >> text=Alice Phone')).not.toBeVisible();
 
 			// Select "All" to show everything again
 			await filterSelect.selectOption('');
@@ -280,21 +273,28 @@ test.describe('DataTable - Fingerprints Page', () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 5000 });
 
+		// Clear the default visibility filter to show all items
+		const filterSelect = page.locator('select').first();
+		if (await filterSelect.isVisible()) {
+			await filterSelect.selectOption('');
+			await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 2000 });
+		}
+
 		const nameHeader = page.locator('th:has-text("Name")');
 
-		// Click to sort ascending
+		// Click to sort ascending by name
 		await nameHeader.click();
 		await expect(async () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 2000 });
 
-		// Get all names in order
+		// Get all names in order (Name is the 5th column - index 4)
 		const rows = page.locator('table tbody tr');
 		const count = await rows.count();
 		const names: string[] = [];
 
 		for (let i = 0; i < count; i++) {
-			const nameCell = rows.nth(i).locator('td').first();
+			const nameCell = rows.nth(i).locator('td:nth-child(5)');
 			const name = await nameCell.textContent();
 			if (name) names.push(name);
 		}
@@ -313,7 +313,7 @@ test.describe('DataTable - Fingerprints Page', () => {
 		// Get names again
 		const namesReversed: string[] = [];
 		for (let i = 0; i < count; i++) {
-			const nameCell = rows.nth(i).locator('td').first();
+			const nameCell = rows.nth(i).locator('td:nth-child(5)');
 			const name = await nameCell.textContent();
 			if (name) namesReversed.push(name);
 		}
@@ -334,7 +334,15 @@ test.describe('DataTable - Component Functionality', () => {
 			});
 		});
 
-		await page.route('**/json/devices?showAll', async (route) => {
+		await page.route('**/json/configs', async (route) => {
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(mockConfigs)
+			});
+		});
+
+		await page.route('**/json/devices*', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
@@ -349,11 +357,11 @@ test.describe('DataTable - Component Functionality', () => {
 
 	test('should handle empty data gracefully', async ({ page }) => {
 		// Override with empty data
-		await page.route('**/json/devices?showAll', async (route) => {
+		await page.route('**/json/configs', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
-				body: JSON.stringify({ room: 'test-room', devices: [] })
+				body: JSON.stringify({ room: 'test-room', configs: [] })
 			});
 		});
 
@@ -370,20 +378,18 @@ test.describe('DataTable - Component Functionality', () => {
 
 	test('should handle null/undefined values in cells', async ({ page }) => {
 		// Override with data containing null values
-		await page.route('**/json/devices?showAll', async (route) => {
+		await page.route('**/json/configs', async (route) => {
 			await route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
 					room: 'test-room',
-					devices: [
+					configs: [
 						{
 							id: 'test:123',
+							alias: null, // null alias
 							name: null, // null name
-							rssi: -50,
-							distance: null, // null distance
-							interval: 100,
-							lastSeen: 1000
+							'rssi@1m': null // null rssi
 						}
 					]
 				})
@@ -429,8 +435,12 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
-		// Sort by RSSI (numeric)
-		await page.locator('th:has-text("RSSI")').click();
+		await expect(async () => {
+			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
+		}).toPass({ timeout: 5000 });
+
+		// Sort by RSSI@1m (numeric)
+		await page.locator('th:has-text("RSSI@1m")').click();
 
 		const rows = page.locator('table tbody tr');
 		const count = await rows.count();
@@ -438,7 +448,7 @@ test.describe('DataTable - Component Functionality', () => {
 		// Get RSSI values
 		const rssiValues: number[] = [];
 		for (let i = 0; i < count; i++) {
-			const rssiCell = rows.nth(i).locator('td:nth-child(3)'); // Assuming RSSI is 3rd column
+			const rssiCell = rows.nth(i).locator('td:nth-child(4)'); // RSSI@1m is 4th column
 			const text = await rssiCell.textContent();
 			if (text) {
 				const value = parseInt(text.trim());
@@ -452,7 +462,7 @@ test.describe('DataTable - Component Functionality', () => {
 		}
 	});
 
-	test('should display custom rendered components', async ({ page }) => {
+	test('should display table with clickable rows', async ({ page }) => {
 		await page.goto('/devices');
 		await page.waitForSelector('table');
 
@@ -460,22 +470,12 @@ test.describe('DataTable - Component Functionality', () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 5000 });
 
-		// Check if any custom components are rendered (buttons, icons, etc.)
-		// This depends on the actual implementation in devices page
-		const tableButtons = page.locator('table button');
-		const tableLinks = page.locator('table a');
-		const buttonCount = await tableButtons.count();
-		const linkCount = await tableLinks.count();
-		const customElementCount = buttonCount + linkCount;
+		// Check rows have cursor-pointer class for clickability
+		const firstRow = page.locator('table tbody tr').first();
+		const rowClass = await firstRow.getAttribute('class');
+		expect(rowClass).toContain('cursor-pointer');
 
-		expect(customElementCount).toBeGreaterThan(0);
-		if (buttonCount > 0) {
-			await expect(tableButtons.first()).toBeVisible();
-		} else {
-			await expect(tableLinks.first()).toBeVisible();
-		}
-
-		// Just verify table is functional
+		// Verify table is functional
 		expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 	});
 
@@ -490,22 +490,22 @@ test.describe('DataTable - Component Functionality', () => {
 		const filterSelect = page.locator('select').first();
 
 		if (await filterSelect.isVisible()) {
-			// Count rows with no filter
-			const initialRowCount = await page.locator('table tbody tr').count();
-			expect(initialRowCount).toBe(3);
+			// Fingerprints page defaults to showing only vis:true items (2 rows: Alice, Charlie)
+			// Clear the filter first to show all items
+			await filterSelect.selectOption('');
+			await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 2000 });
 
-			// Apply filter
+			// Apply filter for visible items only
 			await filterSelect.selectOption('true');
 
-			// Row count should decrease
+			// Row count should decrease to 2 (Alice and Charlie have vis: true)
 			await expect(page.locator('table tbody tr')).toHaveCount(2, { timeout: 2000 });
-			expect(2).toBeLessThan(initialRowCount);
 
-			// Clear filter
+			// Clear filter again
 			await filterSelect.selectOption('');
 
-			// Back to original count
-			await expect(page.locator('table tbody tr')).toHaveCount(initialRowCount, { timeout: 2000 });
+			// Back to 3 rows
+			await expect(page.locator('table tbody tr')).toHaveCount(3, { timeout: 2000 });
 		}
 	});
 
@@ -521,16 +521,16 @@ test.describe('DataTable - Component Functionality', () => {
 		const initialRowCount = await rows.count();
 		expect(initialRowCount).toBeGreaterThan(0);
 
-		// Sort by multiple columns in sequence
+		// Sort by multiple columns in sequence (using actual columns: Alias, ID, Name, RSSI@1m)
 		await page.locator('th:has-text("Name")').click();
-		await page.locator('th:has-text("RSSI")').click();
-		await page.locator('th:has-text("Dist")').click();
+		await page.locator('th:has-text("Alias")').click();
+		await page.locator('th:has-text("RSSI@1m")').click();
 
 		// Table should still be functional and retain all rows after sorting
 		const postSortRowCount = await rows.count();
 		expect(postSortRowCount).toBe(initialRowCount);
 
 		// Last sorted column should have indicator
-		await expect(page.locator('th:has-text("Dist") >> span')).toBeVisible();
+		await expect(page.locator('th:has-text("RSSI@1m") >> span')).toBeVisible();
 	});
 });
