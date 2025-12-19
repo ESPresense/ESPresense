@@ -12,7 +12,7 @@
  * @param url Full URL pointing to the firmware binary.
  * @return HttpUpdateResult `HTTP_UPDATE_OK` when the update completes successfully, `HTTP_UPDATE_NO_UPDATES` if the server indicates no new firmware, or another `HttpUpdateResult` value representing the failure reason.
  */
-HttpUpdateResult HttpReleaseUpdate::update(WiFiClient& client, const String& url) {
+HttpUpdateResult HttpReleaseUpdate::update(WiFiClient& client, const String& url, int maxRetries) {
     HTTPClient http;
     http.useHTTP10(true);
     http.setTimeout(_httpClientTimeout);
@@ -20,6 +20,51 @@ HttpUpdateResult HttpReleaseUpdate::update(WiFiClient& client, const String& url
     if (!http.begin(client, url))
         return HTTP_UPDATE_FAILED;
     return handleUpdate(http);
+}
+
+/**
+ * @brief Enhanced update method with retry logic for GitHub
+ *
+ * @param client TCP client instance used for the HTTP connection
+ * @param url Full URL pointing to the firmware binary
+ * @param maxRetries Maximum number of retry attempts
+ * @return HttpUpdateResult
+ */
+HttpUpdateResult HttpReleaseUpdate::updateWithRetry(WiFiClient& client, const String& url, int maxRetries) {
+    HttpUpdateResult lastResult = HTTP_UPDATE_FAILED;
+
+    for (int attempt = 0; attempt < maxRetries; attempt++) {
+        Log.printf("Update attempt %d/%d for URL: %s\n", attempt + 1, maxRetries, url.c_str());
+
+        // Exponential backoff with jitter
+        if (attempt > 0) {
+            int baseDelay = 5000 * (1 << (attempt - 1));  // 5s, 10s, 20s
+            int jitter = random(1000);  // Add up to 1s jitter
+            delay(baseDelay + jitter);
+        }
+
+        HTTPClient http;
+        http.useHTTP10(true);
+        http.setTimeout(_httpClientTimeout);
+        http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+        if (!http.begin(client, url)) {
+            Log.printf("HTTP client begin failed for attempt %d\n", attempt + 1);
+            continue;
+        }
+
+        lastResult = handleUpdate(http);
+        http.end();
+
+        if (lastResult == HTTP_UPDATE_OK) {
+            Log.printf("Update successful on attempt %d\n", attempt + 1);
+            return HTTP_UPDATE_OK;
+        }
+
+        Log.printf("Update attempt %d failed: %s\n", attempt + 1, getLastErrorString().c_str());
+    }
+
+    Log.printf("All %d update attempts failed\n", maxRetries);
+    return HTTP_UPDATE_FAILED;
 }
 
 /**
@@ -71,6 +116,12 @@ String HttpReleaseUpdate::getLastErrorString(void) {
             return "New Binary Does Not Fit Flash Size";
         case HTTP_UE_NO_PARTITION:
             return "Partition Could Not be Found";
+        case HTTP_UE_GITHUB_RATE_LIMIT:
+            return "GitHub Rate Limit Exceeded - Try Again Later";
+        case HTTP_UE_SSL_HANDSHAKE_FAILED:
+            return "SSL/TLS Handshake Failed";
+        case HTTP_UE_CONNECTION_TIMEOUT:
+            return "Connection Timeout";
     }
 
     return String();

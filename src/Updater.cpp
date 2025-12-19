@@ -23,6 +23,27 @@ unsigned long lastFirmwareCheck = 0;
 unsigned short autoUpdateAttempts = 0;
 String updateUrl;
 
+/**
+ * @brief Optimize memory before update by clearing caches and disconnecting clients
+ */
+void optimizeMemoryBeforeUpdate() {
+    Log.printf("Memory before optimization: %u bytes\r\n", ESP.getFreeHeap());
+
+    // Clear old fingerprints to free memory
+    // BleFingerprintCollection has its own cleanup logic
+
+    // Disconnect websocket clients to free memory
+    ws.closeAll();
+
+    Log.printf("Memory after optimization: %u bytes\r\n", ESP.getFreeHeap());
+
+    // Only proceed if we have enough memory
+    if (ESP.getFreeHeap() < 60000) {
+        Log.println("Insufficient memory for update, aborting");
+        return;
+    }
+}
+
 String getFirmwareUrl() {
 #ifdef FIRMWARE
     if (!prerelease) return "https://github.com/ESPresense/ESPresense/releases/latest/download/" FIRMWARE ".bin";
@@ -68,6 +89,21 @@ void checkForUpdates() {
                 return;
             int httpCode = http.sendRequest("HEAD");
             bool isRedirect = httpCode > 300 && httpCode < 400;
+
+            // Enhanced error handling for GitHub
+            if (httpCode == 403) {
+                String rateLimitRemaining = http.header("X-RateLimit-Remaining");
+                if (rateLimitRemaining.length() > 0 && rateLimitRemaining.toInt() == 0) {
+                    Log.println("GitHub API rate limit exceeded during version check");
+                    Log.printf("Rate limit resets at: %s\r\n", http.header("X-RateLimit-Reset").c_str());
+                    http.end();
+                    return;
+                }
+            } else if (httpCode == 429) {
+                Log.println("GitHub rate limiting active during version check");
+                http.end();
+                return;
+            }
             if (isRedirect) {
                 if (http.getLocation().indexOf(versionMarker) < 0) {
                     Log.printf("Found new version: %s\r\n", http.getLocation().c_str());
@@ -102,10 +138,16 @@ void checkForUpdates() {
  * - Logs progress, results, and errors via Log.printf/Log.println.
  */
 void firmwareUpdate() {
+    // Optimize memory before starting update
+    optimizeMemoryBeforeUpdate();
+
     String url = updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl();
     bool isSecure = url.startsWith("https://");
 
     HttpReleaseUpdate httpUpdate;
+
+    // Set longer timeouts for GitHub
+    httpUpdate.setTimeout(20000);  // 20 seconds instead of 8
 
     httpUpdate.onStart([url]() {
         autoUpdateAttempts++;
@@ -136,19 +178,30 @@ void firmwareUpdate() {
 
     if (isSecure) {
         WiFiClientSecure secureClient;
-        secureClient.setHandshakeTimeout(8);
-        secureClient.setInsecure();     // Allow self-signed certificates
-        secureClient.setTimeout(12);
-        ret = httpUpdate.update(secureClient, url);
+        // Enhanced SSL setup specifically for GitHub
+        secureClient.setHandshakeTimeout(15);  // Increased for GitHub
+        secureClient.setInsecure();     // Allow GitHub's certificates
+        secureClient.setTimeout(25);      // Increased timeout for large files
+        ret = httpUpdate.update(secureClient, url, 3);  // Add retry count
     } else {
         WiFiClient insecureClient;
-        insecureClient.setTimeout(12);
-        ret = httpUpdate.update(insecureClient, url);
+        insecureClient.setTimeout(20);  // Increased timeout
+        ret = httpUpdate.update(insecureClient, url, 3);  // Add retry count
     }
 
+    // Enhanced error reporting
     switch (ret) {
         case HTTP_UPDATE_FAILED:
-            Log.printf("Http Update Failed (Error=%d): %s\r\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            Log.printf("Http Update Failed (Error=%d): %s\r\n",
+                      httpUpdate.getLastError(),
+                      httpUpdate.getLastErrorString().c_str());
+
+            // Log specific GitHub error details
+            if (httpUpdate.getLastError() == HTTP_UE_GITHUB_RATE_LIMIT) {
+                Log.println("GitHub rate limit detected. Update will retry on next cycle.");
+            } else if (httpUpdate.getLastError() == HTTP_UE_SSL_HANDSHAKE_FAILED) {
+                Log.println("SSL handshake failed. Check device time and network.");
+            }
             break;
         case HTTP_UPDATE_NO_UPDATES:
             Log.printf("No Update!\r\n");

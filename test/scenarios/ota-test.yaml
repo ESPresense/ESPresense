@@ -1,0 +1,61 @@
+# Wokwi CI Test Scenario for OTA Updates
+# This scenario tests the complete OTA update flow
+
+name: "ESPresense OTA Update Test"
+version: 1
+
+steps:
+  # Step 1: Wait for device to boot and initialize
+  - name: "Wait for device boot"
+    wait-for-text: "ESPresense"
+    timeout: 30000  # 30 seconds
+
+  # Step 2: Wait for WiFi connection
+  - name: "Wait for WiFi initialization"
+    wait-for-text: "WiFi"
+    timeout: 60000  # 60 seconds
+
+  # Step 3: Wait for device to be ready
+  - name: "Wait for device ready state"
+    sleep: 5000  # 5 seconds
+
+  # Step 4: Trigger OTA update via serial command or HTTP
+  # This depends on your specific implementation
+  # Option A: Via serial command (if supported)
+  - name: "Trigger OTA update"
+    send-text: "update http://host.wokwi.internal:8080/esp32.bin\n"
+    wait-for-text: "Starting firmware update"
+    timeout: 10000
+
+  # Step 5: Wait for update to start downloading
+  - name: "Wait for download start"
+    wait-for-text: "Update"
+    timeout: 30000
+
+  # Step 6: Wait for update to complete
+  # The firmware should log "Update OK" or similar
+  - name: "Wait for update completion"
+    wait-for-text: "Update OK|Update complete|Firmware update completed"
+    timeout: 120000  # 2 minutes for download and flash
+
+  # Step 7: Verify success
+  - name: "Verify OTA success"
+    send-text: "\n"
+    sleep: 2000
+
+# Expected outcomes
+expect:
+  - text: "Update OK"
+    description: "Firmware update completed successfully"
+
+# Failure conditions
+fail-on:
+  - text: "Update Failed|Error|FAILED"
+    description: "OTA update failed"
+  - text: "Insufficient memory"
+    description: "Not enough memory for OTA update"
+
+# Network configuration for the test
+network:
+  # Allow access to host machine for firmware download
+  allow-host: true
