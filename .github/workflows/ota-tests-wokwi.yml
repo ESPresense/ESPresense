@@ -72,7 +72,7 @@ jobs:
   wokwi-ota-test:
     runs-on: ubuntu-latest
     needs: build-firmware
-    if: ${{ secrets.WOKWI_CLI_TOKEN != '' }}
+    if: ${{ env.WOKWI_CLI_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v6
 
@@ -124,7 +124,7 @@ jobs:
   github-connectivity-test:
     runs-on: ubuntu-latest
     needs: build-firmware
-    if: ${{ secrets.WOKWI_CLI_TOKEN == '' }}
+    if: ${{ env.WOKWI_CLI_TOKEN == '' }}
     steps:
       - uses: actions/checkout@v6
 
