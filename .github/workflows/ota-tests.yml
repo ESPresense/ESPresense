@@ -99,7 +99,6 @@ jobs:
   qemu-ota-test:
     runs-on: ubuntu-latest
     needs: build-firmware
-    continue-on-error: true  # QEMU ESP32 support may not be available
     steps:
       - uses: actions/checkout@v6
 
@@ -111,21 +110,9 @@ jobs:
 
       - name: Run ESP32 OTA Test in QEMU
         uses: batov/esp32_qemu_runner@v4.4
-        id: qemu_test
-        continue-on-error: true
         with:
           idf_version: '4.4'
           firmware_path: './firmware/firmware.bin'
-
-      - name: Check QEMU test results
-        if: always()
-        run: |
-          if [ "${{ steps.qemu_test.outcome }}" == "success" ]; then
-            echo "✓ QEMU OTA test completed successfully"
-          else
-            echo "⚠️  QEMU test skipped or unavailable - this is expected"
-            echo "ℹ️  QEMU ESP32 support is limited. Consider using Wokwi CI for full emulation."
-          fi
 
       - name: Verify GitHub connectivity and SSL
         run: |
