@@ -99,6 +99,8 @@ jobs:
   qemu-ota-test:
     runs-on: ubuntu-latest
     needs: build-firmware
+    container:
+      image: docker.io/svenstaro/qemu-espressif:latest
     steps:
       - uses: actions/checkout@v6
 
@@ -107,19 +109,6 @@ jobs:
         with:
           name: firmware-esp32
           path: ./firmware
-
-      - name: Install QEMU ESP32
-        run: |
-          # Install Espressif QEMU fork with ESP32 support
-          sudo apt-get update
-          sudo apt-get install -y wget xz-utils
-
-          # Download pre-built QEMU from Espressif
-          wget -q https://github.com/espressif/qemu/releases/download/esp-develop-20210220/qemu-esp-develop-20210220-x86_64.tar.bz2
-          tar -xf qemu-esp-develop-20210220-x86_64.tar.bz2
-          sudo mv qemu /opt/
-
-          echo "/opt/qemu/bin" >> $GITHUB_PATH
 
       - name: Verify firmware build
         run: |
@@ -140,7 +129,7 @@ jobs:
       - name: Run firmware in QEMU
         timeout-minutes: 5
         run: |
-          echo "Running ESP32 firmware in QEMU..."
+          echo "Running ESP32 firmware in QEMU (using svenstaro/qemu-espressif container)..."
 
           # Run QEMU with the firmware binary
           # Timeout after 30 seconds and capture output
