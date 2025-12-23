@@ -6,7 +6,6 @@ version = 1
 elf = "./firmware/firmware.elf"
 firmware = "./firmware/firmware.bin"
 
-# Use ESP32 DevKit v1 board
 [[wokwi.parts]]
-type = "board-esp32-devkit-c-v4"
+type = "wokwi-esp32-devkit-v1"
 id = "esp"
