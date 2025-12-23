@@ -3,8 +3,8 @@
 
 [wokwi]
 version = 1
-elf = ".pio/build/esp32/firmware.elf"
-firmware = ".pio/build/esp32/firmware.bin"
+elf = "./firmware/firmware.elf"
+firmware = "./firmware/firmware.bin"
 
 # Use ESP32 DevKit v1 board
 [[wokwi.parts]]

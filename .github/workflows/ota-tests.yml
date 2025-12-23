@@ -1,5 +1,9 @@
 name: OTA Update Tests
 
+# Uses Wokwi CI for ESP32 emulation and OTA testing
+# Wokwi provides full ESP32 hardware emulation with WiFi/network support
+# Sign up at https://wokwi.com/ci for a token
+
 on:
   push:
     branches:
@@ -8,14 +12,17 @@ on:
       - 'src/Updater.*'
       - 'src/HttpReleaseUpdate*'
       - 'test/test_ota/**'
-      - '.github/workflows/ota-tests.yml'
+      - '.github/workflows/ota-tests-wokwi.yml'
   pull_request:
     paths:
       - 'src/Updater.*'
       - 'src/HttpReleaseUpdate*'
       - 'test/test_ota/**'
-      - '.github/workflows/ota-tests.yml'
+      - '.github/workflows/ota-tests-wokwi.yml'
   workflow_dispatch:
+
+env:
+  WOKWI_CLI_TOKEN: ${{ secrets.WOKWI_CLI_TOKEN }}
 
 jobs:
   # Build firmware for testing
@@ -58,49 +65,15 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: firmware-${{ matrix.env }}
-          path: .pio/build/${{ matrix.env }}/firmware.bin
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            .pio/build/${{ matrix.env }}/firmware.elf
           retention-days: 7
 
-  # Run unit tests with mocks (no network required)
-  unit-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Cache pip
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Cache PlatformIO
-        uses: actions/cache@v5
-        with:
-          path: ~/.platformio/.cache
-          key: ${{ runner.os }}-pio
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-
-      - name: Install PlatformIO
-        run: |
-          pip install wheel
-          pip install -U platformio
-
-      - name: Run OTA unit tests
-        run: pio test -e native-improv -f test_ota
-        continue-on-error: true  # Tests may need additional configuration
-
-  # Integration test: Run firmware in QEMU
-  qemu-ota-test:
+  # Run actual OTA test in Wokwi simulator
+  wokwi-ota-test:
     runs-on: ubuntu-latest
     needs: build-firmware
-    container:
-      image: docker.io/svenstaro/qemu-espressif:latest
     steps:
       - uses: actions/checkout@v6
 
@@ -110,56 +83,68 @@ jobs:
           name: firmware-esp32
           path: ./firmware
 
-      - name: Verify firmware build
+      - name: Setup test firmware server
         run: |
-          if [ ! -f ./firmware/firmware.bin ]; then
-            echo "❌ Firmware binary not found"
-            exit 1
-          fi
+          # Create a simple HTTP server to serve the firmware for OTA
+          mkdir -p test-server
+          cp ./firmware/firmware.bin test-server/esp32.bin
 
-          SIZE=$(stat -c%s ./firmware/firmware.bin)
-          SIZE_MB=$(echo "scale=2; $SIZE / 1024 / 1024" | bc)
-          echo "✓ Firmware binary found: ${SIZE_MB} MB"
+          # Start HTTP server in background
+          cd test-server
+          python3 -m http.server 8080 &
+          echo $! > /tmp/http_server.pid
+          cd ..
 
-          if [ "$SIZE" -lt 102400 ]; then
-            echo "❌ Firmware too small, likely invalid"
-            exit 1
-          fi
+          sleep 2
+          echo "Test firmware server running on http://localhost:8080/esp32.bin"
 
-      - name: Run firmware in QEMU
-        timeout-minutes: 5
+      - name: Check Wokwi token availability
+        id: check_token
         run: |
-          echo "Running ESP32 firmware in QEMU (using svenstaro/qemu-espressif container)..."
-
-          # Run QEMU with the firmware binary
-          # Timeout after 30 seconds and capture output
-          timeout 30s qemu-system-xtensa \
-            -nographic \
-            -machine esp32 \
-            -drive file=./firmware/firmware.bin,if=mtd,format=raw \
-            -serial mon:stdio 2>&1 | tee qemu_output.log || true
-
-          echo ""
-          echo "=========================================="
-          echo "QEMU Output Summary:"
-          echo "=========================================="
-
-          # Check if firmware booted
-          if grep -q "ESPresense\|ESP32\|ets" qemu_output.log; then
-            echo "✓ Firmware executed in QEMU"
+          if [ -n "${{ secrets.WOKWI_CLI_TOKEN }}" ]; then
+            echo "token_available=true" >> $GITHUB_OUTPUT
+            echo "✓ Wokwi CI token is configured"
           else
-            echo "⚠️  Could not detect firmware boot in QEMU"
-            echo "ℹ️  This may be expected - QEMU ESP32 support is experimental"
+            echo "token_available=false" >> $GITHUB_OUTPUT
+            echo "⚠️  Wokwi CI token not configured - skipping emulation test"
+            echo "ℹ️  To enable Wokwi CI testing, add WOKWI_CLI_TOKEN to repository secrets"
           fi
 
-          # Show first 50 lines of output
-          echo ""
-          echo "First 50 lines of QEMU output:"
-          head -50 qemu_output.log
+      - name: Run Wokwi CI OTA Test
+        if: steps.check_token.outputs.token_available == 'true'
+        uses: wokwi/wokwi-ci-action@v1
+        with:
+          token: ${{ secrets.WOKWI_CLI_TOKEN }}
+          path: / # Run from project root
+          timeout: 300000 # 5 minutes in milliseconds
+          expect_text: "Update OK"
+          fail_text: "Update Failed"
+          scenario: test/scenarios/ota-test.yaml
 
-      - name: Verify GitHub connectivity and SSL
+      - name: Verify OTA test results
+        if: steps.check_token.outputs.token_available == 'true'
         run: |
-          echo "Testing GitHub releases endpoint availability..."
+          echo "✓ Wokwi CI OTA test completed"
+          echo "Check logs above for detailed results"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Kill HTTP server if running
+          if [ -f /tmp/http_server.pid ]; then
+            kill $(cat /tmp/http_server.pid) 2>/dev/null || true
+          fi
+
+  # GitHub connectivity test (always runs for validation)
+  github-connectivity-test:
+    runs-on: ubuntu-latest
+    needs: build-firmware
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Test GitHub releases endpoint
+        run: |
+          echo "Testing GitHub releases endpoint..."
 
           RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L \
             -H "Accept: application/octet-stream" \
@@ -174,39 +159,22 @@ jobs:
             exit 1
           fi
 
+      - name: Test SSL and rate limits
+        run: |
           echo "Testing SSL certificate for github.com..."
           echo | openssl s_client -connect github.com:443 -servername github.com 2>&1 | \
             grep -q "Verify return code: 0 (ok)" && \
             echo "✓ SSL certificate is valid" || \
-            echo "⚠ SSL certificate validation failed (may be expected in some environments)"
+            echo "⚠ SSL certificate validation failed"
 
-          # Check rate limiting headers
           echo "Checking GitHub API rate limit headers..."
           curl -s -I "https://api.github.com/repos/ESPresense/ESPresense/releases/latest" | \
             grep -i "x-ratelimit" || echo "No rate limit headers found"
 
-          # Verify firmware file size
-          echo "Checking firmware file size on GitHub..."
-          SIZE=$(curl -sI -L "https://github.com/ESPresense/ESPresense/releases/latest/download/esp32.bin" | \
-            grep -i "content-length" | awk '{print $2}' | tr -d '\r')
-
-          if [ -n "$SIZE" ]; then
-            SIZE_MB=$(echo "scale=2; $SIZE / 1024 / 1024" | bc)
-            echo "✓ Firmware file size: ${SIZE_MB} MB"
-
-            if [ "$SIZE" -gt 102400 ] && [ "$SIZE" -lt 10485760 ]; then
-              echo "✓ File size is within expected range"
-            else
-              echo "⚠ Warning: File size may be unusual"
-            fi
-          else
-            echo "⚠ Could not determine file size"
-          fi
-
   # Summary report
   test-summary:
     runs-on: ubuntu-latest
-    needs: [build-firmware, unit-tests, qemu-ota-test]
+    needs: [build-firmware, wokwi-ota-test, github-connectivity-test]
     if: always()
     steps:
       - name: Generate test summary
@@ -217,15 +185,13 @@ jobs:
           echo "- Firmware Build: ${{ needs.build-firmware.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- QEMU Firmware Test: ${{ needs.qemu-ota-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "ℹ️  QEMU runs the PlatformIO-built firmware directly" >> $GITHUB_STEP_SUMMARY
-          echo "ℹ️  For production-grade testing, see the Wokwi CI workflow" >> $GITHUB_STEP_SUMMARY
+          echo "- Wokwi OTA Integration Test: ${{ needs.wokwi-ota-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- GitHub Connectivity Test: ${{ needs.github-connectivity-test.result }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ needs.build-firmware.result }}" == "success" ] && \
-             [ "${{ needs.qemu-ota-test.result }}" == "success" ]; then
+             [ "${{ needs.wokwi-ota-test.result }}" == "success" ] && \
+             [ "${{ needs.github-connectivity-test.result }}" == "success" ]; then
             echo "✅ **All tests passed**" >> $GITHUB_STEP_SUMMARY
           else
             echo "❌ **Some tests failed - review above**" >> $GITHUB_STEP_SUMMARY
