@@ -110,6 +110,18 @@ jobs:
             echo "ℹ️  To enable Wokwi CI testing, add WOKWI_CLI_TOKEN to repository secrets"
           fi
 
+      - name: Debug Wokwi token format
+        if: steps.check_token.outputs.token_available == 'true'
+        run: |
+          TOKEN="${{ secrets.WOKWI_CLI_TOKEN }}"
+          echo "Token length: ${#TOKEN}"
+          echo "First 4 chars: ${TOKEN:0:4}..."
+          echo "Last 4 chars: ...${TOKEN: -4}"
+          # Check if token contains any whitespace or special characters that might cause issues
+          if [[ "$TOKEN" =~ [[:space:]] ]]; then
+            echo "⚠️  Warning: Token contains whitespace"
+          fi
+
       - name: Run Wokwi CI OTA Test
         if: steps.check_token.outputs.token_available == 'true'
         uses: wokwi/wokwi-ci-action@v1
@@ -120,12 +132,21 @@ jobs:
           expect_text: "Update OK"
           fail_text: "Update Failed"
           scenario: test/scenarios/ota-test.yaml
+          serial_log_file: wokwi-serial.log
 
       - name: Verify OTA test results
         if: steps.check_token.outputs.token_available == 'true'
         run: |
           echo "✓ Wokwi CI OTA test completed"
           echo "Check logs above for detailed results"
+
+      - name: Upload serial log
+        if: always() && steps.check_token.outputs.token_available == 'true'
+        uses: actions/upload-artifact@v6
+        with:
+          name: wokwi-serial-log
+          path: wokwi-serial.log
+          if-no-files-found: ignore
 
       - name: Cleanup
         if: always()
