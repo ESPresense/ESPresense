@@ -110,6 +110,18 @@ jobs:
             echo "ℹ️  To enable Wokwi CI testing, add WOKWI_CLI_TOKEN to repository secrets"
           fi
 
+      - name: Debug Wokwi token format
+        if: steps.check_token.outputs.token_available == 'true'
+        run: |
+          TOKEN="${{ secrets.WOKWI_CLI_TOKEN }}"
+          echo "Token length: ${#TOKEN}"
+          echo "First 4 chars: ${TOKEN:0:4}..."
+          echo "Last 4 chars: ...${TOKEN: -4}"
+          # Check if token contains any whitespace or special characters that might cause issues
+          if [[ "$TOKEN" =~ [[:space:]] ]]; then
+            echo "⚠️  Warning: Token contains whitespace"
+          fi
+
       - name: Run Wokwi CI OTA Test
         if: steps.check_token.outputs.token_available == 'true'
         uses: wokwi/wokwi-ci-action@v1
