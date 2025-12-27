@@ -1,0 +1,12 @@
+# Wokwi CI Configuration for ESPresense
+# This file configures the Wokwi simulator for OTA testing
+
+[wokwi]
+version = 1
+elf = "./firmware/firmware.elf"
+firmware = "./firmware/firmware.bin"
+
+# Use ESP32 DevKit v1 board
+[[wokwi.parts]]
+type = "board-esp32-devkit-c-v4"
+id = "esp"
