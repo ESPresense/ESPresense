@@ -65,7 +65,7 @@ bool sentDiscovery = false;  // Have we successfully sent discovery
 UBaseType_t bleStack = 0;
 
 int ethernetType = 0;
-bool mDNS;
+bool mdnsEnabled;
 String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 
