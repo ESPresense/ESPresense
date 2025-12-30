@@ -45,7 +45,10 @@ jobs:
         echo "changes=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
 
     - name: Create Pull Request
-      if: steps.check_changes.outputs.changes > '0'
+      if: |
+        steps.check_changes.outputs.changes > '0' &&
+        (github.event_name == 'push' ||
+         github.event.pull_request.head.repo.full_name == github.repository)
       uses: peter-evans/create-pull-request@v8
       with:
         commit-message: 'chore: update UI build outputs'
@@ -62,3 +65,12 @@ jobs:
         labels: |
           automated pr
           ui
+
+    - name: Changes detected but skipped (fork PR)
+      if: |
+        steps.check_changes.outputs.changes > '0' &&
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name != github.repository
+      run: |
+        echo "UI build outputs changed, but PR creation is skipped for fork PRs"
+        echo "The PR author should run 'npm run build' locally and commit the changes"
