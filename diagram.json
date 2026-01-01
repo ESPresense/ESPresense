@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "author": "ESPresense Team",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} }
+  ],
+  "connections": [],
+  "dependencies": {}
+}
