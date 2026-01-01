@@ -44,6 +44,21 @@ String getVersionMarker() {
 #endif
 }
 
+bool isCurrentVersionPrerelease() {
+#ifdef VERSION
+    String version = VERSION;
+    for (size_t i = 0; i < version.length(); i++) {
+        char c = version.charAt(i);
+        if (!(isdigit(c) || c == '.' || c == 'v' || c == 'V')) {
+            return true;
+        }
+    }
+    return version.indexOf('-') != -1;
+#else
+    return false;
+#endif
+}
+
 /**
  * @brief Checks the firmware endpoint for a newer release and initiates an update when found.
  *
@@ -241,7 +256,7 @@ bool SendDiscovery() {
 
 void ConnectToWifi() {
     autoUpdateEnabled = HeadlessWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
-    prerelease = HeadlessWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    prerelease = HeadlessWiFiSettings.checkbox("prerelease", isCurrentVersionPrerelease(), "Include pre-released versions in auto-update");
     arduinoOtaEnabled = HeadlessWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
     updateUrl = HeadlessWiFiSettings.string("update", "", "If set will update from this url on next boot");
 }
