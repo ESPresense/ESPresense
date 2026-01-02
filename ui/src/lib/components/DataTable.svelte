@@ -10,6 +10,7 @@
         defaultSortDirection?: "asc" | "desc";
         renderComponent?: {
             component: any;
+            props?: Record<string, any>;
         };
         filterOptions?: (rows: any[]) => Array<{ name: string; value: string | boolean }>;
         filterValue?: (row: any) => string | boolean | undefined;
@@ -212,7 +213,8 @@
                     <td class={classNameTd}>
                         {#if column.renderComponent}
                             {@const Component = column.renderComponent.component}
-                            <Component {row} />
+                            {@const componentProps = column.renderComponent.props ?? {}}
+                            <Component {row} {...componentProps} />
                         {:else}
                             {getCellValue(row, column) ?? ""}
                         {/if}
