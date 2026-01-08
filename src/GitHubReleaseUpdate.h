@@ -1,20 +1,22 @@
-#ifndef ___HTTP_RELEASE_UPDATE_H___
-#define ___HTTP_RELEASE_UPDATE_H___
+#ifndef ___GITHUB_RELEASE_UPDATE_H___
+#define ___GITHUB_RELEASE_UPDATE_H___
 
 /**
- * @file HttpReleaseUpdate.h
- * @brief Basic OTA update functionality
+ * @file GitHubReleaseUpdate.h
+ * @brief GitHub-specific OTA update with enhanced reliability
  *
- * NOTE: For GitHub releases, consider using GitHubReleaseUpdate instead,
- * which provides enhanced error handling, automatic retries, and GitHub-specific
- * features like rate limiting detection and SSL configuration.
+ * This class provides GitHub-optimized firmware updates with:
+ * - Automatic retry logic with exponential backoff
+ * - GitHub rate limiting detection and handling
+ * - Enhanced SSL/TLS configuration for GitHub
+ * - Connectivity pre-checks
+ * - Request throttling
+ * - Detailed error reporting
  *
- * See docs/OTA_MIGRATION_GUIDE.md for details.
+ * Use this class for GitHub releases. For simple update scenarios or custom servers,
+ * HttpReleaseUpdate may be more appropriate.
  *
- * This class remains fully supported for:
- * - Custom update servers
- * - Simple update scenarios
- * - When minimal memory overhead is required
+ * See docs/OTA_MIGRATION_GUIDE.md for usage guidance.
  */
 
 #include <Arduino.h>
@@ -22,7 +24,8 @@
 #include <Update.h>
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include <WiFiUdp.h>
+#include <WiFiClientSecure.h>
+#include <esp_ota_ops.h>
 
 #define HTTP_UE_TOO_LESS_SPACE (-100)
 #define HTTP_UE_SERVER_NOT_REPORT_SIZE (-101)
@@ -48,7 +51,7 @@ using HttpUpdateEndCB = std::function<void(bool)>;
 using HttpUpdateErrorCB = std::function<void(int)>;
 using HttpUpdateProgressCB = std::function<void(int, int)>;
 
-class HttpReleaseUpdate {
+class GitHubReleaseUpdate {
    public:
     void setTimeout(int httpClientTimeout) {
         _httpClientTimeout = httpClientTimeout;
@@ -63,8 +66,11 @@ class HttpReleaseUpdate {
         _ledOn = ledOn;
     }
 
+    // Enhanced update method with retry logic for GitHub
     HttpUpdateResult update(WiFiClient& client, const String& url, int maxRetries = 3);
-    HttpUpdateResult updateWithRetry(WiFiClient& client, const String& url, int maxRetries);
+
+    // GitHub-specific update with better error handling
+    HttpUpdateResult updateFromGitHub(const String& firmwareFile, bool isPrerelease = false);
 
     void onStart(HttpUpdateStartCB cbOnStart) { _cbStart = cbOnStart; }
     void onEnd(HttpUpdateEndCB cbOnEnd) { _cbEnd = cbOnEnd; }
@@ -78,6 +84,18 @@ class HttpReleaseUpdate {
     HttpUpdateResult handleUpdate(HTTPClient& http);
     bool runUpdate(Stream& in, uint32_t size);
 
+    // Enhanced client setup for GitHub
+    bool setupGitHubClient(WiFiClientSecure& client);
+    bool testGitHubConnectivity(const String& url);
+
+    // Retry logic with exponential backoff
+    HttpUpdateResult updateWithRetry(WiFiClient& client, const String& url, int maxRetries);
+
+    // GitHub-specific helpers
+    String getGitHubRedirectUrl(const String& releaseUrl);
+    bool isGitHubUrl(const String& url);
+    String extractGitHubApiUrl(const String& releaseUrl);
+
     void _setLastError(int err) {
         _lastError = err;
         if (_cbError) {
@@ -88,7 +106,8 @@ class HttpReleaseUpdate {
     bool _rebootOnUpdate = true;
 
    private:
-    int _httpClientTimeout = 8000;
+    int _httpClientTimeout = 15000;  // Increased timeout for GitHub
+    int _maxRetries = 3;
 
     // Callbacks
     HttpUpdateStartCB _cbStart;
@@ -98,6 +117,11 @@ class HttpReleaseUpdate {
 
     int _ledPin;
     uint8_t _ledOn;
+
+    // GitHub-specific settings
+    String _githubUserAgent = "ESPresense-Firmware-Updater/1.0";
+    unsigned long _lastRequestTime = 0;
+    int _requestCount = 0;
 };
 
 #endif
