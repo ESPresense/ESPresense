@@ -1,0 +1,24 @@
+# Wokwi CI Test Scenario for OTA Updates
+# This scenario tests the complete OTA update flow
+
+name: "ESPresense OTA Update Test"
+version: 1
+
+steps:
+  # Step 1: Wait for device to boot and initialize
+  - wait-serial: "ESPresense"
+
+  # Step 2: Wait for WiFi connection
+  - wait-serial: "WiFi"
+
+  # Step 3: Wait for device to be ready
+  - delay: 5000ms
+
+  # Step 4: Trigger OTA update via serial command
+  - write-serial: "update http://host.wokwi.internal:8080/esp32.bin\n"
+
+  # Step 5: Wait for update to start
+  - wait-serial: "Starting firmware update"
+
+  # Step 6: Wait for update to complete
+  - wait-serial: "Update OK"
