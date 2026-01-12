@@ -139,6 +139,16 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
 
+    // Tiered memory management stats
+    auto dropCnt = BleFingerprintCollection::getDropCount();
+    auto coldCnt = BleFingerprintCollection::getColdCount();
+    auto hotCnt = BleFingerprintCollection::getHotCount();
+    if (dropCnt > 0 || coldCnt > 0) {
+        doc["tierDrop"] = dropCnt;
+        doc["tierCold"] = coldCnt;
+        doc["tierHot"] = hotCnt;
+    }
+
     if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 
     teleFails++;
