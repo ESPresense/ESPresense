@@ -2,6 +2,7 @@
 .piolibdeps
 .clang_complete
 .gcc-flags.json
+compile_commands.json
 .dblite
 Settings_*.h
 .pio
