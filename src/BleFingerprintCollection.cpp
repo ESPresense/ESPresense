@@ -3,6 +3,7 @@
 #include "defaults.h"
 #include "mqtt.h"
 #include "Logger.h"
+#include "BleMemoryTier.h"
 #include <Arduino.h>
 #include <algorithm>
 #include <sstream>
@@ -47,9 +48,28 @@ unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintMutex;
 SemaphoreHandle_t deviceConfigMutex;
 
+// Tiered memory management
+static TieredMemoryConfig memoryConfig;
+static TieredMemoryManager* memoryManager = nullptr;
+
+// Statistics for telemetry
+static uint32_t dropCount = 0;   // Devices dropped before allocation
+static uint32_t coldCount = 0;   // Devices routed to cold tier
+static uint32_t hotCount = 0;    // Devices promoted to hot tier
+
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
+
+    // Initialize tiered memory management
+    // Conservative settings: leave more memory for BLE/WiFi stack
+    memoryConfig.enabled = true;
+    memoryConfig.maxCold = 128;        // 128 * 24 bytes = 3KB in PSRAM/SRAM
+    memoryConfig.minRssi = -90;        // Drop weak signals
+    memoryConfig.minRssiCold = -85;    // Cold tier for moderate signals
+    memoryConfig.criticalHeap = 30000; // 30KB safety margin
+
+    memoryManager = new TieredMemoryManager(memoryConfig);
 }
 
 void Count(BleFingerprint *f, bool counting) {
@@ -72,6 +92,84 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
     BLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
+
+    // --- Tiered Memory Classification ---
+    // This happens BEFORE any heap allocation to prevent OOM
+    if (memoryManager && memoryManager->config().enabled) {
+        // Extract classification inputs from advertisement
+        auto address = copy.getAddress();
+        const uint8_t* mac = address.getNative();
+        int8_t rssi = copy.getRSSI();
+
+        // Get advertisement payload for iBeacon detection
+        const uint8_t* advData = nullptr;
+        size_t advLen = 0;
+        if (copy.haveManufacturerData()) {
+            auto mfr = copy.getManufacturerData();
+            advData = (const uint8_t*)mfr.data();
+            advLen = mfr.length();
+        }
+
+        // Check if device already exists in HOT tier (existing BleFingerprint)
+        bool existsInHot = false;
+        if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) == pdTRUE) {
+            auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(),
+                [&address](BleFingerprint *f) { return f->getAddress() == address; });
+            existsInHot = (it != fingerprints.rend());
+            xSemaphoreGive(fingerprintMutex);
+        }
+
+        // If not already HOT, classify the device
+        if (!existsInHot) {
+            ClassifyResult result = memoryManager->classify(mac, advData, advLen, rssi);
+
+            switch (result) {
+                case ClassifyResult::DROP:
+                    // Weak signal or uninteresting device - skip entirely
+                    dropCount++;
+                    if (onSeen) onSeen(false);
+                    return;  // No heap allocation!
+
+                case ClassifyResult::COLD:
+                    // Store in cold tier, check for promotion
+                    {
+                        uint32_t nowMs = millis();
+                        ColdTier& cold = memoryManager->coldTier();
+                        ColdRecord* existing = cold.lookup(mac);
+
+                        if (existing) {
+                            // Update existing cold record
+                            cold.update(mac, rssi, nowMs);
+
+                            // Promotion criteria: seen 5+ times AND recent strong signal
+                            if (existing->seenCount >= 5 && rssi > -75) {
+                                // Promote to HOT tier - proceed to GetFingerprint
+                                hotCount++;
+                                break;  // Fall through to normal processing
+                            }
+
+                            // Stay in cold tier
+                            coldCount++;
+                            if (onSeen) onSeen(false);
+                            return;
+                        }
+
+                        // New cold record
+                        cold.insert(mac, rssi, nowMs);
+                        coldCount++;
+                        if (onSeen) onSeen(false);
+                        return;
+                    }
+
+                case ClassifyResult::HOT:
+                    // High-value device (known MAC, iBeacon) - promote immediately
+                    hotCount++;
+                    break;  // Fall through to normal processing
+            }
+        }
+    }
+
+    // --- Normal HOT tier processing ---
     BleFingerprint *f = GetFingerprint(&copy);
     if (f->seen(&copy) && onAdd)
         onAdd(f);
@@ -284,6 +382,11 @@ void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
+
+    // Memory watchdog tick - checks heap and may trigger safe restart
+    if (memoryManager) {
+        memoryManager->tick(now);
+    }
     auto it = fingerprints.begin();
     bool any = false;
     while (it != fingerprints.end()) {
@@ -384,6 +487,19 @@ bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config) {
     }
     log_e("Couldn't take deviceConfigMutex!");
     return false;
+}
+
+// Tiered memory statistics accessors
+uint32_t getDropCount() { return dropCount; }
+uint32_t getColdCount() { return coldCount; }
+uint32_t getHotCount() { return hotCount; }
+
+void getMemoryTierStatus(char* buf, size_t bufLen) {
+    if (memoryManager) {
+        memoryManager->getStatus(buf, bufLen);
+    } else {
+        snprintf(buf, bufLen, "TieredMem:disabled");
+    }
 }
 
 }  // namespace BleFingerprintCollection
