@@ -1,19 +1,16 @@
 /**
  * @file test_memory_tier.cpp
- * @brief TDD tests for ESPresense tiered memory management
+ * @brief Unit tests for ESPresense tiered memory management
  *
- * Test-Driven Development: These tests are written FIRST to define
- * the expected behavior before implementation.
+ * Tests for the tiered memory system including ColdRecord, ColdTier,
+ * QuickClassifier, MemoryWatchdog, and EvictionScorer components.
  *
- * Run with: pio test -e native -f test_memory_tier
+ * Run with: pio test -e native-memory
  */
 
 #include <unity.h>
 #include <cstring>
 #include <cstdint>
-
-// Forward declarations for types we'll implement
-// These will fail to compile until BleMemoryTier.h exists
 
 #ifdef UNIT_TEST
 // Mock ESP32 heap functions for native testing
@@ -36,11 +33,10 @@ void set_mock_heap(size_t free_heap, size_t largest_block) {
 }
 #endif
 
-// Include the header we're testing (will fail until implemented)
 #include "BleMemoryTier.h"
 
 // ============================================================================
-// PHASE 1: Core Data Structure Tests
+// ColdRecord Tests
 // ============================================================================
 
 void test_ColdRecord_size_is_24_bytes(void) {
@@ -52,19 +48,18 @@ void test_ColdRecord_size_is_24_bytes(void) {
 void test_ColdRecord_fields_are_correct_size(void) {
     ColdRecord record = {};
 
-    // Verify field sizes add up to 24 bytes
-    TEST_ASSERT_EQUAL(6, sizeof(record.mac));        // MAC address
-    TEST_ASSERT_EQUAL(1, sizeof(record.rssi));       // Last RSSI
-    TEST_ASSERT_EQUAL(1, sizeof(record.rssiMax));    // Max RSSI seen
-    TEST_ASSERT_EQUAL(1, sizeof(record.addrType));   // BLE address type
-    TEST_ASSERT_EQUAL(1, sizeof(record.idType));     // Classification hint
-    TEST_ASSERT_EQUAL(1, sizeof(record.flags));      // State bitfield
-    TEST_ASSERT_EQUAL(1, sizeof(record.seenCount));  // Capped at 255
-    TEST_ASSERT_EQUAL(4, sizeof(record.lastSeenMs)); // Last seen millis
-    TEST_ASSERT_EQUAL(4, sizeof(record.firstSeenMs));// First seen millis
-    TEST_ASSERT_EQUAL(1, sizeof(record.rssiAvg));    // Running average (not sum!)
-    TEST_ASSERT_EQUAL(1, sizeof(record.rssiSamples));// Sample count for average
-    TEST_ASSERT_EQUAL(2, sizeof(record.reserved));   // Future use
+    TEST_ASSERT_EQUAL(6, sizeof(record.mac));
+    TEST_ASSERT_EQUAL(1, sizeof(record.rssi));
+    TEST_ASSERT_EQUAL(1, sizeof(record.rssiMax));
+    TEST_ASSERT_EQUAL(1, sizeof(record.addrType));
+    TEST_ASSERT_EQUAL(1, sizeof(record.idType));
+    TEST_ASSERT_EQUAL(1, sizeof(record.flags));
+    TEST_ASSERT_EQUAL(1, sizeof(record.seenCount));
+    TEST_ASSERT_EQUAL(4, sizeof(record.lastSeenMs));
+    TEST_ASSERT_EQUAL(4, sizeof(record.firstSeenMs));
+    TEST_ASSERT_EQUAL(1, sizeof(record.rssiAvg));
+    TEST_ASSERT_EQUAL(1, sizeof(record.rssiSamples));
+    TEST_ASSERT_EQUAL(2, sizeof(record.reserved));
 }
 
 void test_ColdRecord_tombstone_flags(void) {
@@ -75,24 +70,24 @@ void test_ColdRecord_tombstone_flags(void) {
     TEST_ASSERT_TRUE(record.isEmpty());
     TEST_ASSERT_FALSE(record.isValid());
     TEST_ASSERT_FALSE(record.isTombstone());
-    TEST_ASSERT_TRUE(record.canStopProbing());  // Empty = end of chain
-    TEST_ASSERT_TRUE(record.canInsertHere());   // Can insert in empty
+    TEST_ASSERT_TRUE(record.canStopProbing());
+    TEST_ASSERT_TRUE(record.canInsertHere());
 
     // Set valid
     record.setValid();
     TEST_ASSERT_FALSE(record.isEmpty());
     TEST_ASSERT_TRUE(record.isValid());
     TEST_ASSERT_FALSE(record.isTombstone());
-    TEST_ASSERT_FALSE(record.canStopProbing()); // Valid = continue probing
-    TEST_ASSERT_FALSE(record.canInsertHere());  // Can't insert in valid
+    TEST_ASSERT_FALSE(record.canStopProbing());
+    TEST_ASSERT_FALSE(record.canInsertHere());
 
     // Mark as tombstone (critical for hash table correctness)
     record.markTombstone();
     TEST_ASSERT_FALSE(record.isEmpty());
     TEST_ASSERT_FALSE(record.isValid());
     TEST_ASSERT_TRUE(record.isTombstone());
-    TEST_ASSERT_FALSE(record.canStopProbing()); // Tombstone = continue probing!
-    TEST_ASSERT_TRUE(record.canInsertHere());   // Can reuse tombstone
+    TEST_ASSERT_FALSE(record.canStopProbing());
+    TEST_ASSERT_TRUE(record.canInsertHere());
 }
 
 void test_ColdRecord_rssi_average_no_overflow(void) {
@@ -102,17 +97,31 @@ void test_ColdRecord_rssi_average_no_overflow(void) {
     record.rssiSamples = 1;
 
     // Update with readings that would overflow int8_t if summed
-    // -40 + (-90 * 100) = -9040 would overflow, but EMA won't
     for (int i = 0; i < 100; i++) {
         record.updateRssiAverage(-90);
     }
 
     // Average should converge toward -90, not overflow
-    // With EMA alpha=0.125, after 100 iterations it should be close to -90
-    TEST_ASSERT_TRUE(record.rssiAvg < -80);  // Should have moved significantly toward -90
-    TEST_ASSERT_TRUE(record.rssiAvg > -100); // But not below valid range
+    TEST_ASSERT_TRUE(record.rssiAvg < -80);
+    TEST_ASSERT_TRUE(record.rssiAvg > -100);
     TEST_ASSERT_EQUAL(101, record.rssiSamples);
 }
+
+void test_cold_record_can_be_marked_promoted(void) {
+    ColdRecord record;
+    record.clear();
+    record.setValid();
+
+    TEST_ASSERT_FALSE(record.isPromoted());
+
+    record.setPromoted();
+    TEST_ASSERT_TRUE(record.isPromoted());
+    TEST_ASSERT_TRUE(record.isValid());
+}
+
+// ============================================================================
+// Hash Function Tests
+// ============================================================================
 
 void test_fnv1a_hash_is_deterministic(void) {
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
@@ -134,13 +143,12 @@ void test_fnv1a_hash_different_for_different_macs(void) {
 }
 
 // ============================================================================
-// PHASE 2: Quick Classifier Tests (Stack-only, no heap allocation)
+// Classifier Tests
 // ============================================================================
 
 void test_classifier_drops_weak_rssi(void) {
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // RSSI below MIN_RSSI (-90) should be dropped
     ClassifyResult result = quickClassify(mac, nullptr, 0, -95);
     TEST_ASSERT_EQUAL(ClassifyResult::DROP, result);
 }
@@ -148,7 +156,6 @@ void test_classifier_drops_weak_rssi(void) {
 void test_classifier_cold_for_moderate_rssi(void) {
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // RSSI between MIN_RSSI_COLD (-85) and MIN_RSSI (-90) should be COLD
     ClassifyResult result = quickClassify(mac, nullptr, 0, -87);
     TEST_ASSERT_EQUAL(ClassifyResult::COLD, result);
 }
@@ -156,11 +163,9 @@ void test_classifier_cold_for_moderate_rssi(void) {
 void test_classifier_hot_for_known_mac(void) {
     uint8_t knownMac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
 
-    // Add MAC to known list
     QuickClassifier classifier;
     classifier.addKnownMac(knownMac);
 
-    // Known MAC should always be HOT (regardless of RSSI above minimum)
     ClassifyResult result = classifier.classify(knownMac, nullptr, 0, -80);
     TEST_ASSERT_EQUAL(ClassifyResult::HOT, result);
 }
@@ -168,14 +173,13 @@ void test_classifier_hot_for_known_mac(void) {
 void test_classifier_hot_for_ibeacon(void) {
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // iBeacon manufacturer data: 0x004C (Apple) + 0x0215 (iBeacon type)
     uint8_t ibeaconData[] = {
-        0x02, 0x15,  // iBeacon type + length
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // UUID part 1
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // UUID part 2
-        0x00, 0x01,  // Major
-        0x00, 0x02,  // Minor
-        0xC5         // TX Power
+        0x02, 0x15,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x01,
+        0x00, 0x02,
+        0xC5
     };
 
     QuickClassifier classifier;
@@ -186,25 +190,40 @@ void test_classifier_hot_for_ibeacon(void) {
 void test_classifier_default_is_cold(void) {
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // Unknown device with decent RSSI should go to COLD tier
     QuickClassifier classifier;
     ClassifyResult result = classifier.classify(mac, nullptr, 0, -70);
     TEST_ASSERT_EQUAL(ClassifyResult::COLD, result);
 }
 
+void test_classifier_under_memory_pressure(void) {
+    TieredMemoryConfig config;
+    config.criticalHeap = 30000;
+    TieredMemoryManager manager(config);
+
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    // Normal memory - moderate RSSI goes to COLD
+    set_mock_heap(100000, 80000);
+    ClassifyResult result = manager.classify(mac, nullptr, 0, -80);
+    TEST_ASSERT_EQUAL(ClassifyResult::COLD, result);
+
+    // Critical memory - system may adapt behavior
+    set_mock_heap(20000, 15000);
+    result = manager.classify(mac, nullptr, 0, -80);
+    TEST_ASSERT_TRUE(result == ClassifyResult::DROP || result == ClassifyResult::COLD);
+}
+
 // ============================================================================
-// PHASE 3: Cold Tier Tests
+// Cold Tier Tests
 // ============================================================================
 
 void test_cold_tier_insert_and_lookup(void) {
     ColdTier tier;
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // Insert a record
     bool inserted = tier.insert(mac, -70, 0);
     TEST_ASSERT_TRUE(inserted);
 
-    // Look it up
     ColdRecord* found = tier.lookup(mac);
     TEST_ASSERT_NOT_NULL(found);
     TEST_ASSERT_EQUAL(-70, found->rssi);
@@ -214,7 +233,6 @@ void test_cold_tier_lookup_returns_null_for_missing(void) {
     ColdTier tier;
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // Should return null for non-existent MAC
     ColdRecord* found = tier.lookup(mac);
     TEST_ASSERT_NULL(found);
 }
@@ -223,49 +241,136 @@ void test_cold_tier_update_existing(void) {
     ColdTier tier;
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
-    // Insert then update
     tier.insert(mac, -70, 0);
-    tier.update(mac, -65);  // Stronger signal
+    tier.update(mac, -65);
 
     ColdRecord* found = tier.lookup(mac);
     TEST_ASSERT_NOT_NULL(found);
     TEST_ASSERT_EQUAL(-65, found->rssi);
-    TEST_ASSERT_EQUAL(-65, found->rssiMax);  // Max should update
+    TEST_ASSERT_EQUAL(-65, found->rssiMax);
 }
 
 void test_cold_tier_evicts_oldest_when_full(void) {
-    ColdTier tier(8);  // Small tier for testing
+    ColdTier tier(8);
 
-    // Fill the tier to 75% capacity (6 records, triggers eviction at next insert)
     for (int i = 0; i < 6; i++) {
         uint8_t mac[6] = {0, 0, 0, 0, 0, (uint8_t)i};
-        // Give different timestamps so oldest is clearly defined
         tier.insert(mac, -70 + i, i * 1000);
     }
 
-    // Insert one more - should evict oldest (MAC with lastSeenMs=0)
     uint8_t newMac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
-    bool inserted = tier.insert(newMac, -60, 60000);  // 60 seconds later
+    bool inserted = tier.insert(newMac, -60, 60000);
     TEST_ASSERT_TRUE(inserted);
 
-    // First MAC should be evicted (it has oldest timestamp)
     uint8_t oldestMac[6] = {0, 0, 0, 0, 0, 0};
     ColdRecord* found = tier.lookup(oldestMac);
     TEST_ASSERT_NULL(found);
 
-    // New MAC should exist
     found = tier.lookup(newMac);
     TEST_ASSERT_NOT_NULL(found);
 }
 
+void test_cold_tier_remove_promoted_record(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    tier.insert(mac, -70, 0);
+    ColdRecord* record = tier.lookup(mac);
+    TEST_ASSERT_NOT_NULL(record);
+
+    record->setPromoted();
+    bool removed = tier.remove(mac);
+    TEST_ASSERT_TRUE(removed);
+
+    record = tier.lookup(mac);
+    TEST_ASSERT_NULL(record);
+}
+
+void test_cold_tier_remove_nonexistent_returns_false(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    bool removed = tier.remove(mac);
+    TEST_ASSERT_FALSE(removed);
+}
+
+void test_cold_tier_update_increments_seen_count(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    tier.insert(mac, -70, 0);
+    ColdRecord* record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(1, record->seenCount);
+
+    for (int i = 0; i < 10; i++) {
+        tier.update(mac, -70, (i + 1) * 1000);
+    }
+
+    record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(11, record->seenCount);
+}
+
+void test_cold_tier_seen_count_caps_at_255(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    tier.insert(mac, -70, 0);
+
+    for (int i = 0; i < 300; i++) {
+        tier.update(mac, -70, i * 100);
+    }
+
+    ColdRecord* record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(255, record->seenCount);
+}
+
+void test_rssi_max_tracks_strongest_signal(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    tier.insert(mac, -80, 0);
+    ColdRecord* record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(-80, record->rssiMax);
+
+    tier.update(mac, -90, 1000);
+    record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(-80, record->rssiMax);
+
+    tier.update(mac, -60, 2000);
+    record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(-60, record->rssiMax);
+
+    tier.update(mac, -70, 3000);
+    record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(-60, record->rssiMax);
+}
+
+void test_promotion_threshold_behavior(void) {
+    ColdTier tier;
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    tier.insert(mac, -80, 0);
+
+    for (int i = 1; i <= 4; i++) {
+        tier.update(mac, -80, i * 1000);
+    }
+    ColdRecord* record = tier.lookup(mac);
+    TEST_ASSERT_NOT_NULL(record);
+    TEST_ASSERT_EQUAL(5, record->seenCount);
+
+    tier.update(mac, -70, 5000);
+    record = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(6, record->seenCount);
+    TEST_ASSERT_EQUAL(-70, record->rssi);
+}
+
 // ============================================================================
-// PHASE 4: Memory Watchdog Tests
+// Memory Watchdog Tests
 // ============================================================================
 
 void test_watchdog_detects_low_memory(void) {
     MemoryWatchdog watchdog;
 
-    // Set mock heap to critical level (below 30KB threshold)
     set_mock_heap(25000, 20000);
 
     TEST_ASSERT_TRUE(watchdog.isMemoryPressure());
@@ -274,7 +379,6 @@ void test_watchdog_detects_low_memory(void) {
 void test_watchdog_ok_with_sufficient_memory(void) {
     MemoryWatchdog watchdog;
 
-    // Set mock heap to healthy level
     set_mock_heap(100000, 80000);
 
     TEST_ASSERT_FALSE(watchdog.isMemoryPressure());
@@ -283,8 +387,7 @@ void test_watchdog_ok_with_sufficient_memory(void) {
 void test_watchdog_detects_fragmentation(void) {
     MemoryWatchdog watchdog;
 
-    // Free heap is high but largest block is small = fragmentation
-    set_mock_heap(100000, 20000);  // Only 20% contiguous
+    set_mock_heap(100000, 20000);
 
     TEST_ASSERT_TRUE(watchdog.isFragmented());
 }
@@ -292,30 +395,89 @@ void test_watchdog_detects_fragmentation(void) {
 void test_watchdog_restart_rate_limited(void) {
     MemoryWatchdog watchdog;
 
-    // Should allow first restart
     TEST_ASSERT_TRUE(watchdog.canRestart());
     watchdog.recordRestart();
 
-    // Should allow second restart
     TEST_ASSERT_TRUE(watchdog.canRestart());
     watchdog.recordRestart();
 
-    // Should allow third restart
     TEST_ASSERT_TRUE(watchdog.canRestart());
     watchdog.recordRestart();
 
-    // Should block fourth restart (max 3 per hour)
     TEST_ASSERT_FALSE(watchdog.canRestart());
 }
 
+void test_watchdog_restart_window_reset(void) {
+    MemoryWatchdog watchdog;
+
+    watchdog.recordRestart();
+    watchdog.recordRestart();
+    watchdog.recordRestart();
+    TEST_ASSERT_FALSE(watchdog.canRestart());
+
+    watchdog.resetRestartCount();
+    TEST_ASSERT_TRUE(watchdog.canRestart());
+}
+
+void test_memory_pressure_transitions(void) {
+    MemoryWatchdog watchdog;
+
+    set_mock_heap(100000, 80000);
+    TEST_ASSERT_FALSE(watchdog.isMemoryPressure());
+    TEST_ASSERT_FALSE(watchdog.isFragmented());
+
+    set_mock_heap(50000, 45000);
+    TEST_ASSERT_FALSE(watchdog.isMemoryPressure());
+
+    set_mock_heap(35000, 30000);
+    TEST_ASSERT_FALSE(watchdog.isMemoryPressure());
+
+    set_mock_heap(25000, 20000);
+    TEST_ASSERT_TRUE(watchdog.isMemoryPressure());
+
+    set_mock_heap(60000, 50000);
+    TEST_ASSERT_FALSE(watchdog.isMemoryPressure());
+}
+
+void test_fragmentation_patterns(void) {
+    MemoryWatchdog watchdog;
+
+    set_mock_heap(100000, 80000);
+    TEST_ASSERT_FALSE(watchdog.isFragmented());
+
+    set_mock_heap(100000, 51000);
+    TEST_ASSERT_FALSE(watchdog.isFragmented());
+
+    set_mock_heap(100000, 49000);
+    TEST_ASSERT_TRUE(watchdog.isFragmented());
+
+    set_mock_heap(100000, 20000);
+    TEST_ASSERT_TRUE(watchdog.isFragmented());
+
+    set_mock_heap(29000, 27000);
+    TEST_ASSERT_FALSE(watchdog.isFragmented());
+    TEST_ASSERT_TRUE(watchdog.isMemoryPressure());
+}
+
+void test_simultaneous_pressure_and_fragmentation(void) {
+    MemoryWatchdog watchdog;
+
+    set_mock_heap(28000, 8000);
+
+    TEST_ASSERT_TRUE(watchdog.isMemoryPressure());
+    TEST_ASSERT_TRUE(watchdog.isFragmented());
+
+    TEST_ASSERT_TRUE(watchdog.getFreeHeap() < 30000);
+    TEST_ASSERT_TRUE(watchdog.getLargestBlock() < watchdog.getFreeHeap() / 2);
+}
+
 // ============================================================================
-// PHASE 5: Eviction Scorer Tests
+// Eviction Scorer Tests
 // ============================================================================
 
 void test_eviction_score_higher_for_included_device(void) {
     EvictionScorer scorer;
 
-    // Included device should have infinite score (non-evictable)
     float includedScore = scorer.calculate(ID_TYPE_KNOWN_MAC, true, false, 1000, 5.0f, 10);
     float normalScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 5.0f, 10);
 
@@ -335,8 +497,8 @@ void test_eviction_score_higher_for_ibeacon(void) {
 void test_eviction_score_decays_with_age(void) {
     EvictionScorer scorer;
 
-    float recentScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 5.0f, 10);    // 1 second old
-    float oldScore = scorer.calculate(ID_TYPE_MISC, false, false, 300000, 5.0f, 10);     // 5 minutes old
+    float recentScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 5.0f, 10);
+    float oldScore = scorer.calculate(ID_TYPE_MISC, false, false, 300000, 5.0f, 10);
 
     TEST_ASSERT_TRUE(recentScore > oldScore);
 }
@@ -344,26 +506,35 @@ void test_eviction_score_decays_with_age(void) {
 void test_eviction_score_higher_for_closer_device(void) {
     EvictionScorer scorer;
 
-    float closeScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 1.0f, 10);   // 1 meter
-    float farScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 10.0f, 10);    // 10 meters
+    float closeScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 1.0f, 10);
+    float farScore = scorer.calculate(ID_TYPE_MISC, false, false, 1000, 10.0f, 10);
 
     TEST_ASSERT_TRUE(closeScore > farScore);
 }
 
+void test_eviction_prefers_weak_old_devices(void) {
+    EvictionScorer scorer;
+
+    float keepScore = scorer.calculate(ID_TYPE_IBEACON, false, false, 1000, 1.0f, 10);
+    float evictScore = scorer.calculate(ID_TYPE_MISC, false, false, 600000, 20.0f, 2);
+
+    TEST_ASSERT_TRUE(keepScore > evictScore);
+    TEST_ASSERT_TRUE(keepScore > evictScore * 5);
+}
+
 // ============================================================================
-// PHASE 6: Integration Tests
+// Configuration and Integration Tests
 // ============================================================================
 
 void test_tiered_memory_config_defaults(void) {
     TieredMemoryConfig config;
 
-    // More conservative defaults based on user feedback
     TEST_ASSERT_TRUE(config.enabled);
     TEST_ASSERT_EQUAL(64, config.maxHot);
-    TEST_ASSERT_EQUAL(128, config.maxCold);  // Reduced from 256 for more headroom
+    TEST_ASSERT_EQUAL(128, config.maxCold);
     TEST_ASSERT_EQUAL(-90, config.minRssi);
     TEST_ASSERT_EQUAL(-85, config.minRssiCold);
-    TEST_ASSERT_EQUAL(30000, config.criticalHeap);  // Increased from 20KB
+    TEST_ASSERT_EQUAL(30000, config.criticalHeap);
     TEST_ASSERT_EQUAL(3, config.maxRestartsPerHour);
 }
 
@@ -371,12 +542,137 @@ void test_backward_compatibility_when_disabled(void) {
     TieredMemoryConfig config;
     config.enabled = false;
 
-    // When disabled, everything should go to HOT tier (original behavior)
     TieredMemoryManager manager(config);
     uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
 
     ClassifyResult result = manager.classify(mac, nullptr, 0, -95);
-    TEST_ASSERT_EQUAL(ClassifyResult::HOT, result);  // Even weak signals go to HOT when disabled
+    TEST_ASSERT_EQUAL(ClassifyResult::HOT, result);
+}
+
+// ============================================================================
+// Stress Tests
+// ============================================================================
+
+void test_cold_tier_fill_and_evict_cycle(void) {
+    ColdTier tier(32);
+
+    for (int i = 0; i < 24; i++) {
+        uint8_t mac[6] = {0xAA, 0xBB, (uint8_t)(i >> 8), (uint8_t)(i & 0xFF), 0x00, 0x00};
+        bool inserted = tier.insert(mac, -70, i * 100);
+        TEST_ASSERT_TRUE(inserted);
+    }
+    TEST_ASSERT_EQUAL(24, tier.count());
+
+    for (int i = 0; i < 10; i++) {
+        uint8_t mac[6] = {0xCC, 0xDD, (uint8_t)(i >> 8), (uint8_t)(i & 0xFF), 0x00, 0x00};
+        tier.insert(mac, -60, 10000 + i * 100);
+    }
+
+    TEST_ASSERT_TRUE(tier.count() <= 24);
+}
+
+void test_cold_tier_tombstone_reuse(void) {
+    ColdTier tier(16);
+
+    uint8_t mac1[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    uint8_t mac2[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+    tier.insert(mac1, -70, 0);
+    tier.insert(mac2, -75, 0);
+    TEST_ASSERT_EQUAL(2, tier.count());
+
+    tier.remove(mac1);
+    TEST_ASSERT_EQUAL(1, tier.count());
+
+    ColdRecord* found = tier.lookup(mac2);
+    TEST_ASSERT_NOT_NULL(found);
+
+    uint8_t mac3[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x77};
+    tier.insert(mac3, -65, 0);
+    TEST_ASSERT_EQUAL(2, tier.count());
+
+    TEST_ASSERT_NULL(tier.lookup(mac1));
+    TEST_ASSERT_NOT_NULL(tier.lookup(mac2));
+    TEST_ASSERT_NOT_NULL(tier.lookup(mac3));
+}
+
+void test_cold_tier_high_collision_scenario(void) {
+    ColdTier tier(32);
+
+    for (int i = 0; i < 20; i++) {
+        uint8_t mac[6] = {0x00, 0x00, 0x00, 0x00, (uint8_t)(i >> 8), (uint8_t)(i & 0xFF)};
+        bool inserted = tier.insert(mac, -70 + (i % 20), i * 1000);
+        TEST_ASSERT_TRUE(inserted);
+    }
+
+    for (int i = 0; i < 20; i++) {
+        uint8_t mac[6] = {0x00, 0x00, 0x00, 0x00, (uint8_t)(i >> 8), (uint8_t)(i & 0xFF)};
+        ColdRecord* found = tier.lookup(mac);
+        TEST_ASSERT_NOT_NULL(found);
+    }
+}
+
+void test_rapid_insert_remove_cycles(void) {
+    ColdTier tier(64);
+
+    for (int cycle = 0; cycle < 100; cycle++) {
+        uint8_t mac[6] = {
+            (uint8_t)((cycle >> 8) & 0xFF),
+            (uint8_t)(cycle & 0xFF),
+            0x00, 0x00, 0x00, 0x00
+        };
+
+        bool inserted = tier.insert(mac, -70, cycle * 10);
+        TEST_ASSERT_TRUE(inserted);
+
+        ColdRecord* found = tier.lookup(mac);
+        TEST_ASSERT_NOT_NULL(found);
+
+        bool removed = tier.remove(mac);
+        TEST_ASSERT_TRUE(removed);
+
+        found = tier.lookup(mac);
+        TEST_ASSERT_NULL(found);
+    }
+
+    TEST_ASSERT_EQUAL(0, tier.count());
+}
+
+void test_double_remove_no_underflow(void) {
+    // Safety: double-remove should not cause count underflow
+    ColdTier tier(16);
+    uint8_t mac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+    // Insert one record
+    bool inserted = tier.insert(mac, -70, 1000);
+    TEST_ASSERT_TRUE(inserted);
+    TEST_ASSERT_EQUAL(1, tier.count());
+
+    // First remove succeeds
+    bool removed1 = tier.remove(mac);
+    TEST_ASSERT_TRUE(removed1);
+    TEST_ASSERT_EQUAL(0, tier.count());
+
+    // Second remove fails (already tombstoned)
+    bool removed2 = tier.remove(mac);
+    TEST_ASSERT_FALSE(removed2);
+    TEST_ASSERT_EQUAL(0, tier.count());  // Count should not underflow
+}
+
+void test_remove_nonexistent_mac(void) {
+    // Safety: remove on non-existent MAC should not affect count
+    ColdTier tier(16);
+    uint8_t existing[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    uint8_t nonexistent[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+    // Insert one record
+    tier.insert(existing, -70, 1000);
+    TEST_ASSERT_EQUAL(1, tier.count());
+
+    // Try to remove non-existent MAC
+    bool removed = tier.remove(nonexistent);
+    TEST_ASSERT_FALSE(removed);
+    TEST_ASSERT_EQUAL(1, tier.count());  // Count unchanged
 }
 
 // ============================================================================
@@ -384,53 +680,76 @@ void test_backward_compatibility_when_disabled(void) {
 // ============================================================================
 
 void setUp(void) {
-    // Reset mock heap to defaults before each test
     set_mock_heap(100000, 80000);
 }
 
 void tearDown(void) {
-    // Clean up after each test
 }
 
 int main(int argc, char **argv) {
     UNITY_BEGIN();
 
-    // Phase 1: Core Data Structures
+    // ColdRecord
     RUN_TEST(test_ColdRecord_size_is_24_bytes);
     RUN_TEST(test_ColdRecord_fields_are_correct_size);
     RUN_TEST(test_ColdRecord_tombstone_flags);
     RUN_TEST(test_ColdRecord_rssi_average_no_overflow);
+    RUN_TEST(test_cold_record_can_be_marked_promoted);
+
+    // Hash Function
     RUN_TEST(test_fnv1a_hash_is_deterministic);
     RUN_TEST(test_fnv1a_hash_different_for_different_macs);
 
-    // Phase 2: Quick Classifier
+    // Classifier
     RUN_TEST(test_classifier_drops_weak_rssi);
     RUN_TEST(test_classifier_cold_for_moderate_rssi);
     RUN_TEST(test_classifier_hot_for_known_mac);
     RUN_TEST(test_classifier_hot_for_ibeacon);
     RUN_TEST(test_classifier_default_is_cold);
+    RUN_TEST(test_classifier_under_memory_pressure);
 
-    // Phase 3: Cold Tier
+    // Cold Tier
     RUN_TEST(test_cold_tier_insert_and_lookup);
     RUN_TEST(test_cold_tier_lookup_returns_null_for_missing);
     RUN_TEST(test_cold_tier_update_existing);
     RUN_TEST(test_cold_tier_evicts_oldest_when_full);
+    RUN_TEST(test_cold_tier_remove_promoted_record);
+    RUN_TEST(test_cold_tier_remove_nonexistent_returns_false);
+    RUN_TEST(test_cold_tier_update_increments_seen_count);
+    RUN_TEST(test_cold_tier_seen_count_caps_at_255);
+    RUN_TEST(test_rssi_max_tracks_strongest_signal);
+    RUN_TEST(test_promotion_threshold_behavior);
 
-    // Phase 4: Memory Watchdog
+    // Memory Watchdog
     RUN_TEST(test_watchdog_detects_low_memory);
     RUN_TEST(test_watchdog_ok_with_sufficient_memory);
     RUN_TEST(test_watchdog_detects_fragmentation);
     RUN_TEST(test_watchdog_restart_rate_limited);
+    RUN_TEST(test_watchdog_restart_window_reset);
+    RUN_TEST(test_memory_pressure_transitions);
+    RUN_TEST(test_fragmentation_patterns);
+    RUN_TEST(test_simultaneous_pressure_and_fragmentation);
 
-    // Phase 5: Eviction Scorer
+    // Eviction Scorer
     RUN_TEST(test_eviction_score_higher_for_included_device);
     RUN_TEST(test_eviction_score_higher_for_ibeacon);
     RUN_TEST(test_eviction_score_decays_with_age);
     RUN_TEST(test_eviction_score_higher_for_closer_device);
+    RUN_TEST(test_eviction_prefers_weak_old_devices);
 
-    // Phase 6: Integration
+    // Configuration and Integration
     RUN_TEST(test_tiered_memory_config_defaults);
     RUN_TEST(test_backward_compatibility_when_disabled);
+
+    // Stress Tests
+    RUN_TEST(test_cold_tier_fill_and_evict_cycle);
+    RUN_TEST(test_cold_tier_tombstone_reuse);
+    RUN_TEST(test_cold_tier_high_collision_scenario);
+    RUN_TEST(test_rapid_insert_remove_cycles);
+
+    // Safety Tests (guard against underflow/invalid state)
+    RUN_TEST(test_double_remove_no_underflow);
+    RUN_TEST(test_remove_nonexistent_mac);
 
     return UNITY_END();
 }

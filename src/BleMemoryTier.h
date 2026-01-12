@@ -118,6 +118,8 @@ struct __attribute__((packed)) ColdRecord {
 
     void setValid() { flags = FLAG_VALID; }
     void markTombstone() { flags = FLAG_TOMBSTONE; }  // CRITICAL: Don't clear(), use tombstone
+    bool isPromoted() const { return flags & FLAG_PROMOTED; }
+    void setPromoted() { flags |= FLAG_PROMOTED; }  // Add flag without clearing valid
 
     void clear() {
         memset(this, 0, sizeof(ColdRecord));
@@ -473,6 +475,25 @@ public:
         tombstones = tombstoneCount_;
         total = capacity_;
         psram = usingPsram_;
+    }
+
+    /**
+     * Remove a record from the cold tier (mark as tombstone).
+     * Used when promoting a device to HOT tier.
+     * @return true if record was found and removed
+     */
+    bool remove(const uint8_t* mac) {
+        ColdRecord* record = lookup(mac);
+        if (record && record->isValid()) {
+            record->markTombstone();
+            // Defensive: prevent underflow
+            if (count_ > 0) {
+                count_--;
+            }
+            tombstoneCount_++;
+            return true;
+        }
+        return false;
     }
 
 private:
