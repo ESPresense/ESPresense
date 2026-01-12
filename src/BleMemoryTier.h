@@ -561,10 +561,8 @@ private:
             tombstoneCount_++;
         }
 
-        // Periodically compact if too many tombstones (>25% of capacity)
-        if (tombstoneCount_ > capacity_ / 4) {
-            compact();
-        }
+        // Tombstone reuse in insert() naturally manages table health.
+        // No compaction needed - insert() reuses tombstone slots.
 
         return victim;
     }
@@ -603,52 +601,6 @@ private:
         }
 
         return score > 0 ? score : 0.0f;
-    }
-
-    /**
-     * Compact the hash table by rehashing all valid records.
-     * Called when tombstone count is too high.
-     * IMPORTANT: This is O(n) but reduces memory fragmentation effects.
-     */
-    void compact() {
-        MEM_LOG("Compacting hash table (tombstones=%zu)", tombstoneCount_);
-
-        // Simple in-place rehash by copying valid records to temp locations
-        // Since we're MMU-less, we do this carefully to avoid additional allocation
-
-        // First pass: collect all valid records to beginning of array
-        size_t writeIdx = 0;
-        for (size_t i = 0; i < capacity_; i++) {
-            if (records_[i].isValid()) {
-                if (i != writeIdx) {
-                    // Move record to writeIdx
-                    memcpy(&records_[writeIdx], &records_[i], sizeof(ColdRecord));
-                    records_[i].clear();
-                }
-                writeIdx++;
-            } else {
-                records_[i].clear();  // Clear tombstones
-            }
-        }
-
-        // Reset count
-        count_ = writeIdx;
-        tombstoneCount_ = 0;
-
-        // Second pass: rehash all records back to proper positions
-        // This is a simplified rehash that may have collisions, but maintains correctness
-        for (size_t i = 0; i < count_; i++) {
-            uint32_t hash = fnv1a_hash(records_[i].mac, 6);
-            size_t targetSlot = hash % capacity_;
-
-            if (targetSlot != i) {
-                // Need to move this record to its proper chain
-                // For simplicity, we leave it where it is - linear probing will find it
-                // A full rehash would swap records, but that's complex without temp storage
-            }
-        }
-
-        MEM_LOG("Compaction complete (count=%zu)", count_);
     }
 };
 
