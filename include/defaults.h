@@ -107,11 +107,19 @@
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
 #else
+#ifdef WESP32_REV7
+#define DEFAULT_I2C_BUS_1_SDA 15
+#define DEFAULT_I2C_BUS_1_SCL 4
+#define DEFAULT_I2C_BUS_2_SDA 33
+#define DEFAULT_I2C_BUS_2_SCL 5
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
 #endif
 #endif
 #endif
@@ -154,6 +162,15 @@
 #define DEFAULT_LED1_CNT 1
 
 #define MAX_BRIGHTNESS 20
+
+#elif defined WESP32_REV7
+
+#define DEFAULT_LED1_TYPE 2
+#define DEFAULT_LED1_PIN -1
+#define DEFAULT_LED1_CNTRL Control_Type_Status
+#define DEFAULT_LED1_CNT 1
+
+#define MAX_BRIGHTNESS 100
 
 #else  // DevKit / generic
 
