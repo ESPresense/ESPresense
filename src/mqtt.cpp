@@ -7,13 +7,9 @@
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
-    for (int i = 0; i < 10; i++)
-    {
-        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
-            return true;
-        delay(25);
-    }
-    return false;
+    // Non-blocking publish - let AsyncMqttClient handle its own queue
+    // Blocking delays here prevent MQTT keepalive responses
+    return mqttClient.publish(topic, qos, retain, payload, length, dup, message_id);
 }
 
 bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
