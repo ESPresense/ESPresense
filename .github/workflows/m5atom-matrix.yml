@@ -2,7 +2,7 @@ name: Remote run m5atom-matrix
 on:
   push:
     branches:
-      - master
+      - main
 jobs:
   remote-run:
     runs-on: ubuntu-latest
