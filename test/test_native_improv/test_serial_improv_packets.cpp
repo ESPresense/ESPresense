@@ -148,7 +148,7 @@ int main() {
     RUN_TEST(test_decode_wifi_credentials_success);
     RUN_TEST(test_decode_wifi_credentials_rejects_invalid);
     const int result = UNITY_END();
-    std::printf("RENODE_TEST_RESULT=%d\n", result);
+    std::printf("QEMU_TEST_RESULT=%d\n", result);
     return result;
 }
 
