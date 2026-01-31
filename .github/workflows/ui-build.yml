@@ -2,7 +2,7 @@ name: UI Build
 on:
   push:
     branches:
-      - master
+      - main
     paths:
       - 'ui/**'
   pull_request:
