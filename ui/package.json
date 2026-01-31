@@ -30,7 +30,7 @@
     "mime": "^4.1.0",
     "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
-    "svelte": "^5.46.3",
+    "svelte": "^5.49.1",
     "svelte-check": "^4.3.5",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
