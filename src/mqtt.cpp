@@ -244,13 +244,13 @@ bool sendConfig(const String &id, const String &alias, const String &name, int c
         deleteConfig(existing.id);
     }
     Log.printf("%u Alias  | %s to %s\r\n", xPortGetCoreID(), id.c_str(), alias.c_str());
-    doc.clear();
-    doc["id"] = alias;
-    doc["name"] = name;
-    if (calRssi > NO_RSSI) doc["rssi@1m"] = calRssi;
+    DynamicJsonDocument json(256);
+    json["id"] = alias;
+    json["name"] = name;
+    if (calRssi > NO_RSSI) json["rssi@1m"] = calRssi;
 
     const String settingsTopic = CHANNEL + String("/settings/") + id + "/config";
-    return pub(settingsTopic.c_str(), 0, true, doc);
+    return pub(settingsTopic.c_str(), 0, true, json);
 }
 
 /**
