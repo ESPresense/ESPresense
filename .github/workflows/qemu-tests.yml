@@ -41,7 +41,7 @@ jobs:
             0x10000 .pio/build/esp32-improv-test/firmware.bin
 
       - name: Run QEMU tests
-        uses: tobozo/esp32-qemu-sim@v1
+        uses: tobozo/esp32-qemu-sim@v2.1.0
         with:
           chip: esp32
           flash-image: .pio/build/esp32-improv-test/merged.bin
