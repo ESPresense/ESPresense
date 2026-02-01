@@ -23,20 +23,30 @@ jobs:
         with:
           python-version: '3.x'
 
-      - name: Install PlatformIO
-        run: pip install platformio
+      - name: Install PlatformIO and esptool
+        run: pip install platformio esptool
 
       - name: Build ESP32 Improv test firmware
         run: pio test -e esp32-improv-test --without-testing --without-uploading
+
+      - name: Create merged firmware image
+        run: |
+          cd .pio/build/esp32-improv-test
+          esptool.py --chip esp32 merge_bin \
+            -o flash_image.bin \
+            --flash_mode dio \
+            --flash_freq 40m \
+            --flash_size 4MB \
+            --fill-flash-size 4MB \
+            0x1000 bootloader.bin \
+            0x8000 partitions.bin \
+            0x10000 firmware.bin
 
       - name: Run QEMU tests
         uses: tobozo/esp32-qemu-sim@v2.1.0
         with:
           chip: esp32
-          build-folder: .pio/build/esp32-improv-test
-          bootloader-bin: bootloader.bin
-          partitions-bin: partitions.bin
-          firmware-bin: firmware.bin
+          flash-image: .pio/build/esp32-improv-test/flash_image.bin
           flash-size: '4'
           qemu-timeout: '60'
           timeout-interrupt-regex: 'QEMU_TEST_RESULT='
