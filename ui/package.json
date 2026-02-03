@@ -17,7 +17,7 @@
     "@gfx/zopfli": "^1.0.15",
     "@playwright/test": "^1.57.0",
     "@rollup/plugin-strip": "^3.0.4",
-    "@skeletonlabs/skeleton": "^4.9.0",
+    "@skeletonlabs/skeleton": "^4.11.0",
     "@skeletonlabs/skeleton-svelte": "^4.9.0",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.49.5",
