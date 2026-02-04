@@ -53,7 +53,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_1_pin"
                     placeholder={$hardwareSettings.defaults['led_1_pin']}
                     bind:value={$hardwareSettings.values['led_1_pin']}/>
@@ -106,7 +106,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_2_pin"
                     placeholder={$hardwareSettings.defaults['led_2_pin']}
                     bind:value={$hardwareSettings.values['led_2_pin']}/>
@@ -159,7 +159,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_3_pin"
                     placeholder={$hardwareSettings.defaults['led_3_pin']}
                     bind:value={$hardwareSettings.values['led_3_pin']}/>
@@ -474,7 +474,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_1_SDA"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_1_SDA']}
                     bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
@@ -487,7 +487,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_1_SCL"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_1_SCL']}
                     bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
@@ -501,7 +501,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_2_SDA"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_2_SDA']}
                     bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
@@ -514,7 +514,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_2_SCL"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_2_SCL']}
                     bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>

@@ -275,11 +275,11 @@ test.describe('Hardware Settings Page', () => {
 		expect(await led1Pin.inputValue()).toBe('-1');
 
 		// Test max value
-		await led1Pin.fill('39'); // Valid max
-		expect(await led1Pin.inputValue()).toBe('39');
+		await led1Pin.fill('48'); // Valid max
+		expect(await led1Pin.inputValue()).toBe('48');
 
-		// HTML5 validation should prevent > 39
-		await led1Pin.fill('40');
+		// HTML5 validation should prevent > 48
+		await led1Pin.fill('49');
 		const validationMessage = await led1Pin.evaluate((el: HTMLInputElement) => el.validationMessage);
 		expect(validationMessage).toBeTruthy();
 	});

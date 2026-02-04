@@ -19,11 +19,11 @@ int I2C_Bus_2_SCL = 0;
 
 void ConnectToWifi() {
 
-    I2C_Bus_1_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 39, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_1_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 39, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_1_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 48, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
+    I2C_Bus_1_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 48, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
 
-    I2C_Bus_2_SDA = HeadlessWiFiSettings.integer("I2C_Bus_2_SDA", -1, 39, DEFAULT_I2C_BUS_2_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_2_SCL = HeadlessWiFiSettings.integer("I2C_Bus_2_SCL", -1, 39, DEFAULT_I2C_BUS_2_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_2_SDA = HeadlessWiFiSettings.integer("I2C_Bus_2_SDA", -1, 48, DEFAULT_I2C_BUS_2_SDA, "SDA pin (-1 to disable)");
+    I2C_Bus_2_SCL = HeadlessWiFiSettings.integer("I2C_Bus_2_SCL", -1, 48, DEFAULT_I2C_BUS_2_SCL, "SCL pin (-1 to disable)");
 
     I2CDebug = HeadlessWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
