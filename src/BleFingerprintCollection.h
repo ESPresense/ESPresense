@@ -37,6 +37,12 @@ const std::vector<BleFingerprint *> GetCopy();
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
 
+// Tiered memory statistics
+uint32_t getDropCount();
+uint32_t getColdCount();
+uint32_t getHotCount();
+void getMemoryTierStatus(char* buf, size_t bufLen);
+
 extern TCallbackBool onSeen;
 extern TCallbackFingerprint onAdd;
 extern TCallbackFingerprint onDel;
