@@ -1,0 +1,63 @@
+name: QEMU Tests
+
+on:
+  push:
+    paths:
+      - 'test/**'
+      - 'lib/improv/**'
+      - '.github/workflows/qemu-tests.yml'
+  pull_request:
+    paths:
+      - 'test/**'
+      - 'lib/improv/**'
+      - '.github/workflows/qemu-tests.yml'
+
+jobs:
+  qemu:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install PlatformIO and esptool
+        run: pip install platformio esptool
+
+      - name: Build ESP32 Improv test firmware
+        run: pio test -e esp32-improv-test --without-testing --without-uploading
+
+      - name: Create merged firmware image
+        run: |
+          cd .pio/build/esp32-improv-test
+          esptool.py --chip esp32 merge_bin \
+            -o flash_image.bin \
+            --flash_mode dio \
+            --flash_freq 40m \
+            --flash_size 4MB \
+            --fill-flash-size 4MB \
+            0x1000 bootloader.bin \
+            0x8000 partitions.bin \
+            0x10000 firmware.bin
+
+      - name: Run QEMU tests
+        uses: tobozo/esp32-qemu-sim@v2.1.0
+        with:
+          chip: esp32
+          flash-image: .pio/build/esp32-improv-test/flash_image.bin
+          flash-size: '4'
+          qemu-timeout: '60'
+          timeout-interrupt-regex: 'QEMU_TEST_RESULT='
+
+      - name: Check test results
+        run: |
+          if grep -q "QEMU_TEST_RESULT=0" qemu_output.txt 2>/dev/null; then
+            echo "Tests passed!"
+            exit 0
+          else
+            echo "Tests failed or did not complete"
+            cat qemu_output.txt 2>/dev/null || echo "No output file found"
+            exit 1
+          fi
