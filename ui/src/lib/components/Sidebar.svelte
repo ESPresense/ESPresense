@@ -6,12 +6,14 @@
 </script>
 
 <div class="h-full w-full">
-    <div class="flex flex-wrap items-center gap-3 mx-6 mt-4 pt-14 md:pt-4 md:justify-between">
+    <div class="flex flex-col gap-3 mx-6 mt-4 pt-14 md:pt-4 md:flex-row md:items-center md:justify-between">
         <div class="flex items-center shrink-0">
             <Icon name="logo" width="2.5rem" height="2.5rem" />
             <span class="text-gray-800 dark:text-gray-100 ml-2 text-3xl font-thin">ESPresense</span>
         </div>
-        <DarkModeToggle />
+        <div class="self-start md:self-auto">
+            <DarkModeToggle />
+        </div>
     </div>
     <nav class="mt-6 px-6 space-y-1">
         <SidebarItem icon="network" title="Network" href="{base}/network" />
