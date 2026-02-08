@@ -108,7 +108,16 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
     switch (code) {
         case HTTP_CODE_OK: {
             int len = http.getSize();
-            if (len > 0) {
+            if (len == 0) {
+                _lastError = HTTP_UE_SERVER_NOT_REPORT_SIZE;
+                Log.printf("Content-Length was 0 or wasn't set by Server?!\r\n");
+                goto exit;
+            }
+
+            bool hasContentLength = len > 0;
+            if (!hasContentLength) {
+                Log.println("Server did not report Content-Length, streaming update without size");
+            } else {
                 int sketchFreeSpace = ESP.getFreeSketchSpace();
                 if (!sketchFreeSpace) {
                     _lastError = HTTP_UE_NO_PARTITION;
@@ -120,33 +129,29 @@ HttpUpdateResult HttpReleaseUpdate::handleUpdate(HTTPClient& http) {
                     _lastError = HTTP_UE_TOO_LESS_SPACE;
                     goto exit;
                 }
+            }
 
-                if (_cbStart) {
-                    _cbStart();
+            if (_cbStart) {
+                _cbStart();
+            }
+
+            WiFiClient* tcp = http.getStreamPtr();
+            if (runUpdate(*tcp, hasContentLength ? len : 0)) {
+                ret = HTTP_UPDATE_OK;
+                if (_cbEnd) {
+                    _cbEnd(true);
                 }
 
-                WiFiClient* tcp = http.getStreamPtr();
-                if (runUpdate(*tcp, len)) {
-                    ret = HTTP_UPDATE_OK;
-                    if (_cbEnd) {
-                        _cbEnd(true);
-                    }
-
-                    if (_rebootOnUpdate) {
-                        Log.println("Update complete, rebooting...");
-                        ESP.restart();
-                    }
-                } else {
-                    ret = HTTP_UPDATE_FAILED;
-
-                    if (_cbEnd) {
-                        _cbEnd(false);
-                    }
+                if (_rebootOnUpdate) {
+                    Log.println("Update complete, rebooting...");
+                    ESP.restart();
                 }
             } else {
-                _lastError = HTTP_UE_SERVER_NOT_REPORT_SIZE;
-                Log.printf("Content-Length was 0 or wasn't set by Server?!\r\n");
-                goto exit;
+                ret = HTTP_UPDATE_FAILED;
+
+                if (_cbEnd) {
+                    _cbEnd(false);
+                }
             }
         } break;
         case HTTP_CODE_NOT_MODIFIED:
@@ -191,7 +196,7 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
         Update.onProgress(_cbProgress);
     }
 
-    if (!Update.begin(size, U_FLASH, _ledPin, _ledOn)) {
+    if (!Update.begin(size ? size : UPDATE_SIZE_UNKNOWN, U_FLASH, _ledPin, _ledOn)) {
         _lastError = Update.getError();
         Update.printError(error);
         error.trim();  // remove line ending
@@ -203,7 +208,8 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
         _cbProgress(0, size);
     }
 
-    if (Update.writeStream(in) != size) {
+    auto written = Update.writeStream(in);
+    if (size && written != size) {
         _lastError = Update.getError();
         Update.printError(error);
         error.trim();  // remove line ending
@@ -212,7 +218,7 @@ bool HttpReleaseUpdate::runUpdate(Stream& in, uint32_t size) {
     }
 
     if (_cbProgress) {
-        _cbProgress(size, size);
+        _cbProgress(size ? size : written, size);
     }
 
     if (!Update.end()) {
