@@ -78,8 +78,8 @@
   }
 
   .theme-toggle__indicator {
-    @apply absolute left-1 top-1 h-[calc(100%-0.5rem)] w-[calc((100%-0.5rem)/3)] rounded-full bg-white shadow-sm transition-transform dark:bg-gray-900;
-    transform: translateX(calc(var(--theme-index) * 100%));
+    @apply absolute left-1 top-1 h-[calc(100%-0.5rem)] w-8 rounded-full bg-white shadow-sm transition-transform dark:bg-gray-900;
+    transform: translateX(calc(var(--theme-index) * (2rem + 0.25rem)));
   }
 
   .theme-toggle__button {

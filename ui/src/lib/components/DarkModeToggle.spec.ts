@@ -17,8 +17,32 @@ describe('DarkModeToggle', () => {
       dispatchEvent: vi.fn()
     }));
 
-  beforeEach(() => {
+  const localStorageMock = (() => {
+    let store: Record<string, string> = {};
+    return {
+      getItem: vi.fn((key: string) => store[key] || null),
+      setItem: vi.fn((key: string, value: string) => {
+        store[key] = value.toString();
+      }),
+      clear: vi.fn(() => {
+        store = {};
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete store[key];
+      }),
+    };
+  })();
+
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+  });
+
+  beforeEach(async () => {
     // Reset DOM class and storage before each test
+    // vi.resetModules(); // Causes Svelte component to crash
+    const { themeMode } = await import('$lib/stores');
+    themeMode.set('system');
+
     document.documentElement.classList.remove('dark');
     localStorage.clear();
     prefersDark = false;
@@ -61,6 +85,8 @@ describe('DarkModeToggle', () => {
     prefersDark = true;
     window.matchMedia = mockMatchMedia();
     localStorage.setItem(key, 'light');
+    const { themeMode } = await import('$lib/stores');
+    themeMode.set('light');
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
 
