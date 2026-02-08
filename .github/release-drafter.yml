@@ -1,6 +1,6 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
-version-template: '$MAJOR.$MINOR.$PATCH$PRERELEASE$PRERELEASE_NUMBER'
+version-template: '$MAJOR.$MINOR.$PATCH$PRERELEASE'
 categories:
   - title: 'Features'
     labels:
