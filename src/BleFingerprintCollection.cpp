@@ -3,8 +3,10 @@
 #include "defaults.h"
 #include "mqtt.h"
 #include "Logger.h"
+#include "BleMemoryTier.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <atomic>
 #include <sstream>
 #include <HeadlessWiFiSettings.h>
 
@@ -46,10 +48,37 @@ const TickType_t MAX_WAIT = portTICK_PERIOD_MS * 100;
 unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintMutex;
 SemaphoreHandle_t deviceConfigMutex;
+SemaphoreHandle_t coldMutex;  // Protects ColdTier access
+
+// Tiered memory management
+static TieredMemoryConfig memoryConfig;
+static TieredMemoryManager* memoryManager = nullptr;
+
+// Statistics for telemetry (atomic for thread-safe access from BLE callback)
+static std::atomic<uint32_t> dropCount{0};
+static std::atomic<uint32_t> coldCount{0};
+static std::atomic<uint32_t> hotCount{0};
 
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
+    coldMutex = xSemaphoreCreateMutex();
+
+    if (!fingerprintMutex || !deviceConfigMutex || !coldMutex) {
+        log_e("Failed to create mutex - disabling tiered memory!");
+        // Disable tiering to avoid null pointer crashes
+        memoryConfig.enabled = false;
+    }
+
+    // Initialize tiered memory management
+    // Conservative settings: leave more memory for BLE/WiFi stack
+    memoryConfig.enabled = (fingerprintMutex && deviceConfigMutex && coldMutex);
+    memoryConfig.maxCold = 128;        // 128 * 24 bytes = 3KB in PSRAM/SRAM
+    memoryConfig.minRssi = -90;        // Drop weak signals
+    memoryConfig.minRssiCold = -85;    // Cold tier for moderate signals
+    memoryConfig.criticalHeap = 30000; // 30KB safety margin
+
+    memoryManager = new TieredMemoryManager(memoryConfig);
 }
 
 void Count(BleFingerprint *f, bool counting) {
@@ -72,7 +101,123 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
     BLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
+
+    // --- Tiered Memory Classification ---
+    // This happens BEFORE any heap allocation to prevent OOM
+    if (memoryManager && memoryManager->config().enabled) {
+        // Extract classification inputs from advertisement
+        auto address = copy.getAddress();
+        const uint8_t* mac = address.getNative();
+        int8_t rssi = copy.getRSSI();
+
+        // Get advertisement payload for iBeacon detection
+        const uint8_t* advData = nullptr;
+        size_t advLen = 0;
+        if (copy.haveManufacturerData()) {
+            auto mfr = copy.getManufacturerData();
+            advData = (const uint8_t*)mfr.data();
+            advLen = mfr.length();
+        }
+
+        // Hold fingerprintMutex for the entire check-and-create to prevent TOCTOU race
+        if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+            log_e("Couldn't take fingerprintMutex in Seen!");
+            if (onSeen) onSeen(false);
+            return;
+        }
+
+        // Check if device already exists in HOT tier (existing BleFingerprint)
+        auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(),
+            [&address](BleFingerprint *f) { return f->getAddress() == address; });
+        bool existsInHot = (it != fingerprints.rend());
+
+        if (existsInHot) {
+            // Already in HOT tier - update and return
+            // Keep mutex held to prevent use-after-free if another thread deletes f
+            BleFingerprint* f = *it;
+            bool shouldAdd = f->seen(&copy);
+            xSemaphoreGive(fingerprintMutex);
+            if (shouldAdd && onAdd)
+                onAdd(f);
+            if (onSeen) onSeen(false);
+            return;
+        }
+
+        // Not in HOT tier - classify the device
+        ClassifyResult result = memoryManager->classify(mac, advData, advLen, rssi);
+
+        switch (result) {
+            case ClassifyResult::DROP:
+                // Weak signal or uninteresting device - skip entirely
+                xSemaphoreGive(fingerprintMutex);
+                dropCount.fetch_add(1, std::memory_order_relaxed);
+                if (onSeen) onSeen(false);
+                return;  // No heap allocation!
+
+            case ClassifyResult::COLD:
+                // Store in cold tier, check for promotion
+                {
+                    // Release fingerprint mutex before taking cold mutex to avoid deadlock
+                    xSemaphoreGive(fingerprintMutex);
+
+                    if (xSemaphoreTake(coldMutex, MAX_WAIT) != pdTRUE) {
+                        log_e("Couldn't take coldMutex in Seen!");
+                        if (onSeen) onSeen(false);
+                        return;
+                    }
+
+                    uint32_t nowMs = millis();
+                    ColdTier& cold = memoryManager->coldTier();
+                    ColdRecord* existing = cold.lookup(mac);
+                    bool shouldPromote = false;
+
+                    if (existing) {
+                        // Update existing cold record
+                        cold.update(mac, rssi, nowMs);
+
+                        // Promotion criteria: seen 5+ times AND recent strong signal
+                        if (existing->seenCount >= 5 && rssi > -75) {
+                            shouldPromote = true;
+                        }
+                    } else {
+                        // New cold record
+                        cold.insert(mac, rssi, nowMs);
+                    }
+
+                    if (shouldPromote) {
+                        // Remove from cold tier before releasing mutex
+                        cold.remove(mac);
+                    }
+
+                    xSemaphoreGive(coldMutex);
+
+                    if (shouldPromote) {
+                        // Promote to HOT tier - proceed to GetFingerprint
+                        hotCount.fetch_add(1, std::memory_order_relaxed);
+                        break;  // Fall through to normal processing
+                    }
+
+                    // Stay in cold tier
+                    coldCount.fetch_add(1, std::memory_order_relaxed);
+                    if (onSeen) onSeen(false);
+                    return;
+                }
+
+            case ClassifyResult::HOT:
+                // High-value device (known MAC, iBeacon) - promote immediately
+                xSemaphoreGive(fingerprintMutex);
+                hotCount.fetch_add(1, std::memory_order_relaxed);
+                break;  // Fall through to normal processing
+        }
+    }
+
+    // --- Normal HOT tier processing ---
     BleFingerprint *f = GetFingerprint(&copy);
+    if (!f) {
+        log_e("Failed to create fingerprint - heap exhausted?");
+        if (onSeen) onSeen(false);
+        return;
+    }
     if (f->seen(&copy) && onAdd)
         onAdd(f);
     if (onSeen) onSeen(false);
@@ -88,8 +233,10 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
  * @return true if a new configuration was added, false if an existing configuration was replaced.
  */
 bool addOrReplace(DeviceConfig config) {
-    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
+        return false;
+    }
 
     std::vector<String> idsToDelete;
     bool isReplacement = false;
@@ -284,6 +431,11 @@ void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
+
+    // Memory watchdog tick - checks heap and may trigger safe restart
+    if (memoryManager) {
+        memoryManager->tick(now);
+    }
     auto it = fingerprints.begin();
     bool any = false;
     while (it != fingerprints.end()) {
@@ -384,6 +536,19 @@ bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config) {
     }
     log_e("Couldn't take deviceConfigMutex!");
     return false;
+}
+
+// Tiered memory statistics accessors
+uint32_t getDropCount() { return dropCount.load(std::memory_order_relaxed); }
+uint32_t getColdCount() { return coldCount.load(std::memory_order_relaxed); }
+uint32_t getHotCount() { return hotCount.load(std::memory_order_relaxed); }
+
+void getMemoryTierStatus(char* buf, size_t bufLen) {
+    if (memoryManager) {
+        memoryManager->getStatus(buf, bufLen);
+    } else {
+        snprintf(buf, bufLen, "TieredMem:disabled");
+    }
 }
 
 }  // namespace BleFingerprintCollection
