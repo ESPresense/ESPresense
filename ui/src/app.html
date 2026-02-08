@@ -6,7 +6,11 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<script>
 			// On page load or when changing themes, best to add inline in `head` to avoid FOUC
-			if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+			const storedTheme = localStorage.theme
+				?? (localStorage.darkMode === 'true' ? 'dark' : localStorage.darkMode === 'false' ? 'light' : null);
+			const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+			const theme = storedTheme ?? 'system';
+			if (theme === 'dark' || (theme === 'system' && prefersDark)) {
 				document.documentElement.classList.add('dark');
 			} else {
 				document.documentElement.classList.remove('dark');
