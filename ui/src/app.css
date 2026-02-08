@@ -69,6 +69,31 @@
 }
 
 @layer components {
+  .theme-toggle {
+    --theme-index: 0;
+  }
+
+  .theme-toggle__track {
+    @apply relative inline-flex items-center gap-1 rounded-full bg-gray-200 p-1 text-gray-600 shadow-sm dark:bg-gray-700 dark:text-gray-200;
+  }
+
+  .theme-toggle__indicator {
+    @apply absolute left-1 top-1 h-[calc(100%-0.5rem)] w-[calc((100%-0.5rem)/3)] rounded-full bg-white shadow-sm transition-transform dark:bg-gray-900;
+    transform: translateX(calc(var(--theme-index) * 100%));
+  }
+
+  .theme-toggle__button {
+    @apply relative z-10 inline-flex h-8 w-8 items-center justify-center rounded-full p-0 text-gray-500 transition-colors hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-gray-300 dark:hover:text-white;
+  }
+
+  .theme-toggle__button.active {
+    @apply text-gray-900 dark:text-white;
+  }
+
+  .theme-toggle__icon {
+    @apply h-4 w-4;
+  }
+
   /* iOS Spinner */
   .ios-spinner {
     width: 16px;

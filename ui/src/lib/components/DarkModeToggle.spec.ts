@@ -36,7 +36,7 @@ describe('DarkModeToggle', () => {
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
 
-    const btn = screen.getByRole('button', { name: /use dark theme/i });
+    const btn = screen.getByRole('button', { name: /dark theme/i });
     expect(document.documentElement).not.toHaveClass('dark');
 
     await fireEvent.click(btn);
@@ -50,7 +50,7 @@ describe('DarkModeToggle', () => {
     themeMode.set('dark');
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
-    const btn = screen.getByRole('button', { name: /use light theme/i });
+    const btn = screen.getByRole('button', { name: /light theme/i });
 
     await fireEvent.click(btn);
     expect(document.documentElement).not.toHaveClass('dark');
@@ -64,7 +64,7 @@ describe('DarkModeToggle', () => {
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
 
-    const btn = screen.getByRole('button', { name: /use system theme/i });
+    const btn = screen.getByRole('button', { name: /system theme/i });
     await fireEvent.click(btn);
 
     expect(document.documentElement).toHaveClass('dark');
