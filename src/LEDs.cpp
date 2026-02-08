@@ -41,19 +41,19 @@ void ConnectToWifi() {
     std::vector<String> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
 
     led_1_type = HeadlessWiFiSettings.dropdown("led_1_type", ledTypes, DEFAULT_LED1_TYPE, "LED Type");
-    led_1_pin = HeadlessWiFiSettings.integer("led_1_pin", -1, 39, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
+    led_1_pin = HeadlessWiFiSettings.integer("led_1_pin", -1, 48, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
     led_1_cnt = HeadlessWiFiSettings.integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
     led_1_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
     String const led_1_state = HeadlessWiFiSettings.string("led_1_state", true, "LED State");
 
     led_2_type = HeadlessWiFiSettings.dropdown("led_2_type", ledTypes, 0, "LED Type");
-    led_2_pin = HeadlessWiFiSettings.integer("led_2_pin", -1, 39, -1, "Pin (-1 to disable)");
+    led_2_pin = HeadlessWiFiSettings.integer("led_2_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_2_cnt = HeadlessWiFiSettings.integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_2_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
     String const led_2_state = HeadlessWiFiSettings.string("led_2_state", true, "LED State");
 
     led_3_type = HeadlessWiFiSettings.dropdown("led_3_type", ledTypes, 0, "LED Type");
-    led_3_pin = HeadlessWiFiSettings.integer("led_3_pin", -1, 39, -1, "Pin (-1 to disable)");
+    led_3_pin = HeadlessWiFiSettings.integer("led_3_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_3_cnt = HeadlessWiFiSettings.integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
     String const led_3_state = HeadlessWiFiSettings.string("led_3_state", true, "LED State");
