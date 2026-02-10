@@ -46,6 +46,7 @@ namespace BH1750
         {
             state = BH1750.begin(BH1750_TO_VCC, &Wire);
         }
+#if SOC_I2C_NUM > 1
         else if (BH1750_I2c == "0x23" && BH1750_I2c_Bus == 2)
         {
             state = BH1750.begin(BH1750_TO_GROUND, &Wire1);
@@ -54,6 +55,7 @@ namespace BH1750
         {
             state = BH1750.begin(BH1750_TO_VCC, &Wire1);
         }
+#endif
 
         if (!state)
         {
