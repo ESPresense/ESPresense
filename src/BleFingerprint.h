@@ -6,7 +6,7 @@
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
 #include <NimBLEEddystoneTLM.h>
-#include <NimBLEEddystoneURL.h>
+// NimBLEEddystoneURL removed in NimBLE 2.x (Google shutdown)
 
 #include <memory>
 

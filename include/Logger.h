@@ -4,7 +4,7 @@
 #include <utility>
 
 #ifdef ARDUINO
-using LoggerSerialType = decltype(::Serial);
+using LoggerSerialType = decltype(Serial);
 #else
 class HardwareSerial;
 using LoggerSerialType = HardwareSerial;
