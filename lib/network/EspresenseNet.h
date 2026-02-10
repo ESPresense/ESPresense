@@ -2,7 +2,7 @@
   #include <ESP8266WiFi.h>
 #else
   #include <WiFi.h>
-  #if !defined(CONFIG_IDF_TARGET_ESP32C6)
+  #if defined(CONFIG_USE_ETHERNET)
     #include <ETH.h>
   #endif
 #endif
@@ -54,8 +54,8 @@ public:
 //              ETH_CLOCK_GPIO16_OUT  == ESP32 provides 50MHz clock output via GPIO16
 //              ETH_CLOCK_GPIO17_OUT  == ESP32 provides 50MHz clock output via GPIO17
 
-// Ethernet board definitions - only for ESP32 variants with Ethernet MAC (excludes C6)
-#if !defined(CONFIG_IDF_TARGET_ESP32C6)
+// Ethernet board definitions - only for ESP32 variants with Ethernet MAC
+#if defined(CONFIG_USE_ETHERNET)
 typedef struct EthernetSettings {
   uint8_t        eth_address;
   int            eth_power;
@@ -200,7 +200,7 @@ const ethernet_settings ethernetBoards[] = {
     ETH_CLOCK_GPIO0_IN  // eth_clk_mode
   }
 };
-#endif // !CONFIG_IDF_TARGET_ESP32C6
+#endif // CONFIG_USE_ETHERNET
 
 extern NetworkClass Net;
 
