@@ -1,4 +1,4 @@
-#include "Network.h"
+#include "EspresenseNet.h"
 #include "../../include/Logger.h"
 
 /**
@@ -9,7 +9,7 @@
 IPAddress NetworkClass::localIP()
 {
   IPAddress localIP;
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   localIP = ETH.localIP();
   if (localIP[0] != 0) {
     return localIP;
@@ -25,7 +25,7 @@ IPAddress NetworkClass::localIP()
 
 IPAddress NetworkClass::subnetMask()
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   if (ETH.localIP()[0] != 0) {
     return ETH.subnetMask();
   }
@@ -38,7 +38,7 @@ IPAddress NetworkClass::subnetMask()
 
 IPAddress NetworkClass::gatewayIP()
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   if (ETH.localIP()[0] != 0) {
       return ETH.gatewayIP();
   }
@@ -52,7 +52,7 @@ IPAddress NetworkClass::gatewayIP()
 IPAddress NetworkClass::dnsIP()
 {
   IPAddress dnsIP;
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   dnsIP = ETH.dnsIP();
   if (dnsIP[0] != 0) {
     return dnsIP;
@@ -68,7 +68,7 @@ IPAddress NetworkClass::dnsIP()
 
 const char* NetworkClass::getHostname()
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   if (ETH.localIP()[0] != 0) {
     return ETH.getHostname();
   }
@@ -78,7 +78,7 @@ const char* NetworkClass::getHostname()
 
 bool NetworkClass::isConnected()
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   return (WiFi.localIP()[0] != 0 && WiFi.status() == WL_CONNECTED) || ETH.localIP()[0] != 0;
 #else
   return (WiFi.localIP()[0] != 0 && WiFi.status() == WL_CONNECTED);
@@ -87,7 +87,7 @@ bool NetworkClass::isConnected()
 
 bool NetworkClass::isEthernet()
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
   return (ETH.localIP()[0] != 0);
 #endif
   return false;
@@ -95,7 +95,7 @@ bool NetworkClass::isEthernet()
 
 bool NetworkClass::initEthernet(int ethernetType)
 {
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
 
   static bool successfullyConfiguredEthernet = false;
 
@@ -140,6 +140,7 @@ bool NetworkClass::initEthernet(int ethernetType)
  */
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET) && !defined(CONFIG_IDF_TARGET_ESP32C6)
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
@@ -158,6 +159,9 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
 
     Log.println(F(" success!"));
     return true;
+#else
+    return false;
+#endif
 }
 
 NetworkClass Network;
