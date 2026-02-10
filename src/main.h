@@ -21,7 +21,7 @@
 #include "Motion.h"
 #include "Switch.h"
 #include "Button.h"
-#include "Network.h"
+#include "EspresenseNet.h"
 #include "SerialImprov.h"
 #include "Logger.h"
 #include "Updater.h"
