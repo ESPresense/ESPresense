@@ -202,6 +202,6 @@ const ethernet_settings ethernetBoards[] = {
 };
 #endif // !CONFIG_IDF_TARGET_ESP32C6
 
-extern NetworkClass Network;
+extern NetworkClass Net;
 
 #endif
