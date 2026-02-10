@@ -2,6 +2,8 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#if SOC_I2C_NUM > 1
+
 namespace AXP192 {
 
 uint8_t Read8bit(uint8_t Addr) {
@@ -49,3 +51,5 @@ void Setup() {
 void Loop() {
 }
 }  // namespace AXP192
+
+#endif

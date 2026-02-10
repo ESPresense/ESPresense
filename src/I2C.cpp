@@ -32,7 +32,9 @@ void ConnectToWifi() {
     }
 
     if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SDA != -1) {
+#if SOC_I2C_NUM > 1
         I2C_Bus_2_Started = Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
+#endif
     }
 }
 
@@ -83,6 +85,7 @@ void SerialReport() {
     }
 
     if (I2C_Bus_2_Started) {
+#if SOC_I2C_NUM > 1
         Log.println("Scanning I2C for devices on Bus 2...");
 
         for (address = 1; address < 127; address++) {
@@ -105,6 +108,7 @@ void SerialReport() {
                 Log.println(address, HEX);
             }
         }
+#endif
     }
 
     if (nDevices == 0) {

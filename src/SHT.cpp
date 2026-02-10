@@ -28,7 +28,13 @@ void Setup() {
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (bus < 1 || bus > 2) return;
     sensor = new SHTSensor();
-    initialized = sensor->init(bus == 1 ? Wire : Wire1);
+    initialized = sensor->init(
+#if SOC_I2C_NUM > 1
+        bus == 1 ? Wire : Wire1
+#else
+        Wire
+#endif
+    );
 
     if (!initialized) {
         Log.println("[SHT] Couldn't find a sensor, check your wiring and I2C address!");
