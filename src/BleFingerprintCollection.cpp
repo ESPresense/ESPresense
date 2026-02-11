@@ -68,11 +68,11 @@ void Close(BleFingerprint *f, bool close) {
     }
 }
 
-void Seen(BLEAdvertisedDevice *advertisedDevice) {
+void Seen(const BLEAdvertisedDevice *advertisedDevice) {
     BLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(&copy);
+    BleFingerprint *f = GetFingerprint(advertisedDevice);
     if (f->seen(&copy) && onAdd)
         onAdd(f);
     if (onSeen) onSeen(false);
@@ -333,14 +333,15 @@ void CleanupOldFingerprints() {
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
  */
-BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *getFingerprintInternal(const BLEAdvertisedDevice *advertisedDevice) {
     auto mac = advertisedDevice->getAddress();
 
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.rend())
         return *it;
 
-    auto created = new BleFingerprint(advertisedDevice);
+    BLEAdvertisedDevice copy = *advertisedDevice;
+    auto created = new BleFingerprint(&copy);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;
@@ -354,7 +355,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     return created;
 }
 
-BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *GetFingerprint(const BLEAdvertisedDevice *advertisedDevice) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);
@@ -368,7 +369,7 @@ const std::vector<BleFingerprint *> GetCopy(bool cleanup) {
     if (cleanup) CleanupOldFingerprints();
     std::vector<BleFingerprint *> copy(fingerprints);
     xSemaphoreGive(fingerprintMutex);
-    return std::move(copy);
+    return copy;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {

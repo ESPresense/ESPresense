@@ -30,8 +30,8 @@ bool Config(String &id, String &json);
 
 void Close(BleFingerprint *f, bool close);
 void Count(BleFingerprint *f, bool counting);
-void Seen(BLEAdvertisedDevice *advertisedDevice);
-BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
+void Seen(const BLEAdvertisedDevice *advertisedDevice);
+BleFingerprint *GetFingerprint(const BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 const std::vector<BleFingerprint *> GetCopy(bool cleanup = true);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
