@@ -63,7 +63,7 @@ void serveJson(AsyncWebServerRequest *request) {
 
     int const paramsNr = request->params();
     for (int i = 0; i < paramsNr; i++) {
-        AsyncWebParameter *p = request->getParam(i);
+        const AsyncWebParameter *p = request->getParam(i);
         if (p->name() == "showAll") showAll = true;
     }
 
