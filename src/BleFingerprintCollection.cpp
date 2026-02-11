@@ -5,7 +5,7 @@
 #include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
-#include <sstream>
+#include <cctype>
 #include <HeadlessWiFiSettings.h>
 
 namespace BleFingerprintCollection {
@@ -216,12 +216,24 @@ void ConnectToWifi() {
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
 
-    std::istringstream iss(knownIrks.c_str());
-    std::string irk_hex;
-    while (iss >> irk_hex) {
+    size_t start = 0;
+    while (start < static_cast<size_t>(knownIrks.length())) {
+        while (start < static_cast<size_t>(knownIrks.length()) && std::isspace(static_cast<unsigned char>(knownIrks[start])))
+            ++start;
+        if (start >= static_cast<size_t>(knownIrks.length()))
+            break;
+
+        size_t end = start;
+        while (end < static_cast<size_t>(knownIrks.length()) && !std::isspace(static_cast<unsigned char>(knownIrks[end])))
+            ++end;
+
+        auto irk_hex = knownIrks.substring(start, end);
+        start = end;
         auto *irk = new uint8_t[16];
-        if (!hextostr(irk_hex.c_str(), irk, 16))
+        if (!hextostr(irk_hex, irk, 16)) {
+            delete[] irk;
             continue;
+        }
         irks.push_back(irk);
     }
 }
