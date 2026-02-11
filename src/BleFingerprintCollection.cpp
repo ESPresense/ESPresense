@@ -28,7 +28,8 @@ int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
 int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
     countMs = DEFAULT_COUNT_MS,
-    requeryMs = DEFAULT_REQUERY_MS;
+    requeryMs = DEFAULT_REQUERY_MS,
+    maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 std::vector<BleFingerprint *> fingerprints;
@@ -210,6 +211,7 @@ void ConnectToWifi() {
     rxAdjRssi = HeadlessWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
     absorption = HeadlessWiFiSettings.floating("absorption", 1, 5, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+    maxFingerprints = HeadlessWiFiSettings.integer("max_fingerprints", 10, 1000, DEFAULT_MAX_FINGERPRINTS, "Maximum number of fingerprints to track (LRU eviction)");
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
 
@@ -266,6 +268,9 @@ bool Command(String &command, String &pay) {
     } else if (command == "max_divisor") {
         maxDivisor = pay.isEmpty() ? DEFAULT_MAX_DIVISOR : pay.toInt();
         spurt("/max_divisor", String(maxDivisor));
+    } else if (command == "max_fingerprints") {
+        maxFingerprints = pay.isEmpty() ? DEFAULT_MAX_FINGERPRINTS : pay.toInt();
+        spurt("/max_fingerprints", String(maxFingerprints));
     } else
         return false;
     return true;
@@ -274,16 +279,19 @@ bool Command(String &command, String &pay) {
 /**
  * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
  *
- * Runs at most once every 5 seconds; for each fingerprint whose time since last seen
- * exceeds `forgetMs` this function invokes the `onDel` callback (if set), deletes
- * the fingerprint object, and removes it from the internal collection. If no
- * fingerprints remain and the system uptime exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`,
- * the function logs a message and calls `ESP.restart()`.
+ * Runs at most once every 5 seconds. First, it removes fingerprints whose time since
+ * last seen exceeds `forgetMs`. Then, if the count exceeds `maxFingerprints`, it
+ * performs LRU eviction (removing oldest seen first) until the count is at or below
+ * the limit. If no fingerprints remain and the system uptime exceeds
+ * `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`, the function logs a message and calls
+ * `ESP.restart()`.
  */
 void CleanupOldFingerprints() {
     auto now = millis();
-    if (now - lastCleanup < 5000) return;
+    if (now - lastCleanup < 2 * forgetMs) return;
     lastCleanup = now;
+
+    // First pass: Remove stale fingerprints (not seen for forgetMs)
     auto it = fingerprints.begin();
     bool any = false;
     while (it != fingerprints.end()) {
@@ -297,7 +305,23 @@ void CleanupOldFingerprints() {
             ++it;
         }
     }
-    if (!any) {
+
+    // Second pass: LRU eviction if still over maxFingerprints limit
+    while (fingerprints.size() > static_cast<size_t>(maxFingerprints)) {
+        // Find the fingerprint with the oldest lastSeenMillis (LRU)
+        auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
+            [](BleFingerprint *a, BleFingerprint *b) {
+                return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
+            });
+
+        if (oldest != fingerprints.end()) {
+            if (onDel) onDel(*oldest);
+            delete *oldest;
+            fingerprints.erase(oldest);
+        }
+    }
+
+    if (!any && fingerprints.empty()) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
             Log.println("Bluetooth controller seems stuck, restarting");
