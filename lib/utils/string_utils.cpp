@@ -1,6 +1,6 @@
-#include <regex>
 #include <string_utils.h>
 #include <SPIFFS.h>
+#include <cctype>
 
 static constexpr char hexmap[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
 
@@ -23,10 +23,33 @@ std::string lowertrim(std::string str, char toTrim)
     return rtrim(ltrim(str, toTrim), toTrim);
 }
 
-std::regex whitespace_re("[\\s\\W-]+");
+static std::string normalizeWordSeparators(const std::string &text, char replacement)
+{
+    std::string out;
+    out.reserve(text.size());
+    bool lastWasReplacement = false;
+
+    for (unsigned char c : text)
+    {
+        const bool isWordChar = std::isalnum(c) || c == '_';
+        if (isWordChar)
+        {
+            out.push_back(static_cast<char>(std::tolower(c)));
+            lastWasReplacement = false;
+        }
+        else if (!lastWasReplacement)
+        {
+            out.push_back(replacement);
+            lastWasReplacement = true;
+        }
+    }
+
+    return rtrim(ltrim(out, replacement), replacement);
+}
+
 std::string slugify(const std::string &text)
 {
-    return lowertrim(std::regex_replace(text, whitespace_re, "_"), '_');
+    return normalizeWordSeparators(text, '_');
 }
 
 String slugify(const String &text)
@@ -37,7 +60,7 @@ String slugify(const String &text)
 
 std::string kebabify(const std::string &text)
 {
-    return lowertrim(std::regex_replace(text, whitespace_re, "-"), '-');
+    return normalizeWordSeparators(text, '-');
 }
 
 String kebabify(const String &text)
