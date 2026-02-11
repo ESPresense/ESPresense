@@ -1,3 +1,4 @@
+#define USER_SETUP_LOADED
 #define ST7735_DRIVER
 
 #define ST7735_GREENTAB160x80
@@ -24,12 +25,6 @@
 #define ST7735_GREENTAB160x80  // For 160 x 80 display (BGR, inverted, 26
                                // offset)
                                //#define ST7735_REDTAB
-
-#define INITR_GREENTAB160x80 0x6
-#define INITR_REDTAB160x80 0x7
-#define INITB 0xB
-#define TAB_COLOUR INITR_GREENTAB160x80
-#define CGRAM_OFFSET
 
 // Color definitions for backwards compatibility with old sketches
 // use colour definitions like TFT_BLACK to make sketches more portable
