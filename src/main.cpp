@@ -5,7 +5,10 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
+    printf("%s was called but failed to allocate %zu bytes with 0x%lX capabilities. \n",
+           functionName,
+           requestedSize,
+           static_cast<unsigned long>(caps));
 }
 
 /**
@@ -248,7 +251,7 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println("Version:      " + String(VERSION));
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.printf("WiFi BSSID:   %s (channel=%ld rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), static_cast<long>(WiFi.channel()), WiFi.RSSI());
     Log.print("IP address:   ");
     Log.println(Net.localIP());
     Log.print("DNS address:  ");
@@ -588,7 +591,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Log.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Pre-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
@@ -625,7 +628,7 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Log.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     Log.println();
 }
 
@@ -646,7 +649,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();
