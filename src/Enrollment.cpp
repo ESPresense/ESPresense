@@ -170,7 +170,8 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      *
      * @param pDescriptor Pointer to the NimBLEDescriptor that was written.
      */
-    void onWrite(NimBLEDescriptor *pDescriptor) {
+    void onWrite(NimBLEDescriptor *pDescriptor, NimBLEConnInfo &connInfo) override {
+        (void)connInfo;
         std::string dscVal = pDescriptor->getValue();
         Log.print("Descriptor written value:");
         Log.println(dscVal.c_str());
@@ -183,7 +184,8 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      *
      * @param pDescriptor Descriptor that was read.
      */
-    void onRead(NimBLEDescriptor *pDescriptor) {
+    void onRead(NimBLEDescriptor *pDescriptor, NimBLEConnInfo &connInfo) override {
+        (void)connInfo;
         std::string uuid = pDescriptor->getUUID().toString();
         Log.print(uuid.c_str());
         Log.println(" Descriptor read");
