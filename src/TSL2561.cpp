@@ -71,9 +71,12 @@ namespace TSL2561
 
         if (TSL2561_I2c_Bus == 1) {
             tsl.begin(&Wire);
-        } else if (TSL2561_I2c_Bus == 2) {
+        }
+#if SOC_I2C_NUM > 1
+        else if (TSL2561_I2c_Bus == 2) {
             tsl.begin(&Wire1);
         }
+#endif
 
         if (TSL2561_I2c_Gain == "auto") {
             tsl.enableAutoRange(true);

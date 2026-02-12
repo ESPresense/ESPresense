@@ -790,7 +790,7 @@ const uint8_t APP_IMMUTABLE_ASSETS_INTERNAL_DAT95K88_CSS[] PROGMEM = {
 };
 
 inline void serveAppImmutableAssetsInternalDAt95k88Css(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_INTERNAL_DAT95K88_CSS, APP_IMMUTABLE_ASSETS_INTERNAL_DAT95K88_CSS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/css", APP_IMMUTABLE_ASSETS_INTERNAL_DAT95K88_CSS, APP_IMMUTABLE_ASSETS_INTERNAL_DAT95K88_CSS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
@@ -1580,7 +1580,7 @@ const uint8_t APP_IMMUTABLE_ASSETS_START_DAT95K88_CSS[] PROGMEM = {
 };
 
 inline void serveAppImmutableAssetsStartDAt95k88Css(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_START_DAT95K88_CSS, APP_IMMUTABLE_ASSETS_START_DAT95K88_CSS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/css", APP_IMMUTABLE_ASSETS_START_DAT95K88_CSS, APP_IMMUTABLE_ASSETS_START_DAT95K88_CSS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);

@@ -23,7 +23,7 @@ const uint8_t APP_IMMUTABLE_ENTRY_APP_DGF10YYJ_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableEntryAppDgF10YyjJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_ENTRY_APP_DGF10YYJ_JS, APP_IMMUTABLE_ENTRY_APP_DGF10YYJ_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_ENTRY_APP_DGF10YYJ_JS, APP_IMMUTABLE_ENTRY_APP_DGF10YYJ_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
@@ -3976,7 +3976,7 @@ const uint8_t APP_IMMUTABLE_ENTRY_START_CK_0VCUO_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableEntryStartCk_0VcuoJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_ENTRY_START_CK_0VCUO_JS, APP_IMMUTABLE_ENTRY_START_CK_0VCUO_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_ENTRY_START_CK_0VCUO_JS, APP_IMMUTABLE_ENTRY_START_CK_0VCUO_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);

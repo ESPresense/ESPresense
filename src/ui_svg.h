@@ -41,7 +41,7 @@ const uint8_t FAVICON_SVG[] PROGMEM = {
 };
 
 inline void serveFaviconSvg(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "image/svg+xml", FAVICON_SVG, FAVICON_SVG_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "image/svg+xml", FAVICON_SVG, FAVICON_SVG_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }

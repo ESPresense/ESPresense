@@ -58,7 +58,7 @@ const uint8_t DEVICES_HTML[] PROGMEM = {
 };
 
 inline void serveDevicesHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", DEVICES_HTML, DEVICES_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", DEVICES_HTML, DEVICES_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
@@ -115,7 +115,7 @@ const uint8_t FINGERPRINTS_HTML[] PROGMEM = {
 };
 
 inline void serveFingerprintsHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", FINGERPRINTS_HTML, FINGERPRINTS_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", FINGERPRINTS_HTML, FINGERPRINTS_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
@@ -172,7 +172,7 @@ const uint8_t HARDWARE_HTML[] PROGMEM = {
 };
 
 inline void serveHardwareHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", HARDWARE_HTML, HARDWARE_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", HARDWARE_HTML, HARDWARE_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
@@ -229,7 +229,7 @@ const uint8_t INDEX_HTML[] PROGMEM = {
 };
 
 inline void serveIndexHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", INDEX_HTML, INDEX_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", INDEX_HTML, INDEX_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
@@ -286,7 +286,7 @@ const uint8_t NETWORK_HTML[] PROGMEM = {
 };
 
 inline void serveNetworkHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", NETWORK_HTML, NETWORK_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", NETWORK_HTML, NETWORK_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }
@@ -343,7 +343,7 @@ const uint8_t SETTINGS_HTML[] PROGMEM = {
 };
 
 inline void serveSettingsHtml(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", SETTINGS_HTML, SETTINGS_HTML_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/html", SETTINGS_HTML, SETTINGS_HTML_L);
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
 }

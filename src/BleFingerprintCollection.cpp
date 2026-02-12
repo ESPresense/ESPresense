@@ -5,7 +5,7 @@
 #include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
-#include <sstream>
+#include <cctype>
 #include <HeadlessWiFiSettings.h>
 
 namespace BleFingerprintCollection {
@@ -68,11 +68,11 @@ void Close(BleFingerprint *f, bool close) {
     }
 }
 
-void Seen(BLEAdvertisedDevice *advertisedDevice) {
+void Seen(const BLEAdvertisedDevice *advertisedDevice) {
     BLEAdvertisedDevice copy = *advertisedDevice;
 
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(&copy);
+    BleFingerprint *f = GetFingerprint(advertisedDevice);
     if (f->seen(&copy) && onAdd)
         onAdd(f);
     if (onSeen) onSeen(false);
@@ -213,12 +213,24 @@ void ConnectToWifi() {
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
 
-    std::istringstream iss(knownIrks.c_str());
-    std::string irk_hex;
-    while (iss >> irk_hex) {
+    size_t start = 0;
+    while (start < static_cast<size_t>(knownIrks.length())) {
+        while (start < static_cast<size_t>(knownIrks.length()) && std::isspace(static_cast<unsigned char>(knownIrks[start])))
+            ++start;
+        if (start >= static_cast<size_t>(knownIrks.length()))
+            break;
+
+        size_t end = start;
+        while (end < static_cast<size_t>(knownIrks.length()) && !std::isspace(static_cast<unsigned char>(knownIrks[end])))
+            ++end;
+
+        auto irk_hex = knownIrks.substring(start, end);
+        start = end;
         auto *irk = new uint8_t[16];
-        if (!hextostr(irk_hex.c_str(), irk, 16))
+        if (!hextostr(irk_hex, irk, 16)) {
+            delete[] irk;
             continue;
+        }
         irks.push_back(irk);
     }
 }
@@ -318,14 +330,15 @@ void CleanupOldFingerprints() {
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
  */
-BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *getFingerprintInternal(const BLEAdvertisedDevice *advertisedDevice) {
     auto mac = advertisedDevice->getAddress();
 
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.rend())
         return *it;
 
-    auto created = new BleFingerprint(advertisedDevice);
+    BLEAdvertisedDevice copy = *advertisedDevice;
+    auto created = new BleFingerprint(&copy);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;
@@ -339,7 +352,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     return created;
 }
 
-BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+BleFingerprint *GetFingerprint(const BLEAdvertisedDevice *advertisedDevice) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);
@@ -353,7 +366,7 @@ const std::vector<BleFingerprint *> GetCopy() {
     CleanupOldFingerprints();
     std::vector<BleFingerprint *> copy(fingerprints);
     xSemaphoreGive(fingerprintMutex);
-    return std::move(copy);
+    return copy;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {

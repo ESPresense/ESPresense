@@ -1,4 +1,4 @@
-#include "Network.h"
+#include "EspresenseNet.h"
 #include "../../include/Logger.h"
 
 /**
@@ -111,12 +111,12 @@ bool NetworkClass::initEthernet(int ethernetType)
 
   ethernet_settings es = ethernetBoards[ethernetType];
   if (!ETH.begin(
-                (uint8_t) es.eth_address,
-                (int)     es.eth_power,
-                (int)     es.eth_mdc,
-                (int)     es.eth_mdio,
-                (eth_phy_type_t)   es.eth_type,
-                (eth_clock_mode_t) es.eth_clk_mode
+                es.eth_type,
+                es.eth_address,
+                es.eth_mdc,
+                es.eth_mdio,
+                es.eth_power,
+                es.eth_clk_mode
                 )) {
     return false;
   }
@@ -140,6 +140,7 @@ bool NetworkClass::initEthernet(int ethernetType)
  */
 bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
@@ -158,6 +159,9 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
 
     Log.println(F(" success!"));
     return true;
+#else
+    return false;
+#endif
 }
 
-NetworkClass Network;
+NetworkClass Net;
