@@ -294,19 +294,16 @@ bool Command(String &command, String &pay) {
 /**
  * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
  *
- * Runs at most once every 5 seconds. First, it removes fingerprints whose time since
- * last seen exceeds `forgetMs`. Then, if the count exceeds `maxFingerprints`, it
- * performs LRU eviction (removing oldest seen first) until the count is at or below
- * the limit. If no fingerprints remain and the system uptime exceeds
- * `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`, the function logs a message and calls
- * `ESP.restart()`.
+ * Runs at most once every 2*forgetMs. Removes fingerprints whose time since
+ * last seen exceeds `forgetMs`. If no fingerprints remain and the system uptime
+ * exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`, the function logs a message
+ * and calls `ESP.restart()`.
  */
 void CleanupOldFingerprints() {
     auto now = millis();
-    if (now - lastCleanup < 2 * forgetMs) return;
+    if (now - lastCleanup < std::min(5000, 2 * forgetMs)) return;
     lastCleanup = now;
 
-    // First pass: Remove stale fingerprints (not seen for forgetMs)
     auto it = fingerprints.begin();
     bool any = false;
     while (it != fingerprints.end()) {
@@ -318,21 +315,6 @@ void CleanupOldFingerprints() {
         } else {
             any = true;
             ++it;
-        }
-    }
-
-    // Second pass: LRU eviction if still over maxFingerprints limit
-    while (fingerprints.size() > static_cast<size_t>(maxFingerprints)) {
-        // Find the fingerprint with the oldest lastSeenMillis (LRU)
-        auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
-            [](BleFingerprint *a, BleFingerprint *b) {
-                return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
-            });
-
-        if (oldest != fingerprints.end()) {
-            if (onDel) onDel(*oldest);
-            delete *oldest;
-            fingerprints.erase(oldest);
         }
     }
 
@@ -349,10 +331,11 @@ void CleanupOldFingerprints() {
  * @brief Obtain the fingerprint associated with an advertised BLE device.
  *
  * Returns an existing fingerprint that matches the device's MAC address or creates
- * and registers a new fingerprint if none exists. When a new fingerprint is created
- * and an existing fingerprint with the same logical ID is found, the new fingerprint
- * inherits the existing fingerprint's initial state and the existing fingerprint may
- * be expired depending on its ID type.
+ * and registers a new fingerprint if none exists. If at `maxFingerprints` capacity,
+ * the least-recently-seen fingerprint is evicted before insertion. When a new
+ * fingerprint is created and an existing fingerprint with the same logical ID is
+ * found, the new fingerprint inherits the existing fingerprint's initial state and
+ * the existing fingerprint may be expired depending on its ID type.
  *
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
@@ -372,6 +355,19 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
         created->setInitial(*found);
         if (found->getIdType() > ID_TYPE_UNIQUE)
             found->expire();
+    }
+
+    // LRU eviction: if at capacity, replace the oldest-seen fingerprint
+    if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
+        auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
+            [](BleFingerprint *a, BleFingerprint *b) {
+                return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
+            });
+        if (oldest != fingerprints.end()) {
+            if (onDel) onDel(*oldest);
+            delete *oldest;
+            fingerprints.erase(oldest);
+        }
     }
 
     fingerprints.push_back(created);
