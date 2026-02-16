@@ -25,7 +25,8 @@
                                // offset)
                                //#define ST7735_REDTAB
 
-#define INITR_REDTAB160x80
+#define INITR_GREENTAB160x80 0x6
+#define INITR_REDTAB160x80 0x7
 #define INITB 0xB
 #define TAB_COLOUR INITR_GREENTAB160x80
 #define CGRAM_OFFSET
