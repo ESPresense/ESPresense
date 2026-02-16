@@ -569,7 +569,7 @@
                 <input name="BH1750_I2c" bind:value={$hardwareSettings.values['BH1750_I2c']}/>
             </label>
         </p>
-        <h4>BME280 - Humidity + Temp + Pressure Sensor:</h4>
+        <h4>BME280/BME68x - Humidity + Temp + Pressure Sensor:</h4>
         <p>
             <label>
                 I2C Bus:<br />

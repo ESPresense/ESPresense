@@ -44,7 +44,7 @@ namespace BME280
         }
 
         if (!ok) {
-            Log.println("[BME280] Couldn't find a sensor, check your wiring and I2C address!");
+            Log.println("[BME280/BME68x] Couldn't find a sensor, check your wiring and I2C address!");
             return;
         }
 
@@ -74,7 +74,7 @@ namespace BME280
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BME280_I2c.isEmpty()) return;
-        Log.print("BME280:       ");
+        Log.print("BME280/BME68x:");
         Log.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
     }
 
@@ -111,9 +111,9 @@ namespace BME280
     {
         if (BME280_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("BME280 Temperature", EC_NONE, "temperature", "°C")
-            && sendSensorDiscovery("BME280 Humidity", EC_NONE, "humidity", "%")
-            && sendSensorDiscovery("BME280 Pressure", EC_NONE, "pressure", "hPa");
+        return sendSensorDiscovery("BME280/BME68x Temperature", EC_NONE, "temperature", "°C")
+            && sendSensorDiscovery("BME280/BME68x Humidity", EC_NONE, "humidity", "%")
+            && sendSensorDiscovery("BME280/BME68x Pressure", EC_NONE, "pressure", "hPa");
     }
 }
 
