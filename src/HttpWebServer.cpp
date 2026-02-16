@@ -3,6 +3,8 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
+#include "GUI.h"
+#include "Update.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -153,6 +155,51 @@ void Init(AsyncWebServer *server) {
     setupRoutes(server); // from ui_routes.h
 
     server->on("/restart", HTTP_POST, onRestart);
+
+    server->on("/firmware", HTTP_POST,
+               [](AsyncWebServerRequest *request) {
+                   bool success = !Update.hasError();
+                   if (success) {
+                       request->send(200, "application/json", F("{\"success\":true,\"message\":\"Firmware uploaded. Rebooting...\"}"));
+                       delay(100);
+                       ESP.restart();
+                   } else {
+                       request->send(500, "application/json", F("{\"error\":\"Firmware upload failed\"}"));
+                       GUI::Update(UPDATE_COMPLETE);
+                   }
+               },
+               [](AsyncWebServerRequest *request, const String &filename, size_t index, uint8_t *data, size_t len, bool final) {
+                   (void)filename;
+                   if (index == 0) {
+                       GUI::Update(UPDATE_STARTED);
+                       size_t contentLength = request->contentLength();
+                       if (!Update.begin(contentLength > 0 ? contentLength : UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+                           Update.printError(Log);
+                       }
+                   }
+
+                   if (!Update.hasError()) {
+                       if (Update.write(data, len) != len) {
+                           Update.printError(Log);
+                       }
+
+                       size_t total = request->contentLength();
+                       if (total > 0) {
+                           int percentage = ((index + len) * 100) / total;
+                           GUI::Update(percentage);
+                       }
+                   }
+
+                   if (final) {
+                       if (!Update.end(true)) {
+                           Update.printError(Log);
+                       }
+                       if (Update.hasError()) {
+                           GUI::Update(UPDATE_COMPLETE);
+                       }
+                   }
+               });
+
     server->on("/json", HTTP_GET, serveJson);
 
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {

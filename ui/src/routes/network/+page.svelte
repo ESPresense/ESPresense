@@ -7,6 +7,9 @@
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
     let isDestroyed = false;
+    let firmwareFile: File | null = $state(null);
+    let firmwareUploadBusy = $state(false);
+    let firmwareUploadMessage = $state("");
 
     async function fetchWifiNetworks() {
         if (isScanning || isDestroyed) return; // Prevent concurrent scans and post-destroy scans
@@ -84,6 +87,34 @@
             }
         } finally {
             s = false;
+        }
+    }
+
+    async function uploadFirmware() {
+        if (!firmwareFile || firmwareUploadBusy) return;
+
+        firmwareUploadBusy = true;
+        firmwareUploadMessage = "Uploading firmware...";
+
+        try {
+            const body = new FormData();
+            body.append("firmware", firmwareFile);
+
+            const response = await fetch("/firmware", {
+                method: "POST",
+                body
+            });
+
+            if (!response.ok) {
+                throw new Error(`Upload failed: ${response.status}`);
+            }
+
+            firmwareUploadMessage = "Upload complete. Device is rebooting to apply firmware.";
+        } catch (error) {
+            console.error("Firmware upload failed:", error);
+            firmwareUploadMessage = "Firmware upload failed.";
+        } finally {
+            firmwareUploadBusy = false;
         }
     }
 
@@ -256,6 +287,32 @@
                 <div>
                     <label for="update-url" class="block text-sm font-medium"> Update URL (if set will update from this url on next boot) </label>
                     <input id="update-url" type="text" name="update" bind:value={$mainSettings.values.update} class="mt-1 block w-full rounded-md" />
+                </div>
+
+                <div class="space-y-2">
+                    <label for="firmware-upload" class="block text-sm font-medium">Upload custom firmware (.bin)</label>
+                    <input
+                        id="firmware-upload"
+                        type="file"
+                        accept=".bin,application/octet-stream"
+                        onchange={(event) => {
+                            const target = event.currentTarget as HTMLInputElement;
+                            firmwareFile = target.files?.[0] ?? null;
+                            firmwareUploadMessage = "";
+                        }}
+                        class="mt-1 block w-full rounded-md"
+                    />
+                    <button
+                        type="button"
+                        onclick={uploadFirmware}
+                        disabled={!firmwareFile || firmwareUploadBusy}
+                        class="text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 focus:ring-4 focus:outline-none focus:ring-indigo-300"
+                    >
+                        {firmwareUploadBusy ? "Uploading..." : "Upload and flash"}
+                    </button>
+                    {#if firmwareUploadMessage}
+                        <p class="text-sm text-gray-600 dark:text-gray-300">{firmwareUploadMessage}</p>
+                    {/if}
                 </div>
             </div>
 
