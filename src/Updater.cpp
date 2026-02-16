@@ -11,6 +11,7 @@
 #include "HttpWebServer.h"
 #include "defaults.h"
 #include "globals.h"
+#include "Logger.h"
 #include "mqtt.h"
 #include "string_utils.h"
 
@@ -22,6 +23,32 @@ unsigned long updateStartedMillis = 0;
 unsigned long lastFirmwareCheck = 0;
 unsigned short autoUpdateAttempts = 0;
 String updateUrl;
+
+namespace {
+
+bool tcpLoggingSuspendedForOta = false;
+
+void suspendTcpLoggingForOta() {
+    if (tcpLoggingSuspendedForOta) return;
+
+    Log.disableTcp();
+    tcpLoggingSuspendedForOta = true;
+}
+
+void resumeTcpLoggingAfterOta() {
+    if (!tcpLoggingSuspendedForOta) return;
+
+    Log.enableTcp();
+    tcpLoggingSuspendedForOta = false;
+}
+
+class TcpLoggingGuard {
+   public:
+    TcpLoggingGuard() { suspendTcpLoggingForOta(); }
+    ~TcpLoggingGuard() { resumeTcpLoggingAfterOta(); }
+};
+
+}  // namespace
 
 String getFirmwareUrl() {
 #ifdef FIRMWARE
@@ -102,6 +129,8 @@ void checkForUpdates() {
  * - Logs progress, results, and errors via Log.printf/Log.println.
  */
 void firmwareUpdate() {
+    TcpLoggingGuard tcpLoggingGuard;
+
     String url = updateUrl.startsWith("http") ? updateUrl : getFirmwareUrl();
     bool isSecure = url.startsWith("https://");
 
@@ -179,11 +208,13 @@ void configureOTA(void) {
             updateStartedMillis = millis();
             GUI::Update(UPDATE_STARTED);
             HttpWebServer::UpdateStart();
+            suspendTcpLoggingForOta();
         })
         .onEnd([]() {
             updateStartedMillis = 0;
             GUI::Update(UPDATE_COMPLETE);
             HttpWebServer::UpdateEnd();
+            resumeTcpLoggingAfterOta();
         })
         .onProgress([](unsigned int progress, unsigned int total) {
             GUI::Update((progress / (total / 100)));
@@ -201,6 +232,7 @@ void configureOTA(void) {
             else if (error == OTA_END_ERROR)
                 Log.println("End Failed");
             updateStartedMillis = 0;
+            resumeTcpLoggingAfterOta();
         });
     ArduinoOTA.setHostname(WiFi.getHostname());
     ArduinoOTA.setPort(3232);
