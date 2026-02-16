@@ -164,9 +164,10 @@ const String LED::getStateFilename() {
 }
 
 const String LED::getStateString() {
-    // Format: BBRGGBBWW (B=brightness, R=red, G=green, B=blue, W=white)
-    char stateStr[11];
-    sprintf(stateStr, "%02X%02X%02X%02X%02X",
+    // Format: SBBRRGGBBWW (S=state, B=brightness, R=red, G=green, B=blue, W=white)
+    char stateStr[13];
+    sprintf(stateStr, "%02X%02X%02X%02X%02X%02X",
+            state ? 1 : 0,
             brightness,
             color.red,
             color.green,
@@ -176,20 +177,26 @@ const String LED::getStateString() {
 }
 
 void LED::setStateString(const String& encoded) {
-    if (encoded.length() == 10) {
-        // Parse hex values - each value is 2 hex digits
-        uint8_t const brightness = strtol(encoded.substring(0, 2).c_str(), NULL, 16);
-        uint8_t const r = strtol(encoded.substring(2, 4).c_str(), NULL, 16);
-        uint8_t const g = strtol(encoded.substring(4, 6).c_str(), NULL, 16);
-        uint8_t const b = strtol(encoded.substring(6, 8).c_str(), NULL, 16);
-        uint8_t const w = strtol(encoded.substring(8, 10).c_str(), NULL, 16);
-
-        if (hasRgbw()) {
-            setColor(r, g, b, w);
-        } else if (hasRgb()) {
-            setColor(r, g, b);
-        }
-
-        setBrightness(brightness);
+    bool hasState = encoded.length() == 12;
+    if (!hasState && encoded.length() != 10) {
+        return;
     }
+
+    uint8_t const offset = hasState ? 2 : 0;
+    // Parse hex values - each value is 2 hex digits
+    uint8_t const savedState = hasState ? strtol(encoded.substring(0, 2).c_str(), NULL, 16) : 1;
+    uint8_t const brightness = strtol(encoded.substring(offset + 0, offset + 2).c_str(), NULL, 16);
+    uint8_t const r = strtol(encoded.substring(offset + 2, offset + 4).c_str(), NULL, 16);
+    uint8_t const g = strtol(encoded.substring(offset + 4, offset + 6).c_str(), NULL, 16);
+    uint8_t const b = strtol(encoded.substring(offset + 6, offset + 8).c_str(), NULL, 16);
+    uint8_t const w = strtol(encoded.substring(offset + 8, offset + 10).c_str(), NULL, 16);
+
+    if (hasRgbw()) {
+        setColor(r, g, b, w);
+    } else if (hasRgb()) {
+        setColor(r, g, b);
+    }
+
+    setBrightness(brightness);
+    setState(savedState > 0);
 }
