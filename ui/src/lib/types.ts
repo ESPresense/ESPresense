@@ -67,6 +67,10 @@ export interface MainSettings {
         portal_timeout: number;
         "wifi-ssid": string;
         "wifi-password": string;
+        static_ip: string;
+        static_gw: string;
+        static_subnet: string;
+        static_dns: string;
         eth: string;
         mqtt_host: string;
         mqtt_port: number;
@@ -88,6 +92,10 @@ export interface MainSettings {
         "wifi-password": string;
         wifi_timeout: number;
         portal_timeout: number;
+        static_ip: string;
+        static_gw: string;
+        static_subnet: string;
+        static_dns: string;
         eth: string;
         mqtt_host: string;
         mqtt_port: number;
