@@ -15,7 +15,7 @@ unsigned long lastRead = 0;
 int sensorInterval = 60000;
 bool initialized = false;
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     bus = HeadlessWiFiSettings.integer("HTU21D_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
 }
 
