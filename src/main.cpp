@@ -596,7 +596,9 @@ void setup() {
 
     GUI::Setup(true);
     BleFingerprintCollection::Setup();
-    SPIFFS.begin(true);
+    if (!SPIFFS.begin(false)) {
+        log_e("Failed to mount SPIFFS; preserving existing data (no auto-format)");
+    }
     setupNetwork();
     Log.enableTcp(6053);
     Updater::Setup();
