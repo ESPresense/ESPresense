@@ -153,6 +153,7 @@ void Init(AsyncWebServer *server) {
     setupRoutes(server); // from ui_routes.h
 
     server->on("/restart", HTTP_POST, onRestart);
+    server->on("/reboot", HTTP_POST, onRestart);
     server->on("/json", HTTP_GET, serveJson);
 
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {

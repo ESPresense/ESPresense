@@ -78,6 +78,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && BMP180::SendDiscovery()
             && BMP280::SendDiscovery()
             && SHT::SendDiscovery()
+            && HTU21D::SendDiscovery()
             && TSL2561::SendDiscovery()
             && SensirionSGP30::SendDiscovery()
             && SensirionSCD4x::SendDiscovery()
@@ -167,7 +168,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
-    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1"};
+    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
     ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
@@ -209,6 +210,7 @@ void setupNetwork() {
     BMP180::ConnectToWifi();
     BMP280::ConnectToWifi();
     SHT::ConnectToWifi();
+    HTU21D::ConnectToWifi();
     TSL2561::ConnectToWifi();
     SensirionSGP30::ConnectToWifi();
     SensirionSCD4x::ConnectToWifi();
@@ -272,6 +274,7 @@ void setupNetwork() {
     BMP180::SerialReport();
     BMP280::SerialReport();
     SHT::SerialReport();
+    HTU21D::SerialReport();
     TSL2561::SerialReport();
     SensirionSGP30::SerialReport();
     SensirionSCD4x::SerialReport();
@@ -329,7 +332,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
  * Parses the topic to detect trailing "/config" or "/set" paths. For "/config" topics,
  * extracts the device id segment and applies the configuration payload. For "/set"
  * topics, extracts the command segment and executes the corresponding action:
- * - "restart" triggers a system restart.
+ * - "restart" or "reboot" triggers a system restart.
  * - "wifi-ssid" and "wifi-password" store the provided credential.
  * - "name" updates the room/name value (uses device MAC if payload is empty).
  * - Other commands are dispatched to registered subsystems; if a dispatched command
@@ -359,7 +362,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         Log.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
-        if (command == "restart")
+        if (command == "restart" || command == "reboot")
             ESP.restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
@@ -616,6 +619,7 @@ void setup() {
     BMP180::Setup();
     BMP280::Setup();
     SHT::Setup();
+    HTU21D::Setup();
     TSL2561::Setup();
     SensirionSGP30::Setup();
     SensirionSCD4x::Setup();
@@ -666,6 +670,7 @@ void loop() {
     BMP180::Loop();
     BMP280::Loop();
     SHT::Loop();
+    HTU21D::Loop();
     TSL2561::Loop();
     SensirionSGP30::Loop();
     SensirionSCD4x::Loop();
