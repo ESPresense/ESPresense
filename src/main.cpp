@@ -329,7 +329,7 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
  * Parses the topic to detect trailing "/config" or "/set" paths. For "/config" topics,
  * extracts the device id segment and applies the configuration payload. For "/set"
  * topics, extracts the command segment and executes the corresponding action:
- * - "restart" triggers a system restart.
+ * - "restart" or "reboot" triggers a system restart.
  * - "wifi-ssid" and "wifi-password" store the provided credential.
  * - "name" updates the room/name value (uses device MAC if payload is empty).
  * - Other commands are dispatched to registered subsystems; if a dispatched command
@@ -359,7 +359,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         Log.printf("%d Set    | %s to %s\r\n", xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
-        if (command == "restart")
+        if (command == "restart" || command == "reboot")
             ESP.restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
