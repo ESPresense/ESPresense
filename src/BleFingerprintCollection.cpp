@@ -341,17 +341,21 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
 
     // LRU eviction: if at capacity, evict oldest fingerprint (but not the one we're inheriting from)
     if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
-        auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
-            [toInheritFrom](BleFingerprint *a, BleFingerprint *b) {
-                // Never evict the fingerprint we're about to inherit from
-                if (a == toInheritFrom) return false;
-                if (b == toInheritFrom) return true;
-                return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
-            });
-        if (oldest != fingerprints.end() && *oldest != toInheritFrom) {
-            if (onDel) onDel(*oldest);
-            delete *oldest;
-            fingerprints.erase(oldest);
+        BleFingerprint *oldest = nullptr;
+        unsigned long oldestTime = 0;
+        
+        // Find the least recently seen fingerprint, excluding the one we're inheriting from
+        for (auto *f : fingerprints) {
+            if (f != toInheritFrom && f->getMsSinceLastSeen() > oldestTime) {
+                oldestTime = f->getMsSinceLastSeen();
+                oldest = f;
+            }
+        }
+        
+        if (oldest) {
+            if (onDel) onDel(oldest);
+            delete oldest;
+            fingerprints.erase(std::remove(fingerprints.begin(), fingerprints.end(), oldest), fingerprints.end());
         }
     }
 
