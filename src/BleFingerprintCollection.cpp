@@ -316,11 +316,11 @@ void CleanupOldFingerprints() {
  * @brief Obtain the fingerprint associated with an advertised BLE device.
  *
  * Returns an existing fingerprint that matches the device's MAC address or creates
- * and registers a new fingerprint if none exists. If at `maxFingerprints` capacity,
- * the least-recently-seen fingerprint is evicted before allocation to prevent memory
- * leaks. When a new fingerprint is created and an existing fingerprint with the same
- * logical ID is found, the new fingerprint inherits the existing fingerprint's
- * initial state and the existing fingerprint may be expired depending on its ID type.
+ * and registers a new fingerprint if none exists. When a new fingerprint is created,
+ * it searches for an existing fingerprint with the same logical ID (for MAC rotation
+ * cases) and inherits its state. If at `maxFingerprints` capacity, the least-recently-seen
+ * fingerprint is evicted, excluding any fingerprint we're inheriting from to preserve
+ * state continuity during MAC address rotations.
  *
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
@@ -332,27 +332,35 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     if (it != fingerprints.rend())
         return *it;
 
-    // LRU eviction: if at capacity, evict the oldest-seen fingerprint BEFORE allocating new one
+    // Create fingerprint to determine its ID for potential state inheritance
+    auto created = new BleFingerprint(advertisedDevice);
+    
+    // Find existing fingerprint with same ID (for MAC rotation cases)
+    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
+    BleFingerprint *toInheritFrom = (it2 != fingerprints.end()) ? *it2 : nullptr;
+
+    // LRU eviction: if at capacity, evict oldest fingerprint (but not the one we're inheriting from)
     if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
         auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
-            [](BleFingerprint *a, BleFingerprint *b) {
+            [toInheritFrom](BleFingerprint *a, BleFingerprint *b) {
+                // Never evict the fingerprint we're about to inherit from
+                if (a == toInheritFrom) return false;
+                if (b == toInheritFrom) return true;
                 return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
             });
-        if (oldest != fingerprints.end()) {
+        if (oldest != fingerprints.end() && *oldest != toInheritFrom) {
             if (onDel) onDel(*oldest);
             delete *oldest;
             fingerprints.erase(oldest);
         }
     }
 
-    auto created = new BleFingerprint(advertisedDevice);
-    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
-    if (it2 != fingerprints.end()) {
-        auto found = *it2;
-        // Log.printf("Detected mac switch for fingerprint id %s\r\n", found->getId().c_str());
-        created->setInitial(*found);
-        if (found->getIdType() > ID_TYPE_UNIQUE)
-            found->expire();
+    // Inherit state from existing fingerprint with same ID if found
+    if (toInheritFrom) {
+        // Log.printf("Detected mac switch for fingerprint id %s\r\n", toInheritFrom->getId().c_str());
+        created->setInitial(*toInheritFrom);
+        if (toInheritFrom->getIdType() > ID_TYPE_UNIQUE)
+            toInheritFrom->expire();
     }
 
     fingerprints.push_back(created);
