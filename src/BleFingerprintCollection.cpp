@@ -355,7 +355,17 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
             }
         }
         
-        if (oldestIt != fingerprints.end()) {
+        // If no evictable fingerprint found (all are protected), evict the protected one
+        // This can happen if toInheritFrom is the only fingerprint in the collection
+        if (oldestIt == fingerprints.end() && toInheritFrom) {
+            auto protectedIt = std::find(fingerprints.begin(), fingerprints.end(), toInheritFrom);
+            if (protectedIt != fingerprints.end()) {
+                if (onDel) onDel(*protectedIt);
+                delete *protectedIt;
+                fingerprints.erase(protectedIt);
+                toInheritFrom = nullptr;  // Can't inherit from deleted fingerprint
+            }
+        } else if (oldestIt != fingerprints.end()) {
             if (onDel) onDel(*oldestIt);
             delete *oldestIt;
             fingerprints.erase(oldestIt);
