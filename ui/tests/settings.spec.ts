@@ -6,7 +6,7 @@ const mockExtraSettings = {
 		known_macs: 'aabbccddeeff 112233445566',
 		known_irks: 'abcd1234efgh5678',
 		forget_ms: '180000',
-		max_fingerprints: '250',
+		max_fingerprints: '256',
 		query: 'flora: mi:',
 		requery_ms: '300',
 		count_ids: 'apple: tile:',
@@ -23,7 +23,7 @@ const mockExtraSettings = {
 	},
 	defaults: {
 		forget_ms: '180000',
-		max_fingerprints: '250',
+		max_fingerprints: '256',
 		requery_ms: '300',
 		count_enter: '2.5',
 		count_exit: '5.0',
@@ -116,7 +116,7 @@ test.describe('Settings Page', () => {
 
 		// Check max fingerprints
 		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
-		await expect(maxFingerprints).toHaveValue('250');
+		await expect(maxFingerprints).toHaveValue('256');
 
 		// Check query value
 		const query = page.locator('input[name="query"]');
@@ -398,7 +398,7 @@ test.describe('Settings Page', () => {
 		await expect(forgetMs).toHaveAttribute('placeholder', '180000');
 
 		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
-		await expect(maxFingerprints).toHaveAttribute('placeholder', '250');
+		await expect(maxFingerprints).toHaveAttribute('placeholder', '256');
 
 		const requeryMs = page.locator('input[name="requery_ms"]');
 		await expect(requeryMs).toHaveAttribute('placeholder', '300');
