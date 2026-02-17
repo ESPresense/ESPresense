@@ -84,6 +84,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && SensirionSCD4x::SendDiscovery()
             && HX711::SendDiscovery()
             && DS18B20::SendDiscovery()
+            && HC_SR04::SendDiscovery()
 #endif
         ) {
             sentDiscovery = true;
@@ -223,6 +224,7 @@ void setupNetwork() {
     SensirionSCD4x::ConnectToWifi(updating);
     HX711::ConnectToWifi(updating);
     DS18B20::ConnectToWifi(updating);
+    HC_SR04::ConnectToWifi(updating);
 #endif
 
 
@@ -285,6 +287,7 @@ void setupNetwork() {
     SensirionSCD4x::SerialReport();
     HX711::SerialReport();
     DS18B20::SerialReport();
+    HC_SR04::SerialReport();
 
 #endif
     Log.print("Query:        ");
@@ -643,6 +646,7 @@ void setup() {
 #ifdef SENSORS
     DHT::Setup();
     I2C::Setup();
+    HC_SR04::Setup();
     AHTX0::Setup();
     BH1750::Setup();
     BME280::Setup();
@@ -726,6 +730,7 @@ void loop() {
     SensirionSCD4x::Loop();
     HX711::Loop();
     DS18B20::Loop();
+    HC_SR04::Loop();
 #endif
 
 }
