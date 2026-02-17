@@ -294,14 +294,14 @@ bool Command(String &command, String &pay) {
 /**
  * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
  *
- * Runs at most once every 2*forgetMs. Removes fingerprints whose time since
+ * Runs at most once every 5 seconds. Removes fingerprints whose time since
  * last seen exceeds `forgetMs`. If no fingerprints remain and the system uptime
  * exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`, the function logs a message
  * and calls `ESP.restart()`.
  */
 void CleanupOldFingerprints() {
     auto now = millis();
-    if (now - lastCleanup < std::min(5000, 2 * forgetMs)) return;
+    if (now - lastCleanup < 5000) return;
     lastCleanup = now;
 
     auto it = fingerprints.begin();
@@ -318,7 +318,7 @@ void CleanupOldFingerprints() {
         }
     }
 
-    if (!any && fingerprints.empty()) {
+    if (!any) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
             Log.println("Bluetooth controller seems stuck, restarting");
