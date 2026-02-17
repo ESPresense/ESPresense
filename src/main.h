@@ -43,6 +43,7 @@
 #include "BMP280.h"
 #include "AHTX0.h"
 #include "DHT.h"
+#include "HTU21D.h"
 #include "HX711.h"
 #include "SHT.h"
 #include "SensirionSGP30.h"
