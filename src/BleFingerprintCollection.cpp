@@ -356,8 +356,9 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
             }
         }
 
-        // If no evictable fingerprint found (all are protected), evict the protected one
-        // This can happen if toInheritFrom is the only fingerprint in the collection
+        // If no evictable fingerprint found, evict the protected one to prevent memory leak
+        // This handles the edge case where toInheritFrom is the only fingerprint at capacity
+        // Note: toInheritFromIt is still valid here as fingerprints hasn't been modified yet
         if (oldestIt == fingerprints.end() && toInheritFromIt != fingerprints.end()) {
             if (onDel) onDel(*toInheritFromIt);
             delete *toInheritFromIt;
