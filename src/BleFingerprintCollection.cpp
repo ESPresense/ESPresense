@@ -334,7 +334,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
 
     // Create fingerprint to determine its ID for potential state inheritance
     auto created = new BleFingerprint(advertisedDevice);
-    
+
     // Find existing fingerprint with same ID (for MAC rotation cases)
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     BleFingerprint *toInheritFrom = (it2 != fingerprints.end()) ? *it2 : nullptr;
@@ -343,7 +343,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
         auto oldestIt = fingerprints.end();
         unsigned long oldestTime = 0;
-        
+
         // Find the least recently seen fingerprint, excluding the one we're inheriting from
         for (auto it = fingerprints.begin(); it != fingerprints.end(); ++it) {
             if (*it != toInheritFrom) {
