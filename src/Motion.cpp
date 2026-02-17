@@ -122,11 +122,12 @@ bool SendDiscovery() {
 
 bool Command(String& command, String& pay) {
     if (command == "pir_timeout") {
-        pirTimeout = pay.toInt();
-        spurt("/pir_timeout", pay);
-    } else if (command == "radar_timeout") {
-        radarTimeout = pay.toInt();
-        spurt("/radar_timeout", pay);
+        pirTimeout = pay.toFloat();
+        spurt("/pir_timeout", String(pirTimeout));
+    } else if (command == "radar_timeout" || command == "radar_latency") {
+        radarTimeout = pay.toFloat();
+        spurt("/radar_timeout", String(radarTimeout));
+        spurt("/radar_latency", String(radarTimeout));
     } else
         return false;
     return true;
@@ -136,6 +137,7 @@ bool SendOnline() {
     if (online) return true;
     if (!pub((roomsTopic + "/pir_timeout").c_str(), 0, true, String(pirTimeout).c_str())) return false;
     if (!pub((roomsTopic + "/radar_timeout").c_str(), 0, true, String(radarTimeout).c_str())) return false;
+    if (!pub((roomsTopic + "/radar_latency").c_str(), 0, true, String(radarTimeout).c_str())) return false;
     online = true;
     return true;
 }
