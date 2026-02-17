@@ -19,3 +19,4 @@ src/build_timestamp_value.h
 playwright-report
 test-results
 .omc/
+_codeql_detected_source_root
