@@ -172,6 +172,26 @@
             </div>
 
             <div>
+                <label for="static-ip" class="block text-sm font-medium">Static IP (optional)</label>
+                <input id="static-ip" type="text" name="static_ip" bind:value={$mainSettings.values.static_ip} placeholder={$mainSettings.defaults.static_ip} class="mt-1 block w-full rounded-md" />
+            </div>
+
+            <div>
+                <label for="static-gw" class="block text-sm font-medium">Static Gateway (optional)</label>
+                <input id="static-gw" type="text" name="static_gw" bind:value={$mainSettings.values.static_gw} placeholder={$mainSettings.defaults.static_gw} class="mt-1 block w-full rounded-md" />
+            </div>
+
+            <div>
+                <label for="static-subnet" class="block text-sm font-medium">Static Subnet Mask (optional)</label>
+                <input id="static-subnet" type="text" name="static_subnet" bind:value={$mainSettings.values.static_subnet} placeholder={$mainSettings.defaults.static_subnet} class="mt-1 block w-full rounded-md" />
+            </div>
+
+            <div>
+                <label for="static-dns" class="block text-sm font-medium">Static DNS (optional)</label>
+                <input id="static-dns" type="text" name="static_dns" bind:value={$mainSettings.values.static_dns} placeholder={$mainSettings.defaults.static_dns} class="mt-1 block w-full rounded-md" />
+            </div>
+
+            <div>
                 <label for="ethernet-type" class="block text-sm font-medium">Ethernet Type</label>
                 <select id="ethernet-type" name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">
                     <option value="0">None</option>
@@ -187,6 +207,7 @@
                     <option value="10">EST-PoE-32</option>
                     <option value="11">LilyGO-T-ETH-Lite (RTL8201)</option>
                     <option value="12">ESP32-POE_A1</option>
+                    <option value="13">WESP32 Rev7+ (RTL8201)</option>
                 </select>
             </div>
 
