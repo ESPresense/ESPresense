@@ -84,6 +84,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && HX711::SendDiscovery()
             && DS18B20::SendDiscovery()
             && HC_SR04::SendDiscovery()
+            && M5_ENV_III::SendDiscovery()
 #endif
         ) {
             sentDiscovery = true;
@@ -220,6 +221,7 @@ void setupNetwork() {
     HX711::ConnectToWifi();
     DS18B20::ConnectToWifi();
     HC_SR04::ConnectToWifi();
+    M5_ENV_III::ConnectToWifi();
 #endif
 
     unsigned int connectProgress = 0;
@@ -309,6 +311,7 @@ void setupNetwork() {
     HX711::SerialReport();
     DS18B20::SerialReport();
     HC_SR04::SerialReport();
+    M5_ENV_III::SerialReport();
 
 #endif
     Log.print("Query:        ");
@@ -643,6 +646,7 @@ void setup() {
     DHT::Setup();
     I2C::Setup();
     HC_SR04::Setup();
+    M5_ENV_III::Setup();
     AHTX0::Setup();
     BH1750::Setup();
     BME280::Setup();
@@ -705,6 +709,7 @@ void loop() {
     HX711::Loop();
     DS18B20::Loop();
     HC_SR04::Loop();
+    M5_ENV_III::Loop();
 #endif
 
 }

@@ -46,6 +46,7 @@
 #include "HC_SR04.h"
 #include "HX711.h"
 #include "SHT.h"
+#include "M5_ENV_III.h"
 #include "SensirionSGP30.h"
 #include "SensirionSCD4x.h"
 #include "TSL2561.h"
