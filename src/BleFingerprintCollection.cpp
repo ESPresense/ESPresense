@@ -338,6 +338,7 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     // Find existing fingerprint with same ID (for MAC rotation cases)
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     BleFingerprint *toInheritFrom = (it2 != fingerprints.end()) ? *it2 : nullptr;
+    auto toInheritFromIt = it2;  // Store iterator to avoid redundant search later
 
     // LRU eviction: if at capacity, evict oldest fingerprint (but not the one we're inheriting from)
     if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
@@ -354,17 +355,14 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
                 }
             }
         }
-        
+
         // If no evictable fingerprint found (all are protected), evict the protected one
         // This can happen if toInheritFrom is the only fingerprint in the collection
-        if (oldestIt == fingerprints.end() && toInheritFrom) {
-            auto protectedIt = std::find(fingerprints.begin(), fingerprints.end(), toInheritFrom);
-            if (protectedIt != fingerprints.end()) {
-                if (onDel) onDel(*protectedIt);
-                delete *protectedIt;
-                fingerprints.erase(protectedIt);
-                toInheritFrom = nullptr;  // Can't inherit from deleted fingerprint
-            }
+        if (oldestIt == fingerprints.end() && toInheritFromIt != fingerprints.end()) {
+            if (onDel) onDel(*toInheritFromIt);
+            delete *toInheritFromIt;
+            fingerprints.erase(toInheritFromIt);
+            toInheritFrom = nullptr;  // Can't inherit from deleted fingerprint
         } else if (oldestIt != fingerprints.end()) {
             if (onDel) onDel(*oldestIt);
             delete *oldestIt;
