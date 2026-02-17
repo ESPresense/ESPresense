@@ -351,9 +351,10 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
 
     // LRU eviction: if at capacity, evict oldest fingerprint
     if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
+
         auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
             [](BleFingerprint *a, BleFingerprint *b) {
-                return a->getMsSinceLastSeen() > b->getMsSinceLastSeen();
+                return a->getLastSeenMillis() < b->getLastSeenMillis();
             });
         if (oldest != fingerprints.end()) {
             if (onDel) onDel(*oldest);
