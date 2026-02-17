@@ -99,6 +99,7 @@ class BleFingerprint {
     const NimBLEAddress getAddress() const { return address; }
 
     const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
+    const unsigned long getLastSeenMillis() const { return lastSeenMillis; };
 
     const unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
