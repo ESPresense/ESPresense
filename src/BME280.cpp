@@ -8,7 +8,7 @@
 #include "string_utils.h"
 
 #include <Adafruit_BME280.h>
-#include <bme68xLibrary.h>
+#include <Adafruit_BME680.h>
 
 namespace BME280
 {
@@ -19,8 +19,12 @@ namespace BME280
         BME68X,
     };
 
+    static constexpr uint8_t CHIP_ID_REG = 0xD0;
+    static constexpr uint8_t BME280_CHIP_ID = 0x60;
+    static constexpr uint8_t BME68X_SENSOR_CHIP_ID = 0x61;  // BME680/BME688
+
     Adafruit_BME280 bme280;
-    Bme68x bme68x;
+    Adafruit_BME680 bme680;
     SensorType sensorType = SensorType::NONE;
 
     String BME280_I2c;
@@ -29,23 +33,41 @@ namespace BME280
     int sensorInterval = 60000;
     bool initialized = false;
 
-    static bool beginBME68x(uint8_t address)
+    static TwoWire &getWire()
     {
-        TwoWire &wire = (BME280_I2c_Bus == 1) ? Wire : Wire1;
-        bme68x.begin(address, wire);
+        return (BME280_I2c_Bus == 1) ? Wire : Wire1;
+    }
 
-        int8_t status = bme68x.checkStatus();
-        if (status == BME68X_ERROR) {
+    static bool readChipId(uint8_t address, uint8_t &chipId)
+    {
+        auto &wire = getWire();
+        wire.beginTransmission(address);
+        wire.write(CHIP_ID_REG);
+        if (wire.endTransmission(false) != 0) {
             return false;
         }
 
-        if (status == BME68X_WARNING) {
-            Log.println("[BME280] BME68x warning: " + bme68x.statusString());
+        if (wire.requestFrom((int)address, 1) != 1) {
+            return false;
         }
 
-        bme68x.setTPH();
-        bme68x.setFilter(BME68X_FILTER_OFF);
-        bme68x.setHeaterProf(300, 100);
+        chipId = wire.read();
+        return true;
+    }
+
+    static bool beginBME68x(uint8_t address)
+    {
+        if (!bme680.begin(address, &getWire())) {
+            return false;
+        }
+
+        // Match recommended baseline config.
+        bme680.setTemperatureOversampling(BME680_OS_8X);
+        bme680.setHumidityOversampling(BME680_OS_2X);
+        bme680.setPressureOversampling(BME680_OS_4X);
+        bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
+        bme680.setGasHeater(320, 150);  // 320°C for 150ms
+
         sensorType = SensorType::BME68X;
         return true;
     }
@@ -88,10 +110,24 @@ namespace BME280
             return;
         }
 
-        // Prefer Bosch BME68x implementation when available. If chip is not BME68x,
-        // fall back to BME280 library to preserve existing behavior.
-        if (!beginBME68x(address) && !beginBME280(address)) {
-            Log.println("[BME280] Couldn't find a compatible BME sensor, check wiring and I2C address!");
+        uint8_t chipId = 0;
+        if (!readChipId(address, chipId)) {
+            Log.println("[BME280] Failed to read chip ID at configured address");
+            return;
+        }
+
+        bool ok = false;
+        if (chipId == BME280_CHIP_ID) {
+            ok = beginBME280(address);
+        } else if (chipId == BME68X_SENSOR_CHIP_ID) {
+            ok = beginBME68x(address);
+        } else {
+            Log.printf("[BME280] Unknown Bosch chip ID: 0x%02X\r\n", chipId);
+            return;
+        }
+
+        if (!ok) {
+            Log.println("[BME280] Couldn't initialize compatible BME sensor");
             return;
         }
 
@@ -129,19 +165,14 @@ namespace BME280
         float gasResistance = NAN;
 
         if (sensorType == SensorType::BME68X) {
-            bme68xData data;
-            bme68x.setOpMode(BME68X_FORCED_MODE);
-            delayMicroseconds(bme68x.getMeasDur());
-
-            if (!bme68x.fetchData()) {
+            if (!bme680.performReading()) {
                 return;
             }
 
-            bme68x.getData(data);
-            temperature = data.temperature;
-            humidity = data.humidity;
-            pressure = data.pressure / 100.0F;
-            gasResistance = data.gas_resistance;
+            temperature = bme680.temperature;
+            humidity = bme680.humidity;
+            pressure = bme680.pressure / 100.0F;
+            gasResistance = bme680.gas_resistance;
         } else if (sensorType == SensorType::BME280) {
             bme280.takeForcedMeasurement();
             temperature = bme280.readTemperature();
