@@ -13,11 +13,13 @@ namespace Switch {
 int8_t lastSwitchValue = -1;
 
 int8_t switch_1Type, switch_1Pin, switch_1Detected = -1;
+int8_t switch_1Mode = 0;  // 0 = Input (binary sensor), 1 = Output (switch)
 float switch_1Timeout = 0;
 int8_t lastswitch_1Value = -1;
 unsigned long lastswitch_1Milli = 0;
 
 int8_t switch_2Type, switch_2Pin, switch_2Detected = -1;
+int8_t switch_2Mode = 0;  // 0 = Input (binary sensor), 1 = Output (switch)
 float switch_2Timeout = 0;
 int8_t lastswitch_2Value = -1;
 unsigned long lastswitch_2Milli = 0;
@@ -25,8 +27,22 @@ bool online;
 
 void Setup() {
     std::vector<uint8_t> pinTypes = {INPUT_PULLUP, INPUT_PULLUP, INPUT_PULLDOWN, INPUT_PULLDOWN, INPUT, INPUT};
-    if (switch_1Pin >= 0) pinMode(switch_1Pin, pinTypes[switch_1Type]);
-    if (switch_2Pin >= 0) pinMode(switch_2Pin, pinTypes[switch_2Type]);
+    if (switch_1Pin >= 0) {
+        if (switch_1Mode == 1) {
+            pinMode(switch_1Pin, OUTPUT);
+            digitalWrite(switch_1Pin, lastswitch_1Value == HIGH ? HIGH : LOW);
+        } else {
+            pinMode(switch_1Pin, pinTypes[switch_1Type]);
+        }
+    }
+    if (switch_2Pin >= 0) {
+        if (switch_2Mode == 1) {
+            pinMode(switch_2Pin, OUTPUT);
+            digitalWrite(switch_2Pin, lastswitch_2Value == HIGH ? HIGH : LOW);
+        } else {
+            pinMode(switch_2Pin, pinTypes[switch_2Type]);
+        }
+    }
 }
 
 /**
@@ -46,13 +62,17 @@ void Setup() {
  */
 void ConnectToWifi() {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
+    std::vector<String> switchModes = {"Input (Binary Sensor)", "Output (Switch)"};
+    
     switch_1Type = HeadlessWiFiSettings.dropdown("switch_1_type", pinTypes, 0, "Switch One pin type");
     switch_1Pin = HeadlessWiFiSettings.integer("switch_1_pin", -1, "Switch One pin (-1 for disable)");
+    switch_1Mode = HeadlessWiFiSettings.dropdown("switch_1_mode", switchModes, 0, "Switch One mode");
     switch_1Timeout = HeadlessWiFiSettings.floating("switch_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch One timeout (in seconds)");
     switch_1Detected = switch_1Type & 0x01 ? LOW : HIGH;
 
     switch_2Type = HeadlessWiFiSettings.dropdown("switch_2_type", pinTypes, 0, "Switch Two pin type");
     switch_2Pin = HeadlessWiFiSettings.integer("switch_2_pin", -1, "Switch Two pin (-1 for disable)");
+    switch_2Mode = HeadlessWiFiSettings.dropdown("switch_2_mode", switchModes, 0, "Switch Two mode");
     switch_2Timeout = HeadlessWiFiSettings.floating("switch_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch Two timeout (in seconds)");
     switch_2Detected = switch_2Type & 0x01 ? LOW : HIGH;
 }
@@ -84,6 +104,14 @@ void SerialReport() {
  */
 static void switch_1Loop() {
     if (switch_1Pin < 0) return;
+    
+    // Output mode: GPIO is controlled by MQTT commands, just publish current state
+    if (switch_1Mode == 1) {
+        // No need to read input or update state here
+        return;
+    }
+    
+    // Input mode: Read GPIO and publish state changes
     bool detected = digitalRead(switch_1Pin) == switch_1Detected;
     if (detected) lastswitch_1Milli = millis();
     unsigned long since = millis() - lastswitch_1Milli;
@@ -96,6 +124,14 @@ static void switch_1Loop() {
 
 static void switch_2Loop() {
     if (switch_2Pin < 0) return;
+    
+    // Output mode: GPIO is controlled by MQTT commands, just publish current state
+    if (switch_2Mode == 1) {
+        // No need to read input or update state here
+        return;
+    }
+    
+    // Input mode: Read GPIO and publish state changes
     bool detected = digitalRead(switch_2Pin) == switch_2Detected;
     if (detected) lastswitch_2Milli = millis();
     unsigned long since = millis() - lastswitch_2Milli;
@@ -121,13 +157,24 @@ bool SendDiscovery() {
 
     if (switch_1Pin >= 0){
         if (!sendNumberDiscovery("switch_1 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("switch_1", EC_NONE);
+        // Use switch discovery for output mode, binary sensor for input mode
+        if (switch_1Mode == 1) {
+            sendSwitchDiscovery("switch_1", EC_NONE);
+        } else {
+            sendBinarySensorDiscovery("switch_1", EC_NONE);
+        }
     }
     if (switch_2Pin >= 0){
         if (!sendNumberDiscovery("switch_2 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("switch_2", EC_NONE);
+        // Use switch discovery for output mode, binary sensor for input mode
+        if (switch_2Mode == 1) {
+            sendSwitchDiscovery("switch_2", EC_NONE);
+        } else {
+            sendBinarySensorDiscovery("switch_2", EC_NONE);
+        }
     }
-    return sendSensorDiscovery("switch", EC_NONE);
+    // Combined switch entity - use binary sensor (read-only)
+    return sendBinarySensorDiscovery("switch", EC_NONE);
 }
 
 bool Command(String& command, String& pay) {
@@ -137,6 +184,18 @@ bool Command(String& command, String& pay) {
     } else if (command == "switch_2_timeout") {
         switch_2Timeout = pay.toInt();
         spurt("/switch_2_timeout", pay);
+    } else if (command == "switch_1" && switch_1Mode == 1 && switch_1Pin >= 0) {
+        // Handle switch_1 ON/OFF commands for output mode
+        int newValue = (pay == "ON") ? HIGH : LOW;
+        digitalWrite(switch_1Pin, newValue);
+        lastswitch_1Value = newValue;
+        pub((roomsTopic + "/switch_1").c_str(), 0, true, newValue == HIGH ? "ON" : "OFF");
+    } else if (command == "switch_2" && switch_2Mode == 1 && switch_2Pin >= 0) {
+        // Handle switch_2 ON/OFF commands for output mode
+        int newValue = (pay == "ON") ? HIGH : LOW;
+        digitalWrite(switch_2Pin, newValue);
+        lastswitch_2Value = newValue;
+        pub((roomsTopic + "/switch_2").c_str(), 0, true, newValue == HIGH ? "ON" : "OFF");
     } else
         return false;
     return true;
