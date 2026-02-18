@@ -69,12 +69,24 @@ void ConnectToWifi() {
     switch_1Mode = HeadlessWiFiSettings.dropdown("switch_1_mode", switchModes, 0, "Switch One mode");
     switch_1Timeout = HeadlessWiFiSettings.floating("switch_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch One timeout (in seconds)");
     switch_1Detected = switch_1Type & 0x01 ? LOW : HIGH;
+    
+    // Load persisted state for output mode
+    if (switch_1Mode == 1) {
+        String switch_1State = HeadlessWiFiSettings.string("switch_1_state", true, "Switch One state");
+        lastswitch_1Value = (switch_1State == "ON") ? HIGH : LOW;
+    }
 
     switch_2Type = HeadlessWiFiSettings.dropdown("switch_2_type", pinTypes, 0, "Switch Two pin type");
     switch_2Pin = HeadlessWiFiSettings.integer("switch_2_pin", -1, "Switch Two pin (-1 for disable)");
     switch_2Mode = HeadlessWiFiSettings.dropdown("switch_2_mode", switchModes, 0, "Switch Two mode");
     switch_2Timeout = HeadlessWiFiSettings.floating("switch_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch Two timeout (in seconds)");
     switch_2Detected = switch_2Type & 0x01 ? LOW : HIGH;
+    
+    // Load persisted state for output mode
+    if (switch_2Mode == 1) {
+        String switch_2State = HeadlessWiFiSettings.string("switch_2_state", true, "Switch Two state");
+        lastswitch_2Value = (switch_2State == "ON") ? HIGH : LOW;
+    }
 }
 
 /**
@@ -190,12 +202,14 @@ bool Command(String& command, String& pay) {
         digitalWrite(switch_1Pin, newValue);
         lastswitch_1Value = newValue;
         pub((roomsTopic + "/switch_1").c_str(), 0, true, newValue == HIGH ? "ON" : "OFF");
+        spurt("/switch_1_state", pay);  // Persist state
     } else if (command == "switch_2" && switch_2Mode == 1 && switch_2Pin >= 0) {
         // Handle switch_2 ON/OFF commands for output mode
         int newValue = (pay == "ON") ? HIGH : LOW;
         digitalWrite(switch_2Pin, newValue);
         lastswitch_2Value = newValue;
         pub((roomsTopic + "/switch_2").c_str(), 0, true, newValue == HIGH ? "ON" : "OFF");
+        spurt("/switch_2_state", pay);  // Persist state
     } else
         return false;
     return true;
@@ -205,6 +219,15 @@ bool SendOnline() {
     if (online) return true;
     if (!pub((roomsTopic + "/switch_1_timeout").c_str(), 0, true, String(switch_1Timeout).c_str())) return false;
     if (!pub((roomsTopic + "/switch_2_timeout").c_str(), 0, true, String(switch_2Timeout).c_str())) return false;
+    
+    // Publish initial state for output mode switches
+    if (switch_1Mode == 1 && switch_1Pin >= 0) {
+        if (!pub((roomsTopic + "/switch_1").c_str(), 0, true, lastswitch_1Value == HIGH ? "ON" : "OFF")) return false;
+    }
+    if (switch_2Mode == 1 && switch_2Pin >= 0) {
+        if (!pub((roomsTopic + "/switch_2").c_str(), 0, true, lastswitch_2Value == HIGH ? "ON" : "OFF")) return false;
+    }
+    
     online = true;
     return true;
 }
