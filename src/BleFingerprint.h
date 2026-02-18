@@ -139,8 +139,9 @@ class BleFingerprint {
     float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
-    uint16_t mv = 0;
-    uint8_t battery = 0xFF, addressType = 0xFF;
+    uint32_t illuminance = 0;
+    uint16_t mv = 0, conductivity = 0;
+    uint8_t battery = 0xFF, addressType = 0xFF, moisture = 0xFF;
     AdaptivePercentileRSSI adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
