@@ -141,8 +141,19 @@ void onRestart(AsyncWebServerRequest *request) {
 
 void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "GET, POST, DELETE, OPTIONS");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "Content-Type");
+
+    // Browser hardening headers for the local Web UI.
+    DefaultHeaders::Instance().addHeader(F("X-Content-Type-Options"), F("nosniff"));
+    DefaultHeaders::Instance().addHeader(F("X-Frame-Options"), F("DENY"));
+    DefaultHeaders::Instance().addHeader(F("Referrer-Policy"), F("no-referrer"));
+    DefaultHeaders::Instance().addHeader(F("Permissions-Policy"),
+                                         F("accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), usb=()"));
+    DefaultHeaders::Instance().addHeader(F("Content-Security-Policy"),
+                                         F("default-src 'self'; base-uri 'self'; frame-ancestors 'none'; "
+                                           "form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                                           "img-src 'self' data:; connect-src 'self' ws: wss:;"));
 
     server->on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
         AsyncWebServerResponse *response = request->beginResponse(200);
