@@ -16,6 +16,7 @@ namespace DS18B20
 {
     int ds18b20Pin = -1;
     float dsTempOffset;
+    bool ds18b20UseWeakPullup = false;
     int numSensors = 0;
 
     /** Initialize onewire and Dallas Temperature*/
@@ -91,6 +92,9 @@ namespace DS18B20
     {
         if (ds18b20Pin>=0) {
             oneWire.begin(ds18b20Pin);
+            if (ds18b20UseWeakPullup) {
+                pinMode(ds18b20Pin, INPUT_PULLUP);
+            }
             sensors.setOneWire(&oneWire);
             sensors.begin();
 
@@ -124,6 +128,7 @@ namespace DS18B20
     void ConnectToWifi()
     {
         ds18b20Pin = HeadlessWiFiSettings.integer("ds18b20_pin", -1, "DS18B20 sensor pin (-1 for disable)");
+        ds18b20UseWeakPullup = HeadlessWiFiSettings.checkbox("ds18b20_weak_pullup", false, "Enable DS18B20 weak internal pull-up (best effort)");
         dsTempOffset = HeadlessWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
     }
 
@@ -138,6 +143,8 @@ namespace DS18B20
         if (ds18b20Pin<0) return;
         Log.print("DS18B20 Sensor: ");
         Log.println((ds18b20Pin>=0 ? "pin " + String(ds18b20Pin) : "disabled").c_str());
+        Log.print("DS18B20 Pullup:   ");
+        Log.println(ds18b20UseWeakPullup ? "internal weak" : "external resistor");
         Log.print("DS18B20 Offset:   ");
         Log.println(dsTempOffset);
     }
