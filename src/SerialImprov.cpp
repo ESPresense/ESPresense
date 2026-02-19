@@ -5,7 +5,7 @@
 #include <pgmspace.h>
 #include <string>
 
-#include "../lib/ESPresenseNetwork/Network.h"
+#include "../lib/ESPresenseNetwork/ESPresenseNetwork.h"
 #include "SPIFFS.h"
 #include "SerialImprovPackets.h"
 #include "defaults.h"
