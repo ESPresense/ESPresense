@@ -463,6 +463,19 @@
                     bind:value={$hardwareSettings.values['dhtTemp_offset']}/>
             </label>
         </p>
+        <p>
+            <label>
+                DHT humidity offset:<br />
+                <input
+                    type="number"
+                    step="0.01"
+                    min="-100"
+                    max="100"
+                    name="dhtHumidity_offset"
+                    placeholder={$hardwareSettings.defaults['dhtHumidity_offset']}
+                    bind:value={$hardwareSettings.values['dhtHumidity_offset']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
