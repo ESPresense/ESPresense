@@ -18,19 +18,20 @@ namespace LEDs {
 int led_1_type = DEFAULT_LED1_TYPE, led_2_type, led_3_type;
 int led_1_pin = DEFAULT_LED1_PIN, led_2_pin, led_3_pin;
 int led_1_cnt = DEFAULT_LED1_CNT, led_2_cnt, led_3_cnt;
+int led_1_fade = 0, led_2_fade = 0, led_3_fade = 0;
 ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
 std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 unsigned long lastSave = 0;
 
-LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, String stateStr) {
+LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, int fadeMs, String stateStr) {
     LED* led;
     if (pin == -1) {
         led = new LED(index, Control_Type_None);
     } else if (type >= 2) {
         led = new Addressable(index, cntrl, type - 2, pin, cnt);
     } else {
-        led = new SinglePWM(index, cntrl, type == 1, pin);
+        led = new SinglePWM(index, cntrl, type == 1, pin, fadeMs);
     }
     led->setStateString(stateStr);
     return led;
@@ -44,23 +45,26 @@ void ConnectToWifi() {
     led_1_pin = HeadlessWiFiSettings.integer("led_1_pin", -1, 48, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
     led_1_cnt = HeadlessWiFiSettings.integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
     led_1_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
+    led_1_fade = HeadlessWiFiSettings.integer("led_1_fade", 0, 10000, 0, "Fade Time (ms, PWM only)");
     String const led_1_state = HeadlessWiFiSettings.string("led_1_state", true, "LED State");
 
     led_2_type = HeadlessWiFiSettings.dropdown("led_2_type", ledTypes, 0, "LED Type");
     led_2_pin = HeadlessWiFiSettings.integer("led_2_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_2_cnt = HeadlessWiFiSettings.integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_2_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
+    led_2_fade = HeadlessWiFiSettings.integer("led_2_fade", 0, 10000, 0, "Fade Time (ms, PWM only)");
     String const led_2_state = HeadlessWiFiSettings.string("led_2_state", true, "LED State");
 
     led_3_type = HeadlessWiFiSettings.dropdown("led_3_type", ledTypes, 0, "LED Type");
     led_3_pin = HeadlessWiFiSettings.integer("led_3_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_3_cnt = HeadlessWiFiSettings.integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)HeadlessWiFiSettings.dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
+    led_3_fade = HeadlessWiFiSettings.integer("led_3_fade", 0, 10000, 0, "Fade Time (ms, PWM only)");
     String const led_3_state = HeadlessWiFiSettings.string("led_3_state", true, "LED State");
 
-    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_state));
-    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_state));
-    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt, led_3_state));
+    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_fade, led_1_state));
+    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_fade, led_2_state));
+    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt, led_3_fade, led_3_state));
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(motionLeds), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
