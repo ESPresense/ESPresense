@@ -5,7 +5,7 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+    printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
 }
 
 /**
@@ -22,10 +22,10 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
  * @param totalFpQueried Total fingerprints queried (e.g., looked up) since the last report.
  * @param totalFpReported Total fingerprint reports published since the last report.
  * @param count Current count value (included only when a count identifier is configured).
- * @return `true` if the telemetry document was published successfully, `false` otherwise.
+ * @return `true` if the telemetry document was published successfully, `false` otherwise. 
  * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
  */
-bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count, unsigned int fingerprintCount) {
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
@@ -135,7 +135,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
-    doc["fingerprints"] = fingerprintCount;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
@@ -168,12 +167,8 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
-    if (MultiNetwork.supportsEthernet()) {
-        std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
-        ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
-    } else {
-        ethernetType = 0;
-    }
+    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)", "ETH01-EVO (DM9051)"};
+    ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = HeadlessWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
@@ -240,7 +235,9 @@ void setupNetwork() {
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
-    if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
+    bool success = false;
+    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
     GUI::Connected(true, false);
@@ -251,13 +248,13 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println("Version:      " + String(VERSION));
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%ld rssi=%ld)\r\n", WiFi.BSSIDstr().c_str(), static_cast<long>(WiFi.channel()), static_cast<long>(WiFi.RSSI()));
+    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Log.print("IP address:   ");
-    Log.println(MultiNetwork.localIP());
+    Log.println(Network.localIP());
     Log.print("DNS address:  ");
-    Log.println(MultiNetwork.dnsIP());
+    Log.println(Network.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(MultiNetwork.getHostname());
+    Log.println(Network.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -293,7 +290,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = MultiNetwork.localIP().toString();
+    localIp = Network.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -430,17 +427,19 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (MultiNetwork.isOnline() && mqttClient.connected()) return;
+    if (Network.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!MultiNetwork.isOnline()) {
+    if (!Network.isConnected()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
-        if (!MultiNetwork.connect(ethernetType, 2, 40, HeadlessWiFiSettings.hostname.c_str()))
+        bool success = false;
+        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }
 
@@ -496,26 +495,21 @@ void reportLoop() {
     }
 
     yield();
-    auto fingerprintCount = BleFingerprintCollection::Size();
+    auto copy = BleFingerprintCollection::GetCopy();
 
     unsigned int count = 0;
-    size_t cursor = 0;
-    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
-        if (lease.fingerprint->shouldCount())
+    for (auto &i : copy)
+        if (i->shouldCount())
             count++;
-        BleFingerprintCollection::Release(lease);
-    }
 
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, fingerprintCount);
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
     yield();
 
     auto reported = 0;
-    cursor = 0;
-    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
-        auto *f = lease.fingerprint;
+    for (auto &f : copy) {
         auto seen = f->getSeenCount();
         if (seen) {
             totalSeen += seen;
@@ -530,18 +524,12 @@ void reportLoop() {
             totalFpReported++;
             reported++;
         }
-        BleFingerprintCollection::Release(lease);
         yield();
     }
 }
 
-#ifdef NIMBLE_V2
-class MyScanCallbacks : public NimBLEScanCallbacks {
-    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
-#else
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
-#endif
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(advertisedDevice);
     }
@@ -555,37 +543,22 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-#ifdef NIMBLE_V2
-    pBLEScan->setScanCallbacks(new MyScanCallbacks(), true);
-#else
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
-#endif
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-#ifdef NIMBLE_V2
-    if (!pBLEScan->start(0, false))
-#else
     if (!pBLEScan->start(0, nullptr, false))
-#endif
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        size_t cursor = 0;
-        while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
-            if (lease.fingerprint->query())
+        for (auto &f : BleFingerprintCollection::fingerprints)
+            if (f->query())
                 totalFpQueried++;
-            BleFingerprintCollection::Release(lease);
-        }
 
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
-#ifdef NIMBLE_V2
-            if (!pBLEScan->start(0, true))
-#else
             if (!pBLEScan->start(0, nullptr, true))
-#endif
                 log_e("Error re-starting continuous ble scan");
             delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
         } else {
@@ -609,12 +582,12 @@ void setup() {
     Serial.begin(115200);
 #endif
     Serial.setDebugOutput(true);
-#ifdef LOG_LEVEL_DEBUG
+#ifdef VERBOSE
     esp_log_level_set("*", ESP_LOG_DEBUG);
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Log.printf("Pre-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
+    Log.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
@@ -651,7 +624,7 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
+    Log.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
     Log.println();
 }
 
@@ -672,7 +645,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
+        if (freeHeap < 20000) Log.printf("Low memory: %u bytes free\r\n", freeHeap);
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();
