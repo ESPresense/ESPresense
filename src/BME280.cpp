@@ -8,6 +8,7 @@
 #include "string_utils.h"
 
 #include <Adafruit_BME280.h>
+#include <math.h>
 
 namespace BME280
 {
@@ -17,6 +18,8 @@ namespace BME280
     unsigned long bme280PreviousMillis = 0;
     int sensorInterval = 60000;
     bool initialized = false;
+    float lastTemperature = NAN;
+    float lastHumidity = NAN;
 
     /**
      * @brief Initializes the BME280 sensor according to configured I2C address and bus.
@@ -103,8 +106,23 @@ namespace BME280
             pub((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
             pub((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
 
+            if (isfinite(temperature) && isfinite(humidity)) {
+                lastTemperature = temperature;
+                lastHumidity = humidity;
+            }
+
             bme280PreviousMillis = millis();
         }
+    }
+
+    bool GetTemperatureHumidity(float &temperature, float &humidity)
+    {
+        if (!initialized) return false;
+        if (!isfinite(lastTemperature) || !isfinite(lastHumidity)) return false;
+
+        temperature = lastTemperature;
+        humidity = lastHumidity;
+        return true;
     }
 
     bool SendDiscovery()
