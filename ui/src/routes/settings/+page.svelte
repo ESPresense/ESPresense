@@ -56,6 +56,19 @@
                     bind:value={$extraSettings.values['forget_ms']}/>
             </label>
         </p>
+        <p>
+            <label>
+                Maximum number of fingerprints to track before LRU eviction:<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="10"
+                    max="1000"
+                    name="max_fingerprints"
+                    placeholder={$extraSettings.defaults['max_fingerprints']}
+                    bind:value={$extraSettings.values['max_fingerprints']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#querying" target="_blank">Querying</a>
         </h2>
@@ -243,4 +256,3 @@
     </form>
     {/if}
 </div>
-

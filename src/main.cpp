@@ -135,6 +135,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
+    doc["fingerprints"] = BleFingerprintCollection::fingerprints.size();
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
