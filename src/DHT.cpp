@@ -16,6 +16,7 @@ namespace DHT
     int dht11Pin = -1;
     int dht22Pin = -1;
     float dhtTempOffset;
+    float dhtHumidityOffset;
 
     /** Initialize DHT sensor 1 */
     DHTesp dhtSensor;
@@ -118,6 +119,7 @@ namespace DHT
         dht11Pin = HeadlessWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
         dht22Pin = HeadlessWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");
         dhtTempOffset = HeadlessWiFiSettings.floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
+        dhtHumidityOffset = HeadlessWiFiSettings.floating("dhtHumidity_offset", -100, 100, 0.0, "DHT humidity offset");
     }
 
     /**
@@ -133,8 +135,10 @@ namespace DHT
         Log.println((dht11Pin>=0 ? "pin " + String(dht11Pin) : "disabled").c_str());
         Log.print("DHT22 Sensor: ");
         Log.println((dht22Pin>=0 ? "pin " + String(dht22Pin) : "disabled").c_str());
-        Log.print("DHT Offset:   ");
+        Log.print("DHT Temp Offset:   ");
         Log.println(dhtTempOffset);
+        Log.print("DHT Humidity Offset: ");
+        Log.println(dhtHumidityOffset);
     }
 
     /**
@@ -151,7 +155,7 @@ namespace DHT
 
         if (gotNewTemperature)
         {
-            float humidity = dhtSensorData.humidity;
+            float humidity = dhtSensorData.humidity + dhtHumidityOffset;
             float temperature = dhtSensorData.temperature + dhtTempOffset;
             Log.println("Temp: " + String(temperature, 1) + "'C Humidity: " + String(humidity, 1) + "%");
 
