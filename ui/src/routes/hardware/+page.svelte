@@ -748,6 +748,12 @@
             </label>
         </p>
         <p>
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" name="ds18b20_weak_pullup" bind:checked={$hardwareSettings.values['ds18b20_weak_pullup']}/>
+                <span>Enable weak internal pull-up (best effort; use external resistor for long/noisy runs) (default: &#x2610;)</span>
+            </label>
+        </p>
+        <p>
             <label>
                 DS18B20 temperature offset:<br />
                 <input
