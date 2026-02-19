@@ -5,6 +5,10 @@
   #include <ETH.h>
 #endif
 
+#if !defined(SPI2_HOST)
+  #define SPI2_HOST 1
+#endif
+
 #ifndef Network_h
 #define Network_h
 
@@ -22,7 +26,7 @@ public:
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
 };
 
-#define CONFIG_NUM_ETH_TYPES        14
+#define CONFIG_NUM_ETH_TYPES        15
 
 #define CONFIG_ETH_NONE             0
 #define CONFIG_ETH_WT32_ETH01       1
@@ -38,6 +42,7 @@ public:
 #define CONFIG_ETH_LILYGO_LITE_RTL  11
 #define CONFIG_ETH_ESP32_POE_A1     12
 #define CONFIG_ETH_WESP32_RTL8201   13
+#define CONFIG_ETH_ETH01_EVO_DM9051 14
 
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
@@ -51,22 +56,40 @@ public:
 //              ETH_CLOCK_GPIO0_OUT   == ESP32 provides 50MHz clock output via GPIO0
 //              ETH_CLOCK_GPIO16_OUT  == ESP32 provides 50MHz clock output via GPIO16
 //              ETH_CLOCK_GPIO17_OUT  == ESP32 provides 50MHz clock output via GPIO17
+
+
+typedef enum EthernetBusType {
+  ETH_BUS_RMII,
+  ETH_BUS_SPI
+} ethernet_bus_type_t;
+
 typedef struct EthernetSettings {
-  uint8_t        eth_address;
-  int            eth_power;
-  int            eth_mdc;
-  int            eth_mdio;
-  eth_phy_type_t eth_type;
-  eth_clock_mode_t eth_clk_mode;
+  ethernet_bus_type_t bus_type;
+  uint8_t             eth_address;
+  int                 eth_power;
+  int                 eth_mdc;
+  int                 eth_mdio;
+  eth_phy_type_t      eth_type;
+  eth_clock_mode_t    eth_clk_mode;
+  int                 eth_cs;
+  int                 eth_irq;
+  int                 eth_rst;
+  int                 eth_spi_host;
+  int                 eth_sck;
+  int                 eth_miso;
+  int                 eth_mosi;
+  uint8_t             eth_spi_freq_mhz;
 } ethernet_settings;
 
 const ethernet_settings ethernetBoards[] = {
   // None
   {
+    ETH_BUS_RMII
   },
 
   // WT32-EHT01
   {
+    ETH_BUS_RMII,      // bus_type
     1,                 // eth_address,
     16,                // eth_power,
     23,                // eth_mdc,
@@ -77,6 +100,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // ESP32-POE
   {
+    ETH_BUS_RMII,      // bus_type
     0,                  // eth_address,
     12,                  // eth_power,
     23,                  // eth_mdc,
@@ -87,6 +111,7 @@ const ethernet_settings ethernetBoards[] = {
 
    // WESP32
   {
+    ETH_BUS_RMII,      // bus_type
     0,			              // eth_address,
     -1,			              // eth_power,
     16,			              // eth_mdc,
@@ -97,6 +122,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // QuinLed-ESP32-Ethernet
   {
+    ETH_BUS_RMII,      // bus_type
     0,			              // eth_address,
     5,			              // eth_power,
     23,			              // eth_mdc,
@@ -107,6 +133,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // TwilightLord-ESP32 Ethernet Shield
   {
+    ETH_BUS_RMII,      // bus_type
     0,			              // eth_address,
     5,			              // eth_power,
     23,			              // eth_mdc,
@@ -117,6 +144,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // ESP3DEUXQuattro
   {
+    ETH_BUS_RMII,      // bus_type
     1,                    // eth_address,
     -1,                   // eth_power,
     23,                   // eth_mdc,
@@ -127,6 +155,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // ESP32-ETHERNET-KIT-VE
   {
+    ETH_BUS_RMII,      // bus_type
     0,                    // eth_address,
     5,                    // eth_power,
     23,                   // eth_mdc,
@@ -137,6 +166,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // LilyGO-T-ETH-POE
   {
+    ETH_BUS_RMII,      // bus_type
     0,                    // eth_address,
     -1,                   // eth_power,
     23,                   // eth_mdc,
@@ -147,6 +177,7 @@ const ethernet_settings ethernetBoards[] = {
   
   // GL-inet GL-S10 v2.1 Ethernet
   {
+    ETH_BUS_RMII,      // bus_type
     1,                    // eth_address,
     5,                    // eth_power,
     23,                   // eth_mdc,
@@ -157,6 +188,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // EST-PoE-32
   {
+    ETH_BUS_RMII,      // bus_type
     0,                  // eth_address,
     12,                  // eth_power,
     23,                  // eth_mdc,
@@ -167,6 +199,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // LilyGO-T-ETH-Lite
   {
+    ETH_BUS_RMII,      // bus_type
     0,                    // eth_address,
     12,                   // eth_power,
     23,                   // eth_mdc,
@@ -177,6 +210,7 @@ const ethernet_settings ethernetBoards[] = {
 
   // ESP32-POE_A1
   {
+    ETH_BUS_RMII,      // bus_type
     1,                  // eth_address,
    12,                  // eth_power,
    23,                  // eth_mdc,
@@ -187,13 +221,38 @@ const ethernet_settings ethernetBoards[] = {
 
   // WESP32 Rev7+ (RTL8201)
   {
+    ETH_BUS_RMII,      // bus_type
     0,                  // eth_address,
     -1,                 // eth_power,
     16,                 // eth_mdc,
     17,                 // eth_mdio,
     ETH_PHY_RTL8201,    // eth_type,
     ETH_CLOCK_GPIO0_IN  // eth_clk_mode
+  },
+
+  // ETH01-EVO (DM9051)
+  {
+    ETH_BUS_SPI,         // bus_type
+    1,                   // eth_address (DM9051 default)
+    -1,                  // eth_power (unused)
+    -1,                  // eth_mdc (unused)
+    -1,                  // eth_mdio (unused)
+#if defined(ETH_PHY_DM9051)
+    ETH_PHY_DM9051,      // eth_type
+#else
+    ETH_PHY_MAX,         // eth_type placeholder when DM9051 is unavailable
+#endif
+    ETH_CLOCK_GPIO0_IN,  // eth_clk_mode (unused)
+    9,                   // eth_cs
+    8,                   // eth_irq
+    6,                   // eth_rst
+    SPI2_HOST,           // eth_spi_host
+    7,                   // eth_sck
+    3,                   // eth_miso
+    10,                  // eth_mosi
+    8                    // eth_spi_freq_mhz
   }
+
 };
 
 extern NetworkClass Network;

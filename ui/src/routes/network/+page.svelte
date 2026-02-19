@@ -187,6 +187,8 @@
                     <option value="10">EST-PoE-32</option>
                     <option value="11">LilyGO-T-ETH-Lite (RTL8201)</option>
                     <option value="12">ESP32-POE_A1</option>
+                    <option value="13">WESP32 Rev7+ (RTL8201)</option>
+                    <option value="14">ETH01-EVO (DM9051)</option>
                 </select>
             </div>
 

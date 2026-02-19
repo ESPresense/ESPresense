@@ -1,4 +1,4 @@
-#include "Network.h"
+#include "ESPresenseNetwork.h"
 #include "../../include/Logger.h"
 
 /**
@@ -110,7 +110,28 @@ bool NetworkClass::initEthernet(int ethernetType)
   }
 
   ethernet_settings es = ethernetBoards[ethernetType];
-  if (!ETH.begin(
+
+  if (es.bus_type == ETH_BUS_SPI) {
+#if defined(ETH_PHY_DM9051)
+    if (!ETH.begin(
+                  (eth_phy_type_t) es.eth_type,
+                  (int32_t) es.eth_address,
+                  (int) es.eth_cs,
+                  (int) es.eth_irq,
+                  (int) es.eth_rst,
+                  (spi_host_device_t) es.eth_spi_host,
+                  (int) es.eth_sck,
+                  (int) es.eth_miso,
+                  (int) es.eth_mosi,
+                  (uint8_t) es.eth_spi_freq_mhz
+                  )) {
+      return false;
+    }
+#else
+    Log.println(F("DM9051 Ethernet support is unavailable in this Arduino/ESP32 framework version."));
+    return false;
+#endif
+  } else if (!ETH.begin(
                 (uint8_t) es.eth_address,
                 (int)     es.eth_power,
                 (int)     es.eth_mdc,
