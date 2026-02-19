@@ -20,6 +20,18 @@ bool relay_2State = false;
 bool relay_2LastPublished = false;
 bool relay_2Published = false;
 
+int8_t relay_3Pin = -1;
+bool relay_3Inverted = false;
+bool relay_3State = false;
+bool relay_3LastPublished = false;
+bool relay_3Published = false;
+
+int8_t relay_4Pin = -1;
+bool relay_4Inverted = false;
+bool relay_4State = false;
+bool relay_4LastPublished = false;
+bool relay_4Published = false;
+
 bool online = false;
 
 bool toBool(const String &payload, bool &value) {
@@ -71,6 +83,14 @@ void Setup() {
         pinMode(relay_2Pin, OUTPUT);
         applyRelay(relay_2Pin, relay_2Inverted, relay_2State);
     }
+    if (relay_3Pin >= 0) {
+        pinMode(relay_3Pin, OUTPUT);
+        applyRelay(relay_3Pin, relay_3Inverted, relay_3State);
+    }
+    if (relay_4Pin >= 0) {
+        pinMode(relay_4Pin, OUTPUT);
+        applyRelay(relay_4Pin, relay_4Inverted, relay_4State);
+    }
 }
 
 void ConnectToWifi() {
@@ -79,6 +99,12 @@ void ConnectToWifi() {
 
     relay_2Pin = HeadlessWiFiSettings.integer("relay_2_pin", -1, "Relay Two output pin (-1 for disable)");
     relay_2Inverted = HeadlessWiFiSettings.checkbox("relay_2_inverted", false, "Relay Two invert output");
+
+    relay_3Pin = HeadlessWiFiSettings.integer("relay_3_pin", -1, "Relay Three output pin (-1 for disable)");
+    relay_3Inverted = HeadlessWiFiSettings.checkbox("relay_3_inverted", false, "Relay Three invert output");
+
+    relay_4Pin = HeadlessWiFiSettings.integer("relay_4_pin", -1, "Relay Four output pin (-1 for disable)");
+    relay_4Inverted = HeadlessWiFiSettings.checkbox("relay_4_inverted", false, "Relay Four invert output");
 }
 
 void SerialReport() {
@@ -86,6 +112,10 @@ void SerialReport() {
     Log.println(relay_1Pin >= 0 ? "enabled" : "disabled");
     Log.print("Relay Two:    ");
     Log.println(relay_2Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Relay Three:  ");
+    Log.println(relay_3Pin >= 0 ? "enabled" : "disabled");
+    Log.print("Relay Four:   ");
+    Log.println(relay_4Pin >= 0 ? "enabled" : "disabled");
 }
 
 void Loop() {
@@ -94,6 +124,12 @@ void Loop() {
     }
     if (relay_2Pin >= 0) {
         applyRelay(relay_2Pin, relay_2Inverted, relay_2State);
+    }
+    if (relay_3Pin >= 0) {
+        applyRelay(relay_3Pin, relay_3Inverted, relay_3State);
+    }
+    if (relay_4Pin >= 0) {
+        applyRelay(relay_4Pin, relay_4Inverted, relay_4State);
     }
 }
 
@@ -105,6 +141,14 @@ bool Command(String &command, String &pay) {
     if (command == "relay_2") {
         if (relay_2Pin < 0) return true;
         return setRelay("relay_2", relay_2Pin, relay_2Inverted, relay_2State, relay_2Published, relay_2LastPublished, pay);
+    }
+    if (command == "relay_3") {
+        if (relay_3Pin < 0) return true;
+        return setRelay("relay_3", relay_3Pin, relay_3Inverted, relay_3State, relay_3Published, relay_3LastPublished, pay);
+    }
+    if (command == "relay_4") {
+        if (relay_4Pin < 0) return true;
+        return setRelay("relay_4", relay_4Pin, relay_4Inverted, relay_4State, relay_4Published, relay_4LastPublished, pay);
     }
     return false;
 }
@@ -122,6 +166,18 @@ bool SendDiscovery() {
         if (!sendDeleteDiscovery("switch", "relay_2")) return false;
     }
 
+    if (relay_3Pin >= 0) {
+        if (!sendSwitchDiscovery("relay_3", EC_NONE)) return false;
+    } else {
+        if (!sendDeleteDiscovery("switch", "relay_3")) return false;
+    }
+
+    if (relay_4Pin >= 0) {
+        if (!sendSwitchDiscovery("relay_4", EC_NONE)) return false;
+    } else {
+        if (!sendDeleteDiscovery("switch", "relay_4")) return false;
+    }
+
     return true;
 }
 
@@ -133,6 +189,12 @@ bool SendOnline() {
     }
     if (relay_2Pin >= 0) {
         if (!publishRelayState("relay_2", relay_2State, relay_2Published, relay_2LastPublished)) return false;
+    }
+    if (relay_3Pin >= 0) {
+        if (!publishRelayState("relay_3", relay_3State, relay_3Published, relay_3LastPublished)) return false;
+    }
+    if (relay_4Pin >= 0) {
+        if (!publishRelayState("relay_4", relay_4State, relay_4Published, relay_4LastPublished)) return false;
     }
 
     online = true;
