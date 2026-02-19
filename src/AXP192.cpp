@@ -2,21 +2,27 @@
 #include <Arduino.h>
 #include <Wire.h>
 
+#if defined(WIRE_INTERFACES_COUNT) && (WIRE_INTERFACES_COUNT > 1)
+  #define AXP192_WIRE_PORT Wire1
+#else
+  #define AXP192_WIRE_PORT Wire
+#endif
+
 namespace AXP192 {
 
 uint8_t Read8bit(uint8_t Addr) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.endTransmission();
-    Wire1.requestFrom(0x34, 1);
-    return Wire1.read();
+    AXP192_WIRE_PORT.beginTransmission(0x34);
+    AXP192_WIRE_PORT.write(Addr);
+    AXP192_WIRE_PORT.endTransmission();
+    AXP192_WIRE_PORT.requestFrom(0x34, 1);
+    return AXP192_WIRE_PORT.read();
 }
 
 void Write1Byte(uint8_t Addr, uint8_t Data) {
-    Wire1.beginTransmission(0x34);
-    Wire1.write(Addr);
-    Wire1.write(Data);
-    Wire1.endTransmission();
+    AXP192_WIRE_PORT.beginTransmission(0x34);
+    AXP192_WIRE_PORT.write(Addr);
+    AXP192_WIRE_PORT.write(Data);
+    AXP192_WIRE_PORT.endTransmission();
 }
 
 void SetLDO2(bool State) {
@@ -29,8 +35,8 @@ void SetLDO2(bool State) {
 }
 
 void Setup() {
-    Wire1.begin(21, 22);
-    Wire1.setClock(400000);
+    AXP192_WIRE_PORT.begin(21, 22);
+    AXP192_WIRE_PORT.setClock(400000);
     Write1Byte(0x28, 0xcc);
     Write1Byte(0x82, 0xff);
     Write1Byte(0x33, 0xc0);
