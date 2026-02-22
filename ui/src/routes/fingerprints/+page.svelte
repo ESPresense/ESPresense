@@ -22,7 +22,7 @@
         {
             key: "distance",
             title: "Dist",
-            value: (v: Device) => v.distance === undefined ? "n/a" : `${v.distance.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
+            value: (v: Device) => v.distance == null ? "n/a" : `${v.distance.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortValue: (v: Device) => v.distance ?? Number.POSITIVE_INFINITY,
             sortable: true,
             defaultSort: true,
@@ -31,7 +31,7 @@
         {
             key: "var",
             title: "Var",
-            value: (v: Device) => v.var === undefined ? "n/a" : `${v.var.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
+            value: (v: Device) => v.var == null ? "n/a" : `${v.var.toLocaleString(undefined, { minimumFractionDigits: 2 })} m`,
             sortValue: (v: Device) => v.var ?? Number.POSITIVE_INFINITY,
             sortable: true
         },
