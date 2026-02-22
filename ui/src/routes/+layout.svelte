@@ -54,6 +54,7 @@
     }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="flex flex-col md:flex-row h-screen overflow-hidden bg-gray-100 dark:bg-gray-900" on:pointerdown={handleClickOutside}>
     <!-- Mobile menu overlay -->
     {#if $mobileMenuOpen}
