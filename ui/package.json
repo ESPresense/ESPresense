@@ -34,7 +34,7 @@
     "nodemon": "^3.1.11",
     "postcss": "^8.5.6",
     "svelte": "^5.53.0",
-    "svelte-check": "^4.3.6",
+    "svelte-check": "^4.4.3",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
