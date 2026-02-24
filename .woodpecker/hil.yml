@@ -1,0 +1,64 @@
+when:
+  - event: [push, pull_request]
+
+steps:
+  - name: test-esp32
+    image: ghcr.io/espresense/firmware-tester:latest
+    privileged: true
+    depends_on: []
+    environment:
+      HIL_HUB: 1-1
+      HIL_PORT: "1"
+      DEVICE: /dev/espresense/esp32
+      FIRMWARE_ENV: esp32
+    commands:
+      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
+      - uhubctl -l $HIL_HUB -p $HIL_PORT -a cycle && sleep 3
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+
+  - name: test-esp32c3
+    image: ghcr.io/espresense/firmware-tester:latest
+    privileged: true
+    depends_on: []
+    environment:
+      HIL_HUB: 1-1
+      HIL_PORT: "2"
+      DEVICE: /dev/espresense/esp32c3
+      FIRMWARE_ENV: esp32c3
+    commands:
+      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
+      - uhubctl -l $HIL_HUB -p $HIL_PORT -a cycle && sleep 3
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+
+  - name: test-esp32s3
+    image: ghcr.io/espresense/firmware-tester:latest
+    privileged: true
+    depends_on: []
+    environment:
+      HIL_HUB: 1-1
+      HIL_PORT: "3"
+      DEVICE: /dev/espresense/esp32s3
+      FIRMWARE_ENV: esp32s3
+    commands:
+      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
+      - uhubctl -l $HIL_HUB -p $HIL_PORT -a cycle && sleep 3
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+
+  - name: test-esp32c6
+    image: ghcr.io/espresense/firmware-tester:latest
+    privileged: true
+    depends_on: []
+    failure: ignore
+    environment:
+      HIL_HUB: 1-1
+      HIL_PORT: "4"
+      DEVICE: /dev/espresense/esp32c6
+      FIRMWARE_ENV: esp32c6
+    commands:
+      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
+      - uhubctl -l $HIL_HUB -p $HIL_PORT -a cycle && sleep 3
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS

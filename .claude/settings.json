@@ -1,0 +1,39 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(gh issue:*)"
+    ],
+    "deny": [],
+    "ask": [
+      "Bash(gh pr close:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr reopen:*)",
+      "Bash(gh pr edit:*)",
+      "Bash(gh pr comment:*)",
+      "Bash(gh pr lock:*)",
+      "Bash(gh pr unlock:*)",
+      "Bash(gh api:*--method POST*)",
+      "Bash(gh api:*--method PUT*)",
+      "Bash(gh api:*--method PATCH*)",
+      "Bash(gh api:*--method DELETE*)",
+      "Bash(gh api:*-X POST*)",
+      "Bash(gh api:*-X PUT*)",
+      "Bash(gh api:*-X PATCH*)",
+      "Bash(gh api:*-X DELETE*)",
+      "Bash(gh issue create:*)",
+      "Bash(gh issue close:*)",
+      "Bash(gh issue reopen:*)",
+      "Bash(gh issue edit:*)",
+      "Bash(gh issue comment:*)",
+      "Bash(gh issue delete:*)",
+      "Bash(gh issue lock:*)",
+      "Bash(gh issue unlock:*)",
+      "Bash(gh issue transfer:*)",
+      "Bash(gh issue pin:*)",
+      "Bash(gh issue unpin:*)"
+    ]
+  }
+}
