@@ -12,6 +12,12 @@ namespace HttpWebServer {
 
 void serializeInfo(JsonObject &root) {
     root["room"] = room;
+#ifdef VERSION
+    root["ver"] = VERSION;
+#endif
+#ifdef FIRMWARE
+    root["firm"] = FIRMWARE;
+#endif
 }
 
 void serializeState(JsonObject &root) {
