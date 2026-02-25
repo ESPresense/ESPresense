@@ -7,6 +7,19 @@
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
     let isDestroyed = false;
+    let currentVersion = $state("");
+    let currentFirmware = $state("");
+
+    async function fetchDeviceInfo() {
+        try {
+            const response = await fetch("/json");
+            const data = await response.json();
+            currentVersion = data?.ver ?? "";
+            currentFirmware = data?.firm ?? "";
+        } catch (error) {
+            console.error("Failed to fetch device info:", error);
+        }
+    }
 
     async function fetchWifiNetworks() {
         if (isScanning || isDestroyed) return; // Prevent concurrent scans and post-destroy scans
@@ -35,6 +48,7 @@
     }
 
     onMount(() => {
+        fetchDeviceInfo();
         startScanCycle();
     });
 
@@ -94,6 +108,19 @@
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if mainSettingsData != null && $mainSettings?.defaults != null && $mainSettings?.values != null}
         <form onsubmit={handleSubmit} class="space-y-6">
+            <!-- Firmware Information -->
+            <h2 class="text-xl font-semibold">Firmware</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="current-version" class="block text-sm font-medium">Current Version</label>
+                    <input id="current-version" type="text" value={currentVersion || "Unknown"} readonly class="mt-1 block w-full rounded-md bg-gray-50 dark:bg-gray-700" />
+                </div>
+                <div>
+                    <label for="current-firmware" class="block text-sm font-medium">Firmware Target</label>
+                    <input id="current-firmware" type="text" value={currentFirmware || "Unknown"} readonly class="mt-1 block w-full rounded-md bg-gray-50 dark:bg-gray-700" />
+                </div>
+            </div>
+
             <!-- Room Configuration -->
             <h2 class="text-xl font-semibold">Room Configuration</h2>
             <div>
