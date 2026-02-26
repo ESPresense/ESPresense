@@ -174,6 +174,8 @@ bool Config(String &id, String &json) {
         }
     }
 
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take fingerprintMutex in Config!");
     for (auto &it : fingerprints) {
         auto it_id = it->getId();
         if (it_id == id || it_id == config.alias) {
@@ -184,6 +186,7 @@ bool Config(String &id, String &json) {
         } else
             it->fingerprintAddress();
     }
+    xSemaphoreGive(fingerprintMutex);
 
     return true;
 }
