@@ -9,6 +9,7 @@ steps:
     volumes:
       - cache_volume:/cache
       - /dev/esp32:/dev/esp32
+      - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32
       FIRMWARE_ENV: esp32
@@ -23,11 +24,15 @@ steps:
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
-      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
-      - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
-      - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+      - |
+        flock -w 3600 /lock/esp32.lock bash -c "
+          set -e
+          DURATION_SECS=\${DURATION_SECS:-\$([ \"\$CI_PIPELINE_EVENT\" = \"pull_request\" ] && echo 180 || echo 28800)}
+          git config --global url.\"https://\${GITHUB_TOKEN}@github.com/\".insteadOf \"https://github.com/\"
+          PLATFORMIO_UPLOAD_PORT=\$DEVICE pio run -e \$FIRMWARE_ENV -t erase -t upload
+          python3 /scripts/improv_wifi.py --port \$DEVICE --ssid \"\$WIFI_SSID\" --password \"\$WIFI_PASSWORD\"
+          python3 /scripts/hil_monitor.py --port \$DEVICE --duration \$DURATION_SECS
+        "
 
   - name: test-esp32c3
     image: ghcr.io/espresense/firmware-tester:1
@@ -36,6 +41,7 @@ steps:
     volumes:
       - cache_volume:/cache
       - /dev/esp32c3:/dev/esp32c3
+      - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32c3
       FIRMWARE_ENV: esp32c3
@@ -50,11 +56,15 @@ steps:
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
-      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
-      - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
-      - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+      - |
+        flock -w 3600 /lock/esp32c3.lock bash -c "
+          set -e
+          DURATION_SECS=\${DURATION_SECS:-\$([ \"\$CI_PIPELINE_EVENT\" = \"pull_request\" ] && echo 180 || echo 28800)}
+          git config --global url.\"https://\${GITHUB_TOKEN}@github.com/\".insteadOf \"https://github.com/\"
+          PLATFORMIO_UPLOAD_PORT=\$DEVICE pio run -e \$FIRMWARE_ENV -t erase -t upload
+          python3 /scripts/improv_wifi.py --port \$DEVICE --ssid \"\$WIFI_SSID\" --password \"\$WIFI_PASSWORD\"
+          python3 /scripts/hil_monitor.py --port \$DEVICE --duration \$DURATION_SECS
+        "
 
   - name: test-esp32c6
     image: ghcr.io/espresense/firmware-tester:1
@@ -64,6 +74,7 @@ steps:
     volumes:
       - cache_volume:/cache
       - /dev/esp32c6:/dev/esp32c6
+      - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32c6
       FIRMWARE_ENV: esp32c6
@@ -78,8 +89,12 @@ steps:
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
-      - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
-      - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
-      - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-      - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+      - |
+        flock -w 3600 /lock/esp32c6.lock bash -c "
+          set -e
+          DURATION_SECS=\${DURATION_SECS:-\$([ \"\$CI_PIPELINE_EVENT\" = \"pull_request\" ] && echo 180 || echo 28800)}
+          git config --global url.\"https://\${GITHUB_TOKEN}@github.com/\".insteadOf \"https://github.com/\"
+          PLATFORMIO_UPLOAD_PORT=\$DEVICE pio run -e \$FIRMWARE_ENV -t erase -t upload
+          python3 /scripts/improv_wifi.py --port \$DEVICE --ssid \"\$WIFI_SSID\" --password \"\$WIFI_PASSWORD\"
+          python3 /scripts/hil_monitor.py --port \$DEVICE --duration \$DURATION_SECS
+        "
