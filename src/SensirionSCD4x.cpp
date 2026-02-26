@@ -41,7 +41,13 @@ void Setup() {
 
     scd = new SensirionI2cScd4x();
     if (SCD4x_I2c == "0x62") {
-        scd->begin(SCD4x_I2c_Bus == 1 ? Wire : Wire1, SCD41_I2C_ADDR_62);
+        scd->begin(
+#if SOC_I2C_NUM > 1
+            SCD4x_I2c_Bus == 1 ? Wire : Wire1,
+#else
+            Wire,
+#endif
+            SCD41_I2C_ADDR_62);
     } else {
         return;
     }

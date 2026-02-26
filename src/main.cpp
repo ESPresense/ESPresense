@@ -5,7 +5,10 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    printf("%s was called but failed to allocate %d bytes with 0x%X capabilities. \n",functionName, requestedSize, caps);
+    printf("%s was called but failed to allocate %zu bytes with 0x%lX capabilities. \n",
+           functionName,
+           requestedSize,
+           static_cast<unsigned long>(caps));
 }
 
 /**
@@ -236,7 +239,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (ethernetType > 0) success = Net.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
@@ -248,13 +251,13 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println("Version:      " + String(VERSION));
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.printf("WiFi BSSID:   %s (channel=%ld rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), static_cast<long>(WiFi.channel()), WiFi.RSSI());
     Log.print("IP address:   ");
-    Log.println(Network.localIP());
+    Log.println(Net.localIP());
     Log.print("DNS address:  ");
-    Log.println(Network.dnsIP());
+    Log.println(Net.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(Network.getHostname());
+    Log.println(Net.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -290,7 +293,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = Network.localIP().toString();
+    localIp = Net.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -427,18 +430,18 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isConnected() && mqttClient.connected()) return;
+    if (Net.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected()) {
+    if (!Net.isConnected()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (ethernetType > 0) success = Net.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
         if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }
@@ -528,8 +531,8 @@ void reportLoop() {
     }
 }
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
-    void onResult(BLEAdvertisedDevice *advertisedDevice) {
+class MyAdvertisedDeviceCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice *advertisedDevice) {
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(advertisedDevice);
     }
@@ -543,11 +546,11 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setScanCallbacks(new MyAdvertisedDeviceCallbacks(), true);
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-    if (!pBLEScan->start(0, nullptr, false))
+    if (!pBLEScan->start(0, false))
         log_e("Error starting continuous ble scan");
 
     while (true) {
@@ -559,7 +562,7 @@ void scanTask(void *parameter) {
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
-            if (!pBLEScan->start(0, nullptr, true))
+            if (!pBLEScan->start(0, true))
                 log_e("Error re-starting continuous ble scan");
             delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
         } else {
@@ -588,7 +591,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Log.printf("Pre-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Pre-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
 #if M5STICK
@@ -625,7 +628,7 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Log.printf("Post-Setup Free Mem: %d\r\n", ESP.getFreeHeap());
+    Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     Log.println();
 }
 
@@ -646,7 +649,7 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %u bytes free\r\n", freeHeap);
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
         if (freeHeap > 70000) Updater::Loop();
     }
     GUI::Loop();
