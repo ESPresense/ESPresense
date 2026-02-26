@@ -8,6 +8,9 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "string_utils.h"
+#include "BME280.h"
+
+#include <math.h>
 
 namespace SensirionSGP30 {
 SGP30* sgp;
@@ -21,6 +24,19 @@ unsigned long SGP30PreviousReportMillis = 0;
 int sensorInterval = 1000;  // SGP30/40/41 are designed to operate at 1Hz: so pull every second
 int reportInterval = 60000; // Report every minute to MQTT (to avoid flooding)
 bool initialized = false;
+
+static uint16_t getAbsoluteHumidityCompensation(float relativeHumidity, float tempC) {
+    const double eSat = 6.11 * pow(10.0, (7.5 * tempC / (237.7 + tempC)));
+    const double vaporPressure = (relativeHumidity * eSat) / 100.0;  // millibars
+    const double absHumidity = 1000.0 * vaporPressure * 100.0 / ((tempC + 273.0) * 461.5);  // g/m^3
+
+    if (!isfinite(absHumidity) || absHumidity < 0) return 0;
+
+    const double fixedPoint = absHumidity * 256.0;
+    if (fixedPoint > 65535.0) return 65535;
+
+    return (uint16_t)floor(fixedPoint + 0.5);
+}
 
 /**
  * @brief Initialize and configure the SGP30 air-quality sensor if an I2C bus is active.
@@ -87,6 +103,16 @@ void Loop() {
 
     if (SGP30PreviousSensorMillis == 0 || millis() - SGP30PreviousSensorMillis >= sensorInterval) {
         SGP30PreviousSensorMillis = millis();
+
+        float bmeTemperature;
+        float bmeHumidity;
+        if (BME280::GetTemperatureHumidity(bmeTemperature, bmeHumidity)
+            && isfinite(bmeTemperature)
+            && isfinite(bmeHumidity)
+            && bmeHumidity >= 0
+            && bmeHumidity <= 100) {
+            sgp->setHumidity(getAbsoluteHumidityCompensation(bmeHumidity, bmeTemperature));
+        }
 
         sgp->measureAirQuality();
         float co2 = sgp->CO2;
