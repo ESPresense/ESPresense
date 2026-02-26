@@ -8,53 +8,128 @@
 #include "string_utils.h"
 
 #include <Adafruit_BME280.h>
+#include <Adafruit_BME680.h>
 
 namespace BME280
 {
-    Adafruit_BME280 BME280;
+    enum class SensorType
+    {
+        NONE,
+        BME280,
+        BME68X,
+    };
+
+    static constexpr uint8_t CHIP_ID_REG = 0xD0;
+    static constexpr uint8_t BME280_CHIP_ID = 0x60;
+    static constexpr uint8_t BME68X_SENSOR_CHIP_ID = 0x61;  // BME680/BME688
+
+    Adafruit_BME280 bme280;
+    Adafruit_BME680 bme680;
+    SensorType sensorType = SensorType::NONE;
+
     String BME280_I2c;
     int BME280_I2c_Bus;
     unsigned long bme280PreviousMillis = 0;
     int sensorInterval = 60000;
     bool initialized = false;
 
-    /**
-     * @brief Initializes the BME280 sensor according to configured I2C address and bus.
-     *
-     * Attempts to begin communication with the BME280 using the configured I2C address and bus.
-     * If initialization succeeds, marks the sensor as initialized and configures it for forced-mode,
-     * single-sample readings for temperature, pressure, and humidity with the hardware filter disabled.
-     * If initialization fails, logs an error message.
-     */
+    static TwoWire &getWire()
+    {
+        return (BME280_I2c_Bus == 1) ? Wire : Wire1;
+    }
+
+    static bool readChipId(uint8_t address, uint8_t &chipId)
+    {
+        auto &wire = getWire();
+        wire.beginTransmission(address);
+        wire.write(CHIP_ID_REG);
+        if (wire.endTransmission(false) != 0) {
+            return false;
+        }
+
+        if (wire.requestFrom((int)address, 1) != 1) {
+            return false;
+        }
+
+        chipId = wire.read();
+        return true;
+    }
+
+    static bool beginBME68x(uint8_t address)
+    {
+        if (!bme680.begin(address, &getWire())) {
+            return false;
+        }
+
+        // Match recommended baseline config.
+        bme680.setTemperatureOversampling(BME680_OS_8X);
+        bme680.setHumidityOversampling(BME680_OS_2X);
+        bme680.setPressureOversampling(BME680_OS_4X);
+        bme680.setIIRFilterSize(BME680_FILTER_SIZE_3);
+        bme680.setGasHeater(320, 150);  // 320°C for 150ms
+
+        sensorType = SensorType::BME68X;
+        return true;
+    }
+
+    static bool beginBME280(uint8_t address)
+    {
+        bool ok = false;
+        if (BME280_I2c_Bus == 1) {
+            ok = bme280.begin(address, &Wire);
+        } else if (BME280_I2c_Bus == 2) {
+            ok = bme280.begin(address, &Wire1);
+        }
+
+        if (!ok) {
+            return false;
+        }
+
+        bme280.setSampling(
+            Adafruit_BME280::MODE_FORCED,
+            Adafruit_BME280::SAMPLING_X1,
+            Adafruit_BME280::SAMPLING_X1,
+            Adafruit_BME280::SAMPLING_X1,
+            Adafruit_BME280::FILTER_OFF
+        );
+
+        sensorType = SensorType::BME280;
+        return true;
+    }
+
     void Setup()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
-        bool ok = false;
-        if (BME280_I2c == "0x76" && BME280_I2c_Bus == 1) {
-            ok = BME280.begin(0x76, &Wire);
-        } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 1) {
-            ok = BME280.begin(0x77, &Wire);
-        } else if (BME280_I2c == "0x76" && BME280_I2c_Bus == 2) {
-            ok = BME280.begin(0x76, &Wire1);
-        } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
-            ok = BME280.begin(0x77, &Wire1);
+        uint8_t address = 0;
+        if (BME280_I2c == "0x76") {
+            address = 0x76;
+        } else if (BME280_I2c == "0x77") {
+            address = 0x77;
         } else {
             return;
         }
 
-        if (!ok) {
-            Log.println("[BME280] Couldn't find a sensor, check your wiring and I2C address!");
+        uint8_t chipId = 0;
+        if (!readChipId(address, chipId)) {
+            Log.println("[BME280] Failed to read chip ID at configured address");
             return;
         }
 
-        BME280.setSampling(
-            Adafruit_BME280::MODE_FORCED,
-            Adafruit_BME280::SAMPLING_X1,  // Temperature
-            Adafruit_BME280::SAMPLING_X1,  // Pressure
-            Adafruit_BME280::SAMPLING_X1,  // Humidity
-            Adafruit_BME280::FILTER_OFF
-        );
+        bool ok = false;
+        if (chipId == BME280_CHIP_ID) {
+            ok = beginBME280(address);
+        } else if (chipId == BME68X_SENSOR_CHIP_ID) {
+            ok = beginBME68x(address);
+        } else {
+            Log.printf("[BME280] Unknown Bosch chip ID: 0x%02X\r\n", chipId);
+            return;
+        }
+
+        if (!ok) {
+            Log.println("[BME280] Couldn't initialize compatible BME sensor");
+            return;
+        }
 
         initialized = true;
     }
@@ -65,55 +140,72 @@ namespace BME280
         BME280_I2c = HeadlessWiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
     }
 
-    /**
-     * @brief Logs the BME280 sensor I2C address and bus to the system logger when available.
-     *
-     * If neither I2C bus is started or the configured I2C address is empty, the function does nothing.
-     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (BME280_I2c.isEmpty()) return;
+
         Log.print("BME280:       ");
-        Log.println(BME280_I2c + " on bus " + BME280_I2c_Bus);
+        String model = "unknown";
+        if (sensorType == SensorType::BME68X) model = "BME68x";
+        if (sensorType == SensorType::BME280) model = "BME280";
+        Log.println(BME280_I2c + " on bus " + BME280_I2c_Bus + " (" + model + ")");
     }
 
-    /**
-     * @brief Periodically samples the BME280 sensor and publishes measurements to MQTT.
-     *
-     * If neither I2C bus is started or the sensor is not initialized, the function returns immediately.
-     * When the configured sampling interval has elapsed, it triggers a forced measurement, reads
-     * temperature, humidity, and pressure (converted to hPa), publishes each reading to the room
-     * topics "/bme280_temperature", "/bme280_humidity", and "/bme280_pressure", and updates the
-     * internal timestamp for the last sample.
-     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
         if (!initialized) return;
 
-        if (millis() - bme280PreviousMillis >= sensorInterval) {
+        if (millis() - bme280PreviousMillis < sensorInterval) return;
 
-            BME280.takeForcedMeasurement();
-            float temperature = BME280.readTemperature();
-            float humidity = BME280.readHumidity();
-            float pressure = BME280.readPressure() / 100.0F;
+        float temperature = NAN;
+        float humidity = NAN;
+        float pressure = NAN;
+        float gasResistance = NAN;
 
-            pub((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
-            pub((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
-            pub((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+        if (sensorType == SensorType::BME68X) {
+            if (!bme680.performReading()) {
+                return;
+            }
 
-            bme280PreviousMillis = millis();
+            temperature = bme680.temperature;
+            humidity = bme680.humidity;
+            pressure = bme680.pressure / 100.0F;
+            gasResistance = bme680.gas_resistance;
+        } else if (sensorType == SensorType::BME280) {
+            bme280.takeForcedMeasurement();
+            temperature = bme280.readTemperature();
+            humidity = bme280.readHumidity();
+            pressure = bme280.readPressure() / 100.0F;
+        } else {
+            return;
         }
+
+        pub((roomsTopic + "/bme280_temperature").c_str(), 0, 1, String(temperature).c_str());
+        pub((roomsTopic + "/bme280_humidity").c_str(), 0, 1, String(humidity).c_str());
+        pub((roomsTopic + "/bme280_pressure").c_str(), 0, 1, String(pressure).c_str());
+
+        if (sensorType == SensorType::BME68X) {
+            pub((roomsTopic + "/bme68x_gas").c_str(), 0, 1, String(gasResistance).c_str());
+        }
+
+        bme280PreviousMillis = millis();
     }
 
     bool SendDiscovery()
     {
         if (BME280_I2c.isEmpty()) return true;
 
-        return sendSensorDiscovery("BME280 Temperature", EC_NONE, "temperature", "°C")
+        bool ok = sendSensorDiscovery("BME280 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("BME280 Humidity", EC_NONE, "humidity", "%")
             && sendSensorDiscovery("BME280 Pressure", EC_NONE, "pressure", "hPa");
+
+        if (sensorType == SensorType::BME68X) {
+            ok = ok && sendSensorDiscovery("BME68x Gas", EC_NONE, "", "Ω");
+        }
+
+        return ok;
     }
 }
 
