@@ -793,7 +793,7 @@ const uint8_t APP_IMMUTABLE_ASSETS_INTERNAL_CMFVRT3E_CSS[] PROGMEM = {
 };
 
 inline void serveAppImmutableAssetsInternalCMfVrT3eCss(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_INTERNAL_CMFVRT3E_CSS, APP_IMMUTABLE_ASSETS_INTERNAL_CMFVRT3E_CSS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/css", APP_IMMUTABLE_ASSETS_INTERNAL_CMFVRT3E_CSS, APP_IMMUTABLE_ASSETS_INTERNAL_CMFVRT3E_CSS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
@@ -1586,7 +1586,7 @@ const uint8_t APP_IMMUTABLE_ASSETS_START_CMFVRT3E_CSS[] PROGMEM = {
 };
 
 inline void serveAppImmutableAssetsStartCMfVrT3eCss(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "text/css", APP_IMMUTABLE_ASSETS_START_CMFVRT3E_CSS, APP_IMMUTABLE_ASSETS_START_CMFVRT3E_CSS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "text/css", APP_IMMUTABLE_ASSETS_START_CMFVRT3E_CSS, APP_IMMUTABLE_ASSETS_START_CMFVRT3E_CSS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   response->addHeader(F("Content-Encoding"), "gzip");
   request->send(response);
