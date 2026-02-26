@@ -83,6 +83,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && SensirionSCD4x::SendDiscovery()
             && HX711::SendDiscovery()
             && DS18B20::SendDiscovery()
+            && UARTSensor::SendDiscovery()
 #endif
         ) {
             sentDiscovery = true;
@@ -214,6 +215,7 @@ void setupNetwork() {
     SensirionSCD4x::ConnectToWifi();
     HX711::ConnectToWifi();
     DS18B20::ConnectToWifi();
+    UARTSensor::ConnectToWifi();
 #endif
 
     unsigned int connectProgress = 0;
@@ -277,6 +279,7 @@ void setupNetwork() {
     SensirionSCD4x::SerialReport();
     HX711::SerialReport();
     DS18B20::SerialReport();
+    UARTSensor::SerialReport();
 
 #endif
     Log.print("Query:        ");
@@ -622,6 +625,7 @@ void setup() {
     SensirionSCD4x::Setup();
     HX711::Setup();
     DS18B20::Setup();
+    UARTSensor::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
@@ -672,6 +676,7 @@ void loop() {
     SensirionSCD4x::Loop();
     HX711::Loop();
     DS18B20::Loop();
+    UARTSensor::Loop();
 #endif
 
 }
