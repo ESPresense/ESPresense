@@ -551,7 +551,8 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        for (auto &f : BleFingerprintCollection::fingerprints)
+        auto queryable = BleFingerprintCollection::GetCopy(false);
+        for (auto &f : queryable)
             if (f->query())
                 totalFpQueried++;
 
