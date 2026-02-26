@@ -18,7 +18,7 @@ const uint8_t APP_IMMUTABLE_NODES_0_XV2LXSMT_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_0Xv2LxSmTJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_0_XV2LXSMT_JS, APP_IMMUTABLE_NODES_0_XV2LXSMT_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_0_XV2LXSMT_JS, APP_IMMUTABLE_NODES_0_XV2LXSMT_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -34,7 +34,7 @@ const uint8_t APP_IMMUTABLE_NODES_1_CNBX_W8S_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_1CnbxW8sJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_1_CNBX_W8S_JS, APP_IMMUTABLE_NODES_1_CNBX_W8S_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_1_CNBX_W8S_JS, APP_IMMUTABLE_NODES_1_CNBX_W8S_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -50,7 +50,7 @@ const uint8_t APP_IMMUTABLE_NODES_2_BUL7UOSH_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_2Bul7UOsHJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_2_BUL7UOSH_JS, APP_IMMUTABLE_NODES_2_BUL7UOSH_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_2_BUL7UOSH_JS, APP_IMMUTABLE_NODES_2_BUL7UOSH_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -66,7 +66,7 @@ const uint8_t APP_IMMUTABLE_NODES_3_CPWOAR1L_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_3CpWoAr1LJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_3_CPWOAR1L_JS, APP_IMMUTABLE_NODES_3_CPWOAR1L_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_3_CPWOAR1L_JS, APP_IMMUTABLE_NODES_3_CPWOAR1L_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -82,7 +82,7 @@ const uint8_t APP_IMMUTABLE_NODES_4_BSX9NPFO_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_4Bsx9NPfoJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_4_BSX9NPFO_JS, APP_IMMUTABLE_NODES_4_BSX9NPFO_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_4_BSX9NPFO_JS, APP_IMMUTABLE_NODES_4_BSX9NPFO_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -98,7 +98,7 @@ const uint8_t APP_IMMUTABLE_NODES_5_DAZEIDRH_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_5DaZeIDrHJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_5_DAZEIDRH_JS, APP_IMMUTABLE_NODES_5_DAZEIDRH_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_5_DAZEIDRH_JS, APP_IMMUTABLE_NODES_5_DAZEIDRH_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -114,7 +114,7 @@ const uint8_t APP_IMMUTABLE_NODES_6_DLLWOQYP_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_6DlLwoQyPJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_6_DLLWOQYP_JS, APP_IMMUTABLE_NODES_6_DLLWOQYP_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_6_DLLWOQYP_JS, APP_IMMUTABLE_NODES_6_DLLWOQYP_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
@@ -130,7 +130,7 @@ const uint8_t APP_IMMUTABLE_NODES_7_LJ_K3TSX_JS[] PROGMEM = {
 };
 
 inline void serveAppImmutableNodes_7LjK3TsxJs(AsyncWebServerRequest* request) {
-  AsyncWebServerResponse *response = request->beginResponse_P(200, "application/javascript", APP_IMMUTABLE_NODES_7_LJ_K3TSX_JS, APP_IMMUTABLE_NODES_7_LJ_K3TSX_JS_L);
+  AsyncWebServerResponse *response = request->beginResponse(200, "application/javascript", APP_IMMUTABLE_NODES_7_LJ_K3TSX_JS, APP_IMMUTABLE_NODES_7_LJ_K3TSX_JS_L);
   response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");
   request->send(response);
 }
