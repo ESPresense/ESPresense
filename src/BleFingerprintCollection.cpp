@@ -347,10 +347,10 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     return f;
 }
 
-const std::vector<BleFingerprint *> GetCopy() {
+const std::vector<BleFingerprint *> GetCopy(bool cleanup) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take fingerprintMutex!");
-    CleanupOldFingerprints();
+    if (cleanup) CleanupOldFingerprints();
     std::vector<BleFingerprint *> copy(fingerprints);
     xSemaphoreGive(fingerprintMutex);
     return std::move(copy);
