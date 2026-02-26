@@ -1,5 +1,8 @@
 when:
-  - event: [push, pull_request]
+  - event: pull_request
+    repo: ESPresense/ESPresense
+  - event: push
+    branch: main
 
 steps:
   - name: test-esp32
