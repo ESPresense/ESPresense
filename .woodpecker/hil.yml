@@ -3,7 +3,7 @@ when:
 
 steps:
   - name: test-esp32
-    image: ghcr.io/espresense/firmware-tester:sha-671640b
+    image: ghcr.io/espresense/firmware-tester:1
     privileged: true
     depends_on: []
     volumes:
@@ -25,14 +25,14 @@ steps:
     commands:
       - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
       - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
       - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
 
   - name: test-esp32c3
-    image: ghcr.io/espresense/firmware-tester:sha-671640b
+    image: ghcr.io/espresense/firmware-tester:1
     privileged: true
-    depends_on: [test-esp32]
+    depends_on: []
     volumes:
       - cache_volume:/cache
       - /dev/esp32c3:/dev/esp32c3
@@ -52,14 +52,14 @@ steps:
     commands:
       - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
       - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
       - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
 
   - name: test-esp32c6
-    image: ghcr.io/espresense/firmware-tester:sha-671640b
+    image: ghcr.io/espresense/firmware-tester:1
     privileged: true
-    depends_on: [test-esp32]
+    depends_on: []
     failure: ignore
     volumes:
       - cache_volume:/cache
@@ -80,6 +80,6 @@ steps:
     commands:
       - DURATION_SECS=${DURATION_SECS:-$([ "$CI_PIPELINE_EVENT" = "pull_request" ] && echo 180 || echo 28800)}
       - git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
+      - PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
       - python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       - python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
