@@ -172,6 +172,95 @@ struct encryption_block {
     uint8_t cipher_text[16];
 };
 
+namespace {
+constexpr uint16_t XIAOMI_FLORA_PRODUCT_ID = 0x0098;
+constexpr uint8_t XIAOMI_HAS_CAPABILITY = 0x20;
+constexpr uint8_t XIAOMI_HAS_EVENT_DATA = 0x40;
+constexpr uint8_t XIAOMI_IS_ENCRYPTED = 0x08;
+
+struct ParsedXiaomiFloraData {
+    bool hasTemp = false;
+    bool hasIlluminance = false;
+    bool hasMoisture = false;
+    bool hasConductivity = false;
+    bool hasBattery = false;
+    float temperature = 0;
+    uint32_t illuminance = 0;
+    uint16_t conductivity = 0;
+    uint8_t moisture = 0;
+    uint8_t battery = 0;
+};
+
+bool parseXiaomiFloraServiceData(const std::string &rawServiceData, ParsedXiaomiFloraData &out) {
+    if (rawServiceData.size() < 14) return false;
+
+    const auto *data = reinterpret_cast<const uint8_t *>(rawServiceData.data());
+    const uint8_t frameControl = data[0];
+
+    if ((frameControl & XIAOMI_HAS_EVENT_DATA) == 0 || (frameControl & XIAOMI_IS_ENCRYPTED) != 0) return false;
+
+    const uint16_t productId = (uint16_t(data[3]) << 8) | data[2];
+    if (productId != XIAOMI_FLORA_PRODUCT_ID) return false;
+
+    size_t payloadOffset = (frameControl & XIAOMI_HAS_CAPABILITY) ? 12 : 11;
+    if (payloadOffset >= rawServiceData.size()) return false;
+
+    bool parsedAny = false;
+    while (payloadOffset + 3 <= rawServiceData.size()) {
+        const uint16_t valueType = (uint16_t(data[payloadOffset + 1]) << 8) | data[payloadOffset];
+        const uint8_t valueLength = data[payloadOffset + 2];
+        payloadOffset += 3;
+
+        if (payloadOffset + valueLength > rawServiceData.size()) break;
+
+        switch (valueType) {
+            case 0x1004:  // temperature, 0.1C, int16 LE
+                if (valueLength == 2) {
+                    const int16_t t = int16_t((uint16_t(data[payloadOffset + 1]) << 8) | data[payloadOffset]);
+                    out.temperature = float(t) / 10.0f;
+                    out.hasTemp = true;
+                    parsedAny = true;
+                }
+                break;
+            case 0x1007:  // illuminance, 1 lux, uint24 LE
+                if (valueLength == 3) {
+                    out.illuminance = uint32_t(data[payloadOffset]) | (uint32_t(data[payloadOffset + 1]) << 8) | (uint32_t(data[payloadOffset + 2]) << 16);
+                    out.hasIlluminance = true;
+                    parsedAny = true;
+                }
+                break;
+            case 0x1008:  // moisture, 1%
+                if (valueLength == 1) {
+                    out.moisture = data[payloadOffset];
+                    out.hasMoisture = true;
+                    parsedAny = true;
+                }
+                break;
+            case 0x1009:  // conductivity, 1 uS/cm, uint16 LE
+                if (valueLength == 2) {
+                    out.conductivity = (uint16_t(data[payloadOffset + 1]) << 8) | data[payloadOffset];
+                    out.hasConductivity = true;
+                    parsedAny = true;
+                }
+                break;
+            case 0x100A:  // battery, 1%
+                if (valueLength == 1) {
+                    out.battery = data[payloadOffset];
+                    out.hasBattery = true;
+                    parsedAny = true;
+                }
+                break;
+            default:
+                break;
+        }
+
+        payloadOffset += valueLength;
+    }
+
+    return parsedAny;
+}
+}  // namespace
+
 /**
  * @brief Determines whether a Resolvable Private Address (RPA) was generated from a given IRK.
  *
@@ -372,6 +461,17 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
+        } else if (uuid == miFloraUUID) {
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            ParsedXiaomiFloraData parsedFlora;
+            if (parseXiaomiFloraServiceData(strServiceData, parsedFlora)) {
+                if (parsedFlora.hasTemp) temp = parsedFlora.temperature;
+                if (parsedFlora.hasIlluminance) illuminance = parsedFlora.illuminance;
+                if (parsedFlora.hasMoisture) moisture = parsedFlora.moisture;
+                if (parsedFlora.hasConductivity) conductivity = parsedFlora.conductivity;
+                if (parsedFlora.hasBattery) battery = parsedFlora.battery;
+            }
+            setId("flora:" + getMac(), ID_TYPE_FLORA);
         } else if (uuid == eddystoneUUID && strServiceData.length() > 0) {
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
@@ -543,6 +643,9 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 2));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 2));
+    if (illuminance) (*doc)[F("lux")] = illuminance;
+    if (moisture != 0xFF) (*doc)[F("moisture")] = moisture;
+    if (conductivity) (*doc)[F("conductivity")] = conductivity;
     return true;
 }
 
