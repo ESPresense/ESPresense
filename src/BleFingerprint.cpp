@@ -7,6 +7,7 @@
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
 #include "defaults.h"
+#include "globals.h"
 #include "Logger.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
@@ -602,7 +603,7 @@ bool BleFingerprint::report(JsonObject *doc) {
  * @returns `true` if a query attempt was initiated, `false` otherwise.
  */
 bool BleFingerprint::query() {
-    if (!allowQuery || isQuerying) return false;
+    if (!allowQuery || isQuerying || enrolling) return false;
     if (rssi < -90) return false; // Too far away
 
     auto now = millis();
