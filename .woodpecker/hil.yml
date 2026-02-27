@@ -30,7 +30,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32.lock bash -c "
+        flock -w 3600 /lock/esp32.lock bash -c '
           set -e
           if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
             DURATION_SECS=${PR_DURATION_SECS:-1800}
@@ -43,7 +43,7 @@ steps:
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
-        "
+        '
 
   - name: test-esp32c3
     image: ghcr.io/espresense/firmware-tester:1
@@ -68,7 +68,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32c3.lock bash -c "
+        flock -w 3600 /lock/esp32c3.lock bash -c '
           set -e
           if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
             DURATION_SECS=${PR_DURATION_SECS:-1800}
@@ -81,7 +81,7 @@ steps:
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
-        "
+        '
 
   - name: test-esp32c6
     image: ghcr.io/espresense/firmware-tester:1
@@ -107,7 +107,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32c6.lock bash -c "
+        flock -w 3600 /lock/esp32c6.lock bash -c '
           set -e
           if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
             DURATION_SECS=${PR_DURATION_SECS:-1800}
@@ -120,4 +120,4 @@ steps:
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
-        "
+        '
