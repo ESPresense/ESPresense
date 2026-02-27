@@ -170,7 +170,10 @@ bool Config(String &id, String &json) {
             auto *irk = new uint8_t[16];
             if (!hextostr(irk_hex, irk, 16))
                 return false;
+            if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+                log_e("Couldn't take fingerprintMutex!");
             irks.push_back(irk);
+            xSemaphoreGive(fingerprintMutex);
         }
     }
 
