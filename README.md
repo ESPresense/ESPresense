@@ -9,6 +9,14 @@ An ESP32 based presence detection node for use with the [Home Assistant](https:/
 
 **Documentation:** https://espresense.com/
 
+## WiFi AP fallback
+
+ESPresense normally uses a captive portal (soft-AP) as a fallback for WiFi configuration.
+
+If you want to **disable the AP entirely** (security / spectrum hygiene), set `disable_ap_mode: true` in the WiFi settings.
+
+**Warning:** if AP mode is disabled and WiFi credentials are lost, the device cannot be recovered headlessly — you will need to reflash.
+
 **Building:** [building](./BUILDING.md).
 
 **Release Notes:** [changelog](./CHANGELOG.md).

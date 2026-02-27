@@ -15,6 +15,7 @@ const mockMainSettings = {
     'wifi-password': '',
     wifi_timeout: 30,
     portal_timeout: 180,
+    disable_ap_mode: false,
     mqtt_host: 'mqtt.local',
     mqtt_port: 1883,
     discovery_prefix: 'homeassistant'
@@ -25,6 +26,7 @@ const mockMainSettings = {
     'wifi-password': '',
     wifi_timeout: 30,
     portal_timeout: 180,
+    disable_ap_mode: false,
     eth: 0,
     mqtt_host: 'mqtt.local',
     mqtt_port: 1883,

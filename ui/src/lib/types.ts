@@ -65,6 +65,7 @@ export interface MainSettings {
         room: string;
         wifi_timeout: number;
         portal_timeout: number;
+        disable_ap_mode: boolean;
         "wifi-ssid": string;
         "wifi-password": string;
         eth: string;
@@ -88,6 +89,7 @@ export interface MainSettings {
         "wifi-password": string;
         wifi_timeout: number;
         portal_timeout: number;
+        disable_ap_mode: boolean;
         eth: string;
         mqtt_host: string;
         mqtt_port: number;
