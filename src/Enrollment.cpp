@@ -322,7 +322,9 @@ bool Loop() {
             Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
+        Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
+        Log.println("DEBUG: SendState() complete");
     }
 
     if (enrolling && enrollingEndMillis < millis()) {
@@ -332,7 +334,9 @@ bool Loop() {
     if (millis() - lastLoop > 500) {
         lastLoop = millis();
 
-        if (enrolling) HttpWebServer::SendState();
+        if (enrolling) Log.println("DEBUG: calling SendState()");
+        HttpWebServer::SendState();
+        Log.println("DEBUG: SendState() complete");
         if (pServer->getConnectedCount()) {
             NimBLEService *pSvc = pServer->getServiceByUUID("180D");
             if (pSvc) {
@@ -369,6 +373,7 @@ bool Loop() {
 
 bool Command(String &command, String &pay) {
     if (command == "enroll") {
+        Log.println("DEBUG: enroll command received");
         const int separatorIndex = pay.indexOf('|');
         if (separatorIndex != -1) {
             newId = pay.substring(0, separatorIndex);
@@ -378,14 +383,19 @@ bool Command(String &command, String &pay) {
             newName = pay.equals("PRESS") ? "" : pay;
         }
         enrolling = true;
+        Log.println("DEBUG: enrolling=true set");
         enrollingEndMillis = millis() + 120000;
+        Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
+        Log.println("DEBUG: SendState() complete");
         return true;
     }
     if (command == "cancelEnroll") {
         enrolledId = newId = newName = "";
         enrolling = false;
+        Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
+        Log.println("DEBUG: SendState() complete");
         return true;
     }
     return false;

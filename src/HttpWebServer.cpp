@@ -84,6 +84,7 @@ void serveJson(AsyncWebServerRequest *request) {
 }
 
 void sendDataWs(AsyncWebSocketClient *client) {
+    Log.println("DEBUG: sendDataWs entered");
     if (!ws.count()) return;
     AsyncWebSocketMessageBuffer *buffer;
 
@@ -94,6 +95,7 @@ void sendDataWs(AsyncWebSocketClient *client) {
         serializeInfo(root);
         size_t len = measureJson(doc);
         size_t const heap1 = ESP.getFreeHeap();
+        Log.printf("DEBUG: ws.makeBuffer len=%u heap=%u\n", len, ESP.getFreeHeap());
         buffer = ws.makeBuffer(len);  // will not allocate correct memory sometimes
         size_t const heap2 = ESP.getFreeHeap();
         if (!buffer || heap1 - heap2 < len) {

@@ -5,6 +5,8 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
+    Log.printf("DEBUG: heap_caps_alloc FAILED: size=%u caps=0x%x func=%s\n", requestedSize, caps, functionName);
+    Log.printf("DEBUG: free heap=%u\n", ESP.getFreeHeap());
     printf("%s was called but failed to allocate %lu bytes with 0x%lX capabilities. \n", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
 }
 
