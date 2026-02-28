@@ -315,14 +315,18 @@ bool Loop() {
             pAdvertising->setMinPreferred(0x12);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
-            pAdvertising->start();
+            Log.println("DEBUG: before pAdvertising->start()");
+        pAdvertising->start();
+        Log.println("DEBUG: after pAdvertising->start()");
             Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
             pAdvertising->setScanResponse(false);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
-            pAdvertising->start();
+            Log.println("DEBUG: before pAdvertising->start()");
+        pAdvertising->start();
+        Log.println("DEBUG: after pAdvertising->start()");
             Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
         }
         lastEnrolling = enrolling;
