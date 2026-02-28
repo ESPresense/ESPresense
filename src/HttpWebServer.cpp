@@ -89,7 +89,7 @@ void sendDataWs(AsyncWebSocketClient *client) {
     AsyncWebSocketMessageBuffer *buffer;
 
     {  // scope JsonDocument so it releases its buffer
-        DynamicJsonDocument doc(4096);
+        DynamicJsonDocument doc(1024);
         JsonObject root = doc.to<JsonObject>();
         serializeState(root);
         serializeInfo(root);
@@ -119,7 +119,7 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
         auto *info = static_cast<AwsFrameInfo *>(arg);
         if (info->final && info->index == 0 && info->len == len) {
             if (info->opcode == WS_TEXT) {
-                auto doc = DynamicJsonDocument(4096);
+                auto doc = DynamicJsonDocument(1024);
                 auto error = deserializeJson(doc, data, len);
                 auto root = doc.as<JsonObject>();
                 if (error || root.isNull()) {
