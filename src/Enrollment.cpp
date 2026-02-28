@@ -30,6 +30,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      */
     void onConnect(NimBLEServer *pServer) {
         if (enrolling) {
+        Log.println("DEBUG: Starting HRM advertising");
             NimBLEDevice::startAdvertising();
         }
     };
@@ -49,6 +50,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
         Log.print("Connected to: ");
         Log.println(addr.c_str());
         if (enrolling) {
+        Log.println("DEBUG: Starting HRM advertising");
             connectionToEnroll = desc->conn_handle;
         }
     };
@@ -61,6 +63,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      */
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
+        Log.println("DEBUG: Starting HRM advertising");
             Log.println("Client disconnected");
             NimBLEDevice::startAdvertising();
         }
@@ -305,6 +308,7 @@ bool Loop() {
     if (enrolling != lastEnrolling) {
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
+        Log.println("DEBUG: Starting HRM advertising");
             pAdvertising->reset();
             pAdvertising->setScanResponse(true);
             pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
@@ -324,7 +328,7 @@ bool Loop() {
         lastEnrolling = enrolling;
         Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
-        Log.println("DEBUG: SendState() complete");
+        Log.println("DEBUG: SendState() complete - about to return from Loop");
     }
 
     if (enrolling && enrollingEndMillis < millis()) {
@@ -336,7 +340,7 @@ bool Loop() {
 
         if (enrolling) Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
-        Log.println("DEBUG: SendState() complete");
+        Log.println("DEBUG: SendState() complete - about to return from Loop");
         if (pServer->getConnectedCount()) {
             NimBLEService *pSvc = pServer->getServiceByUUID("180D");
             if (pSvc) {
@@ -387,7 +391,7 @@ bool Command(String &command, String &pay) {
         enrollingEndMillis = millis() + 120000;
         Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
-        Log.println("DEBUG: SendState() complete");
+        Log.println("DEBUG: SendState() complete - about to return from Loop");
         return true;
     }
     if (command == "cancelEnroll") {
@@ -395,7 +399,7 @@ bool Command(String &command, String &pay) {
         enrolling = false;
         Log.println("DEBUG: calling SendState()");
         HttpWebServer::SendState();
-        Log.println("DEBUG: SendState() complete");
+        Log.println("DEBUG: SendState() complete - about to return from Loop");
         return true;
     }
     return false;
