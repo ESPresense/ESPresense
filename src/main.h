@@ -68,3 +68,7 @@ String mqttHost, mqttUser, mqttPass;
 uint16_t mqttPort;
 
 bool discovery, publishTele, publishDevices;
+
+// When true, do not allow the captive portal / configuration AP to start.
+// WARNING: if WiFi credentials are lost, recovery requires reflashing.
+bool disableApMode = false;
