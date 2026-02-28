@@ -5,8 +5,8 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
-#include <NimBLEEddystoneTLM.h>
-#include <NimBLEEddystoneURL.h>
+// #include <NimBLEEddystoneTLM.h> // disabled
+// #include <NimBLEEddystoneURL.h> // disabled
 
 #include <memory>
 

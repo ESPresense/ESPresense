@@ -138,9 +138,9 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * @param status The notification/indication status value.
      * @param code Numeric BLE stack return code associated with the operation.
      */
-    void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
+    void onStatus(NimBLECharacteristic *pCharacteristic, int code) {
         String str = ("Notification/Indication status code: ");
-        str += status;
+        str += "N/A"; // status removed in NimBLE 2.x
         str += ", return code: ";
         str += code;
         str += ", ";
@@ -286,7 +286,7 @@ void Setup() {
     oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
-    oAdvertisementData->setManufacturerData(oBeacon.getData());
+    oAdvertisementData->setManufacturerData(reinterpret_cast<const std::vector<uint8_t>&>(oBeacon.getData()));
 
     pServer->start();
 }
@@ -310,10 +310,10 @@ bool Loop() {
         if (enrolling) {
         Log.println("DEBUG: Starting HRM advertising");
             pAdvertising->reset();
-            pAdvertising->setScanResponse(true);
-            pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
-            pAdvertising->setMinPreferred(0x12);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
+            pAdvertising->enableScanResponse(true);
+              // functions that help with iPhone connections issue
+            // setMinPreferred removed in NimBLE 2.x
+            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_UND);
             pAdvertising->addServiceUUID(heartRate->getUUID());
             Log.println("DEBUG: before pAdvertising->start()");
         pAdvertising->start();
@@ -321,8 +321,8 @@ bool Loop() {
             Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
-            pAdvertising->setScanResponse(false);
-            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
+            pAdvertising->enableScanResponse(false);
+            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);
             pAdvertising->setAdvertisementData(*oAdvertisementData);
             Log.println("DEBUG: before pAdvertising->start()");
         pAdvertising->start();

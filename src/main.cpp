@@ -530,7 +530,7 @@ void reportLoop() {
     }
 }
 
-class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
+class MyScanCallbacks : public NimBLEScanCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(advertisedDevice);
@@ -545,7 +545,7 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+    pBLEScan->setScanCallbacks(new MyScanCallbacks(), true);
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
