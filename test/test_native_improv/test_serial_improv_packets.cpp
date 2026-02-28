@@ -75,6 +75,20 @@ void test_rpc_response_with_url() {
     TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
 }
 
+void test_rpc_response_truncates_long_url() {
+    std::string url(200, 'a');
+    auto packet = BuildRPCResponse(0x02, url.c_str(), true);
+
+    TEST_ASSERT_EQUAL_size_t(128, packet.size);
+    assertImprovHeader(packet, 0x04);
+    TEST_ASSERT_EQUAL_UINT8(118, packet.data[8]);
+    TEST_ASSERT_EQUAL_UINT8(0x02, packet.data[9]);
+    TEST_ASSERT_EQUAL_UINT8(116, packet.data[10]);
+    TEST_ASSERT_EQUAL_UINT8(115, packet.data[11]);
+    TEST_ASSERT_EQUAL_MEMORY(url.data(), packet.data + 12, 115);
+    TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
+}
+
 void test_info_response_payload() {
     auto packet = BuildInfoResponse("ESPresense", "1.2.3", "esp32", "livingroom");
     assertImprovHeader(packet, 0x04);
@@ -103,6 +117,29 @@ void test_info_response_payload() {
     cursor += 1;
     TEST_ASSERT_EQUAL_UINT8(10, roomLength);
     TEST_ASSERT_EQUAL_MEMORY("livingroom", packet.data + cursor, roomLength);
+
+    TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
+}
+
+void test_info_response_truncates_long_fields() {
+    std::string longField(200, 'b');
+    auto packet = BuildInfoResponse(longField.c_str(), longField.c_str(), longField.c_str(), longField.c_str());
+
+    TEST_ASSERT_EQUAL_size_t(128, packet.size);
+    assertImprovHeader(packet, 0x04);
+    TEST_ASSERT_EQUAL_UINT8(118, packet.data[8]);
+    TEST_ASSERT_EQUAL_UINT8(116, packet.data[10]);
+
+    const uint8_t firmwareLength = packet.data[11];
+    TEST_ASSERT_EQUAL_UINT8(112, firmwareLength);
+    TEST_ASSERT_EQUAL_MEMORY(longField.data(), packet.data + 12, firmwareLength);
+
+    size_t cursor = 12 + firmwareLength;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
+    cursor += 1;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
+    cursor += 1;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
 
     TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
 }
@@ -143,7 +180,9 @@ int main() {
     RUN_TEST(test_state_response_error);
     RUN_TEST(test_rpc_response_without_url);
     RUN_TEST(test_rpc_response_with_url);
+    RUN_TEST(test_rpc_response_truncates_long_url);
     RUN_TEST(test_info_response_payload);
+    RUN_TEST(test_info_response_truncates_long_fields);
     RUN_TEST(test_decode_wifi_credentials_success);
     RUN_TEST(test_decode_wifi_credentials_rejects_invalid);
     return UNITY_END();

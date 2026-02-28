@@ -171,7 +171,11 @@ void handleImprovPacket(bool provisioning) {
                     }
                 } else if (packetByte > 9) {  // RPC data
                     const size_t rpcIndex = packetByte - 10;
-                    if (rpcIndex >= sizeof(rpcData)) return;  // prevent buffer overflow
+                    if (rpcIndex >= sizeof(rpcData)) {
+                        DIMPROV_PRINTLN(F("RPC payload too large"));
+                        sendImprovStateResponse(0x01, true);
+                        return;  // prevent buffer overflow
+                    }
                     rpcData[rpcIndex] = next;
                 }
             }
