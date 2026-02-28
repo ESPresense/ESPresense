@@ -5,8 +5,8 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
-// #include <NimBLEEddystoneTLM.h> // disabled
-// #include <NimBLEEddystoneURL.h> // disabled
+// NimBLEEddystoneTLM.h - disabled for NimBLE 2.x migration (Eddystone deprecated)
+// NimBLEEddystoneURL.h - disabled for NimBLE 2.x migration (Eddystone deprecated)
 
 #include <memory>
 

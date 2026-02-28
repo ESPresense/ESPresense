@@ -413,7 +413,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         {
             if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15) {
                 BLEBeacon oBeacon = BLEBeacon();
-                oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(strManufacturerData));
+                oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(strManufacturerData.data()[0]));
                 bcnRssi = oBeacon.getSignalPower();
                 setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
             } else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10) {
@@ -463,7 +463,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             setId("samsung:" + getMac(), ID_TYPE_MISC);
         } else if (manuf == "beac" && strManufacturerData.length() == 26) {
             BLEBeacon oBeacon = BLEBeacon();
-            oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(strManufacturerData));
+            oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(strManufacturerData.data()[0]));
             setId(Sprintf("altBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
             bcnRssi = oBeacon.getSignalPower();
         } else if (manuf != "0000") {

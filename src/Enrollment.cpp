@@ -286,7 +286,11 @@ void Setup() {
     oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
-    oAdvertisementData->setManufacturerData(reinterpret_cast<const std::vector<uint8_t>&>(oBeacon.getData()));
+    // Serialize BeaconData to bytes manually for NimBLE 2.x
+    const auto& beaconData = oBeacon.getData();
+    uint8_t data[25];
+    memcpy(data, &beaconData, 25);
+    oAdvertisementData->setManufacturerData(data, 25);
 
     pServer->start();
 }
