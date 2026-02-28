@@ -549,7 +549,7 @@ void scanTask(void *parameter) {
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
-    if (!pBLEScan->start(0, nullptr, false))
+    if (!pBLEScan->start(0, false, false))
         log_e("Error starting continuous ble scan");
 
     while (true) {
@@ -561,7 +561,7 @@ void scanTask(void *parameter) {
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
-            if (!pBLEScan->start(0, nullptr, true))
+            if (!pBLEScan->start(0, true, true))
                 log_e("Error re-starting continuous ble scan");
             delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
         } else {
