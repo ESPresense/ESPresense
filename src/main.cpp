@@ -22,7 +22,7 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
  * @param totalFpQueried Total fingerprints queried (e.g., looked up) since the last report.
  * @param totalFpReported Total fingerprint reports published since the last report.
  * @param count Current count value (included only when a count identifier is configured).
- * @return `true` if the telemetry document was published successfully, `false` otherwise. 
+ * @return `true` if the telemetry document was published successfully, `false` otherwise.
  * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
  */
 bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
@@ -583,7 +583,7 @@ void setup() {
     Serial.begin(115200);
 #endif
     Serial.setDebugOutput(true);
-#ifdef VERBOSE
+#ifdef LOG_LEVEL_DEBUG
     esp_log_level_set("*", ESP_LOG_DEBUG);
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
