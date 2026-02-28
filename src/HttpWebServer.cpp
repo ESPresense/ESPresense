@@ -101,7 +101,7 @@ void sendDataWs(AsyncWebSocketClient *client) {
             ws.cleanupClients(0);  // disconnect all clients to release memory
             return;                // out of memory
         }
-        serializeJson(doc, (char *)buffer->get(), len + 1);
+        serializeJson(doc, buffer->get(), len);
     }
     if (client) {
         client->text(buffer);
