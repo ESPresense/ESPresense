@@ -198,7 +198,7 @@ void ConnectToWifi() {
     query = HeadlessWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
     requeryMs = HeadlessWiFiSettings.integer("requery_ms", 30, 3600, DEFAULT_REQUERY_MS / 1000, "Requery interval in seconds") * 1000;
 
-    countIds = HeadlessWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space seperated)");
+    countIds = HeadlessWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space seperated) or \"*\"/\"all\" for all filtered devices");
     countEnter = HeadlessWiFiSettings.floating("count_enter", 0, 100, DEFAULT_COUNT_ENTER, "Start counting devices less than distance (in meters)");
     countExit = HeadlessWiFiSettings.floating("count_exit", 0, 100, DEFAULT_COUNT_EXIT, "Stop counting devices greater than distance (in meters)");
     countMs = HeadlessWiFiSettings.integer("count_ms", 0, 3000000, DEFAULT_COUNT_MS, "Include devices with age less than (in ms)");
