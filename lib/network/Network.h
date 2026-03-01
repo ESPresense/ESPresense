@@ -8,18 +8,19 @@
 #ifndef Network_h
 #define Network_h
 
-class NetworkClass
+class NetworkManager
 {
 public:
   IPAddress localIP();
-  IPAddress subnetMask();
-  IPAddress gatewayIP();
   IPAddress dnsIP();
-  const char *getHostname();
-  bool isConnected();
-  bool isEthernet();
-  bool initEthernet(int ethernetType);
+  static const char *getHostname();
+  static void setHostname(const char *hostname);
+  static void hostname(const String &hostname);
+  bool isOnline();
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
+
+private:
+  bool initEthernet(int ethernetType);
 };
 
 #define CONFIG_NUM_ETH_TYPES        14
@@ -196,6 +197,6 @@ const ethernet_settings ethernetBoards[] = {
   }
 };
 
-extern NetworkClass Network;
+extern NetworkManager Network;
 
 #endif

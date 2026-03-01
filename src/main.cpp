@@ -428,14 +428,14 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isConnected() && mqttClient.connected()) return;
+    if (Network.isOnline() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected()) {
+    if (!Network.isOnline()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;

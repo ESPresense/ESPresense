@@ -6,7 +6,7 @@
  *
  * @return IPAddress The local IP address: the Ethernet IP if Ethernet is enabled and non-zero, otherwise the WiFi IP if non-zero, otherwise INADDR_NONE.
  */
-IPAddress NetworkClass::localIP()
+IPAddress NetworkManager::localIP()
 {
   IPAddress localIP;
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
@@ -23,33 +23,7 @@ IPAddress NetworkClass::localIP()
   return INADDR_NONE;
 }
 
-IPAddress NetworkClass::subnetMask()
-{
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
-  if (ETH.localIP()[0] != 0) {
-    return ETH.subnetMask();
-  }
-#endif
-  if (WiFi.localIP()[0] != 0) {
-    return WiFi.subnetMask();
-  }
-  return IPAddress(255, 255, 255, 0);
-}
-
-IPAddress NetworkClass::gatewayIP()
-{
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
-  if (ETH.localIP()[0] != 0) {
-      return ETH.gatewayIP();
-  }
-#endif
-  if (WiFi.localIP()[0] != 0) {
-      return WiFi.gatewayIP();
-  }
-  return INADDR_NONE;
-}
-
-IPAddress NetworkClass::dnsIP()
+IPAddress NetworkManager::dnsIP()
 {
   IPAddress dnsIP;
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
@@ -66,7 +40,7 @@ IPAddress NetworkClass::dnsIP()
   return INADDR_NONE;
 }
 
-const char* NetworkClass::getHostname()
+const char* NetworkManager::getHostname()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   if (ETH.localIP()[0] != 0) {
@@ -76,7 +50,20 @@ const char* NetworkClass::getHostname()
   return WiFi.getHostname();
 }
 
-bool NetworkClass::isConnected()
+void NetworkManager::setHostname(const char* hostname)
+{
+#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+  ETH.setHostname(hostname);
+#endif
+  WiFi.setHostname(hostname);
+}
+
+void NetworkManager::hostname(const String& hostname)
+{
+  setHostname(hostname.c_str());
+}
+
+bool NetworkManager::isOnline()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   return (WiFi.localIP()[0] != 0 && WiFi.status() == WL_CONNECTED) || ETH.localIP()[0] != 0;
@@ -85,22 +72,14 @@ bool NetworkClass::isConnected()
 #endif
 }
 
-bool NetworkClass::isEthernet()
-{
-#if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
-  return (ETH.localIP()[0] != 0);
-#endif
-  return false;
-}
-
-bool NetworkClass::initEthernet(int ethernetType)
+bool NetworkManager::initEthernet(int ethernetType)
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
 
   static bool successfullyConfiguredEthernet = false;
 
   if (successfullyConfiguredEthernet) {
-    return false;
+    return true;
   }
   if (ethernetType == CONFIG_ETH_NONE) {
     return false;
@@ -138,12 +117,15 @@ bool NetworkClass::initEthernet(int ethernetType)
  * @param hostname NUL-terminated hostname to assign to the Ethernet interface.
  * @return true if the interface obtained a non-zero local IP address within the timeout, false otherwise.
  */
-bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
+bool NetworkManager::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
-    initEthernet(ethernetType);
+    if (!initEthernet(ethernetType)) {
+        Log.println(F(" init failed."));
+        return false;
+    }
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
@@ -160,4 +142,4 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     return true;
 }
 
-NetworkClass Network;
+NetworkManager Network;
