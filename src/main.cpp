@@ -168,8 +168,11 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
-    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
+    std::vector<String> ethernetTypes = DeviceNetwork.ethernetOptions();
     ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+#if defined(ARDUINO_ARCH_ESP32S3)
+    if (ethernetType == CONFIG_ETH_WAVESHARE_S3_OLD) ethernetType = CONFIG_ETH_WAVESHARE_S3;
+#endif
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = HeadlessWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
@@ -237,7 +240,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (ethernetType > 0) success = DeviceNetwork.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 
@@ -251,11 +254,11 @@ void setupNetwork() {
 #endif
     Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
     Log.print("IP address:   ");
-    Log.println(Network.localIP());
+    Log.println(DeviceNetwork.localIP());
     Log.print("DNS address:  ");
-    Log.println(Network.dnsIP());
+    Log.println(DeviceNetwork.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(Network.getHostname());
+    Log.println(DeviceNetwork.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -291,7 +294,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = Network.localIP().toString();
+    localIp = DeviceNetwork.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -428,18 +431,18 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isConnected() && mqttClient.connected()) return;
+    if (DeviceNetwork.isConnected() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isConnected()) {
+    if (!DeviceNetwork.isConnected()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
         bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
+        if (ethernetType > 0) success = DeviceNetwork.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
         if (!success && !HeadlessWiFiSettings.connect(true, 40))
             ESP.restart();
     }

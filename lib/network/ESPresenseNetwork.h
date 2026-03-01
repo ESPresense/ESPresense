@@ -5,8 +5,10 @@
   #include <ETH.h>
 #endif
 
-#ifndef Network_h
-#define Network_h
+#include <vector>
+
+#ifndef ESPRESENSE_NETWORK_H
+#define ESPRESENSE_NETWORK_H
 
 class NetworkClass
 {
@@ -18,13 +20,50 @@ public:
   const char *getHostname();
   bool isConnected();
   bool isEthernet();
+  std::vector<String> ethernetOptions() const;
   bool initEthernet(int ethernetType);
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
 };
 
+#define CONFIG_ETH_NONE             0
+
+#if defined(ARDUINO_ARCH_ESP32S3)
+
+#define CONFIG_NUM_ETH_TYPES        2
+#define CONFIG_ETH_WAVESHARE_S3     1
+#define CONFIG_ETH_WAVESHARE_S3_OLD 14
+
+typedef struct EthernetSettings {
+  int eth_address;
+  int eth_power;
+  int spi_miso;
+  int spi_mosi;
+  int spi_sclk;
+  int spi_cs;
+  int spi_int;
+} ethernet_settings;
+
+const ethernet_settings ethernetBoards[] = {
+  // None
+  {
+  },
+
+  // Waveshare ESP32-S3-ETH (W5500 SPI)
+  {
+    1,   // eth_address
+    9,   // eth_power (RST pin)
+    12,  // spi_miso
+    11,  // spi_mosi
+    13,  // spi_sclk
+    14,  // spi_cs
+    10   // spi_int
+  }
+};
+
+#else
+
 #define CONFIG_NUM_ETH_TYPES        14
 
-#define CONFIG_ETH_NONE             0
 #define CONFIG_ETH_WT32_ETH01       1
 #define CONFIG_ETH_ESP32_POE        2
 #define CONFIG_ETH_WESP32           3
@@ -196,6 +235,8 @@ const ethernet_settings ethernetBoards[] = {
   }
 };
 
-extern NetworkClass Network;
+#endif
+
+extern NetworkClass DeviceNetwork;
 
 #endif

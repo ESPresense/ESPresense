@@ -1,5 +1,35 @@
-#include "Network.h"
+#include "ESPresenseNetwork.h"
 #include "../../include/Logger.h"
+
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
+  #include <SPI.h>
+#endif
+
+std::vector<String> NetworkClass::ethernetOptions() const
+{
+#if defined(ARDUINO_ARCH_ESP32S3)
+  return {"None", "Waveshare ESP32-S3-ETH"};
+#elif defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+  return {
+    "None",
+    "WT32-ETH01",
+    "ESP32-POE",
+    "WESP32",
+    "QuinLED-ESP32",
+    "TwilightLord-ESP32",
+    "ESP32Deux",
+    "KIT-VE",
+    "LilyGO-T-ETH-POE",
+    "GL-inet GL-S10 v2.1 Ethernet",
+    "EST-PoE-32",
+    "LilyGO-T-ETH-Lite (RTL8201)",
+    "ESP32-POE_A1",
+    "WESP32 Rev7+ (RTL8201)"
+  };
+#else
+  return {"None"};
+#endif
+}
 
 /**
  * @brief Returns the device's current local IP address, preferring Ethernet when configured.
@@ -100,7 +130,7 @@ bool NetworkClass::initEthernet(int ethernetType)
   static bool successfullyConfiguredEthernet = false;
 
   if (successfullyConfiguredEthernet) {
-    return false;
+    return true;
   }
   if (ethernetType == CONFIG_ETH_NONE) {
     return false;
@@ -109,6 +139,13 @@ bool NetworkClass::initEthernet(int ethernetType)
     return false;
   }
 
+#if defined(ARDUINO_ARCH_ESP32S3)
+  ethernet_settings es = ethernetBoards[ethernetType];
+  SPI.begin(es.spi_sclk, es.spi_miso, es.spi_mosi, es.spi_cs);
+  if (!ETH.begin(ETH_PHY_W5500, es.eth_address, es.spi_cs, es.spi_int, es.eth_power, SPI, 20)) {
+    return false;
+  }
+#else
   ethernet_settings es = ethernetBoards[ethernetType];
   if (!ETH.begin(
                 (uint8_t) es.eth_address,
@@ -120,6 +157,7 @@ bool NetworkClass::initEthernet(int ethernetType)
                 )) {
     return false;
   }
+#endif
 
   successfullyConfiguredEthernet = true;
   return true;
@@ -143,7 +181,10 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
-    initEthernet(ethernetType);
+    if (!initEthernet(ethernetType)) {
+        Log.println(F(" failed."));
+        return false;
+    }
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
@@ -160,4 +201,4 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     return true;
 }
 
-NetworkClass Network;
+NetworkClass DeviceNetwork;

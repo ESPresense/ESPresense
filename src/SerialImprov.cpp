@@ -5,7 +5,7 @@
 #include <pgmspace.h>
 #include <string>
 
-#include "Network.h"
+#include "ESPresenseNetwork.h"
 #include "SPIFFS.h"
 #include "SerialImprovPackets.h"
 #include "defaults.h"
@@ -148,7 +148,7 @@ void handleImprovPacket(bool provisioning) {
                             Log.println("[Improv] Command: REQUEST_STATE");
                             uint8_t improvState = 0x02;                     // authorized
                             if (provisioning) improvState = 0x03;   // provisioning
-                            if (Network.isConnected()) improvState = 0x04;  // provisioned
+                            if (DeviceNetwork.isConnected()) improvState = 0x04;  // provisioned
                             sendImprovStateResponse(improvState, false);
                             if (improvState == 0x04) sendImprovRPCResponse(ImprovRPCType::Request_State);
                             break;
@@ -224,8 +224,8 @@ void sendImprovRPCResponse(byte commandId) {
 
     char url[32] = {0};
     bool includeUrl = false;
-    if (Network.isConnected()) {
-        IPAddress localIP = Network.localIP();
+    if (DeviceNetwork.isConnected()) {
+        IPAddress localIP = DeviceNetwork.localIP();
         uint8_t len = snprintf(url, sizeof(url), "http://%d.%d.%d.%d", localIP[0], localIP[1], localIP[2], localIP[3]);
         if (len > 0 && len < sizeof(url)) includeUrl = true;
     }
