@@ -138,13 +138,20 @@ bool NetworkClass::initEthernet(int ethernetType)
  * @param hostname NUL-terminated hostname to assign to the Ethernet interface.
  * @return true if the interface obtained a non-zero local IP address within the timeout, false otherwise.
  */
-bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
+bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname, IPAddress staticIP, IPAddress gateway, IPAddress subnet, IPAddress dns)
 {
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
     initEthernet(ethernetType);
-    ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    if (staticIP[0] != 0 && gateway[0] != 0 && subnet[0] != 0) {
+      if (dns[0] == 0) {
+        dns = gateway;
+      }
+      ETH.config(staticIP, gateway, subnet, dns);
+    } else {
+      ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    }
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
         Log.print(".");

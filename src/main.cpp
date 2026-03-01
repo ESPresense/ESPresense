@@ -168,6 +168,10 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
+    auto staticIpString = HeadlessWiFiSettings.string("static_ip", "", "Static IP (optional)");
+    auto staticGatewayString = HeadlessWiFiSettings.string("static_gw", "", "Static Gateway (optional)");
+    auto staticSubnetString = HeadlessWiFiSettings.string("static_subnet", "", "Static Subnet Mask (optional)");
+    auto staticDnsString = HeadlessWiFiSettings.string("static_dns", "", "Static DNS (optional)");
     std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
     ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
 
@@ -236,8 +240,33 @@ void setupNetwork() {
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
+    IPAddress staticIP, staticGateway, staticSubnet, staticDns;
+    bool hasStaticIP = staticIP.fromString(staticIpString);
+    bool hasStaticGateway = staticGateway.fromString(staticGatewayString);
+    bool hasStaticSubnet = staticSubnet.fromString(staticSubnetString);
+    bool hasStaticDns = staticDns.fromString(staticDnsString);
+    bool useStaticNetwork = hasStaticIP && hasStaticGateway && hasStaticSubnet;
+
+    if (useStaticNetwork) {
+        if (!hasStaticDns) {
+            staticDns = staticGateway;
+        }
+        WiFi.config(staticIP, staticGateway, staticSubnet, staticDns);
+    } else {
+        WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+    }
+
     bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
+    if (ethernetType > 0) {
+        success = Network.connect(
+            ethernetType,
+            20,
+            HeadlessWiFiSettings.hostname.c_str(),
+            useStaticNetwork ? staticIP : INADDR_NONE,
+            useStaticNetwork ? staticGateway : INADDR_NONE,
+            useStaticNetwork ? staticSubnet : INADDR_NONE,
+            useStaticNetwork ? staticDns : INADDR_NONE);
+    }
     if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
         ESP.restart();
 

@@ -19,7 +19,11 @@ public:
   bool isConnected();
   bool isEthernet();
   bool initEthernet(int ethernetType);
-  bool connect(int ethernetType, int wait_seconds, const char *hostName);
+  bool connect(int ethernetType, int wait_seconds, const char *hostName,
+               IPAddress staticIP = INADDR_NONE,
+               IPAddress gateway = INADDR_NONE,
+               IPAddress subnet = INADDR_NONE,
+               IPAddress dns = INADDR_NONE);
 };
 
 #define CONFIG_NUM_ETH_TYPES        14
