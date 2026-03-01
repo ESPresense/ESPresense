@@ -28,7 +28,8 @@ int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
 int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
     countMs = DEFAULT_COUNT_MS,
-    requeryMs = DEFAULT_REQUERY_MS;
+    requeryMs = DEFAULT_REQUERY_MS,
+    maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 std::vector<BleFingerprint *> fingerprints;
@@ -213,6 +214,7 @@ void ConnectToWifi() {
     rxAdjRssi = HeadlessWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
     absorption = HeadlessWiFiSettings.floating("absorption", 1, 5, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
+    maxFingerprints = HeadlessWiFiSettings.integer("max_fingerprints", 10, 1000, DEFAULT_MAX_FINGERPRINTS, "Maximum number of fingerprints to track (LRU eviction)");
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
 
@@ -281,6 +283,9 @@ bool Command(String &command, String &pay) {
     } else if (command == "max_divisor") {
         maxDivisor = pay.isEmpty() ? DEFAULT_MAX_DIVISOR : pay.toInt();
         spurt("/max_divisor", String(maxDivisor));
+    } else if (command == "max_fingerprints") {
+        maxFingerprints = pay.isEmpty() ? DEFAULT_MAX_FINGERPRINTS : pay.toInt();
+        spurt("/max_fingerprints", String(maxFingerprints));
     } else
         return false;
     return true;
@@ -289,16 +294,16 @@ bool Command(String &command, String &pay) {
 /**
  * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
  *
- * Runs at most once every 5 seconds; for each fingerprint whose time since last seen
- * exceeds `forgetMs` this function invokes the `onDel` callback (if set), deletes
- * the fingerprint object, and removes it from the internal collection. If no
- * fingerprints remain and the system uptime exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`,
- * the function logs a message and calls `ESP.restart()`.
+ * Runs at most once every 5 seconds. Removes fingerprints whose time since
+ * last seen exceeds `forgetMs`. If no fingerprints remain and the system uptime
+ * exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`, the function logs a message
+ * and calls `ESP.restart()`.
  */
 void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
+
     auto it = fingerprints.begin();
     bool any = false;
     while (it != fingerprints.end()) {
@@ -312,6 +317,7 @@ void CleanupOldFingerprints() {
             ++it;
         }
     }
+
     if (!any) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
@@ -325,10 +331,11 @@ void CleanupOldFingerprints() {
  * @brief Obtain the fingerprint associated with an advertised BLE device.
  *
  * Returns an existing fingerprint that matches the device's MAC address or creates
- * and registers a new fingerprint if none exists. When a new fingerprint is created
- * and an existing fingerprint with the same logical ID is found, the new fingerprint
- * inherits the existing fingerprint's initial state and the existing fingerprint may
- * be expired depending on its ID type.
+ * and registers a new fingerprint if none exists. When creating a new fingerprint,
+ * if at `maxFingerprints` capacity, the least-recently-seen fingerprint is evicted.
+ * After eviction, searches for an existing fingerprint with the same logical ID
+ * (for MAC rotation cases) and inherits its state if found. If the inherited
+ * fingerprint was evicted, inheritance naturally doesn't happen.
  *
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
  * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
@@ -341,6 +348,22 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
         return *it;
 
     auto created = new BleFingerprint(advertisedDevice);
+
+    // LRU eviction: if at capacity, evict oldest fingerprint
+    if (maxFingerprints > 0 && fingerprints.size() >= static_cast<size_t>(maxFingerprints)) {
+
+        auto oldest = std::min_element(fingerprints.begin(), fingerprints.end(),
+            [](BleFingerprint *a, BleFingerprint *b) {
+                return a->getLastSeenMillis() < b->getLastSeenMillis();
+            });
+        if (oldest != fingerprints.end()) {
+            if (onDel) onDel(*oldest);
+            delete *oldest;
+            fingerprints.erase(oldest);
+        }
+    }
+
+    // Inherit state from existing fingerprint with same ID (if it survived eviction)
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
         auto found = *it2;
