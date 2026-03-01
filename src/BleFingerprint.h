@@ -5,8 +5,10 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
+#ifndef NIMBLE_V2
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
+#endif
 
 #include <memory>
 

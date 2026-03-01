@@ -135,6 +135,15 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * @param status The notification/indication status value.
      * @param code Numeric BLE stack return code associated with the operation.
      */
+#ifdef NIMBLE_V2
+    void onStatus(NimBLECharacteristic *pCharacteristic, int code) {
+        String str = ("Notification/Indication return code: ");
+        str += code;
+        str += ", ";
+        str += NimBLEUtils::returnCodeToString(code);
+        Log.println(str);
+    };
+#else
     void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
         String str = ("Notification/Indication status code: ");
         str += status;
@@ -144,6 +153,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         str += NimBLEUtils::returnCodeToString(code);
         Log.println(str);
     };
+#endif
 
     /**
      * @brief Log a client's subscription state change for a characteristic.
@@ -283,7 +293,12 @@ void Setup() {
     oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
+#ifdef NIMBLE_V2
+    std::string beaconData(reinterpret_cast<const char*>(&oBeacon.getData()), sizeof(NimBLEBeacon::BeaconData));
+    oAdvertisementData->setManufacturerData(beaconData);
+#else
     oAdvertisementData->setManufacturerData(oBeacon.getData());
+#endif
 
     pServer->start();
 }
@@ -306,17 +321,28 @@ bool Loop() {
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
             pAdvertising->reset();
+#ifdef NIMBLE_V2
+            pAdvertising->enableScanResponse(true);
+            pAdvertising->setPreferredParams(0x06, 0x12);
+            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_UND);
+#else
             pAdvertising->setScanResponse(true);
             pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
             pAdvertising->setMinPreferred(0x12);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
+#endif
             pAdvertising->addServiceUUID(heartRate->getUUID());
             pAdvertising->start();
             Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
+#ifdef NIMBLE_V2
+            pAdvertising->enableScanResponse(false);
+            pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);
+#else
             pAdvertising->setScanResponse(false);
             pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
+#endif
             pAdvertising->setAdvertisementData(*oAdvertisementData);
             pAdvertising->start();
             Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());

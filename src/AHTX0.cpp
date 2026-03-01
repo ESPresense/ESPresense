@@ -33,9 +33,17 @@ namespace AHTX0
         aht = new Adafruit_AHTX0();
         bool ok = false;
         if (AHTX0_I2c == "0x38") {
+#if SOC_I2C_NUM > 1
             ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x38);
+#else
+            ok = aht->begin(&Wire, 0x38);
+#endif
         } else if (AHTX0_I2c == "0x39") {
+#if SOC_I2C_NUM > 1
             ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x39);
+#else
+            ok = aht->begin(&Wire, 0x39);
+#endif
         } else {
             return;
         }

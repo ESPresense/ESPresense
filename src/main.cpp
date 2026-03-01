@@ -168,8 +168,12 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
-    std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
-    ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    if (MultiNetwork.supportsEthernet()) {
+        std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
+        ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    } else {
+        ethernetType = 0;
+    }
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = HeadlessWiFiSettings.integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
@@ -236,9 +240,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
-    bool success = false;
-    if (ethernetType > 0) success = Network.connect(ethernetType, 20, HeadlessWiFiSettings.hostname.c_str());
-    if (!success && !HeadlessWiFiSettings.connect(true, wifiTimeout))
+    if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
         ESP.restart();
 
     GUI::Connected(true, false);
@@ -249,13 +251,13 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println("Version:      " + String(VERSION));
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.printf("WiFi BSSID:   %s (channel=%ld rssi=%ld)\r\n", WiFi.BSSIDstr().c_str(), static_cast<long>(WiFi.channel()), static_cast<long>(WiFi.RSSI()));
     Log.print("IP address:   ");
-    Log.println(Network.localIP());
+    Log.println(MultiNetwork.localIP());
     Log.print("DNS address:  ");
-    Log.println(Network.dnsIP());
+    Log.println(MultiNetwork.dnsIP());
     Log.print("Hostname:     ");
-    Log.println(Network.getHostname());
+    Log.println(MultiNetwork.getHostname());
     Log.print("Room:         ");
     Log.println(room);
     Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
@@ -291,7 +293,7 @@ void setupNetwork() {
     Log.print("Count Ids:    ");
     Log.println(BleFingerprintCollection::countIds);
 
-    localIp = Network.localIP().toString();
+    localIp = MultiNetwork.localIP().toString();
     id = slugify(room);
     roomsTopic = CHANNEL + String("/rooms/") + id;
     statusTopic = roomsTopic + "/status";
@@ -428,19 +430,17 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
  */
 void reconnect(TimerHandle_t xTimer) {
     Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (Network.isOnline() && mqttClient.connected()) return;
+    if (MultiNetwork.isOnline() && mqttClient.connected()) return;
 
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         ESP.restart();
     }
 
-    if (!Network.isOnline()) {
+    if (!MultiNetwork.isOnline()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
-        bool success = false;
-        if (ethernetType > 0) success = Network.connect(ethernetType, 2, HeadlessWiFiSettings.hostname.c_str());
-        if (!success && !HeadlessWiFiSettings.connect(true, 40))
+        if (!MultiNetwork.connect(ethernetType, 2, 40, HeadlessWiFiSettings.hostname.c_str()))
             ESP.restart();
     }
 
@@ -529,8 +529,13 @@ void reportLoop() {
     }
 }
 
+#ifdef NIMBLE_V2
+class MyScanCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
+#else
 class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
+#endif
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
         BleFingerprintCollection::Seen(advertisedDevice);
     }
@@ -544,11 +549,19 @@ void scanTask(void *parameter) {
     auto pBLEScan = NimBLEDevice::getScan();
     pBLEScan->setInterval(BLE_SCAN_INTERVAL);
     pBLEScan->setWindow(BLE_SCAN_WINDOW);
+#ifdef NIMBLE_V2
+    pBLEScan->setScanCallbacks(new MyScanCallbacks(), true);
+#else
     pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks(), true);
+#endif
     pBLEScan->setActiveScan(false);
     pBLEScan->setDuplicateFilter(false);
     pBLEScan->setMaxResults(0);
+#ifdef NIMBLE_V2
+    if (!pBLEScan->start(0, false))
+#else
     if (!pBLEScan->start(0, nullptr, false))
+#endif
         log_e("Error starting continuous ble scan");
 
     while (true) {
@@ -560,7 +573,11 @@ void scanTask(void *parameter) {
         Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
+#ifdef NIMBLE_V2
+            if (!pBLEScan->start(0, true))
+#else
             if (!pBLEScan->start(0, nullptr, true))
+#endif
                 log_e("Error re-starting continuous ble scan");
             delay(3000);  // If we stopped scanning, don't query for 3 seconds in order for us to catch any missed broadcasts
         } else {

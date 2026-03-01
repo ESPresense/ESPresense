@@ -118,7 +118,11 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 }
 
 const String BleFingerprint::getMac() const {
+#ifdef NIMBLE_V2
+    const auto nativeAddress = address.getVal();
+#else
     const auto nativeAddress = address.getNative();
+#endif
     return Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
 }
 
@@ -224,7 +228,11 @@ void BleFingerprint::fingerprintAddress() {
                 break;
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
+#ifdef NIMBLE_V2
+                const auto naddress = address.getVal();
+#else
                 const auto *naddress = address.getNative();
+#endif
                 if ((naddress[5] & 0xc0) == 0xc0)
                     setId(mac, ID_TYPE_RAND_STATIC_MAC);
                 else {
@@ -373,6 +381,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
+#ifndef NIMBLE_V2
         } else if (uuid == eddystoneUUID && strServiceData.length() > 0) {
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
@@ -397,6 +406,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                               strServiceData[16], strServiceData[17]),
                       ID_TYPE_EBEACON);
             }
+#endif
         } else {
             std::string uuidStr = uuid.toString();
             fingerprint = fingerprint + uuidStr.c_str();
@@ -436,7 +446,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         {
             if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15) {
                 BLEBeacon oBeacon = BLEBeacon();
+#ifdef NIMBLE_V2
+                oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
+#else
                 oBeacon.setData(strManufacturerData);
+#endif
                 bcnRssi = oBeacon.getSignalPower();
                 setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
             } else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10) {
@@ -486,7 +500,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             setId("samsung:" + getMac(), ID_TYPE_MISC);
         } else if (manuf == "beac" && strManufacturerData.length() == 26) {
             BLEBeacon oBeacon = BLEBeacon();
+#ifdef NIMBLE_V2
+            oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
+#else
             oBeacon.setData(strManufacturerData.substr(0, 25));
+#endif
             setId(Sprintf("altBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
             bcnRssi = oBeacon.getSignalPower();
         } else if (manuf != "0000") {
@@ -617,7 +635,11 @@ bool BleFingerprint::query() {
 
     Log.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
+#ifdef NIMBLE_V2
+    NimBLEClient *pClient = NimBLEDevice::getCreatedClientCount() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#else
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#endif
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
     pClient->setClientCallbacks(&clientCB, false);

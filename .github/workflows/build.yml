@@ -13,9 +13,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        env: [esp32, esp32c3, esp32c3-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
+        env: [esp32, esp32c3, esp32c3-cdc, esp32c6, esp32c6-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32c6-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
     - uses: actions/checkout@v6
+
     - name: Cache pip
       uses: actions/cache@v5
       with:
@@ -26,32 +27,54 @@ jobs:
     - name: Cache PlatformIO
       uses: actions/cache@v5
       with:
-        path: ~/.platformio/.cache
-        key: ${{ runner.os }}-pio
+        path: |
+          ~/.platformio
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pio-${{ matrix.env }}-
+          ${{ runner.os }}-pio-
+
+    - name: Set per-environment PlatformIO directories (isolates C6 variants)
+      run: |
+        echo "PLATFORMIO_CORE_DIR=~/.platformio/core-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_PLATFORMS_DIR=~/.platformio/platforms-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_BUILD_CACHE_DIR=~/.platformio/build_cache-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_LIBDEPS_DIR=~/.platformio/libdeps" >> $GITHUB_ENV
+
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
         python-version: '3.x'
+
     - name: Install dependencies
       run: |
         pip install wheel
         pip install -U platformio
+        pip install "click<8.2" --force-reinstall --no-deps
+
     - name: Setup github_head_sha
       run: echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
       if: ${{ github.event_name == 'pull_request' }}
+
     - name: Set pr env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_HEAD_REF}\"' -DVERSION='\"${GITHUB_HEAD_SHA::7}\"'" >> $GITHUB_ENV
       if: ${{ github.event_name == 'pull_request' }}
+
     - name: Set branch env
       run:  echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_REF#refs/heads/}\"' -DVERSION='\"${GITHUB_SHA::7}\"'" >> $GITHUB_ENV
       if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
+
     - name: Set rel env
       run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
+
     - name: Run PlatformIO
       run: pio run -e ${{ matrix.env }}
+
     - name: Rename artifact
       run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
+
     - name: Upload artifact
       uses: actions/upload-artifact@v6
       with:
