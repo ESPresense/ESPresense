@@ -447,7 +447,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15) {
                 BLEBeacon oBeacon = BLEBeacon();
 #ifdef NIMBLE_V2
-                oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(*strManufacturerData.data()));
+                oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
 #else
                 oBeacon.setData(strManufacturerData);
 #endif
@@ -501,7 +501,7 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         } else if (manuf == "beac" && strManufacturerData.length() == 26) {
             BLEBeacon oBeacon = BLEBeacon();
 #ifdef NIMBLE_V2
-            oBeacon.setData(reinterpret_cast<const NimBLEBeacon::BeaconData&>(*strManufacturerData.data()));
+            oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
 #else
             oBeacon.setData(strManufacturerData.substr(0, 25));
 #endif

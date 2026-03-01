@@ -24,7 +24,6 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
-
     - name: Cache PlatformIO
       uses: actions/cache@v5
       with:
@@ -32,7 +31,16 @@ jobs:
           ~/.platformio
           ~/.platformio/.cache
         key: ${{ runner.os }}-pio-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
-        restore-keys: ${{ runner.os }}-pio-${{ matrix.env }}-${{ runner.os }}-pio-
+        restore-keys: |
+          ${{ runner.os }}-pio-${{ matrix.env }}-
+          ${{ runner.os }}-pio-
+
+    - name: Set per-environment PlatformIO directories (isolates C6 variants)
+      run: |
+        echo "PLATFORMIO_CORE_DIR=~/.platformio/core-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_PLATFORMS_DIR=~/.platformio/platforms-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_BUILD_CACHE_DIR=~/.platformio/build_cache-${{ matrix.env }}" >> $GITHUB_ENV
+        echo "PLATFORMIO_LIBDEPS_DIR=~/.platformio/libdeps" >> $GITHUB_ENV
 
     - name: Set up Python
       uses: actions/setup-python@v6
