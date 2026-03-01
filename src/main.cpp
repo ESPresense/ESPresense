@@ -3,9 +3,27 @@
 
 #include "esp_heap_caps.h"
 
+#if __has_include(<rom/ets_sys.h>)
+#include <rom/ets_sys.h>
+#define HEAP_FAIL_PRINTF ets_printf
+#elif __has_include(<esp_rom_sys.h>)
+#include <esp_rom_sys.h>
+#define HEAP_FAIL_PRINTF esp_rom_printf
+#endif
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    printf("%s was called but failed to allocate %lu bytes with 0x%lX capabilities. \n", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+    const char *failedFunction = functionName ? functionName : "unknown";
+#ifdef HEAP_FAIL_PRINTF
+    // Use the ROM/UART formatter here; stdio can recurse into more allocations.
+    HEAP_FAIL_PRINTF("%s was called but failed to allocate ", failedFunction);
+    HEAP_FAIL_PRINTF("%u", static_cast<unsigned int>(requestedSize));
+    HEAP_FAIL_PRINTF(" bytes with 0x%08x capabilities.\n", static_cast<unsigned int>(caps));
+#else
+    (void)requestedSize;
+    (void)caps;
+    (void)failedFunction;
+#endif
 }
 
 /**
