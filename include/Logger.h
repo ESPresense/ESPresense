@@ -4,11 +4,7 @@
 #include <utility>
 
 #ifdef ARDUINO
-#ifdef ARDUINO_V3
 using LoggerSerialType = decltype(Serial);
-#else
-using LoggerSerialType = decltype(::Serial);
-#endif
 #else
 class HardwareSerial;
 using LoggerSerialType = HardwareSerial;

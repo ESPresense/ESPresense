@@ -6,7 +6,7 @@
  *
  * @return IPAddress The local IP address: the Ethernet IP if Ethernet is enabled and non-zero, otherwise the WiFi IP if non-zero, otherwise INADDR_NONE.
  */
-IPAddress NetworkClass::localIP()
+IPAddress ESPresenseNetworkClass::localIP()
 {
   IPAddress localIP;
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
@@ -23,7 +23,7 @@ IPAddress NetworkClass::localIP()
   return INADDR_NONE;
 }
 
-IPAddress NetworkClass::subnetMask()
+IPAddress ESPresenseNetworkClass::subnetMask()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   if (ETH.localIP()[0] != 0) {
@@ -36,7 +36,7 @@ IPAddress NetworkClass::subnetMask()
   return IPAddress(255, 255, 255, 0);
 }
 
-IPAddress NetworkClass::gatewayIP()
+IPAddress ESPresenseNetworkClass::gatewayIP()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   if (ETH.localIP()[0] != 0) {
@@ -49,7 +49,7 @@ IPAddress NetworkClass::gatewayIP()
   return INADDR_NONE;
 }
 
-IPAddress NetworkClass::dnsIP()
+IPAddress ESPresenseNetworkClass::dnsIP()
 {
   IPAddress dnsIP;
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
@@ -66,7 +66,7 @@ IPAddress NetworkClass::dnsIP()
   return INADDR_NONE;
 }
 
-const char* NetworkClass::getHostname()
+const char* ESPresenseNetworkClass::getHostname()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   if (ETH.localIP()[0] != 0) {
@@ -76,7 +76,7 @@ const char* NetworkClass::getHostname()
   return WiFi.getHostname();
 }
 
-bool NetworkClass::isConnected()
+bool ESPresenseNetworkClass::isConnected()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   return (WiFi.localIP()[0] != 0 && WiFi.status() == WL_CONNECTED) || ETH.localIP()[0] != 0;
@@ -85,7 +85,7 @@ bool NetworkClass::isConnected()
 #endif
 }
 
-bool NetworkClass::isEthernet()
+bool ESPresenseNetworkClass::isEthernet()
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   return (ETH.localIP()[0] != 0);
@@ -93,7 +93,7 @@ bool NetworkClass::isEthernet()
   return false;
 }
 
-bool NetworkClass::initEthernet(int ethernetType)
+bool ESPresenseNetworkClass::initEthernet(int ethernetType)
 {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
 
@@ -131,15 +131,22 @@ bool NetworkClass::initEthernet(int ethernetType)
     Log.println(F("DM9051 Ethernet support is unavailable in this Arduino/ESP32 framework version."));
     return false;
 #endif
-  } else if (!ETH.begin(
-                (uint8_t) es.eth_address,
-                (int)     es.eth_power,
-                (int)     es.eth_mdc,
-                (int)     es.eth_mdio,
-                (eth_phy_type_t)   es.eth_type,
-                (eth_clock_mode_t) es.eth_clk_mode
-                )) {
+  } else {
+#if defined(CONFIG_IDF_TARGET_ESP32)
+    if (!ETH.begin(
+                  (uint8_t) es.eth_address,
+                  (int)     es.eth_power,
+                  (int)     es.eth_mdc,
+                  (int)     es.eth_mdio,
+                  (eth_phy_type_t) es.eth_type,
+                  (eth_clock_mode_t) es.eth_clk_mode
+                  )) {
+      return false;
+    }
+#else
+    Log.println(F("RMII Ethernet is unavailable on this target."));
     return false;
+#endif
   }
 
   successfullyConfiguredEthernet = true;
@@ -159,7 +166,7 @@ bool NetworkClass::initEthernet(int ethernetType)
  * @param hostname NUL-terminated hostname to assign to the Ethernet interface.
  * @return true if the interface obtained a non-zero local IP address within the timeout, false otherwise.
  */
-bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
+bool ESPresenseNetworkClass::connect(int ethernetType, int wait_seconds, const char* hostname)
 {
     Log.print(F("Connecting to Ethernet"));
 
@@ -181,4 +188,4 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     return true;
 }
 
-NetworkClass Network;
+ESPresenseNetworkClass ESPresenseNetwork;

@@ -9,10 +9,26 @@
   #define SPI2_HOST 1
 #endif
 
+#ifndef ETH_PHY_LAN8720
+  #define ETH_PHY_LAN8720 ETH_PHY_MAX
+#endif
+#ifndef ETH_PHY_IP101
+  #define ETH_PHY_IP101 ETH_PHY_MAX
+#endif
+#ifndef ETH_PHY_RTL8201
+  #define ETH_PHY_RTL8201 ETH_PHY_MAX
+#endif
+#ifndef ETH_CLOCK_GPIO0_IN
+  #define ETH_CLOCK_GPIO0_IN 0
+#endif
+#ifndef ETH_CLOCK_GPIO17_OUT
+  #define ETH_CLOCK_GPIO17_OUT 0
+#endif
+
 #ifndef Network_h
 #define Network_h
 
-class NetworkClass
+class ESPresenseNetworkClass
 {
 public:
   IPAddress localIP();
@@ -70,7 +86,7 @@ typedef struct EthernetSettings {
   int                 eth_mdc;
   int                 eth_mdio;
   eth_phy_type_t      eth_type;
-  eth_clock_mode_t    eth_clk_mode;
+  int                 eth_clk_mode;
   int                 eth_cs;
   int                 eth_irq;
   int                 eth_rst;
@@ -255,6 +271,6 @@ const ethernet_settings ethernetBoards[] = {
 
 };
 
-extern NetworkClass Network;
+extern ESPresenseNetworkClass ESPresenseNetwork;
 
 #endif
