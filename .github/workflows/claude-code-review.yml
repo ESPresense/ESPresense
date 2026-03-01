@@ -6,6 +6,8 @@ on:
     paths:
       - "src/**/*.cpp"
       - "src/**/*.c"
+      - "!ui/**"
+      - "!src/ui*.h"
 
 jobs:
   claude-review:
