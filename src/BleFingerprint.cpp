@@ -119,7 +119,7 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 
 const String BleFingerprint::getMac() const {
 #ifdef NIMBLE_V2
-    const uint8_t *nativeAddress = (const uint8_t*)address.getBase();
+    const auto nativeAddress = address.getVal();
 #else
     const auto nativeAddress = address.getNative();
 #endif
@@ -229,7 +229,7 @@ void BleFingerprint::fingerprintAddress() {
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
 #ifdef NIMBLE_V2
-                const uint8_t *naddress = (const uint8_t*)address.getBase();
+                const auto naddress = address.getVal();
 #else
                 const auto *naddress = address.getNative();
 #endif
