@@ -3,19 +3,12 @@
 #else // ESP32
   #include <WiFi.h>
   #include <ETH.h>
-  // Ensure W5500 support is defined for SPI Ethernet
-  #ifndef CONFIG_ETH_SPI_ETHERNET_W5500
-    #define CONFIG_ETH_SPI_ETHERNET_W5500 1
-  #endif
-  // Define ETH_PHY_W5500 if not already defined
-  #ifndef ETH_PHY_W5500
-    // Based on ESP32 Arduino ETH.h enum values
-    #define ETH_PHY_W5500 7
-  #endif
 #endif
 
-#ifndef Network_h
-#define Network_h
+#include <vector>
+
+#ifndef ESPRESENSE_NETWORK_H
+#define ESPRESENSE_NETWORK_H
 
 class NetworkClass
 {
@@ -27,13 +20,50 @@ public:
   const char *getHostname();
   bool isConnected();
   bool isEthernet();
+  std::vector<String> ethernetOptions() const;
   bool initEthernet(int ethernetType);
   bool connect(int ethernetType, int wait_seconds, const char *hostName);
 };
 
-#define CONFIG_NUM_ETH_TYPES        15
-
 #define CONFIG_ETH_NONE             0
+
+#if defined(ARDUINO_ARCH_ESP32S3)
+
+#define CONFIG_NUM_ETH_TYPES        2
+#define CONFIG_ETH_WAVESHARE_S3     1
+#define CONFIG_ETH_WAVESHARE_S3_OLD 14
+
+typedef struct EthernetSettings {
+  int eth_address;
+  int eth_power;
+  int spi_miso;
+  int spi_mosi;
+  int spi_sclk;
+  int spi_cs;
+  int spi_int;
+} ethernet_settings;
+
+const ethernet_settings ethernetBoards[] = {
+  // None
+  {
+  },
+
+  // Waveshare ESP32-S3-ETH (W5500 SPI)
+  {
+    1,   // eth_address
+    9,   // eth_power (RST pin)
+    12,  // spi_miso
+    11,  // spi_mosi
+    13,  // spi_sclk
+    14,  // spi_cs
+    10   // spi_int
+  }
+};
+
+#else
+
+#define CONFIG_NUM_ETH_TYPES        14
+
 #define CONFIG_ETH_WT32_ETH01       1
 #define CONFIG_ETH_ESP32_POE        2
 #define CONFIG_ETH_WESP32           3
@@ -47,7 +77,6 @@ public:
 #define CONFIG_ETH_LILYGO_LITE_RTL  11
 #define CONFIG_ETH_ESP32_POE_A1     12
 #define CONFIG_ETH_WESP32_RTL8201   13
-#define CONFIG_ETH_WAVESHARE_S3     14
 
 // For ESP32, the remaining five pins are at least somewhat configurable.
 // eth_address  is in range [0..31], indicates which PHY (MAC?) address should be allocated to the interface
@@ -68,12 +97,6 @@ typedef struct EthernetSettings {
   int            eth_mdio;
   eth_phy_type_t eth_type;
   eth_clock_mode_t eth_clk_mode;
-  bool           use_spi;      // true for SPI Ethernet (W5500), false for RMII
-  int            spi_miso;     // SPI MISO pin
-  int            spi_mosi;     // SPI MOSI pin
-  int            spi_sclk;     // SPI SCLK pin
-  int            spi_cs;       // SPI CS pin
-  int            spi_int;      // SPI INT pin (optional, -1 if not used)
 } ethernet_settings;
 
 const ethernet_settings ethernetBoards[] = {
@@ -88,8 +111,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                // eth_mdc,
     18,                // eth_mdio,
     ETH_PHY_LAN8720,   // eth_type,
-    ETH_CLOCK_GPIO0_IN,// eth_clk_mode
-    false              // use_spi
+    ETH_CLOCK_GPIO0_IN // eth_clk_mode
   },
 
   // ESP32-POE
@@ -99,8 +121,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                  // eth_mdc,
     18,                  // eth_mdio,
     ETH_PHY_LAN8720,     // eth_type,
-    ETH_CLOCK_GPIO17_OUT,// eth_clk_mode
-    false                // use_spi
+    ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   },
 
    // WESP32
@@ -110,8 +131,7 @@ const ethernet_settings ethernetBoards[] = {
     16,			              // eth_mdc,
     17,			              // eth_mdio,
     ETH_PHY_LAN8720,      // eth_type,
-    ETH_CLOCK_GPIO0_IN,	  // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO0_IN	  // eth_clk_mode
   },
 
   // QuinLed-ESP32-Ethernet
@@ -121,8 +141,7 @@ const ethernet_settings ethernetBoards[] = {
     23,			              // eth_mdc,
     18,			              // eth_mdio,
     ETH_PHY_LAN8720,      // eth_type,
-    ETH_CLOCK_GPIO17_OUT,	// eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO17_OUT	// eth_clk_mode
   },
 
   // TwilightLord-ESP32 Ethernet Shield
@@ -132,8 +151,7 @@ const ethernet_settings ethernetBoards[] = {
     23,			              // eth_mdc,
     18,			              // eth_mdio,
     ETH_PHY_LAN8720,      // eth_type,
-    ETH_CLOCK_GPIO17_OUT,	// eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO17_OUT	// eth_clk_mode
   },
 
   // ESP3DEUXQuattro
@@ -143,8 +161,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                   // eth_mdc,
     18,                   // eth_mdio,
     ETH_PHY_LAN8720,      // eth_type,
-    ETH_CLOCK_GPIO17_OUT, // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO17_OUT  // eth_clk_mode
   },
 
   // ESP32-ETHERNET-KIT-VE
@@ -154,8 +171,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                   // eth_mdc,
     18,                   // eth_mdio,
     ETH_PHY_IP101,        // eth_type,
-    ETH_CLOCK_GPIO0_IN,   // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO0_IN    // eth_clk_mode
   },
 
   // LilyGO-T-ETH-POE
@@ -165,8 +181,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                   // eth_mdc,
     18,                   // eth_mdio,
     ETH_PHY_LAN8720,      // eth_type,
-    ETH_CLOCK_GPIO17_OUT, // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO17_OUT  // eth_clk_mode
   },
   
   // GL-inet GL-S10 v2.1 Ethernet
@@ -176,8 +191,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                   // eth_mdc,
     18,                   // eth_mdio,
     ETH_PHY_IP101,        // eth_type,
-    ETH_CLOCK_GPIO0_IN,   // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO0_IN    // eth_clk_mode
   },
 
   // EST-PoE-32
@@ -187,8 +201,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                  // eth_mdc,
     18,                  // eth_mdio,
     ETH_PHY_LAN8720,     // eth_type,
-    ETH_CLOCK_GPIO17_OUT,// eth_clk_mode
-    false                // use_spi
+    ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   },
 
   // LilyGO-T-ETH-Lite
@@ -198,8 +211,7 @@ const ethernet_settings ethernetBoards[] = {
     23,                   // eth_mdc,
     18,                   // eth_mdio,
     ETH_PHY_RTL8201,      // eth_type,
-    ETH_CLOCK_GPIO0_IN,   // eth_clk_mode
-    false                 // use_spi
+    ETH_CLOCK_GPIO0_IN    // eth_clk_mode
   },
 
   // ESP32-POE_A1
@@ -209,8 +221,7 @@ const ethernet_settings ethernetBoards[] = {
    23,                  // eth_mdc,
    18,                  // eth_mdio,
    ETH_PHY_LAN8720,     // eth_type,
-   ETH_CLOCK_GPIO17_OUT,// eth_clk_mode
-   false                // use_spi
+   ETH_CLOCK_GPIO17_OUT // eth_clk_mode
   },
 
   // WESP32 Rev7+ (RTL8201)
@@ -220,27 +231,12 @@ const ethernet_settings ethernetBoards[] = {
     16,                 // eth_mdc,
     17,                 // eth_mdio,
     ETH_PHY_RTL8201,    // eth_type,
-    ETH_CLOCK_GPIO0_IN, // eth_clk_mode
-    false               // use_spi
-  },
-
-  // Waveshare ESP32-S3-ETH (W5500 SPI)
-  {
-    0,                  // eth_address (not used for SPI)
-    9,                  // eth_power (RST pin)
-    -1,                 // eth_mdc (not used for SPI)
-    -1,                 // eth_mdio (not used for SPI)
-    ETH_PHY_W5500,      // eth_type
-    ETH_CLOCK_GPIO0_IN, // eth_clk_mode (not used for SPI)
-    true,               // use_spi
-    12,                 // spi_miso
-    11,                 // spi_mosi
-    13,                 // spi_sclk
-    14,                 // spi_cs
-    10                  // spi_int
+    ETH_CLOCK_GPIO0_IN  // eth_clk_mode
   }
 };
 
-extern NetworkClass Network;
+#endif
+
+extern NetworkClass DeviceNetwork;
 
 #endif

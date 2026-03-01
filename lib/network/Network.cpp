@@ -1,6 +1,35 @@
-#include "Network.h"
+#include "ESPresenseNetwork.h"
 #include "../../include/Logger.h"
-#include <SPI.h>
+
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
+  #include <SPI.h>
+#endif
+
+std::vector<String> NetworkClass::ethernetOptions() const
+{
+#if defined(ARDUINO_ARCH_ESP32S3)
+  return {"None", "Waveshare ESP32-S3-ETH"};
+#elif defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+  return {
+    "None",
+    "WT32-ETH01",
+    "ESP32-POE",
+    "WESP32",
+    "QuinLED-ESP32",
+    "TwilightLord-ESP32",
+    "ESP32Deux",
+    "KIT-VE",
+    "LilyGO-T-ETH-POE",
+    "GL-inet GL-S10 v2.1 Ethernet",
+    "EST-PoE-32",
+    "LilyGO-T-ETH-Lite (RTL8201)",
+    "ESP32-POE_A1",
+    "WESP32 Rev7+ (RTL8201)"
+  };
+#else
+  return {"None"};
+#endif
+}
 
 /**
  * @brief Returns the device's current local IP address, preferring Ethernet when configured.
@@ -101,7 +130,7 @@ bool NetworkClass::initEthernet(int ethernetType)
   static bool successfullyConfiguredEthernet = false;
 
   if (successfullyConfiguredEthernet) {
-    return false;
+    return true;
   }
   if (ethernetType == CONFIG_ETH_NONE) {
     return false;
@@ -110,30 +139,15 @@ bool NetworkClass::initEthernet(int ethernetType)
     return false;
   }
 
+#if defined(ARDUINO_ARCH_ESP32S3)
   ethernet_settings es = ethernetBoards[ethernetType];
-  
-  // Handle SPI Ethernet (W5500)
-  if (es.use_spi) {
-    // For W5500, the SPI pins (MISO, MOSI, SCLK) need to be initialized first
-    // Initialize SPI with custom pins for Waveshare ESP32-S3-ETH
-    SPI.begin(es.spi_sclk, es.spi_miso, es.spi_mosi, es.spi_cs);
-    
-    // For SPI Ethernet, use the begin method with SPI parameters
-    // ETH.begin(eth_phy_type_t type, int32_t phy_addr, int cs, int irq, int rst, SPIClass &spi, uint8_t spi_freq_mhz)
-    if (!ETH.begin(
-                (eth_phy_type_t) es.eth_type,
-                0,              // phy_addr (auto-detect for SPI)
-                es.spi_cs,      // cs
-                es.spi_int,     // irq
-                es.eth_power,   // rst
-                SPI,            // SPI instance
-                20              // spi_freq_mhz (20 MHz)
-                )) {
-      return false;
-    }
-  } else {
-    // Handle RMII Ethernet (LAN8720, RTL8201, etc.)
-    if (!ETH.begin(
+  SPI.begin(es.spi_sclk, es.spi_miso, es.spi_mosi, es.spi_cs);
+  if (!ETH.begin(ETH_PHY_W5500, es.eth_address, es.spi_cs, es.spi_int, es.eth_power, SPI, 20)) {
+    return false;
+  }
+#else
+  ethernet_settings es = ethernetBoards[ethernetType];
+  if (!ETH.begin(
                 (uint8_t) es.eth_address,
                 (int)     es.eth_power,
                 (int)     es.eth_mdc,
@@ -141,9 +155,9 @@ bool NetworkClass::initEthernet(int ethernetType)
                 (eth_phy_type_t)   es.eth_type,
                 (eth_clock_mode_t) es.eth_clk_mode
                 )) {
-      return false;
-    }
+    return false;
   }
+#endif
 
   successfullyConfiguredEthernet = true;
   return true;
@@ -167,7 +181,10 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
-    initEthernet(ethernetType);
+    if (!initEthernet(ethernetType)) {
+        Log.println(F(" failed."));
+        return false;
+    }
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
@@ -184,4 +201,4 @@ bool NetworkClass::connect(int ethernetType, int wait_seconds, const char* hostn
     return true;
 }
 
-NetworkClass Network;
+NetworkClass DeviceNetwork;
