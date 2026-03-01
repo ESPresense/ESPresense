@@ -251,7 +251,7 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println("Version:      " + String(VERSION));
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", WiFi.BSSIDstr().c_str(), WiFi.channel(), WiFi.RSSI());
+    Log.printf("WiFi BSSID:   %s (channel=%ld rssi=%ld)\r\n", WiFi.BSSIDstr().c_str(), static_cast<long>(WiFi.channel()), static_cast<long>(WiFi.RSSI()));
     Log.print("IP address:   ");
     Log.println(MultiNetwork.localIP());
     Log.print("DNS address:  ");
