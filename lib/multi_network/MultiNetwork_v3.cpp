@@ -44,7 +44,9 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
 bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostname) {
   (void)ethernetType;
   (void)ethernet_wait_seconds;
-  Network.setHostname(hostname);
+  if (hostname && hostname[0] != '\0') {
+    Network.setHostname(hostname);
+  }
   return HeadlessWiFiSettings.connect(true, wifi_wait_seconds);
 }
 
