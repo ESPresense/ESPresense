@@ -104,7 +104,7 @@ steps:
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
       PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms-esp32c6
+      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
     commands:
       - |
         flock -w 3600 /lock/esp32c6.lock bash -c '
