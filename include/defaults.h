@@ -68,7 +68,7 @@
 #define DEFAULT_COUNT_ENTER 2.0f
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
-#define DEFAULT_COUNT_IDS ""
+#define DEFAULT_COUNT_IDS "*"
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
