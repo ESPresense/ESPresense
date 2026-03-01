@@ -116,13 +116,13 @@ bool SendDiscovery() {
 
     if (button_1Pin >= 0){
         if (!sendNumberDiscovery("button_1 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("button_1", EC_NONE);
+        sendBinarySensorDiscovery("button_1", EC_NONE);
     }
     if (button_2Pin >= 0){
         if (!sendNumberDiscovery("button_2 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("button_2", EC_NONE);
+        sendBinarySensorDiscovery("button_2", EC_NONE);
     }
-    return sendSensorDiscovery("button", EC_NONE);
+    return sendBinarySensorDiscovery("button", EC_NONE);
 }
 
 bool Command(String& command, String& pay) {
