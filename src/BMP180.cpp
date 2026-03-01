@@ -35,7 +35,11 @@ namespace BMP180
 
         bmp = new Adafruit_BMP085();
         if (BMP180_I2c == "0x77") {
+#if SOC_I2C_NUM > 1
             BMP180_status = bmp->begin(BMP085_STANDARD, BMP180_I2c_Bus == 1 ? &Wire : &Wire1);
+#else
+            BMP180_status = bmp->begin(BMP085_STANDARD, &Wire);
+#endif
         } else {
             return;
         }

@@ -4,7 +4,7 @@
 #include <string>
 #include <cstring>
 
-#define CHIPID (unsigned int)(ESP.getEfuseMac() >> 24)
+#define CHIPID ((unsigned int)(ESP.getEfuseMac() >> 24))
 #define ESPMAC (Sprintf("%06x", CHIPID))
 #define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const String r = s; free(s); r; })
 #define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const std::string r = s; free(s); r; })

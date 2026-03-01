@@ -22,7 +22,7 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32
       PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
@@ -54,7 +54,7 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c3
       PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
@@ -87,7 +87,7 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
       PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms
@@ -119,7 +119,7 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32s3
       PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
       PLATFORMIO_PLATFORMS_DIR: /cache/platforms

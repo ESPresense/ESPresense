@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        env: [esp32, esp32c3, esp32c3-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
+        env: [esp32, esp32c3, esp32c3-cdc, esp32c6, esp32c6-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32c6-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
     - uses: actions/checkout@v6
     - name: Cache pip

@@ -41,7 +41,11 @@ void Setup() {
 
     sgp = new SGP30();
     if (SGP30_I2c == "0x58") {
+#if SOC_I2C_NUM > 1
         SGP30_status = sgp->begin(SGP30_I2c_Bus == 1 ? Wire : Wire1);
+#else
+        SGP30_status = sgp->begin(Wire);
+#endif
     } else {
         return;
     }
