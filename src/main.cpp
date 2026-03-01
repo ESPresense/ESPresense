@@ -5,7 +5,7 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    printf("%s was called but failed to allocate %lu bytes with 0x%lX capabilities. \n", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+    ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
 }
 
 /**
