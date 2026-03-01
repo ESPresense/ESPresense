@@ -51,6 +51,7 @@ jobs:
       run: |
         pip install wheel
         pip install -U platformio
+        pip install "click<8.2" --force-reinstall --no-deps
 
     - name: Setup github_head_sha
       run: echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
