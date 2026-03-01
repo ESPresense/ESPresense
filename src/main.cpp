@@ -25,7 +25,7 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
  * @return `true` if the telemetry document was published successfully, `false` otherwise.
  * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
  */
-bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count) {
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count, unsigned int fingerprintCount) {
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
@@ -135,6 +135,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
+    doc["fingerprints"] = fingerprintCount;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
@@ -505,7 +506,7 @@ void reportLoop() {
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count);
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, copy.size());
     yield();
 
     auto reported = 0;
