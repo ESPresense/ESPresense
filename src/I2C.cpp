@@ -27,12 +27,12 @@ void ConnectToWifi() {
 
     I2CDebug = HeadlessWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
-    if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SDA != -1) {
+    if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SCL != -1) {
         I2C_Bus_1_Started = Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
     }
 
 #if SOC_I2C_NUM > 1
-    if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SDA != -1) {
+    if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SCL != -1) {
         I2C_Bus_2_Started = Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
     }
 #endif
