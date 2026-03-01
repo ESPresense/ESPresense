@@ -1,5 +1,6 @@
 #include "Network.h"
 #include "../../include/Logger.h"
+#include <SPI.h>
 
 /**
  * @brief Returns the device's current local IP address, preferring Ethernet when configured.
@@ -89,7 +90,29 @@ bool NetworkManager::initEthernet(int ethernetType)
   }
 
   ethernet_settings es = ethernetBoards[ethernetType];
-  if (!ETH.begin(
+  
+  // Handle SPI Ethernet (W5500)
+  if (es.use_spi) {
+    // For W5500, the SPI pins (MISO, MOSI, SCLK) need to be initialized first
+    // Initialize SPI with custom pins for Waveshare ESP32-S3-ETH
+    SPI.begin(es.spi_sclk, es.spi_miso, es.spi_mosi, es.spi_cs);
+    
+    // For SPI Ethernet, use the begin method with SPI parameters
+    // ETH.begin(eth_phy_type_t type, int32_t phy_addr, int cs, int irq, int rst, SPIClass &spi, uint8_t spi_freq_mhz)
+    if (!ETH.begin(
+                (eth_phy_type_t) es.eth_type,
+                0,              // phy_addr (auto-detect for SPI)
+                es.spi_cs,      // cs
+                es.spi_int,     // irq
+                es.eth_power,   // rst
+                SPI,            // SPI instance
+                20              // spi_freq_mhz (20 MHz)
+                )) {
+      return false;
+    }
+  } else {
+    // Handle RMII Ethernet (LAN8720, RTL8201, etc.)
+    if (!ETH.begin(
                 (uint8_t) es.eth_address,
                 (int)     es.eth_power,
                 (int)     es.eth_mdc,
@@ -97,7 +120,8 @@ bool NetworkManager::initEthernet(int ethernetType)
                 (eth_phy_type_t)   es.eth_type,
                 (eth_clock_mode_t) es.eth_clk_mode
                 )) {
-    return false;
+      return false;
+    }
   }
 
   successfullyConfiguredEthernet = true;
