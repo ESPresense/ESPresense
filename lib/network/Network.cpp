@@ -79,7 +79,7 @@ bool NetworkManager::initEthernet(int ethernetType)
   static bool successfullyConfiguredEthernet = false;
 
   if (successfullyConfiguredEthernet) {
-    return false;
+    return true;
   }
   if (ethernetType == CONFIG_ETH_NONE) {
     return false;
@@ -122,7 +122,10 @@ bool NetworkManager::connect(int ethernetType, int wait_seconds, const char* hos
     Log.print(F("Connecting to Ethernet"));
 
     unsigned long starttime = millis();
-    initEthernet(ethernetType);
+    if (!initEthernet(ethernetType)) {
+        Log.println(F(" init failed."));
+        return false;
+    }
     ETH.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
     ETH.setHostname(hostname);
     while (ETH.localIP()[0] == 0 && (wait_seconds < 0 || (millis() - starttime) < (unsigned)wait_seconds * 1000)) {
