@@ -76,7 +76,7 @@ jobs:
       run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
