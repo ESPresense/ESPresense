@@ -6,6 +6,22 @@
     let sortBy = $state("distance");
     let filterSelections = $state<Record<string, any>>({ vis: true });
 
+    function formatLastSeen(ms: number | undefined): string {
+        if (ms === undefined || ms === null || ms >= 4294967295) return "never";
+        if (ms < 1000) return "just now";
+        
+        const seconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        const days = Math.floor(hours / 24);
+        
+        if (days > 1) return `${days} days ago`;
+        if (days === 1) return "yesterday";
+        if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+        if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+        return `${seconds} second${seconds > 1 ? 's' : ''} ago`;
+    }
+
     const columns: Column[] = [
         {
             key: "vis",
@@ -120,6 +136,13 @@
             title: "int",
             value: (v: Device) => (v.int != null ? `${v.int} ms` : ""),
             sortValue: (v: Device) => v.int ?? Number.POSITIVE_INFINITY,
+            sortable: true
+        },
+        {
+            key: "lastSeen",
+            title: "Last Seen",
+            value: (v: Device) => formatLastSeen(v.lastSeenMs),
+            sortValue: (v: Device) => v.lastSeenMs ?? Number.POSITIVE_INFINITY,
             sortable: true
         },
     ];
