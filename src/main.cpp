@@ -615,7 +615,15 @@ void setup() {
 
     GUI::Setup(true);
     BleFingerprintCollection::Setup();
-    SPIFFS.begin(true);
+    
+    // Two-stage SPIFFS mount: try without format first, then format if needed
+    if (!SPIFFS.begin(false)) {
+        log_e("SPIFFS mount failed, attempting format/recovery");
+        if (!SPIFFS.begin(true)) {
+            log_e("SPIFFS format failed — hardware/flash issue");
+            while(1) { delay(1000); }  // Halt execution
+        }
+    }
     setupNetwork();
     Log.enableTcp(6053);
     Updater::Setup();
