@@ -9,6 +9,7 @@ export interface Device {
     id?: string;
     name?: string;
     "rssi@1m"?: number;
+    lastSeenMs?: number;
 }
 
 export interface Config {

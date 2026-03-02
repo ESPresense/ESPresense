@@ -557,6 +557,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (close) (*doc)[F("close")] = true;
 
     (*doc)[F("int")] = (millis() - firstSeenMillis) / seenCount;
+    (*doc)[F("lastSeenMs")] = getMsSinceLastSeen();
 
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
