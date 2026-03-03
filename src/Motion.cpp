@@ -1,6 +1,6 @@
 #include "Motion.h"
 
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include <HeadlessWiFiSettings.h>
 
 #include "GUI.h"

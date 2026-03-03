@@ -305,7 +305,6 @@ void setupNetwork() {
 }
 
 void onMqttConnect(bool sessionPresent) {
-    xTimerStop(reconnectTimer, 0);
     mqttClient.subscribe("espresense/rooms/*/+/set", 1);
     mqttClient.subscribe(setTopic.c_str(), 1);
     mqttClient.subscribe(configTopic.c_str(), 1);
@@ -313,16 +312,17 @@ void onMqttConnect(bool sessionPresent) {
 }
 
 /**
- * @brief Handle MQTT disconnection events and initiate reconnection.
+ * @brief Handle MQTT disconnection events.
  *
- * Updates the GUI to show disconnected status, logs the disconnect reason, starts the reconnect timer, and marks the device as offline.
+ * Updates the GUI to show disconnected status and marks the device as offline.
+ * MQTT reconnection is handled by the client library's auto-reconnect logic.
  *
- * @param reason The MQTT client's disconnection reason code.
+ * @param sessionPresent MQTT session state reported by the client.
  */
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+void onMqttDisconnect(bool sessionPresent) {
+    (void)sessionPresent;
     GUI::Connected(true, false);
-    Log.printf("Disconnected from MQTT; reason %d\r\n", (int)reason);
-    xTimerStart(reconnectTimer, 0);
+    Log.println("Disconnected from MQTT");
     online = false;
 }
 
@@ -391,70 +391,30 @@ void onMqttMessage(const char *topic, const char *payload) {
     }
 }
 
-std::string payload_buffer_;
 /**
- * @brief Reassembles chunked MQTT message payloads and dispatches the complete message.
+ * @brief Dispatches a fully reassembled MQTT message payload.
  *
- * Buffers incoming payload fragments until the full MQTT message has been received; when the final fragment arrives, calls onMqttMessage with the original topic and the reconstructed payload, then clears the buffer.
+ * PsychicMqttClient reassembles multipart payloads before invoking the callback,
+ * so this adapter simply forwards the topic and payload to the existing handler.
  *
  * @param topic Topic string associated with the incoming MQTT message.
- * @param payload Pointer to the current fragment's data.
- * @param properties MQTT message properties for the current fragment.
- * @param len Length in bytes of the current fragment.
- * @param index Byte offset of the current fragment within the full message.
- * @param total Total size in bytes of the full MQTT message.
+ * @param payload Null-terminated MQTT payload string.
  */
-void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-    if (index == 0)
-        payload_buffer_.reserve(total);
-
-    // append new payload, may contain incomplete MQTT message
-    payload_buffer_.append(payload, len);
-
-    // MQTT fully received
-    if (len + index == total) {
-        onMqttMessage(topic, payload_buffer_.data());
-        payload_buffer_.clear();
-    }
-}
-
-/**
- * @brief Attempts to re-establish network and MQTT connectivity, restarting the device on repeated failure.
- *
- * If both network and MQTT are already connected the function returns immediately.
- * The function increments an internal reconnect-attempt counter and restarts the device after more than 50 attempts.
- * When the network is disconnected it tries to restore connectivity using configured Ethernet or Wi‑Fi settings; failing to restore the network triggers a device restart.
- * After ensuring network connectivity it initiates an MQTT connection attempt.
- *
- * @param xTimer FreeRTOS timer handle associated with the reconnect timer (unused).
- */
-void reconnect(TimerHandle_t xTimer) {
-    Log.printf("%u Reconnect timer\r\n", xPortGetCoreID());
-    if (MultiNetwork.isOnline() && mqttClient.connected()) return;
-
-    if (reconnectTries++ > 50) {
-        Log.println("Too many reconnect attempts; Restarting");
-        ESP.restart();
-    }
-
-    if (!MultiNetwork.isOnline()) {
-        Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
-
-        if (!MultiNetwork.connect(ethernetType, 2, 40, HeadlessWiFiSettings.hostname.c_str()))
-            ESP.restart();
-    }
-
-    Log.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());
-    mqttClient.connect();
+void onMqttMessageRaw(char *topic, char *payload, int retain, int qos, bool dup) {
+    (void)retain;
+    (void)qos;
+    (void)dup;
+    onMqttMessage(topic, payload);
 }
 
 void connectToMqtt() {
-    reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
+    mqttClient.setAutoReconnect(true);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessageRaw);
     mqttClient.setClientId(HeadlessWiFiSettings.hostname.c_str());
-    mqttClient.setServer(mqttHost.c_str(), mqttPort);
+    mqttUri = Sprintf("mqtt://%s:%u", mqttHost.c_str(), mqttPort);
+    mqttClient.setServer(mqttUri.c_str());
     mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
@@ -464,7 +424,7 @@ bool reportBuffer(BleFingerprint *f) {
     if (!mqttClient.connected()) return false;
     auto report = f->getReport();
     String const topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
-    return mqttClient.publish(topic.c_str(), 0, false, report.getPayload().c_str());
+    return mqttClient.publish(topic.c_str(), 0, false, report.getPayload().c_str()) >= 0;
 }
 
 bool reportDevice(BleFingerprint *f) {

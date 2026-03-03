@@ -7,7 +7,6 @@
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/timers.h>
 
 #include "Battery.h"
 #include "BleFingerprint.h"
@@ -51,7 +50,6 @@
 #include "DS18B20.h"
 #endif
 
-TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle;
 
 unsigned long updateStartedMillis = 0;
@@ -64,7 +62,7 @@ bool sentDiscovery = false;  // Have we successfully sent discovery
 UBaseType_t bleStack = 0;
 
 int ethernetType = 0;
-String mqttHost, mqttUser, mqttPass;
+String mqttHost, mqttUser, mqttPass, mqttUri;
 uint16_t mqttPort;
 
 bool discovery, publishTele, publishDevices;

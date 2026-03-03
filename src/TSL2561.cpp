@@ -5,7 +5,7 @@
 #include "mqtt.h"
 #include "TSL2561.h"
 #include <HeadlessWiFiSettings.h>
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include <Adafruit_TSL2561_U.h>
 #include "string_utils.h"
 

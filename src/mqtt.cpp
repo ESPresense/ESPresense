@@ -7,9 +7,11 @@
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
+    (void)dup;
+    (void)message_id;
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
+        if (mqttClient.publish(topic, qos, retain, payload, length) >= 0)
             return true;
         delay(25);
     }
