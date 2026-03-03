@@ -193,10 +193,14 @@ test.describe('Settings Page', () => {
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
-		// Delay the POST response so "Saving..." state is observable
+		let releasePost: (() => void) | undefined;
+		const postPending = new Promise<void>((resolve) => {
+			releasePost = resolve;
+		});
+
 		await page.route('**/wifi/extras', async (route) => {
 			if (route.request().method() === 'POST') {
-				await new Promise((r) => setTimeout(r, 500));
+				await postPending;
 				await route.fulfill({ status: 200 });
 			} else {
 				await route.fulfill({
@@ -215,11 +219,10 @@ test.describe('Settings Page', () => {
 		// Initial state
 		await expect(submitButton).toHaveText('Save');
 
-		// Click and check for "Saving..." text
-		await Promise.all([
-			page.waitForSelector('button[type="submit"]:has-text("Saving...")'),
-			submitButton.click()
-		]);
+		const clickPromise = submitButton.click();
+		await expect(submitButton).toHaveText('Saving...');
+		releasePost?.();
+		await clickPromise;
 
 		// Eventually returns to normal state
 		await expect(submitButton).toHaveText('Save', { timeout: 10000 });
