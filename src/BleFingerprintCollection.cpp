@@ -10,6 +10,10 @@
 #include <HeadlessWiFiSettings.h>
 
 namespace BleFingerprintCollection {
+namespace {
+constexpr uint32_t MIN_FINGERPRINT_CREATE_FREE_HEAP = 8192;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_MAX_ALLOC = 4096;
+}
 // Public (externed)
 String include{DEFAULT_INCLUDE},
        exclude{DEFAULT_EXCLUDE},
@@ -71,15 +75,13 @@ void Close(BleFingerprint *f, bool close) {
 
 #ifdef NIMBLE_V2
 void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
-    NimBLEAdvertisedDevice copy = *advertisedDevice;
 #else
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
-    BLEAdvertisedDevice copy = *advertisedDevice;
 #endif
 
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(&copy);
-    if (f->seen(&copy) && onAdd)
+    BleFingerprint *f = GetFingerprint(advertisedDevice);
+    if (f != nullptr && f->seen(advertisedDevice) && onAdd)
         onAdd(f);
     if (onSeen) onSeen(false);
 }
@@ -349,6 +351,15 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
     if (it != fingerprints.rend())
         return *it;
+
+    CleanupOldFingerprints();
+
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_FINGERPRINT_CREATE_FREE_HEAP || maxAllocHeap < MIN_FINGERPRINT_CREATE_MAX_ALLOC) {
+        log_w("Skipping new fingerprint, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        return nullptr;
+    }
 
     auto created = new BleFingerprint(advertisedDevice);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
