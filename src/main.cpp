@@ -3,6 +3,12 @@
 
 #include "esp_heap_caps.h"
 
+namespace {
+constexpr size_t FINGERPRINT_SNAPSHOT_CAPACITY = 512;
+BleFingerprint *reportableFingerprints[FINGERPRINT_SNAPSHOT_CAPACITY];
+BleFingerprint *queryableFingerprints[FINGERPRINT_SNAPSHOT_CAPACITY];
+}  // namespace
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
@@ -456,21 +462,23 @@ void reportLoop() {
     }
 
     yield();
-    auto copy = BleFingerprintCollection::GetCopy();
+    size_t totalFingerprints = 0;
+    const auto copyCount = BleFingerprintCollection::Snapshot(reportableFingerprints, FINGERPRINT_SNAPSHOT_CAPACITY, true, &totalFingerprints);
 
     unsigned int count = 0;
-    for (auto &i : copy)
-        if (i->shouldCount())
+    for (size_t i = 0; i < copyCount; i++)
+        if (reportableFingerprints[i]->shouldCount())
             count++;
 
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, copy.size());
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, totalFingerprints);
     yield();
 
     auto reported = 0;
-    for (auto &f : copy) {
+    for (size_t i = 0; i < copyCount; i++) {
+        auto *f = reportableFingerprints[i];
         auto seen = f->getSeenCount();
         if (seen) {
             totalSeen += seen;
@@ -525,9 +533,9 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        auto queryable = BleFingerprintCollection::GetCopy(false);
-        for (auto &f : queryable)
-            if (f->query())
+        const auto queryableCount = BleFingerprintCollection::Snapshot(queryableFingerprints, FINGERPRINT_SNAPSHOT_CAPACITY, false);
+        for (size_t i = 0; i < queryableCount; i++)
+            if (queryableFingerprints[i]->query())
                 totalFpQueried++;
 
         Enrollment::Loop();

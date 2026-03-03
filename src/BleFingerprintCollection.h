@@ -38,7 +38,7 @@ void Seen(BLEAdvertisedDevice *advertisedDevice);
 BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 #endif
 void CleanupOldFingerprints();
-const std::vector<BleFingerprint *> GetCopy(bool cleanup = true);
+size_t Snapshot(BleFingerprint **buffer, size_t capacity, bool cleanup = true, size_t *totalCount = nullptr);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
 

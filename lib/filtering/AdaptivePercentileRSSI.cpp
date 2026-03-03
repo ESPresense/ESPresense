@@ -1,6 +1,7 @@
 #include "AdaptivePercentileRSSI.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <new>
 
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t initialMaxReadings)
     : timeWindowMs(timeWindowMs),
@@ -115,14 +116,15 @@ void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
     idealSize = constrain(idealSize, MIN_READINGS, MAX_READINGS);
 
     // Only resize if there's a significant difference
-    if (abs(idealSize - maxReadings) > maxReadings / 4) {
+    if (idealSize > maxReadings && abs(idealSize - maxReadings) > maxReadings / 4) {
         resizeBuffer(idealSize);
     }
 }
 
 void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
     // Create new buffer
-    Reading* newReadings = new Reading[newSize];
+    Reading* newReadings = new (std::nothrow) Reading[newSize];
+    if (newReadings == nullptr) return;
 
     // Copy existing readings to new buffer
     uint16_t newCount = min(count, newSize);

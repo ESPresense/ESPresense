@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <HeadlessWiFiSettings.h>
 
 namespace BleFingerprintCollection {
@@ -375,13 +376,18 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     return f;
 }
 
-const std::vector<BleFingerprint *> GetCopy(bool cleanup) {
+size_t Snapshot(BleFingerprint **buffer, size_t capacity, bool cleanup, size_t *totalCount) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take fingerprintMutex!");
     if (cleanup) CleanupOldFingerprints();
-    std::vector<BleFingerprint *> copy(fingerprints);
+    const size_t available = fingerprints.size();
+    const size_t copyCount = std::min(available, capacity);
+    if (totalCount != nullptr) *totalCount = available;
+    if (copyCount > 0 && buffer != nullptr) memcpy(buffer, fingerprints.data(), copyCount * sizeof(BleFingerprint *));
     xSemaphoreGive(fingerprintMutex);
-    return std::move(copy);
+    if (copyCount < available)
+        log_w("Fingerprint snapshot truncated: %u of %u", static_cast<unsigned int>(copyCount), static_cast<unsigned int>(available));
+    return copyCount;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {
