@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 
 // Forward declares
-class AsyncMqttClient;
+class PsychicMqttClient;
 
 namespace BH1750
 {

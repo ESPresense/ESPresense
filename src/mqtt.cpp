@@ -8,9 +8,11 @@
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
+    (void)dup;
+    (void)message_id;
     for (int i = 0; i < 10; i++)
     {
-        if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
+        if (mqttClient.publish(topic, qos, retain, payload, length) >= 0)
             return true;
         delay(25);
     }
@@ -20,9 +22,9 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
 {
     // Heap-allocate the serialized payload rather than using a VLA on the
-    // caller's FreeRTOS task stack. AsyncMqttClient copies the payload
-    // synchronously into its own std::vector inside PublishOutPacket's ctor
-    // before publish() returns, so the buffer can be freed immediately.
+    // caller's FreeRTOS task stack. PsychicMqttClient hands the payload to
+    // esp_mqtt_client_publish(), which copies it into the esp-mqtt outbox
+    // before returning, so the buffer can be freed immediately.
     //
     // Motivation: fleet-wide MQTT sessions on WROVER nodes were being
     // dropped by the broker with "Invalid PUBLISH (QoS=0 and DUP=1)" /

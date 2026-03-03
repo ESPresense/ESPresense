@@ -5,7 +5,7 @@
 #include "mqtt.h"
 #include "defaults.h"
 #include <HeadlessWiFiSettings.h>
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include "string_utils.h"
 
 #include <hp_BH1750.h>

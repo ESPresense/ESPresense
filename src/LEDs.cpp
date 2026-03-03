@@ -1,6 +1,6 @@
 #include "LEDs.h"
 
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include <HeadlessWiFiSettings.h>
 #include <WS2812FX.h>
 
