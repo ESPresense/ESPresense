@@ -6,9 +6,20 @@
 #include <Arduino.h>
 #include <algorithm>
 #include <cctype>
+#include <cstring>
+#include <exception>
 #include <HeadlessWiFiSettings.h>
+#include <new>
 
 namespace BleFingerprintCollection {
+namespace {
+constexpr uint32_t MIN_BLE_PROCESS_FREE_HEAP = 49152;
+constexpr uint32_t MIN_BLE_PROCESS_MAX_ALLOC = 24576;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_FREE_HEAP = 32768;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_MAX_ALLOC = 16384;
+unsigned long lastLowHeapSkipLog = 0;
+unsigned long lastBleExceptionLog = 0;
+}
 // Public (externed)
 String include{DEFAULT_INCLUDE},
        exclude{DEFAULT_EXCLUDE},
@@ -70,16 +81,45 @@ void Close(BleFingerprint *f, bool close) {
 
 #ifdef NIMBLE_V2
 void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
-    NimBLEAdvertisedDevice copy = *advertisedDevice;
 #else
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
-    BLEAdvertisedDevice copy = *advertisedDevice;
 #endif
 
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_BLE_PROCESS_FREE_HEAP || maxAllocHeap < MIN_BLE_PROCESS_MAX_ALLOC) {
+        const auto now = millis();
+        if (now - lastLowHeapSkipLog > 5000) {
+            lastLowHeapSkipLog = now;
+            log_w("Dropping BLE advert, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        }
+        return;
+    }
+
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(&copy);
-    if (f->seen(&copy) && onAdd)
-        onAdd(f);
+    try {
+        BleFingerprint *f = GetFingerprint(advertisedDevice);
+        if (f != nullptr && f->seen(advertisedDevice) && onAdd)
+            onAdd(f);
+    } catch (const std::bad_alloc &) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after bad_alloc");
+        }
+    } catch (const std::exception &exception) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after exception: %s", exception.what());
+        }
+    } catch (...) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after unknown exception");
+        }
+    }
     if (onSeen) onSeen(false);
 }
 
@@ -349,6 +389,19 @@ BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     if (it != fingerprints.rend())
         return *it;
 
+    CleanupOldFingerprints();
+
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_FINGERPRINT_CREATE_FREE_HEAP || maxAllocHeap < MIN_FINGERPRINT_CREATE_MAX_ALLOC) {
+        const auto now = millis();
+        if (now - lastLowHeapSkipLog > 5000) {
+            lastLowHeapSkipLog = now;
+            log_w("Skipping new fingerprint, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        }
+        return nullptr;
+    }
+
     auto created = new BleFingerprint(advertisedDevice);
     auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
     if (it2 != fingerprints.end()) {
@@ -375,13 +428,18 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     return f;
 }
 
-const std::vector<BleFingerprint *> GetCopy(bool cleanup) {
+size_t Snapshot(BleFingerprint **buffer, size_t capacity, bool cleanup, size_t *totalCount) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take fingerprintMutex!");
     if (cleanup) CleanupOldFingerprints();
-    std::vector<BleFingerprint *> copy(fingerprints);
+    const size_t available = fingerprints.size();
+    const size_t copyCount = std::min(available, capacity);
+    if (totalCount != nullptr) *totalCount = available;
+    if (copyCount > 0 && buffer != nullptr) memcpy(buffer, fingerprints.data(), copyCount * sizeof(BleFingerprint *));
     xSemaphoreGive(fingerprintMutex);
-    return std::move(copy);
+    if (copyCount < available)
+        log_w("Fingerprint snapshot truncated: %u of %u", static_cast<unsigned int>(copyCount), static_cast<unsigned int>(available));
+    return copyCount;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {

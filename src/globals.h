@@ -1,6 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include <AsyncMqttClient.h>
+#include <PsychicMqttClient.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include "Logger.h"
@@ -29,7 +29,7 @@ Setup variable declaration macros.
 #endif
 
 _DECL String room, id, statusTopic, teleTopic, roomsTopic, setTopic, configTopic;
-_DECL AsyncMqttClient mqttClient;
+_DECL PsychicMqttClient mqttClient;
 _DECL String homeAssistantDiscoveryPrefix;
 _DECL DynamicJsonDocument doc _INIT_N(((768)));
 _DECL String localIp;

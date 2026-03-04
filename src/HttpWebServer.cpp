@@ -8,6 +8,11 @@
 #include "mqtt.h"
 #include "ui_routes.h"
 
+namespace {
+constexpr size_t DEVICE_SNAPSHOT_CAPACITY = 512;
+BleFingerprint *deviceSnapshot[DEVICE_SNAPSHOT_CAPACITY];
+}  // namespace
+
 namespace HttpWebServer {
 
 void serializeInfo(JsonObject &root) {
@@ -36,12 +41,13 @@ void serializeConfigs(JsonObject &root) {
 void serializeDevices(JsonObject &root, bool showAll) {
     JsonArray devices = root.createNestedArray("devices");
 
-    auto f = BleFingerprintCollection::GetCopy();
-    for (auto it = f.begin(); it != f.end(); ++it) {
-        bool visible = (*it)->getVisible();
+    const auto deviceCount = BleFingerprintCollection::Snapshot(deviceSnapshot, DEVICE_SNAPSHOT_CAPACITY);
+    for (size_t i = 0; i < deviceCount; i++) {
+        auto *device = deviceSnapshot[i];
+        bool visible = device->getVisible();
         if (showAll || visible) {
             JsonObject node = devices.createNestedObject();
-            if ((*it)->fill(&node)) {
+            if (device->fill(&node)) {
                 if (showAll && visible) node[F("vis")] = true;
             } else
                 devices.remove(devices.size() - 1);
