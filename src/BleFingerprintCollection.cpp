@@ -7,13 +7,16 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <exception>
 #include <HeadlessWiFiSettings.h>
+#include <new>
 
 namespace BleFingerprintCollection {
 namespace {
 constexpr uint32_t MIN_FINGERPRINT_CREATE_FREE_HEAP = 32768;
 constexpr uint32_t MIN_FINGERPRINT_CREATE_MAX_ALLOC = 16384;
 unsigned long lastLowHeapSkipLog = 0;
+unsigned long lastBleExceptionLog = 0;
 }
 // Public (externed)
 String include{DEFAULT_INCLUDE},
@@ -81,9 +84,29 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 #endif
 
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(advertisedDevice);
-    if (f != nullptr && f->seen(advertisedDevice) && onAdd)
-        onAdd(f);
+    try {
+        BleFingerprint *f = GetFingerprint(advertisedDevice);
+        if (f != nullptr && f->seen(advertisedDevice) && onAdd)
+            onAdd(f);
+    } catch (const std::bad_alloc &) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after bad_alloc");
+        }
+    } catch (const std::exception &exception) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after exception: %s", exception.what());
+        }
+    } catch (...) {
+        const auto now = millis();
+        if (now - lastBleExceptionLog > 5000) {
+            lastBleExceptionLog = now;
+            log_w("Dropping BLE advert after unknown exception");
+        }
+    }
     if (onSeen) onSeen(false);
 }
 
