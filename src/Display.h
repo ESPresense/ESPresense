@@ -1,9 +1,6 @@
 #pragma once
 
 #include <Arduino.h>
-#include "BleFingerprint.h"
-
-class BleFingerprint;
 
 class Display {
    public:
@@ -12,10 +9,4 @@ class Display {
     static void Loop();
 
     static void Status(const char *message, ...);
-
-   private:
-    static bool init;
-#ifdef M5STICK
-    static bool dirty;
-#endif
 };
