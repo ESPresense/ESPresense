@@ -215,7 +215,7 @@ void Display::Loop() {
 }
 
 void Display::Status(const char *format, ...) {
-    char message[MAX_PAYLOAD_LEN];
+    char message[96];
     va_list args;
     va_start(args, format);
     vsnprintf(message, sizeof(message), format, args);
