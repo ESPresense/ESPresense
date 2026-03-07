@@ -35,6 +35,7 @@ portMUX_TYPE gStateMux = portMUX_INITIALIZER_UNLOCKED;
 bool lvglReady = false;
 uint32_t lastTickMs = 0;
 uint32_t lastHandlerMs = 0;
+lv_disp_t *display = nullptr;
 
 TFT_eSPI tft;
 lv_disp_draw_buf_t drawBufferHandle;
@@ -65,7 +66,7 @@ void lvglFlush(lv_disp_drv_t *disp, const lv_area_t *area, lv_color_t *colorP) {
 
     tft.startWrite();
     tft.setAddrWindow(area->x1, area->y1, width, height);
-    tft.pushColors(reinterpret_cast<uint16_t *>(&colorP->full), width * height, true);
+    tft.pushColors(reinterpret_cast<uint16_t *>(colorP), width * height, true);
     tft.endWrite();
 
     lv_disp_flush_ready(disp);
@@ -162,9 +163,12 @@ void updateDashboard() {
 
 void Display::Setup() {
 #ifdef M5STICK
-    tft.init();
+    tft.begin();
+#ifdef PLUS
+    tft.setRotation(3);
+#else
     tft.setRotation(1);
-    tft.setSwapBytes(true);
+#endif
     tft.fillScreen(TFT_BLACK);
 
     lv_init();
@@ -177,10 +181,12 @@ void Display::Setup() {
     displayDriver.ver_res = tft.height();
     displayDriver.flush_cb = lvglFlush;
     displayDriver.draw_buf = &drawBufferHandle;
-    lv_disp_drv_register(&displayDriver);
+    display = lv_disp_drv_register(&displayDriver);
 
     createDashboard();
     updateDashboard();
+    lv_obj_invalidate(lv_scr_act());
+    lv_refr_now(display);
 
     lastTickMs = millis();
     lastHandlerMs = lastTickMs;
