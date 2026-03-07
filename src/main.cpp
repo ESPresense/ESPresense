@@ -496,21 +496,26 @@ void reportLoop() {
     }
 
     yield();
-    auto copy = BleFingerprintCollection::GetCopy();
+    auto fingerprintCount = BleFingerprintCollection::Size();
 
     unsigned int count = 0;
-    for (auto &i : copy)
-        if (i->shouldCount())
+    size_t cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+        if (lease.fingerprint->shouldCount())
             count++;
+        BleFingerprintCollection::Release(lease);
+    }
 
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, copy.size());
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, fingerprintCount);
     yield();
 
     auto reported = 0;
-    for (auto &f : copy) {
+    cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+        auto *f = lease.fingerprint;
         auto seen = f->getSeenCount();
         if (seen) {
             totalSeen += seen;
@@ -525,6 +530,7 @@ void reportLoop() {
             totalFpReported++;
             reported++;
         }
+        BleFingerprintCollection::Release(lease);
         yield();
     }
 }
@@ -565,10 +571,12 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        auto queryable = BleFingerprintCollection::GetCopy(false);
-        for (auto &f : queryable)
-            if (f->query())
+        size_t cursor = 0;
+        while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+            if (lease.fingerprint->query())
                 totalFpQueried++;
+            BleFingerprintCollection::Release(lease);
+        }
 
         Enrollment::Loop();
 
