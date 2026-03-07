@@ -54,10 +54,12 @@ void SerialReport() {
 }
 
 void ConnectToWifi() {
+    Display::ConnectToWifi();
     LEDs::ConnectToWifi();
 }
 
 void Loop() {
+    Display::Loop();
     LEDs::Loop();
 }
 
