@@ -69,6 +69,7 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
+#define DEFAULT_MAX_FINGERPRINTS 256
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
@@ -177,4 +178,3 @@
 #define MAX_BRIGHTNESS 100
 
 #endif
-
