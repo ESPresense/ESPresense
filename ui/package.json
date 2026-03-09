@@ -32,7 +32,7 @@
     "jsdom": "^28.1.0",
     "mime": "^4.1.0",
     "nodemon": "^3.1.14",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.8",
     "svelte": "^5.53.5",
     "svelte-check": "^4.4.4",
     "tailwindcss": "^4.1.18",
