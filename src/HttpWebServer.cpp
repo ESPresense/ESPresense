@@ -36,16 +36,18 @@ void serializeConfigs(JsonObject &root) {
 void serializeDevices(JsonObject &root, bool showAll) {
     JsonArray devices = root.createNestedArray("devices");
 
-    auto f = BleFingerprintCollection::GetCopy();
-    for (auto it = f.begin(); it != f.end(); ++it) {
-        bool visible = (*it)->getVisible();
+    size_t cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor)) {
+        auto *fingerprint = lease.fingerprint;
+        bool visible = fingerprint->getVisible();
         if (showAll || visible) {
             JsonObject node = devices.createNestedObject();
-            if ((*it)->fill(&node)) {
+            if (fingerprint->fill(&node)) {
                 if (showAll && visible) node[F("vis")] = true;
             } else
                 devices.remove(devices.size() - 1);
         }
+        BleFingerprintCollection::Release(lease);
     }
 }
 
