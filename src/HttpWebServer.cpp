@@ -140,8 +140,14 @@ void onRestart(AsyncWebServerRequest *request) {
 
 void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "GET, POST, DELETE, OPTIONS");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "Content-Type");
+
+    // Low-risk browser hardening headers for the local Web UI and JSON endpoints.
+    DefaultHeaders::Instance().addHeader(F("X-Content-Type-Options"), F("nosniff"));
+    DefaultHeaders::Instance().addHeader(F("Referrer-Policy"), F("no-referrer"));
+    DefaultHeaders::Instance().addHeader(F("Permissions-Policy"),
+                                         F("accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), usb=()"));
 
     server->on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
         AsyncWebServerResponse *response = request->beginResponse(200);
