@@ -1,0 +1,61 @@
+name: Cleanup stale UI build PRs
+
+on:
+  delete:
+
+jobs:
+  cleanup:
+    if: github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - name: Close stale UI build PRs for deleted branch
+      uses: actions/github-script@v8
+      with:
+        script: |
+          const deletedBranch = context.payload.ref;
+          const { owner, repo } = context.repo;
+          const uiBranch = `update-ui-build/${deletedBranch}`;
+
+          const prs = await github.paginate(github.rest.pulls.list, {
+            owner,
+            repo,
+            state: 'open',
+            per_page: 100
+          });
+
+          const matchingPrs = prs.filter(pr =>
+            pr.title === 'Update UI build outputs' &&
+            pr.user?.login === 'github-actions[bot]' &&
+            pr.head?.repo?.full_name === `${owner}/${repo}` &&
+            pr.head?.ref === uiBranch
+          );
+
+          core.info(`Found ${matchingPrs.length} UI build PR(s) for deleted branch ${deletedBranch}`);
+
+          for (const pr of matchingPrs) {
+            core.info(`Closing PR #${pr.number} (${pr.head.ref} -> ${pr.base.ref})`);
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pr.number,
+              state: 'closed'
+            });
+          }
+
+          try {
+            await github.rest.git.deleteRef({
+              owner,
+              repo,
+              ref: `heads/${uiBranch}`
+            });
+            core.info(`Deleted branch ${uiBranch}`);
+          } catch (error) {
+            if (error.status === 404 || error.status === 422) {
+              core.info(`Branch ${uiBranch} already absent`);
+            } else {
+              throw error;
+            }
+          }
