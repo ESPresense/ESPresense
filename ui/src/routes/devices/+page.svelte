@@ -316,6 +316,9 @@
                 {:else}
                     <p class="text-sm leading-5 text-gray-600 dark:text-gray-400">To begin, navigate to your device's Bluetooth settings (on Apple Watch use the BluetoothLE app) and pair with the ESPresense device.</p>
                     <p class="mt-4 text-sm leading-5 text-gray-600 dark:text-gray-400">Start the pairing process now. Time remaining: {formatRemainingTime(($events as Events).state?.remain ?? 0)}</p>
+                    <p class="mt-4 text-sm leading-5 text-amber-700 dark:text-amber-400">
+                        If pairing succeeds but no new device appears, enrollment may be blocked by MQTT publishing issues. Verify MQTT host/port/credentials under Network and confirm your node is publishing topics (for example with MQTT Explorer).
+                    </p>
                 {/if}
             </div>
             <div class="flex items-center justify-end p-6 space-x-4 border-t border-gray-200 dark:border-gray-700">
