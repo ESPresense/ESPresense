@@ -1,10 +1,12 @@
 #pragma once
 
 #include <Arduino.h>
+#include <vector>
 
 class MultiNetworkManager {
 public:
   bool supportsEthernet() const;
+  std::vector<String> ethernetOptions() const;
   IPAddress localIP() const;
   IPAddress dnsIP() const;
   const char *getHostname() const;
