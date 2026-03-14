@@ -5,6 +5,7 @@
 
     let s = $state(false);
     let wifiNetworks: Record<string, number> = $state({});
+    let ethernetOptions: string[] = $state(["None"]);
     let isScanning = $state(false);
     let isDestroyed = false;
     let currentVersion = $state("");
@@ -47,8 +48,21 @@
         requestAnimationFrame(fetchWifiNetworks);
     }
 
+    async function fetchEthernetOptions() {
+        try {
+            const response = await fetch("/wifi/options/eth");
+            const data = await response.json();
+            if (Array.isArray(data) && data.length > 0) {
+                ethernetOptions = data;
+            }
+        } catch (error) {
+            console.error("Failed to fetch Ethernet options:", error);
+        }
+    }
+
     onMount(() => {
         fetchDeviceInfo();
+        fetchEthernetOptions();
         startScanCycle();
     });
 
@@ -103,6 +117,15 @@
 
     // Make sure your store's data keys match the names below.
     const mainSettingsData = $derived($mainSettings as MainSettings);
+
+    $effect(() => {
+        if ($mainSettings?.values?.eth === "14") {
+            const waveshareIndex = ethernetOptions.findIndex((o) => o === "Waveshare ESP32-S3-ETH");
+            if (waveshareIndex >= 0) {
+                $mainSettings.values.eth = String(waveshareIndex);
+            }
+        }
+    });
 </script>
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
@@ -201,19 +224,9 @@
             <div>
                 <label for="ethernet-type" class="block text-sm font-medium">Ethernet Type</label>
                 <select id="ethernet-type" name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">
-                    <option value="0">None</option>
-                    <option value="1">WT32-ETH01</option>
-                    <option value="2">ESP32-POE</option>
-                    <option value="3">WESP32</option>
-                    <option value="4">QuinLED-ESP32</option>
-                    <option value="5">TwilightLord-ESP32</option>
-                    <option value="6">ESP32Deux</option>
-                    <option value="7">KIT-VE</option>
-                    <option value="8">LilyGO-T-ETH-POE</option>
-                    <option value="9">GL-inet GL-S10 v2.1 Ethernet</option>
-                    <option value="10">EST-PoE-32</option>
-                    <option value="11">LilyGO-T-ETH-Lite (RTL8201)</option>
-                    <option value="12">ESP32-POE_A1</option>
+                    {#each ethernetOptions as option, i}
+                        <option value={String(i)}>{option}</option>
+                    {/each}
                 </select>
             </div>
 
@@ -294,5 +307,3 @@
         </form>
     {/if}
 </div>
-
-

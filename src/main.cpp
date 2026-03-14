@@ -22,6 +22,7 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
  * @param totalFpQueried Total fingerprints queried (e.g., looked up) since the last report.
  * @param totalFpReported Total fingerprint reports published since the last report.
  * @param count Current count value (included only when a count identifier is configured).
+ * @param fingerprintCount Current number of fingerprints retained in memory.
  * @return `true` if the telemetry document was published successfully, `false` otherwise.
  * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
  */
@@ -169,7 +170,7 @@ void setupNetwork() {
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     if (MultiNetwork.supportsEthernet()) {
-        std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
+        const auto ethernetTypes = MultiNetwork.ethernetOptions();
         ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
     } else {
         ethernetType = 0;
