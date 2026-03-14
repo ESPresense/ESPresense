@@ -119,8 +119,11 @@
     const mainSettingsData = $derived($mainSettings as MainSettings);
 
     $effect(() => {
-        if (ethernetOptions.length === 2 && $mainSettings?.values?.eth === "14") {
-            $mainSettings.values.eth = "1";
+        if ($mainSettings?.values?.eth === "14") {
+            const waveshareIndex = ethernetOptions.findIndex((o) => o === "Waveshare ESP32-S3-ETH");
+            if (waveshareIndex >= 0) {
+                $mainSettings.values.eth = String(waveshareIndex);
+            }
         }
     });
 </script>
@@ -304,4 +307,3 @@
         </form>
     {/if}
 </div>
-

@@ -72,7 +72,7 @@ bool MultiNetworkManager::supportsEthernet() const {
 }
 
 std::vector<String> MultiNetworkManager::ethernetOptions() const {
-#if defined(ARDUINO_ARCH_ESP32S3)
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
   return {"None", "Waveshare ESP32-S3-ETH"};
 #elif defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   return {
@@ -158,7 +158,7 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
     return false;
   }
 
-#if defined(ARDUINO_ARCH_ESP32S3)
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
   if (ethernetType != kWaveshareEthernet && ethernetType != kLegacyWaveshareEthernet) {
     return false;
   }
