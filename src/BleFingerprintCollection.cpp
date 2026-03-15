@@ -429,15 +429,23 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
 }
 
 size_t Snapshot(BleFingerprint **buffer, size_t capacity, bool cleanup, size_t *totalCount) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
-        log_e("Couldn't take fingerprintMutex!");
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+        if (totalCount != nullptr) *totalCount = 0;
+        return 0;
+    }
     if (cleanup) CleanupOldFingerprints();
     const size_t available = fingerprints.size();
-    const size_t copyCount = std::min(available, capacity);
+    size_t copyCount = std::min(available, capacity);
+    if (buffer == nullptr) {
+        copyCount = 0;
+    } else {
+        if (copyCount > 0) {
+            memcpy(buffer, fingerprints.data(), copyCount * sizeof(BleFingerprint *));
+        }
+    }
     if (totalCount != nullptr) *totalCount = available;
-    if (copyCount > 0 && buffer != nullptr) memcpy(buffer, fingerprints.data(), copyCount * sizeof(BleFingerprint *));
     xSemaphoreGive(fingerprintMutex);
-    if (copyCount < available)
+    if (buffer != nullptr && copyCount < available)
         log_w("Fingerprint snapshot truncated: %u of %u", static_cast<unsigned int>(copyCount), static_cast<unsigned int>(available));
     return copyCount;
 }
