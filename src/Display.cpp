@@ -164,11 +164,7 @@ void updateDashboard() {
 void Display::Setup() {
 #ifdef M5STICK
     tft.begin();
-#ifdef PLUS
-    tft.setRotation(3);
-#else
     tft.setRotation(1);
-#endif
     tft.fillScreen(TFT_BLACK);
 
     lv_init();
