@@ -344,6 +344,10 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
  * @param payload MQTT message payload string (null-terminated).
  */
 void onMqttMessage(const char *topic, const char *payload) {
+    if (ESP.getFreeHeap() < 40000) {
+        log_w("Skipping MQTT message, low heap: %u", ESP.getFreeHeap());
+        return;
+    }
     String const top = String(topic);
     String pay = String(payload);
 
@@ -405,8 +409,15 @@ std::string payload_buffer_;
  * @param total Total size in bytes of the full MQTT message.
  */
 void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-    if (index == 0)
+    if (index == 0) {
+        if (ESP.getFreeHeap() < 40000 || total > 4096) {
+            log_w("Skipping MQTT message (low heap: %u, size: %u): %s", ESP.getFreeHeap(), total, topic);
+            payload_buffer_.clear();
+            return;
+        }
         payload_buffer_.reserve(total);
+    }
+    if (payload_buffer_.capacity() < total) return;  // was skipped above
 
     // append new payload, may contain incomplete MQTT message
     payload_buffer_.append(payload, len);
@@ -494,6 +505,10 @@ void reportLoop() {
     if (!mqttClient.connected()) {
         return;
     }
+    if (ESP.getFreeHeap() < 30000) {
+        log_w("Skipping reportLoop, low heap: %u", ESP.getFreeHeap());
+        return;
+    }
 
     yield();
     auto fingerprintCount = BleFingerprintCollection::Size();
@@ -543,7 +558,8 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
 #endif
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
-        BleFingerprintCollection::Seen(advertisedDevice);
+        if (ESP.getFreeHeap() >= 40000)
+            BleFingerprintCollection::Seen(advertisedDevice);
     }
 };
 
@@ -571,14 +587,16 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        size_t cursor = 0;
-        while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
-            if (lease.fingerprint->query())
-                totalFpQueried++;
-            BleFingerprintCollection::Release(lease);
-        }
+        if (ESP.getFreeHeap() >= 40000) {
+            size_t cursor = 0;
+            while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+                if (lease.fingerprint->query())
+                    totalFpQueried++;
+                BleFingerprintCollection::Release(lease);
+            }
 
-        Enrollment::Loop();
+            Enrollment::Loop();
+        }
 
         if (!pBLEScan->isScanning()) {
 #ifdef NIMBLE_V2
