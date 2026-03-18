@@ -72,7 +72,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && CAN::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
-            && I2C::SendDiscovery()
             && AHTX0::SendDiscovery()
             && BH1750::SendDiscovery()
             && BME280::SendDiscovery()
