@@ -7,10 +7,17 @@
 bool BMP280m5::begin(TwoWire* wire, uint8_t addr, uint8_t sda, uint8_t scl, long freq) {
     _wire = wire;
     _addr = addr;
+    // Wire.end() + Wire.begin() is required on ESP32-S3 to detect BMP280 at 0x76.
+    // Skipping either call causes the sensor to go undetected. Do not remove.
     _wire->end();
     _wire->begin(sda, scl, freq);
     wire->beginTransmission(addr);
     if (wire->endTransmission() != 0) {
+        return false;
+    }
+    // Validate chip ID — BMP280 returns 0x56, 0x57, or 0x58
+    uint8_t id = read8(BMP280_REGISTER_CHIPID);
+    if (id != 0x56 && id != 0x57 && id != 0x58) {
         return false;
     }
     readCoefficients();
@@ -23,6 +30,11 @@ bool BMP280m5::begin(TwoWire* wire, uint8_t addr) {
     _addr = addr;
     wire->beginTransmission(addr);
     if (wire->endTransmission() != 0) {
+        return false;
+    }
+    // Validate chip ID — BMP280 returns 0x56, 0x57, or 0x58
+    uint8_t id = read8(BMP280_REGISTER_CHIPID);
+    if (id != 0x56 && id != 0x57 && id != 0x58) {
         return false;
     }
     readCoefficients();
@@ -111,7 +123,13 @@ void BMP280m5::readCoefficients() {
 bool BMP280m5::takeForcedMeasurement() {
     if (_measReg.mode == MODE_FORCED) {
         write8(BMP280_REGISTER_CONTROL, _measReg.get());
-        while (read8(BMP280_REGISTER_STATUS) & 0x08) delay(1);
+        unsigned long start = millis();
+        while (read8(BMP280_REGISTER_STATUS) & 0x08) {
+            if (millis() - start > 100) {
+                return false;
+            }
+            delay(1);
+        }
         return true;
     }
     return false;
