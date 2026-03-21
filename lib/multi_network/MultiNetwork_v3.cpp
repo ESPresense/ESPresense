@@ -17,6 +17,14 @@ bool MultiNetworkManager::supportsEthernet() const {
   return false;
 }
 
+std::vector<String> MultiNetworkManager::ethernetOptions() const {
+  if (!supportsEthernet()) {
+    return {"None"};
+  }
+
+  return {};
+}
+
 IPAddress MultiNetworkManager::localIP() const {
   auto *iface = defaultInterface();
   return iface ? iface->localIP() : IPAddress();

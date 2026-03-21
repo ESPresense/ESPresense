@@ -120,6 +120,7 @@
 
     $effect(() => {
         if ($mainSettings?.values?.eth === "14") {
+            // "14" is the legacy firmware constant for Waveshare ESP32-S3-ETH.
             const waveshareIndex = ethernetOptions.findIndex((o) => o === "Waveshare ESP32-S3-ETH");
             if (waveshareIndex >= 0) {
                 $mainSettings.values.eth = String(waveshareIndex);

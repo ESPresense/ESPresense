@@ -26,7 +26,7 @@ bool hasAddress(const IPAddress &ip) {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
 
 constexpr int kNoEthernet = 0;
-#if defined(ARDUINO_ARCH_ESP32S3)
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
 constexpr int kWaveshareEthernet = 1;
 constexpr int kLegacyWaveshareEthernet = 14;
 #endif
@@ -163,8 +163,8 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
     return false;
   }
 
-  SPI.begin(13, 12, 11, 14);
-  if (!ETH.begin(ETH_PHY_W5500, 0, 14, 10, 9, SPI, 20)) {
+  SPI.begin(13, 12, 11);
+  if (!ETH.begin(ETH_PHY_W5500, ETH_PHY_ADDR, ETH_PHY_CS, ETH_PHY_IRQ, ETH_PHY_RST, SPI)) {
     return false;
   }
 #else
