@@ -14,8 +14,6 @@ namespace ENVIV
     BMP280m5* bmp;
     SHTSensor* sht;
     int ENVIV_I2c_Bus;
-    int ENVIV_SDA;
-    int ENVIV_SCL;
     int sht_bus = -1;
     unsigned long previousMillis = 0;
     int sensorInterval = 60000;
@@ -41,7 +39,7 @@ namespace ENVIV
 #endif
 
         bmp = new BMP280m5();
-        if (!bmp->begin(wire, 0x76, ENVIV_SDA, ENVIV_SCL, 400000U)) {
+        if (!bmp->begin(wire, 0x76)) {
             Log.println("[ENVIV BMP280] Couldn't find sensor, check wiring and I2C address!");
         } else {
             bmpInitialized = true;
@@ -73,13 +71,12 @@ namespace ENVIV
 #if SOC_I2C_NUM > 1
         ENVIV_I2c_Bus = HeadlessWiFiSettings.integer("ENVIV_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "ENVIV I2C Bus");
         sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", -1, 2, DEFAULT_I2C_BUS, "ENVIV SHT40 I2C Bus (-1 to disable)");
-        ENVIV_SDA = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SDA : I2C_Bus_1_SDA;
-        ENVIV_SCL = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SCL : I2C_Bus_1_SCL;
+        // Clamp to available I2C bus count
+        if (ENVIV_I2c_Bus > SOC_I2C_NUM) ENVIV_I2c_Bus = SOC_I2C_NUM;
+        if (sht_bus > SOC_I2C_NUM) sht_bus = SOC_I2C_NUM;
 #else
         ENVIV_I2c_Bus = 1;
         sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", -1, 1, 1, "ENVIV SHT40 I2C Bus (-1 to disable)");
-        ENVIV_SDA = I2C_Bus_1_SDA;
-        ENVIV_SCL = I2C_Bus_1_SCL;
 #endif
     }
 

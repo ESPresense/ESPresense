@@ -5,12 +5,10 @@
 // Modified: renamed to BMP280m5 to avoid conflicts with existing Adafruit BMP280 driver
 
 bool BMP280m5::begin(TwoWire* wire, uint8_t addr, uint8_t sda, uint8_t scl, long freq) {
+    // This overload is kept for compatibility but should not reconfigure the I2C bus.
+    // The bus should already be initialized by the caller. Simply probe and initialize.
     _wire = wire;
     _addr = addr;
-    // Wire.end() + Wire.begin() is required on ESP32-S3 to detect BMP280 at 0x76.
-    // Skipping either call causes the sensor to go undetected. Do not remove.
-    _wire->end();
-    _wire->begin(sda, scl, freq);
     wire->beginTransmission(addr);
     if (wire->endTransmission() != 0) {
         return false;
