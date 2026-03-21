@@ -70,12 +70,17 @@ namespace ENVIV
 
     void ConnectToWifi()
     {
+#if SOC_I2C_NUM > 1
         ENVIV_I2c_Bus = HeadlessWiFiSettings.integer("ENVIV_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "ENVIV I2C Bus");
         sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", -1, 2, DEFAULT_I2C_BUS, "ENVIV SHT40 I2C Bus (-1 to disable)");
-
-        // Reuse pin globals set by I2C::ConnectToWifi()
         ENVIV_SDA = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SDA : I2C_Bus_1_SDA;
         ENVIV_SCL = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SCL : I2C_Bus_1_SCL;
+#else
+        ENVIV_I2c_Bus = 1;
+        sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", -1, 1, 1, "ENVIV SHT40 I2C Bus (-1 to disable)");
+        ENVIV_SDA = I2C_Bus_1_SDA;
+        ENVIV_SCL = I2C_Bus_1_SCL;
+#endif
     }
 
     /**
