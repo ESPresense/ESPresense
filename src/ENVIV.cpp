@@ -22,6 +22,14 @@ namespace ENVIV
     bool bmpInitialized = false;
     bool shtInitialized = false;
 
+    /**
+     * @brief Initializes the BMP280 and SHT40 sensors on the configured I2C bus.
+     *
+     * Attempts to initialize the BMP280 using the M5Stack I2C driver, which requires
+     * Wire.end()/Wire.begin() on ESP32-S3 hardware to correctly enumerate the sensor.
+     * If successful, configures forced measurement mode. Also attempts to initialize
+     * the SHT40 on the configured bus using the Sensirion arduino-sht library.
+     */
     void Setup()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -63,11 +71,16 @@ namespace ENVIV
     void ConnectToWifi()
     {
         ENVIV_I2c_Bus = HeadlessWiFiSettings.integer("ENVIV_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "ENVIV I2C Bus");
-        sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", 1, 2, DEFAULT_I2C_BUS, "ENVIV SHT40 I2C Bus (-1 to disable)");
-        ENVIV_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 48, DEFAULT_I2C_BUS_1_SDA, "");
-        ENVIV_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 48, DEFAULT_I2C_BUS_1_SCL, "");
+        sht_bus = HeadlessWiFiSettings.integer("ENVIV_SHT_Bus", -1, 2, DEFAULT_I2C_BUS, "ENVIV SHT40 I2C Bus (-1 to disable)");
+
+        // Reuse pin globals set by I2C::ConnectToWifi()
+        ENVIV_SDA = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SDA : I2C_Bus_1_SDA;
+        ENVIV_SCL = (ENVIV_I2c_Bus == 2) ? I2C_Bus_2_SCL : I2C_Bus_1_SCL;
     }
 
+    /**
+     * @brief Reports the configured ENVIV sensor buses to the log.
+     */
     void SerialReport()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -76,6 +89,11 @@ namespace ENVIV
             Log.println("ENVIV SHT40:  Auto-detect on bus " + String(sht_bus));
     }
 
+    /**
+     * @brief Sends Home Assistant MQTT discovery messages for initialized sensors.
+     *
+     * Only sends discovery for sensors that successfully initialized during Setup().
+     */
     bool SendDiscovery()
     {
         bool result = true;
@@ -90,6 +108,12 @@ namespace ENVIV
         return result;
     }
 
+    /**
+     * @brief Polls sensors at the configured interval and publishes readings to MQTT.
+     *
+     * Publishes bmp280_temperature and bmp280_pressure from the BMP280, and
+     * sht40_temperature and sht40_humidity from the SHT40.
+     */
     void Loop()
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
@@ -98,11 +122,12 @@ namespace ENVIV
         if (previousMillis == 0 || millis() - previousMillis >= sensorInterval) {
 
             if (bmpInitialized) {
-                bmp->takeForcedMeasurement();
-                float temperature = bmp->readTemperature();
-                float pressure = bmp->readPressure() / 100.0F;
-                pub((roomsTopic + "/bmp280_temperature").c_str(), 0, 1, String(temperature).c_str());
-                pub((roomsTopic + "/bmp280_pressure").c_str(), 0, 1, String(pressure).c_str());
+                if (bmp->takeForcedMeasurement()) {
+                    float temperature = bmp->readTemperature();
+                    float pressure = bmp->readPressure() / 100.0F;
+                    pub((roomsTopic + "/bmp280_temperature").c_str(), 0, 1, String(temperature).c_str());
+                    pub((roomsTopic + "/bmp280_pressure").c_str(), 0, 1, String(pressure).c_str());
+                }
             }
 
             if (shtInitialized) {
