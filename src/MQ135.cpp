@@ -7,7 +7,7 @@
 #include <HeadlessWiFiSettings.h>
 #include "string_utils.h"
 
-#include <Adafruit_ADS1X15.h>
+#include <Adafruit_ADS1015.h>
 #include <cmath>
 
 namespace MQ135
