@@ -417,7 +417,11 @@ void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperti
         }
         payload_buffer_.reserve(total);
     }
-    if (payload_buffer_.capacity() < total) return;  // was skipped above
+    if (payload_buffer_.capacity() < total || payload_buffer_.size() != index) {
+        // Fragment continuity check failed or insufficient capacity; discard buffer
+        payload_buffer_.clear();
+        return;
+    }
 
     // append new payload, may contain incomplete MQTT message
     payload_buffer_.append(payload, len);
@@ -505,7 +509,7 @@ void reportLoop() {
     if (!mqttClient.connected()) {
         return;
     }
-    if (ESP.getFreeHeap() < 30000) {
+    if (ESP.getFreeHeap() < 40000) {
         log_w("Skipping reportLoop, low heap: %u", ESP.getFreeHeap());
         return;
     }

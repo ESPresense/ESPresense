@@ -8,5 +8,5 @@ class Display {
     static void ConnectToWifi();
     static void Loop();
 
-    static void Status(const char *message, ...);
+    static void Status(const char *message);
 };

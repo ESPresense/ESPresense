@@ -216,13 +216,7 @@ void Display::Loop() {
 #endif
 }
 
-void Display::Status(const char *format, ...) {
-    char message[96];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(message, sizeof(message), format, args);
-    va_end(args);
-
+void Display::Status(const char *message) {
 #ifdef M5STICK
     parseStatusMessage(message);
 #endif
