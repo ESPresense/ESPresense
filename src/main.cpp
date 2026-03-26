@@ -3,7 +3,6 @@
 
 #include "esp_heap_caps.h"
 
-#include "TasmotaHandler.h"
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
@@ -226,7 +225,6 @@ void setupNetwork() {
     DS18B20::ConnectToWifi(updating);
 #endif
 
-    TasmotaHandler::ConnectToWifi();
 
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
@@ -289,7 +287,6 @@ void setupNetwork() {
     DS18B20::SerialReport();
 
 #endif
-    TasmotaHandler::SerialReport();
     Log.print("Query:        ");
     Log.println(BleFingerprintCollection::query);
     Log.print("Include:      ");
