@@ -43,19 +43,8 @@ namespace MQ135
             return;
         }
 
-        ads = new Adafruit_ADS1115();
-#if SOC_I2C_NUM > 1
-        if (MQ135_I2c_Bus == 1)
-        {
-            ads->begin(static_cast<uint8_t>(addr), &Wire);
-        }
-        else
-        {
-            ads->begin(static_cast<uint8_t>(addr), &Wire1);
-        }
-#else
-        ads->begin(static_cast<uint8_t>(addr), &Wire);
-#endif
+        ads = new Adafruit_ADS1115(static_cast<uint8_t>(addr));
+        ads->begin();
         // Set gain to ±6.144V range (covers 0-5V single-ended)
         ads->setGain(GAIN_TWOTHIRDS);
 
