@@ -2,12 +2,12 @@
  * Web UI Routes
  *
  * Compressed Size Summary:
- * ui_app_immutable_assets_css: 25,122 bytes
- * ui_html: 4,326 bytes
- * ui_app_immutable_entry_js: 64,132 bytes
+ * ui_app_immutable_assets_css: 25,246 bytes
+ * ui_html: 4,350 bytes
+ * ui_app_immutable_entry_js: 64,738 bytes
  * ui_app_immutable_nodes_js: 590 bytes
  * ui_svg: 456 bytes
- * Total: 94,626 bytes
+ * Total: 95,380 bytes
  */
 
 #pragma once
@@ -20,18 +20,18 @@
 #include "ui_svg.h"
 
 inline void setupRoutes(AsyncWebServer* server) {
-    server->on("/app/immutable/assets/internal.CKNao7CM.css", HTTP_GET, serveAppImmutableAssetsInternalCkNao7CmCss);
-    server->on("/app/immutable/assets/start.CKNao7CM.css", HTTP_GET, serveAppImmutableAssetsStartCkNao7CmCss);
-    server->on("/app/immutable/entry/app.h7BOaZqB.js", HTTP_GET, serveAppImmutableEntryAppH7BOaZqBJs);
-    server->on("/app/immutable/entry/start.CBvSAHqj.js", HTTP_GET, serveAppImmutableEntryStartCBvSaHqjJs);
-    server->on("/app/immutable/nodes/0.CpkDiUu1.js", HTTP_GET, serveAppImmutableNodes_0CpkDiUu1Js);
-    server->on("/app/immutable/nodes/1.5h0LHarv.js", HTTP_GET, serveAppImmutableNodes_1_5h0LHarvJs);
-    server->on("/app/immutable/nodes/2.aQ8iDOGd.js", HTTP_GET, serveAppImmutableNodes_2AQ8iDoGdJs);
-    server->on("/app/immutable/nodes/3.BEIiu3Lx.js", HTTP_GET, serveAppImmutableNodes_3BeIiu3LxJs);
-    server->on("/app/immutable/nodes/4.CFfLJXHe.js", HTTP_GET, serveAppImmutableNodes_4CFfLjxHeJs);
-    server->on("/app/immutable/nodes/5.D4zf2Vg5.js", HTTP_GET, serveAppImmutableNodes_5D4zf2Vg5Js);
-    server->on("/app/immutable/nodes/6.C_7B-t2R.js", HTTP_GET, serveAppImmutableNodes_6C_7BT2RJs);
-    server->on("/app/immutable/nodes/7.Col_Zr4a.js", HTTP_GET, serveAppImmutableNodes_7ColZr4aJs);
+    server->on("/app/immutable/assets/internal.DxBQeS86.css", HTTP_GET, serveAppImmutableAssetsInternalDxBQeS86Css);
+    server->on("/app/immutable/assets/start.DxBQeS86.css", HTTP_GET, serveAppImmutableAssetsStartDxBQeS86Css);
+    server->on("/app/immutable/entry/app.zJA62GDg.js", HTTP_GET, serveAppImmutableEntryAppZJa62GDgJs);
+    server->on("/app/immutable/entry/start.CWGAPbhA.js", HTTP_GET, serveAppImmutableEntryStartCwgaPbhAJs);
+    server->on("/app/immutable/nodes/0.DoBBqsBH.js", HTTP_GET, serveAppImmutableNodes_0DoBBqsBhJs);
+    server->on("/app/immutable/nodes/1.B60MFcZ3.js", HTTP_GET, serveAppImmutableNodes_1B60MFcZ3Js);
+    server->on("/app/immutable/nodes/2.Dt0XvGTR.js", HTTP_GET, serveAppImmutableNodes_2Dt0XvGtrJs);
+    server->on("/app/immutable/nodes/3.BoA4o-di.js", HTTP_GET, serveAppImmutableNodes_3BoA4oDiJs);
+    server->on("/app/immutable/nodes/4.BPETVldV.js", HTTP_GET, serveAppImmutableNodes_4BpetVldVJs);
+    server->on("/app/immutable/nodes/5.hMp2QCMZ.js", HTTP_GET, serveAppImmutableNodes_5HMp2QcmzJs);
+    server->on("/app/immutable/nodes/6.Cp_OSbod.js", HTTP_GET, serveAppImmutableNodes_6CpOSbodJs);
+    server->on("/app/immutable/nodes/7.DPjBlyJY.js", HTTP_GET, serveAppImmutableNodes_7DPjBlyJyJs);
     server->on("/favicon.svg", HTTP_GET, serveFaviconSvg);
     // HTML routes
     server->on("/devices", HTTP_GET, serveDevicesHtml);
