@@ -8,6 +8,12 @@
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
 #include <ETH.h>
 #endif
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
+#include <SPI.h>
+#ifndef ETH_PHY_W5500
+#define ETH_PHY_W5500 static_cast<eth_phy_type_t>(7)
+#endif
+#endif
 
 #include "../../include/Logger.h"
 
@@ -20,6 +26,10 @@ bool hasAddress(const IPAddress &ip) {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
 
 constexpr int kNoEthernet = 0;
+#if defined(ARDUINO_ARCH_ESP32S3)
+constexpr int kWaveshareEthernet = 1;
+constexpr int kLegacyWaveshareEthernet = 14;
+#endif
 
 struct EthernetSettings {
   uint8_t address;
@@ -58,6 +68,31 @@ bool MultiNetworkManager::supportsEthernet() const {
   return true;
 #else
   return false;
+#endif
+}
+
+std::vector<String> MultiNetworkManager::ethernetOptions() const {
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
+  return {"None", "Waveshare ESP32-S3-ETH"};
+#elif defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
+  return {
+      "None",
+      "WT32-ETH01",
+      "ESP32-POE",
+      "WESP32",
+      "QuinLED-ESP32",
+      "TwilightLord-ESP32",
+      "ESP32Deux",
+      "KIT-VE",
+      "LilyGO-T-ETH-POE",
+      "GL-inet GL-S10 v2.1 Ethernet",
+      "EST-PoE-32",
+      "LilyGO-T-ETH-Lite (RTL8201)",
+      "ESP32-POE_A1",
+      "WESP32 Rev7+ (RTL8201)",
+  };
+#else
+  return {"None"};
 #endif
 }
 
@@ -123,10 +158,21 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
     return false;
   }
 
+#if defined(ARDUINO_ARCH_ESP32S3) && defined(CONFIG_USE_ETHERNET)
+  if (ethernetType != kWaveshareEthernet && ethernetType != kLegacyWaveshareEthernet) {
+    return false;
+  }
+
+  SPI.begin(13, 12, 11, 14);
+  if (!ETH.begin(ETH_PHY_W5500, 0, 14, 10, 9, SPI, 20)) {
+    return false;
+  }
+#else
   const auto &settings = ethernetBoards[ethernetType];
   if (!ETH.begin(settings.address, settings.power, settings.mdc, settings.mdio, settings.type, settings.clockMode)) {
     return false;
   }
+#endif
 
   ethernetInitialized = true;
   return true;
