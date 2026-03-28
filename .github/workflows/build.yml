@@ -95,6 +95,17 @@ jobs:
           exit "$status"
         done
 
+    - name: Check firmware size fits in OTA partition
+      run: |
+        MAX_SIZE=1966080  # 0x1E0000 = 1920 KB, must match app0/app1 in partitions_singleapp.csv
+        FW=.pio/build/${{ matrix.env }}/firmware.bin
+        SIZE=$(stat -c%s "$FW")
+        echo "Firmware size: ${SIZE} bytes ($(( SIZE / 1024 )) KB / $(( MAX_SIZE / 1024 )) KB max)"
+        if [ "$SIZE" -gt "$MAX_SIZE" ]; then
+          echo "::error::Firmware ${{ matrix.env }} is ${SIZE} bytes, exceeding OTA partition limit of ${MAX_SIZE} bytes (1920 KB)"
+          exit 1
+        fi
+
     - name: Rename artifact
       run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
 
