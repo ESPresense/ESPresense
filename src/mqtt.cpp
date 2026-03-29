@@ -7,10 +7,8 @@
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
-    // AsyncMqttClient allocates a heap buffer per publish. With exceptions enabled,
-    // operator new throws std::bad_alloc on OOM, but __cxa_allocate_exception also
-    // needs heap to construct the exception object. If both fail, std::terminate()
-    // is called before any catch can handle it. Guard against this double-fault.
+    // AsyncMqttClient allocates a heap buffer per publish. Guard against OOM
+    // by checking free heap before attempting any allocation.
     if (ESP.getFreeHeap() < 40000) {
         log_w("Skipping MQTT publish, low heap: %u", ESP.getFreeHeap());
         return false;
