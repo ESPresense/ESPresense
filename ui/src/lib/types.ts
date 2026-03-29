@@ -64,6 +64,7 @@ export interface MainSettings {
     values: {
         room: string;
         wifi_timeout: number;
+        wifi_sleep: boolean;
         portal_timeout: number;
         "wifi-ssid": string;
         "wifi-password": string;
@@ -87,6 +88,7 @@ export interface MainSettings {
         "wifi-ssid": string;
         "wifi-password": string;
         wifi_timeout: number;
+        wifi_sleep: boolean;
         portal_timeout: number;
         eth: string;
         mqtt_host: string;
