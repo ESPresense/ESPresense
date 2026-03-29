@@ -12,4 +12,3 @@ An ESP32 based presence detection node for use with the [Home Assistant](https:/
 **Building:** [building](./BUILDING.md).
 
 **Release Notes:** [changelog](./CHANGELOG.md).
-# trigger CI

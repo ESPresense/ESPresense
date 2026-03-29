@@ -70,30 +70,7 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
 
     - name: Run PlatformIO
-      shell: bash
-      run: |
-        set -o pipefail
-
-        max_attempts=3
-        for attempt in $(seq 1 $max_attempts); do
-          echo "PlatformIO attempt ${attempt}/${max_attempts}"
-          pio run -e ${{ matrix.env }} 2>&1 | tee pio-run.log
-          status=${PIPESTATUS[0]}
-
-          if [ "$status" -eq 0 ]; then
-            exit 0
-          fi
-
-          if grep -Eq "PackageException: Got the unrecognized status code '5[0-9]{2}'|HTTPError|Connection reset by peer|Read timed out|Temporary failure in name resolution|fatal: unable to access|Connection timed out|RPC failed" pio-run.log \
-            && [ "$attempt" -lt "$max_attempts" ]; then
-            echo "Transient dependency download failure detected. Retrying..."
-            sleep $((attempt * 15))
-            continue
-          fi
-
-          echo "PlatformIO failed with a non-retryable error (or retries exhausted)."
-          exit "$status"
-        done
+      run: pio run -e ${{ matrix.env }}
 
     - name: Check firmware size fits in OTA partition
       run: |
