@@ -40,7 +40,7 @@ steps:
   - name: test-esp32c3-verbose
     image: ghcr.io/espresense/firmware-tester:1
     privileged: true
-    depends_on: [test-esp32-verbose]
+    depends_on: []
     volumes:
       - cache_volume:/cache
       - /dev/esp32c3:/dev/esp32c3
@@ -72,7 +72,7 @@ steps:
   - name: test-esp32c6-verbose
     image: ghcr.io/espresense/firmware-tester:1
     privileged: true
-    depends_on: [test-esp32c3-verbose]
+    depends_on: []
     failure: ignore
     volumes:
       - cache_volume:/cache
@@ -105,7 +105,7 @@ steps:
   - name: test-esp32s3-verbose
     image: ghcr.io/espresense/firmware-tester:1
     privileged: true
-    depends_on: [test-esp32c6-verbose]
+    depends_on: []
     volumes:
       - cache_volume:/cache
       - /dev/esp32s3:/dev/esp32s3
