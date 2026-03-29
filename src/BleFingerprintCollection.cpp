@@ -5,10 +5,122 @@
 #include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
-#include <sstream>
+#include <cctype>
 #include <HeadlessWiFiSettings.h>
+#include <new>
 
 namespace BleFingerprintCollection {
+namespace {
+
+struct FingerprintSlot {
+    BleFingerprint *fingerprint = nullptr;
+    uint16_t refs = 0;
+    bool pendingDelete = false;
+};
+
+std::vector<FingerprintSlot> fingerprints;
+size_t activeFingerprints = 0;
+
+void finalizeSlot(FingerprintSlot &slot) {
+    if (!slot.pendingDelete || slot.refs != 0 || slot.fingerprint == nullptr)
+        return;
+
+    delete slot.fingerprint;
+    slot.fingerprint = nullptr;
+    slot.pendingDelete = false;
+}
+
+void removeSlot(size_t index, bool notify = true) {
+    auto &slot = fingerprints[index];
+    if (slot.fingerprint == nullptr || slot.pendingDelete)
+        return;
+
+    if (notify && onDel)
+        onDel(slot.fingerprint);
+
+    slot.pendingDelete = true;
+    if (activeFingerprints > 0)
+        --activeFingerprints;
+    finalizeSlot(slot);
+}
+
+size_t findEmptySlot() {
+    for (size_t i = 0; i < fingerprints.size(); ++i)
+        if (fingerprints[i].fingerprint == nullptr)
+            return i;
+    return static_cast<size_t>(-1);
+}
+
+size_t findEvictionSlot() {
+    size_t candidate = static_cast<size_t>(-1);
+    unsigned long oldestAge = 0;
+
+    for (size_t i = 0; i < fingerprints.size(); ++i) {
+        auto &slot = fingerprints[i];
+        if (slot.fingerprint == nullptr || slot.pendingDelete || slot.refs != 0)
+            continue;
+
+        auto age = slot.fingerprint->getMsSinceLastSeen();
+        if (candidate == static_cast<size_t>(-1) || age > oldestAge) {
+            candidate = i;
+            oldestAge = age;
+        }
+    }
+
+    return candidate;
+}
+
+size_t findAvailableSlot() {
+    auto empty = findEmptySlot();
+    if (empty != static_cast<size_t>(-1))
+        return empty;
+
+    auto eviction = findEvictionSlot();
+    if (eviction == static_cast<size_t>(-1))
+        return eviction;
+
+    removeSlot(eviction);
+    return fingerprints[eviction].fingerprint == nullptr ? eviction : static_cast<size_t>(-1);
+}
+
+void configureSlots(size_t capacity) {
+    if (!fingerprints.empty() && fingerprints.size() != capacity) {
+        log_w("Ignoring runtime max_fingerprints change from %u to %u; restart required",
+              static_cast<unsigned>(fingerprints.size()), static_cast<unsigned>(capacity));
+        return;
+    }
+
+    if (fingerprints.empty())
+        fingerprints.resize(capacity);
+}
+
+FingerprintLease acquireSlot(size_t index) {
+    auto &slot = fingerprints[index];
+    if (slot.fingerprint == nullptr || slot.pendingDelete)
+        return {};
+
+    ++slot.refs;
+    return {slot.fingerprint, index};
+}
+
+FingerprintLease findByAddress(const NimBLEAddress &mac) {
+    for (size_t i = fingerprints.size(); i-- > 0;) {
+        auto &slot = fingerprints[i];
+        if (slot.fingerprint != nullptr && !slot.pendingDelete && slot.fingerprint->getAddress() == mac)
+            return acquireSlot(i);
+    }
+    return {};
+}
+
+BleFingerprint *findById(const String &id) {
+    for (auto &slot : fingerprints)
+        if (slot.fingerprint != nullptr && !slot.pendingDelete && slot.fingerprint->getId() == id)
+            return slot.fingerprint;
+    return nullptr;
+}
+
+}  // namespace
+
 // Public (externed)
 String include{DEFAULT_INCLUDE},
        exclude{DEFAULT_EXCLUDE},
@@ -28,10 +140,10 @@ int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
 int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
     countMs = DEFAULT_COUNT_MS,
-    requeryMs = DEFAULT_REQUERY_MS;
+    requeryMs = DEFAULT_REQUERY_MS,
+    maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
-std::vector<BleFingerprint *> fingerprints;
 TCallbackBool onSeen = nullptr;
 TCallbackFingerprint onAdd = nullptr;
 TCallbackFingerprint onDel = nullptr;
@@ -68,13 +180,17 @@ void Close(BleFingerprint *f, bool close) {
     }
 }
 
+#ifdef NIMBLE_V2
+void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
-    BLEAdvertisedDevice copy = *advertisedDevice;
+#endif
 
     if (onSeen) onSeen(true);
-    BleFingerprint *f = GetFingerprint(&copy);
-    if (f->seen(&copy) && onAdd)
-        onAdd(f);
+    auto lease = GetFingerprint(advertisedDevice);
+    if (lease && lease.fingerprint->seen(advertisedDevice) && onAdd)
+        onAdd(lease.fingerprint);
+    Release(lease);
     if (onSeen) onSeen(false);
 }
 
@@ -174,16 +290,23 @@ bool Config(String &id, String &json) {
         }
     }
 
-    for (auto &it : fingerprints) {
-        auto it_id = it->getId();
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take fingerprintMutex in Config!");
+    for (auto &slot : fingerprints) {
+        if (slot.fingerprint == nullptr || slot.pendingDelete)
+            continue;
+
+        auto *fingerprint = slot.fingerprint;
+        auto it_id = fingerprint->getId();
         if (it_id == id || it_id == config.alias) {
-            it->setName(config.name);
-            it->setId(config.alias.length() > 0 ? config.alias : config.id, ID_TYPE_ALIAS, config.name);
+            fingerprint->setName(config.name);
+            fingerprint->setId(config.alias.length() > 0 ? config.alias : config.id, ID_TYPE_ALIAS, config.name);
             if (config.calRssi != NO_RSSI)
-                it->set1mRssi(config.calRssi);
+                fingerprint->set1mRssi(config.calRssi);
         } else
-            it->fingerprintAddress();
+            fingerprint->fingerprintAddress();
     }
+    xSemaphoreGive(fingerprintMutex);
 
     return true;
 }
@@ -205,6 +328,7 @@ void ConnectToWifi() {
     maxDistance = HeadlessWiFiSettings.floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     skipDistance = HeadlessWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     skipMs = HeadlessWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
+    maxFingerprints = HeadlessWiFiSettings.integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
 
     rxRefRssi = HeadlessWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
     rxAdjRssi = HeadlessWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
@@ -212,13 +336,26 @@ void ConnectToWifi() {
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
+    configureSlots(maxFingerprints);
 
-    std::istringstream iss(knownIrks.c_str());
-    std::string irk_hex;
-    while (iss >> irk_hex) {
+    size_t start = 0;
+    while (start < static_cast<size_t>(knownIrks.length())) {
+        while (start < static_cast<size_t>(knownIrks.length()) && std::isspace(static_cast<unsigned char>(knownIrks[start])))
+            ++start;
+        if (start >= static_cast<size_t>(knownIrks.length()))
+            break;
+
+        size_t end = start;
+        while (end < static_cast<size_t>(knownIrks.length()) && !std::isspace(static_cast<unsigned char>(knownIrks[end])))
+            ++end;
+
+        auto irk_hex = knownIrks.substring(start, end);
+        start = end;
         auto *irk = new uint8_t[16];
-        if (!hextostr(irk_hex.c_str(), irk, 16))
+        if (!hextostr(irk_hex, irk, 16)) {
+            delete[] irk;
             continue;
+        }
         irks.push_back(irk);
     }
 }
@@ -284,17 +421,17 @@ void CleanupOldFingerprints() {
     auto now = millis();
     if (now - lastCleanup < 5000) return;
     lastCleanup = now;
-    auto it = fingerprints.begin();
     bool any = false;
-    while (it != fingerprints.end()) {
-        auto age = (*it)->getMsSinceLastSeen();
+    for (size_t i = 0; i < fingerprints.size(); ++i) {
+        auto &slot = fingerprints[i];
+        if (slot.fingerprint == nullptr || slot.pendingDelete)
+            continue;
+
+        auto age = slot.fingerprint->getMsSinceLastSeen();
         if (age > forgetMs) {
-            if (onDel) onDel((*it));
-            delete *it;
-            it = fingerprints.erase(it);
+            removeSlot(i);
         } else {
             any = true;
-            ++it;
         }
     }
     if (!any) {
@@ -316,30 +453,49 @@ void CleanupOldFingerprints() {
  * be expired depending on its ID type.
  *
  * @param advertisedDevice Advertised device used to identify or construct the fingerprint.
- * @return BleFingerprint* Pointer to the existing or newly created fingerprint stored in the collection.
+ * @return FingerprintLease Lease for the existing or newly created fingerprint stored in the collection.
  */
-BleFingerprint *getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
-    auto mac = advertisedDevice->getAddress();
+#ifdef NIMBLE_V2
+FingerprintLease getFingerprintInternal(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
+FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
+#endif
+    if (auto existing = findByAddress(advertisedDevice->getAddress()))
+        return existing;
 
-    auto it = std::find_if(fingerprints.rbegin(), fingerprints.rend(), [mac](BleFingerprint *f) { return f->getAddress() == mac; });
-    if (it != fingerprints.rend())
-        return *it;
+    CleanupOldFingerprints();
 
-    auto created = new BleFingerprint(advertisedDevice);
-    auto it2 = std::find_if(fingerprints.begin(), fingerprints.end(), [created](BleFingerprint *f) { return f->getId() == created->getId(); });
-    if (it2 != fingerprints.end()) {
-        auto found = *it2;
-        // Log.printf("Detected mac switch for fingerprint id %s\r\n", found->getId().c_str());
+    auto slotIndex = findAvailableSlot();
+    if (slotIndex == static_cast<size_t>(-1)) {
+        log_w("Dropping BLE fingerprint; max_fingerprints=%d is exhausted", maxFingerprints);
+        return {};
+    }
+
+    auto *created = new (std::nothrow) BleFingerprint(advertisedDevice);
+    if (created == nullptr) {
+        log_e("Failed to allocate fingerprint");
+        return {};
+    }
+
+    if (auto *found = findById(created->getId())) {
         created->setInitial(*found);
         if (found->getIdType() > ID_TYPE_UNIQUE)
             found->expire();
     }
 
-    fingerprints.push_back(created);
-    return created;
+    auto &slot = fingerprints[slotIndex];
+    slot.fingerprint = created;
+    slot.refs = 1;
+    slot.pendingDelete = false;
+    ++activeFingerprints;
+    return {created, slotIndex};
 }
 
-BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+#ifdef NIMBLE_V2
+FingerprintLease GetFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
+FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+#endif
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take semaphore!");
     auto f = getFingerprintInternal(advertisedDevice);
@@ -347,13 +503,49 @@ BleFingerprint *GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     return f;
 }
 
-const std::vector<BleFingerprint *> GetCopy() {
+FingerprintLease AcquireNext(size_t &cursor, bool cleanup) {
     if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
         log_e("Couldn't take fingerprintMutex!");
-    CleanupOldFingerprints();
-    std::vector<BleFingerprint *> copy(fingerprints);
+    if (cleanup) CleanupOldFingerprints();
+
+    while (cursor < fingerprints.size()) {
+        auto lease = acquireSlot(cursor++);
+        if (lease) {
+            xSemaphoreGive(fingerprintMutex);
+            return lease;
+        }
+    }
+
     xSemaphoreGive(fingerprintMutex);
-    return std::move(copy);
+    return {};
+}
+
+void Release(FingerprintLease &lease) {
+    if (!lease)
+        return;
+
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take fingerprintMutex!");
+
+    if (lease.slot < fingerprints.size()) {
+        auto &slot = fingerprints[lease.slot];
+        if (slot.fingerprint == lease.fingerprint && slot.refs > 0) {
+            --slot.refs;
+            finalizeSlot(slot);
+        }
+    }
+
+    xSemaphoreGive(fingerprintMutex);
+    lease = {};
+}
+
+size_t Size(bool cleanup) {
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+        log_e("Couldn't take fingerprintMutex!");
+    if (cleanup) CleanupOldFingerprints();
+    auto count = activeFingerprints;
+    xSemaphoreGive(fingerprintMutex);
+    return count;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {

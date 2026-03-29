@@ -35,6 +35,7 @@ const mockHardwareSettings = {
 		dht11_pin: '-1',
 		dht22_pin: '-1',
 		dhtTemp_offset: '0',
+		dhtHumidity_offset: '0',
 		I2C_Bus_1_SDA: '21',
 		I2C_Bus_1_SCL: '22',
 		I2C_Bus_2_SDA: '-1',

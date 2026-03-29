@@ -2,7 +2,6 @@
 #include <NimBLEClient.h>
 #include <NimBLEDevice.h>
 #include <ArduinoJson.h>
-#include <sstream>
 #include <AsyncMqttClient.h>
 #include "BleFingerprint.h"
 #include <HeadlessWiFiSettings.h>

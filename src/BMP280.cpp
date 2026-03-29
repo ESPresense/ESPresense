@@ -32,7 +32,11 @@ namespace BMP280
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
+#if SOC_I2C_NUM > 1
         bmp = new Adafruit_BMP280(BMP280_I2c_Bus == 1 ? &Wire : &Wire1);
+#else
+        bmp = new Adafruit_BMP280(&Wire);
+#endif
         if (BMP280_I2c == "0x76") {
             BMP280_status = bmp->begin(0x76);
         } else if (BMP280_I2c == "0x77") {

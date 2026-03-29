@@ -54,10 +54,12 @@ void SerialReport() {
 }
 
 void ConnectToWifi() {
+    Display::ConnectToWifi();
     LEDs::ConnectToWifi();
 }
 
 void Loop() {
+    Display::Loop();
     LEDs::Loop();
 }
 
@@ -99,7 +101,9 @@ void Removed(BleFingerprint *f) {
  */
 void Close(BleFingerprint *f) {
     Log.printf("\u001b[32m%u Close  | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
-    Display::Status("C:%s\r\n", f->getId().c_str());
+    char msg[64];
+    snprintf(msg, sizeof(msg), "C:%s\r\n", f->getId().c_str());
+    Display::Status(msg);
 }
 
 /**
@@ -111,7 +115,9 @@ void Close(BleFingerprint *f) {
  */
 void Left(BleFingerprint *f) {
     Log.printf("\u001b[33m%u Left   | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
-    Display::Status("L:%s\r\n", f->getId().c_str());
+    char msg[64];
+    snprintf(msg, sizeof(msg), "L:%s\r\n", f->getId().c_str());
+    Display::Status(msg);
 }
 /**
  * @brief Logs motion sensor states and forwards them to the LEDs subsystem.
@@ -168,17 +174,19 @@ void Update(unsigned int percent) {
     LEDs::Update(percent);
     if (percent == UPDATE_STARTED) {
         Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "started");
-        Display::Status("Update:%s\r\n", "started");
+        Display::Status("Update:started\r\n");
     } else if (percent == UPDATE_COMPLETE) {
         Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "finished");
-        Display::Status("Update:%s\r\n", "finished");
+        Display::Status("Update:finished\r\n");
     } else {
         Log.printf("%u Update | %d%%\r\n", xPortGetCoreID(), percent);
     }
 }
 
 void Connected(bool wifi, bool mqtt) {
-    Display::Status("Wifi:%s Mqtt:%s\r\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    char msg[64];
+    snprintf(msg, sizeof(msg), "Wifi:%s Mqtt:%s\r\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    Display::Status(msg);
 }
 
 /**

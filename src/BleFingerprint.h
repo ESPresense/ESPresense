@@ -5,8 +5,10 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
+#ifndef NIMBLE_V2
 #include <NimBLEEddystoneTLM.h>
 #include <NimBLEEddystoneURL.h>
+#endif
 
 #include <memory>
 
@@ -64,9 +66,13 @@
 
 class BleFingerprint {
    public:
-    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-
+#ifdef NIMBLE_V2
+    BleFingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
+    bool seen(const NimBLEAdvertisedDevice *advertisedDevice);
+#else
+    BleFingerprint(BLEAdvertisedDevice *advertisedDevice);
     bool seen(BLEAdvertisedDevice *advertisedDevice);
+#endif
 
     bool fill(JsonObject *doc);
 
@@ -146,10 +152,17 @@ class BleFingerprint {
 
     static bool shouldHide(const String &s);
     uint8_t calculateTimeSlot(); // Calculate time slot (0-3) based on device ID
-    void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
-    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
-    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#ifdef NIMBLE_V2
+    void fingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
+    void fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
+    void fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
+    void fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#else
+    void fingerprint(BLEAdvertisedDevice *advertisedDevice);
+    void fingerprintServiceAdvertisements(BLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
+    void fingerprintServiceData(BLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
+    void fingerprintManufactureData(BLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#endif
 };
 
 #endif

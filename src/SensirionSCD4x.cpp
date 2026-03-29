@@ -23,7 +23,7 @@ int SCD4x_I2c_Bus;
 unsigned long SCD4xPreviousSensorMillis = 0;
 unsigned long SCD4xPreviousReportMillis = 0;
 
-int sensorInterval = 5000;  // SCD40/41 are designed to operate at 0.2Hz: so pull every five seconds
+int sensorInterval = 5000;  // SCD40/SCD41 sensors are designed to operate at 0.2Hz: so pull every five seconds
 int reportInterval = 60000; // Report every minute to MQTT (to avoid flooding)
 bool initialized = false;
 
@@ -41,7 +41,11 @@ void Setup() {
 
     scd = new SensirionI2cScd4x();
     if (SCD4x_I2c == "0x62") {
+#if SOC_I2C_NUM > 1
         scd->begin(SCD4x_I2c_Bus == 1 ? Wire : Wire1, SCD41_I2C_ADDR_62);
+#else
+        scd->begin(Wire, SCD41_I2C_ADDR_62);
+#endif
     } else {
         return;
     }
@@ -95,7 +99,7 @@ void Setup() {
  */
 void ConnectToWifi() {
     SCD4x_I2c_Bus = HeadlessWiFiSettings.integer("SCD4x_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-    SCD4x_I2c = HeadlessWiFiSettings.string("SCD4x_I2c", "", "I2C address (0x62)");
+    SCD4x_I2c = HeadlessWiFiSettings.string("SCD4x_I2c", "", "I2C address (0x62 for SCD40/SCD41/SCD43)");
 }
 
 /**

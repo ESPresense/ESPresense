@@ -7,6 +7,7 @@
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
 #include "defaults.h"
+#include "globals.h"
 #include "Logger.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
@@ -21,7 +22,11 @@ class ClientCallbacks : public BLEClientCallbacks {
 
 static ClientCallbacks clientCB;
 
+#ifdef NIMBLE_V2
+BleFingerprint::BleFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
 BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
+#endif
     firstSeenMillis = millis();
     address = NimBLEAddress(advertisedDevice->getAddress());
     addressType = advertisedDevice->getAddressType();
@@ -117,7 +122,11 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 }
 
 const String BleFingerprint::getMac() const {
+#ifdef NIMBLE_V2
+    const auto nativeAddress = address.getVal();
+#else
     const auto nativeAddress = address.getNative();
+#endif
     return Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
 }
 
@@ -129,7 +138,11 @@ const int BleFingerprint::get1mRssi() const {
     return BleFingerprintCollection::rxRefRssi + DEFAULT_TX;
 }
 
-void BleFingerprint::fingerprint(NimBLEAdvertisedDevice *advertisedDevice) {
+#ifdef NIMBLE_V2
+void BleFingerprint::fingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
+void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice) {
+#endif
     if (advertisedDevice->haveName()) {
         const std::string name = advertisedDevice->getName();
         if (!name.empty()) setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
@@ -223,13 +236,17 @@ void BleFingerprint::fingerprintAddress() {
                 break;
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
+#ifdef NIMBLE_V2
+                const auto naddress = address.getVal();
+#else
                 const auto *naddress = address.getNative();
+#endif
                 if ((naddress[5] & 0xc0) == 0xc0)
                     setId(mac, ID_TYPE_RAND_STATIC_MAC);
                 else {
-                    auto irks = BleFingerprintCollection::irks;
-                    auto it = std::find_if(irks.begin(), irks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
-                    if (it != irks.end()) {
+                    const auto &knownIrks = BleFingerprintCollection::irks;
+                    auto it = std::find_if(knownIrks.begin(), knownIrks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
+                    if (it != knownIrks.end()) {
                         auto irk_hex = hexStr(*it, 16);
                         setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
                         break;
@@ -259,7 +276,11 @@ void BleFingerprint::fingerprintAddress() {
  * @param haveTxPower True if a TX power value is present in the advertisement; otherwise false.
  * @param txPower Advertised TX power in dBm (typically a negative value) when `haveTxPower` is true.
  */
-void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
+#ifdef NIMBLE_V2
+void BleFingerprint::fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
+#else
+void BleFingerprint::fingerprintServiceAdvertisements(BLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower) {
+#endif
     for (auto i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
@@ -330,7 +351,11 @@ void BleFingerprint::fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *ad
  * @param haveTxPower True if the advertisement included TX power; used to adjust RSSI reference candidates.
  * @param txPower The advertised TX power value (in dBm) when haveTxPower is true.
  */
-void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
+#ifdef NIMBLE_V2
+void BleFingerprint::fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
+#else
+void BleFingerprint::fingerprintServiceData(BLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower) {
+#endif
     asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
     String fingerprint = "";
     for (int i = 0; i < serviceDataCount; i++) {
@@ -372,6 +397,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
 #endif
                 setId("miTherm:" + getMac(), ID_TYPE_MITHERM);
             }
+#ifndef NIMBLE_V2
         } else if (uuid == eddystoneUUID && strServiceData.length() > 0) {
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
@@ -396,6 +422,7 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
                               strServiceData[16], strServiceData[17]),
                       ID_TYPE_EBEACON);
             }
+#endif
         } else {
             std::string uuidStr = uuid.toString();
             fingerprint = fingerprint + uuidStr.c_str();
@@ -423,7 +450,11 @@ void BleFingerprint::fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDe
  * @param haveTxPower True if the advertisement included a TX power field; used to adjust RSSI candidates.
  * @param txPower The TX power value from the advertisement (meaningful only when haveTxPower is true).
  */
-void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
+#ifdef NIMBLE_V2
+void BleFingerprint::fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
+#else
+void BleFingerprint::fingerprintManufactureData(BLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
+#endif
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
     Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
@@ -435,7 +466,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
         {
             if (strManufacturerData.length() == 25 && strManufacturerData[2] == 0x02 && strManufacturerData[3] == 0x15) {
                 BLEBeacon oBeacon = BLEBeacon();
+#ifdef NIMBLE_V2
+                oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
+#else
                 oBeacon.setData(strManufacturerData);
+#endif
                 bcnRssi = oBeacon.getSignalPower();
                 setId(Sprintf("iBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
             } else if (strManufacturerData.length() >= 4 && strManufacturerData[2] == 0x10) {
@@ -485,7 +520,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
             setId("samsung:" + getMac(), ID_TYPE_MISC);
         } else if (manuf == "beac" && strManufacturerData.length() == 26) {
             BLEBeacon oBeacon = BLEBeacon();
+#ifdef NIMBLE_V2
+            oBeacon.setData(reinterpret_cast<const uint8_t *>(strManufacturerData.data()), static_cast<uint8_t>(strManufacturerData.size()));
+#else
             oBeacon.setData(strManufacturerData.substr(0, 25));
+#endif
             setId(Sprintf("altBeacon:%s-%u-%u", std::string(oBeacon.getProximityUUID()).c_str(), ENDIAN_CHANGE_U16(oBeacon.getMajor()), ENDIAN_CHANGE_U16(oBeacon.getMinor())), ID_TYPE_ABEACON);
             bcnRssi = oBeacon.getSignalPower();
         } else if (manuf != "0000") {
@@ -497,7 +536,11 @@ void BleFingerprint::fingerprintManufactureData(NimBLEAdvertisedDevice *advertis
     }
 }
 
+#ifdef NIMBLE_V2
+bool BleFingerprint::seen(const NimBLEAdvertisedDevice *advertisedDevice) {
+#else
 bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
+#endif
     lastSeenMillis = millis();
     reported = false;
 
@@ -602,7 +645,7 @@ bool BleFingerprint::report(JsonObject *doc) {
  * @returns `true` if a query attempt was initiated, `false` otherwise.
  */
 bool BleFingerprint::query() {
-    if (!allowQuery || isQuerying) return false;
+    if (!allowQuery || isQuerying || enrolling) return false;
     if (rssi < -90) return false; // Too far away
 
     auto now = millis();
@@ -616,7 +659,11 @@ bool BleFingerprint::query() {
 
     Log.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
+#ifdef NIMBLE_V2
+    NimBLEClient *pClient = NimBLEDevice::getCreatedClientCount() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#else
     NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#endif
     if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
     if (!pClient) pClient = NimBLEDevice::createClient();
     pClient->setClientCallbacks(&clientCB, false);

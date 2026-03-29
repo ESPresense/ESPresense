@@ -69,6 +69,7 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
+#define DEFAULT_MAX_FINGERPRINTS 256
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
@@ -80,7 +81,11 @@
 #ifdef ESP32S3
 #define DEFAULT_RX_ADJ_RSSI 20
 #else
+#ifdef ESP32C6
 #define DEFAULT_RX_ADJ_RSSI 0
+#else
+#define DEFAULT_RX_ADJ_RSSI 0
+#endif
 #endif
 #endif
 #endif
@@ -107,11 +112,19 @@
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
 #else
+#ifdef ESP32C6
+#define DEFAULT_I2C_BUS_1_SDA 6
+#define DEFAULT_I2C_BUS_1_SCL 7
+#define DEFAULT_I2C_BUS_2_SDA -1
+#define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
 #endif
 #endif
 #endif
@@ -165,4 +178,3 @@
 #define MAX_BRIGHTNESS 100
 
 #endif
-

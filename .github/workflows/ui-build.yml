@@ -44,6 +44,59 @@ jobs:
         git add src/ui_*.h
         echo "changes=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
 
+    - name: Close stale UI build PRs
+      if: |
+        steps.check_changes.outputs.changes > '0' &&
+        (github.event_name == 'push' ||
+         github.event.pull_request.head.repo.full_name == github.repository)
+      uses: actions/github-script@v8
+      env:
+        CURRENT_UI_PR_BRANCH: update-ui-build/${{ github.event.pull_request.head.ref || github.ref_name }}
+      with:
+        script: |
+          const currentBranch = process.env.CURRENT_UI_PR_BRANCH;
+          const { owner, repo } = context.repo;
+          const title = 'Update UI build outputs';
+
+          const prs = await github.paginate(github.rest.pulls.list, {
+            owner,
+            repo,
+            state: 'open',
+            per_page: 100
+          });
+
+          const stalePrs = prs.filter(pr =>
+            pr.title === title &&
+            pr.user?.login === 'github-actions[bot]' &&
+            pr.head?.repo?.full_name === `${owner}/${repo}` &&
+            pr.head?.ref?.startsWith('update-ui-build/') &&
+            pr.head.ref !== currentBranch
+          );
+
+          core.info(`Found ${stalePrs.length} stale UI build PR(s) to close`);
+
+          for (const pr of stalePrs) {
+            core.info(`Closing PR #${pr.number} (${pr.head.ref} -> ${pr.base.ref})`);
+            await github.rest.pulls.update({
+              owner,
+              repo,
+              pull_number: pr.number,
+              state: 'closed'
+            });
+
+            try {
+              await github.rest.git.deleteRef({
+                owner,
+                repo,
+                ref: `heads/${pr.head.ref}`
+              });
+            } catch (error) {
+              if (error.status !== 404 && error.status !== 422) {
+                throw error;
+              }
+            }
+          }
+
     - name: Create Pull Request
       if: |
         steps.check_changes.outputs.changes > '0' &&
