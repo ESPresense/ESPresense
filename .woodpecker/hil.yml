@@ -126,7 +126,6 @@ steps:
     image: ghcr.io/espresense/firmware-tester:1
     privileged: true
     depends_on: []
-    failure: ignore
     volumes:
       - cache_volume:/cache
       - /dev/esp32s3:/dev/esp32s3
