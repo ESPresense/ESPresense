@@ -35,7 +35,7 @@
     "postcss": "^8.5.8",
     "svelte": "^5.53.8",
     "svelte-check": "^4.4.5",
-    "tailwindcss": "^4.1.18",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vitest": "^4.1.0"
