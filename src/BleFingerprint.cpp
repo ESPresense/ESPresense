@@ -32,6 +32,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     addressType = advertisedDevice->getAddressType();
     raw = advertisedDevice->getRSSI();
     rssi = raw - BleFingerprintCollection::rxAdjRssi;
+    adaptivePercentileRSSI.addMeasurement(rssi);
     dist = pow(10, ((float)get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
     seenCount = 1;
     queryReport = nullptr;
@@ -44,10 +45,7 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     dist = other.dist;
     distVar = other.distVar;
     raw = other.raw;
-    if (other.adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
-    else
-        adaptivePercentileRSSI.reset();
+    adaptivePercentileRSSI = other.adaptivePercentileRSSI;
 }
 
 bool BleFingerprint::shouldHide(const String &s) {
@@ -553,13 +551,11 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    if (!adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
-    adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
-    rssi = adaptivePercentileRSSI->getMedianIQR();
-    rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+    adaptivePercentileRSSI.addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
+    rssi = adaptivePercentileRSSI.getMedianIQR();
+    rssiVar = adaptivePercentileRSSI.getRSSIVariance();
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    distVar = adaptivePercentileRSSI.getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
