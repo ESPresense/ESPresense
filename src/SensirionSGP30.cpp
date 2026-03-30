@@ -58,7 +58,7 @@ void Setup() {
     }
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     SGP30_I2c_Bus = HeadlessWiFiSettings.integer("SGP30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     SGP30_I2c = HeadlessWiFiSettings.string("SGP30_I2c", "", "I2C address (0x58)");
 }

@@ -185,13 +185,15 @@ void setupNetwork() {
     publishTele = HeadlessWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishDevices = HeadlessWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    Updater::ConnectToWifi();
+    bool updating = SPIFFS.exists("/update");
+
+    Updater::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/extras endpoint
     HeadlessWiFiSettings.markExtra();
 
     // Register BLE scanning and fingerprinting settings (part of extras endpoint)
-    BleFingerprintCollection::ConnectToWifi();
+    BleFingerprintCollection::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/hardware endpoint
     // IMPORTANT: This order matters! BleFingerprintCollection must be registered before
@@ -199,27 +201,27 @@ void setupNetwork() {
     HeadlessWiFiSettings.markEndpoint("hardware");
 
     // Register hardware settings (LEDs, PIR, I2C, etc.) - part of hardware endpoint
-    GUI::ConnectToWifi();
+    GUI::ConnectToWifi(updating);
 
-    Motion::ConnectToWifi();
-    Switch::ConnectToWifi();
-    Button::ConnectToWifi();
+    Motion::ConnectToWifi(updating);
+    Switch::ConnectToWifi(updating);
+    Button::ConnectToWifi(updating);
 
 #ifdef SENSORS
-    DHT::ConnectToWifi();
-    I2C::ConnectToWifi();
+    DHT::ConnectToWifi(updating);
+    I2C::ConnectToWifi(updating);
 
-    AHTX0::ConnectToWifi();
-    BH1750::ConnectToWifi();
-    BME280::ConnectToWifi();
-    BMP180::ConnectToWifi();
-    BMP280::ConnectToWifi();
-    SHT::ConnectToWifi();
-    TSL2561::ConnectToWifi();
-    SensirionSGP30::ConnectToWifi();
-    SensirionSCD4x::ConnectToWifi();
-    HX711::ConnectToWifi();
-    DS18B20::ConnectToWifi();
+    AHTX0::ConnectToWifi(updating);
+    BH1750::ConnectToWifi(updating);
+    BME280::ConnectToWifi(updating);
+    BMP180::ConnectToWifi(updating);
+    BMP280::ConnectToWifi(updating);
+    SHT::ConnectToWifi(updating);
+    TSL2561::ConnectToWifi(updating);
+    SensirionSGP30::ConnectToWifi(updating);
+    SensirionSCD4x::ConnectToWifi(updating);
+    HX711::ConnectToWifi(updating);
+    DS18B20::ConnectToWifi(updating);
 #endif
 
     unsigned int connectProgress = 0;
@@ -674,7 +676,7 @@ void loop() {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
         if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
-        if (freeHeap > 70000) Updater::Loop();
+        if (freeHeap > 40000) Updater::Loop();
     }
     GUI::Loop();
     Motion::Loop();

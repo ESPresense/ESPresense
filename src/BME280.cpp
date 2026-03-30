@@ -61,7 +61,7 @@ namespace BME280
         initialized = true;
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         BME280_I2c_Bus = HeadlessWiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BME280_I2c = HeadlessWiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");

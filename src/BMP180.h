@@ -4,7 +4,7 @@
 
 namespace BMP180
 {
-    void ConnectToWifi();
+    void ConnectToWifi(bool updating = false);
     void SerialReport();
     bool SendDiscovery();
     void Setup();

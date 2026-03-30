@@ -114,7 +114,7 @@ namespace DHT
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         dht11Pin = HeadlessWiFiSettings.integer("dht11_pin", -1, "DHT11 sensor pin (-1 for disable)");
         dht22Pin = HeadlessWiFiSettings.integer("dht22_pin", -1, "DHT22 sensor pin (-1 for disable)");

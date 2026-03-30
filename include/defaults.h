@@ -69,7 +69,11 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#define DEFAULT_MAX_FINGERPRINTS 256
+#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
+#define DEFAULT_MAX_FINGERPRINTS 200
+#else
+#define DEFAULT_MAX_FINGERPRINTS 100
+#endif
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK

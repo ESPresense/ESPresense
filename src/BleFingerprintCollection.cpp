@@ -311,7 +311,7 @@ bool Config(String &id, String &json) {
     return true;
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     knownMacs = HeadlessWiFiSettings.string("known_macs", DEFAULT_KNOWN_MACS, "Known BLE mac addresses (no colons, space seperated)");
     knownIrks = HeadlessWiFiSettings.string("known_irks", DEFAULT_KNOWN_IRKS, "Known BLE identity resolving keys, should be 32 hex chars space seperated");
 
@@ -336,7 +336,8 @@ void ConnectToWifi() {
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
-    configureSlots(maxFingerprints);
+    if (!updating)
+        configureSlots(maxFingerprints);
 
     size_t start = 0;
     while (start < static_cast<size_t>(knownIrks.length())) {

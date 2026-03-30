@@ -44,7 +44,7 @@ void Setup() {
  * The detection level for each button is set based on the selected pin type's least-significant bit:
  * if that bit is 1, the button is considered detected on `LOW`; otherwise it is detected on `HIGH`.
  */
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     button_1Type = HeadlessWiFiSettings.dropdown("button_1_type", pinTypes, 0, "Button One pin type");
     button_1Pin = HeadlessWiFiSettings.integer("button_1_pin", -1, "Button One pin (-1 for disable)");

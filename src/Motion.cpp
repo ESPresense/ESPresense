@@ -43,7 +43,7 @@ void Setup() {
  * The pin type control offers the available pull/floating options and the timeout control
  * defaults to the module's default debounce timeout.
  */
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     pirType = HeadlessWiFiSettings.dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
     pirPin = HeadlessWiFiSettings.integer("pir_pin", -1, "PIR motion pin (-1 for disable)");
