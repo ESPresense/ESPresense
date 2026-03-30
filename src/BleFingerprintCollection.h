@@ -34,7 +34,7 @@ struct FingerprintLease {
 };
 
 void Setup();
-void ConnectToWifi(bool updating = false);
+void ConnectToWifi(bool updating);
 bool Command(String &command, String &pay);
 bool Config(String &id, String &json);
 

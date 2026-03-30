@@ -3,7 +3,7 @@
 
 namespace Motion {
 void Setup();
-void ConnectToWifi(bool updating = false);
+void ConnectToWifi(bool updating);
 void SerialReport();
 void Loop();
 bool SendDiscovery();

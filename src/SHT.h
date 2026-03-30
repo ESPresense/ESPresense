@@ -4,7 +4,7 @@
 
 namespace SHT
 {
-    void ConnectToWifi(bool updating = false);
+    void ConnectToWifi(bool updating);
     void SerialReport();
     bool SendDiscovery();
     void Setup();
