@@ -23,9 +23,9 @@ steps:
       WIFI_PASSWORD:
         from_secret: wifi_password
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
     commands:
       - |
         flock -w 3600 /lock/esp32-verbose.lock bash -c '
@@ -55,9 +55,9 @@ steps:
       WIFI_PASSWORD:
         from_secret: wifi_password
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32c3
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c3/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c3/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
     commands:
       - |
         flock -w 3600 /lock/esp32c3-verbose.lock bash -c '
@@ -88,9 +88,9 @@ steps:
       WIFI_PASSWORD:
         from_secret: wifi_password
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c6/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c6/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
     commands:
       - |
         flock -w 3600 /lock/esp32c6-verbose.lock bash -c '
@@ -120,9 +120,9 @@ steps:
       WIFI_PASSWORD:
         from_secret: wifi_password
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32s3
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32s3/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32s3/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
     commands:
       - |
         flock -w 3600 /lock/esp32s3-verbose.lock bash -c '
