@@ -33,7 +33,7 @@
     "mime": "^4.1.0",
     "nodemon": "^3.1.14",
     "postcss": "^8.5.8",
-    "svelte": "^5.53.8",
+    "svelte": "^5.55.1",
     "svelte-check": "^4.4.5",
     "tailwindcss": "^4.2.2",
     "typescript": "^5.9.3",
