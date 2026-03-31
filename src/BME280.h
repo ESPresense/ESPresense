@@ -9,6 +9,7 @@ namespace BME280
     void SerialReport();
     void Loop();
     bool SendDiscovery();
+    bool GetTemperatureHumidity(float &temperature, float &humidity);
 }
 
 #endif
