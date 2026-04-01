@@ -214,6 +214,16 @@ test.describe('Hardware Settings Page', () => {
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
+		// Delay POST response so the "Saving..." state is observable
+		await page.route('**/wifi/hardware', async (route) => {
+			if (route.request().method() === 'POST') {
+				await new Promise((r) => setTimeout(r, 500));
+				await route.fulfill({ status: 200 });
+			} else {
+				await route.fallback();
+			}
+		});
+
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
@@ -222,10 +232,9 @@ test.describe('Hardware Settings Page', () => {
 		// Initial state
 		await expect(submitButton).toHaveText('Save');
 
-		// Click and quickly check for "Saving..." text
-		// Use Promise.all to catch the state change immediately
+		// Click and check for "Saving..." text
 		await Promise.all([
-			page.waitForSelector('button[type="submit"]:has-text("Saving...")'),
+			expect(submitButton).toHaveText('Saving...', { timeout: 5000 }),
 			submitButton.click()
 		]);
 
