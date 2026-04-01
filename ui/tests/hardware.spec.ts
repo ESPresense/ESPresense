@@ -214,10 +214,15 @@ test.describe('Hardware Settings Page', () => {
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
-		// Delay POST response so the "Saving..." state is observable
+		// Gate that holds the POST response until we release it
+		let releasePost!: () => void;
+		const postGate = new Promise<void>((resolve) => {
+			releasePost = resolve;
+		});
+
 		await page.route('**/wifi/hardware', async (route) => {
 			if (route.request().method() === 'POST') {
-				await new Promise((r) => setTimeout(r, 500));
+				await postGate;
 				await route.fulfill({ status: 200 });
 			} else {
 				await route.fallback();
@@ -232,11 +237,13 @@ test.describe('Hardware Settings Page', () => {
 		// Initial state
 		await expect(submitButton).toHaveText('Save');
 
-		// Click and check for "Saving..." text
-		await Promise.all([
-			expect(submitButton).toHaveText('Saving...', { timeout: 5000 }),
-			submitButton.click()
-		]);
+		// Click, then assert "Saving..." while POST is held open
+		const clickPromise = submitButton.click();
+		await expect(submitButton).toHaveText('Saving...', { timeout: 5000 });
+
+		// Release the POST response
+		releasePost();
+		await clickPromise;
 
 		// Eventually returns to normal state
 		await expect(submitButton).toHaveText('Save', { timeout: 10000 });
