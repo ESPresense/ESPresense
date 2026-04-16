@@ -16,6 +16,7 @@ struct DeviceConfig {
     String alias;
     String name;
     int8_t calRssi = NO_RSSI;
+    bool allowConnect = false;
 };
 
 namespace BleFingerprintCollection {
@@ -66,6 +67,7 @@ extern String include, exclude, query, knownMacs, knownIrks, countIds;
 extern float skipDistance, maxDistance, absorption, countEnter, countExit;
 extern int8_t rxRefRssi, rxAdjRssi, txRefRssi, maxDivisor;
 extern int forgetMs, skipMs, countMs, requeryMs, maxFingerprints;
+extern bool allowConnectAll;
 extern std::vector<DeviceConfig> deviceConfigs;
 extern std::vector<uint8_t *> irks;
 }  // namespace BleFingerprintCollection

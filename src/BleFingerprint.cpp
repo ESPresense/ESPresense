@@ -86,10 +86,26 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
     } else if (!newName.isEmpty() && name != newName)
         name = newName;
 
-    if (id != newId) {
-        bool newHidden = shouldHide(newId);
-        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
-        bool newQuery = !ignore && !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
+    // Compute new allowQuery based on final newId (after alias recursion)
+    {
+        bool baseAllow = !ignore;
+        bool newQuery = false;
+        if (baseAllow) {
+            if (BleFingerprintCollection::allowConnectAll) {
+                newQuery = true;
+            } else {
+                DeviceConfig dcCheck;
+                bool found = BleFingerprintCollection::FindDeviceConfig(newId, dcCheck);
+                if (!found) {
+                    found = BleFingerprintCollection::FindDeviceConfigByAlias(newId, dcCheck);
+                }
+                if (found && dcCheck.allowConnect) {
+                    newQuery = true;
+                } else {
+                    newQuery = !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
+                }
+            }
+        }
         if (newQuery != allowQuery) {
             allowQuery = newQuery;
             if (allowQuery) {
@@ -103,8 +119,11 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
                 }
             }
         }
-        id = newId;
-        isNode = newId.startsWith("node:");
+    }
+
+    if (id != newId) {
+        bool newHidden = shouldHide(newId);
+        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
         hidden = newHidden;
         added = false;
         auto timeSlot = calculateTimeSlot();
@@ -118,6 +137,8 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 
         // Calculate the target time within the current or next interval
         nextReportMs = current_interval_start + offset_ms;
+        id = newId;
+        isNode = newId.startsWith("node:");
     }
 
     return true;
@@ -590,6 +611,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 2));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 2));
+    if (!discoveredIrk.isEmpty()) (*doc)[F("irk")] = discoveredIrk;
     return true;
 }
 
@@ -683,6 +705,27 @@ bool BleFingerprint::query() {
         }
     }
 
+    // If still connected and haven't discovered IRK yet, try to read Resolving Key characteristic
+    if (pClient->isConnected() && discoveredIrk.isEmpty()) {
+        static const NimBLEUUID serviceGenericAccess = NimBLEUUID(static_cast<uint16_t>(0x1800));
+        static const NimBLEUUID charResolvingKey = NimBLEUUID(static_cast<uint16_t>(0x2B2E));
+        auto pService = pClient->getService(serviceGenericAccess);
+        if (pService) {
+            auto pChar = pService->getCharacteristic(charResolvingKey);
+            if (pChar && pChar->canRead()) {
+                std::string irkBytes = pChar->readValue();
+                if (irkBytes.length() == 16) {
+                    char buf[33];
+                    for (int i = 0; i < 16; i++) {
+                        sprintf(buf + i*2, "%02x", (uint8_t)irkBytes[i]);
+                    }
+                    discoveredIrk = String(buf);
+                    Log.printf("%u IRK    | %s | discovered IRK: %s\r\n", xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
+                }
+            }
+        }
+    }
+
     NimBLEDevice::deleteClient(pClient);
 
     if (success) {
@@ -695,6 +738,62 @@ bool BleFingerprint::query() {
     }
     isQuerying = false;
     return true;
+}
+
+bool BleFingerprint::queryBatteryIfDue() {
+    if (batteryQueryInterval == 0 || isBatteryQuerying) return false;
+    auto now = millis();
+    if (now - lastBatteryQueryMillis < batteryQueryInterval) return false;
+    // Only query if recently seen and signal is decent
+    if (now - lastSeenMillis > 10000) return false; // not seen in last 10s
+    if (rssi < -90) return false; // too weak
+
+    queryBattery(); // attempt regardless of outcome
+    return true;
+}
+
+bool BleFingerprint::queryBattery() {
+    isBatteryQuerying = true;
+    bool success = false;
+    Log.printf("%u Battery| %s | %-58s%.1fdBm\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
+
+#ifdef NIMBLE_V2
+    NimBLEClient *pClient = NimBLEDevice::getCreatedClientCount() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#else
+    NimBLEClient *pClient = NimBLEDevice::getClientListSize() ? NimBLEDevice::getClientByPeerAddress(address) : nullptr;
+#endif
+    if (!pClient) pClient = NimBLEDevice::getDisconnectedClient();
+    if (!pClient) pClient = NimBLEDevice::createClient();
+    pClient->setClientCallbacks(&clientCB, false);
+    pClient->setConnectionParams(12, 12, 0, 48);
+    pClient->setConnectTimeout(5);
+    NimBLEDevice::getScan()->stop();
+    if (pClient->connect(address)) {
+        NimBLERemoteService *pService = pClient->getService(NimBLEUUID((uint16_t)0x180F));
+        if (pService) {
+            NimBLERemoteCharacteristic *pChar = pService->getCharacteristic(NimBLEUUID((uint16_t)0x2A19));
+            if (pChar) {
+                auto value = pChar->readValue();
+                if (value.size() > 0) {
+                    uint8_t battery = value.c_str()[0];
+                    if (battery > 100) battery = 100;
+                    String payload = "{\"battery\":" + String(battery) + "}";
+                    setReport(QueryReport{"battery", payload});
+                    success = true;
+                }
+            }
+        }
+    }
+
+    NimBLEDevice::deleteClient(pClient);
+
+    if (success) {
+        lastBatteryQueryMillis = millis();
+    } else {
+        Log.printf("%u BatteryErr | %s | %-58s%.1fdBm\r\n", xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
+    }
+    isBatteryQuerying = false;
+    return success;
 }
 
 bool BleFingerprint::shouldCount() {

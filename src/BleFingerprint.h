@@ -79,6 +79,7 @@ class BleFingerprint {
     bool report(JsonObject *doc);
 
     bool query();
+    bool queryBatteryIfDue();
 
     const String getId() const { return id; }
 
@@ -132,18 +133,22 @@ class BleFingerprint {
     void expire();
 
    private:
+    bool queryBattery();
 
     bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
     uint64_t nextReportMs = 0;
     uint64_t lastReportedMs = 0;
     NimBLEAddress address;
-    String id, name;
+    String id, name, discoveredIrk;
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
+    uint32_t lastBatteryQueryMillis = 0;
+    uint32_t batteryQueryInterval = 0;
+    bool isBatteryQuerying = false;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;

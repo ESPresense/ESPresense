@@ -3,6 +3,8 @@
 
 #include "esp_heap_caps.h"
 
+#include "TasmotaHandler.h"
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
@@ -224,6 +226,8 @@ void setupNetwork() {
     DS18B20::ConnectToWifi(updating);
 #endif
 
+    TasmotaHandler::ConnectToWifi();
+
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
@@ -285,6 +289,7 @@ void setupNetwork() {
     DS18B20::SerialReport();
 
 #endif
+    TasmotaHandler::SerialReport();
     Log.print("Query:        ");
     Log.println(BleFingerprintCollection::query);
     Log.print("Include:      ");
