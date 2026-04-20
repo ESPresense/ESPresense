@@ -75,6 +75,33 @@
 #define DEFAULT_MAX_FINGERPRINTS 100
 #endif
 
+// Tiered memory (ColdTier pre-filter) — sized per-chip based on available
+// memory. PSRAM-equipped boards (WROVER, S3-N8R8) can hold a much larger
+// ColdTier cheaply; internal-SRAM-only boards stay conservative.
+#ifndef DEFAULT_TIERED_MEMORY_ENABLED
+#define DEFAULT_TIERED_MEMORY_ENABLED 1
+#endif
+#ifndef DEFAULT_MAX_COLD
+#if defined(BOARD_HAS_PSRAM)
+#define DEFAULT_MAX_COLD 256
+#elif defined(ESP32S3)
+#define DEFAULT_MAX_COLD 128
+#elif defined(ESP32C3) || defined(ESP32C6)
+#define DEFAULT_MAX_COLD 64
+#else
+#define DEFAULT_MAX_COLD 128
+#endif
+#endif
+#ifndef DEFAULT_COLD_MIN_RSSI
+#define DEFAULT_COLD_MIN_RSSI -90
+#endif
+#ifndef DEFAULT_COLD_PROMOTION_COUNT
+#define DEFAULT_COLD_PROMOTION_COUNT 5
+#endif
+#ifndef DEFAULT_COLD_PROMOTION_RSSI
+#define DEFAULT_COLD_PROMOTION_RSSI -75
+#endif
+
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
 #define DEFAULT_RX_ADJ_RSSI 0
