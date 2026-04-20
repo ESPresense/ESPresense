@@ -234,13 +234,21 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
     // for devices that actually matter. When the tier is disabled (alloc
     // failure or explicitly off) classify() returns HOT for everything and we
     // fall through to the original behaviour.
-    if (tieredMemoryReady()) {
+    if (tieredMemoryReady() && coldMutex != nullptr) {
         const int8_t rssi = static_cast<int8_t>(advertisedDevice->getRSSI());
+        // NimBLEAdvertisedDevice::getAddress() returns NimBLEAddress by VALUE;
+        // taking a pointer into the temporary via getVal()/getNative() in a
+        // single expression is UB — the temporary dies at the `;`. Copy the
+        // six bytes into a stack buffer that outlives every downstream call.
+        uint8_t mac[6];
+        {
+            const auto addr = advertisedDevice->getAddress();
 #ifdef NIMBLE_V2
-        const uint8_t *mac = advertisedDevice->getAddress().getVal();
+            memcpy(mac, addr.getVal(), 6);
 #else
-        const uint8_t *mac = advertisedDevice->getAddress().getNative();
+            memcpy(mac, addr.getNative(), 6);
 #endif
+        }
         // advData is only read by classify() for iBeacon detection; skipping it
         // means iBeacons take the cold-then-promote path instead of jumping
         // straight to HOT — a minor optimisation we can add later if it matters.
