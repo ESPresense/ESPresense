@@ -19,3 +19,4 @@ src/build_timestamp_value.h
 playwright-report
 test-results
 .omc/
+compile_commands.json
