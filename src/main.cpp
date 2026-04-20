@@ -158,10 +158,29 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
+#ifdef ESP32
+    auto psramSize = ESP.getPsramSize();
+    if (psramSize > 0) {
+        doc["psram"] = psramSize;
+    }
+#endif
     doc["fingerprints"] = fingerprintCount;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
+
+    // Tiered memory (ColdTier pre-filter) stats — DEBUG: prune once stable
+    if (BleFingerprintCollection::isTieredMemoryEnabled()) {
+        doc["tierDrop"] = BleFingerprintCollection::getTierDropCount();
+        doc["tierCold"] = BleFingerprintCollection::getTierColdCount();
+        doc["tierHot"] = BleFingerprintCollection::getTierHotCount();
+        doc["tierPromote"] = BleFingerprintCollection::getTierPromoteCount();
+        doc["tierCap"] = BleFingerprintCollection::getColdTierCapacity();
+        doc["tierCount"] = BleFingerprintCollection::getColdTierCount();
+        if (BleFingerprintCollection::isColdTierUsingPsram()) {
+            doc["tierPsram"] = true;
+        }
+    }
 
     if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 
