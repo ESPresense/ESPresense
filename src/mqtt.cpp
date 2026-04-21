@@ -4,6 +4,7 @@
 #include "BleFingerprintCollection.h"
 #include "mqtt.h"
 #include <WiFi.h>
+#include <memory>
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
@@ -18,11 +19,21 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
 {
+    // Heap-allocate the serialized payload. Previously this used a VLA
+    // (`char buffer[jsonSize + 1]`) on the caller's FreeRTOS task stack.
+    // Arduino-ESP32's loopTask stack is only 8 KB, and our global
+    // StaticJsonDocument<12 KB> can serialize to several KB of JSON for
+    // telemetry/discovery payloads — large enough to smash the task TCB
+    // and adjacent heap metadata, producing "malformed packet" broker
+    // disconnects and FreeRTOS 0xcdcd scheduler panics. AsyncMqttClient
+    // copies the payload synchronously in PublishOutPacket's ctor, so
+    // the buffer can be freed as soon as publish() returns.
     size_t const jsonSize = measureJson(jsonDoc);
-    char buffer[jsonSize + 1]; // +1 for null terminator
-    size_t const buffSize = serializeJson(jsonDoc, buffer, sizeof(buffer));
+    std::unique_ptr<char[]> buffer(new (std::nothrow) char[jsonSize + 1]);
+    if (!buffer) return false;
+    size_t const buffSize = serializeJson(jsonDoc, buffer.get(), jsonSize + 1);
     if (buffSize == 0) return false;
-    return pub(topic, qos, retain, buffer, buffSize, dup, message_id);
+    return pub(topic, qos, retain, buffer.get(), buffSize, dup, message_id);
 }
 
 void commonDiscovery()
