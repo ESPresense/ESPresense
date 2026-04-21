@@ -249,10 +249,20 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
             memcpy(mac, addr.getNative(), 6);
 #endif
         }
-        // advData is only read by classify() for iBeacon detection; skipping it
-        // means iBeacons take the cold-then-promote path instead of jumping
-        // straight to HOT — a minor optimisation we can add later if it matters.
-        ClassifyResult result = tieredMemory->classify(mac, nullptr, 0, rssi);
+        // Pass the raw advertisement payload so classify()'s isIBeacon() check
+        // can fire — iBeacons (02 15 prefix) go straight to HOT instead of
+        // taking the cold-then-promote path. Important for presence tracking:
+        // most deployed beacons are iBeacons and we don't want 5 sightings of
+        // latency before they show up.
+#ifdef NIMBLE_V2
+        const auto payload = advertisedDevice->getPayload();
+        const uint8_t *advData = payload.data();
+        const size_t advLen = payload.size();
+#else
+        const uint8_t *advData = advertisedDevice->getPayload();
+        const size_t advLen = advertisedDevice->getPayloadLength();
+#endif
+        ClassifyResult result = tieredMemory->classify(mac, advData, advLen, rssi);
 
         if (result == ClassifyResult::DROP) {
             tierDropCount.fetch_add(1, std::memory_order_relaxed);
