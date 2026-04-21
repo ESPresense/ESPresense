@@ -205,8 +205,10 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
  * @return true if a new configuration was added, false if an existing configuration was replaced.
  */
 bool addOrReplace(DeviceConfig config) {
-    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
+        return false;
+    }
 
     std::vector<String> idsToDelete;
     bool isReplacement = false;
@@ -293,8 +295,10 @@ bool Config(String &id, String &json) {
         }
     }
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex in Config!");
+        return false;
+    }
     for (auto &slot : fingerprints) {
         if (slot.fingerprint == nullptr || slot.pendingDelete)
             continue;
@@ -504,16 +508,20 @@ FingerprintLease GetFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) 
 #else
 FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
 #endif
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take semaphore!");
+        return {};
+    }
     auto f = getFingerprintInternal(advertisedDevice);
     xSemaphoreGive(fingerprintMutex);
     return f;
 }
 
 FingerprintLease AcquireNext(size_t &cursor, bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        return {};
+    }
     if (cleanup) CleanupOldFingerprints();
 
     while (cursor < fingerprints.size()) {
@@ -532,8 +540,13 @@ void Release(FingerprintLease &lease) {
     if (!lease)
         return;
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        // Leak the lease rather than touch shared state without the mutex —
+        // the slot's refs stays elevated so the fingerprint isn't freed
+        // from under another reader; acceptable trade-off vs corruption.
+        return;
+    }
 
     if (lease.slot < fingerprints.size()) {
         auto &slot = fingerprints[lease.slot];
@@ -548,8 +561,10 @@ void Release(FingerprintLease &lease) {
 }
 
 size_t Size(bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        return 0;
+    }
     if (cleanup) CleanupOldFingerprints();
     auto count = activeFingerprints;
     xSemaphoreGive(fingerprintMutex);
