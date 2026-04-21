@@ -185,7 +185,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 
     teleFails++;
-    log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
+    log_e("Error sending telemetry (%d times since boot)", teleFails);
     return false;
 }
 
