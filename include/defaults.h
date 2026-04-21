@@ -83,7 +83,10 @@
 #endif
 #ifndef DEFAULT_MAX_COLD
 #if defined(BOARD_HAS_PSRAM)
-#define DEFAULT_MAX_COLD 256
+// PSRAM: fleet runs 1024 (24 KB) stably; larger cold tier gives random-MAC
+// advertisers room to accumulate sightings before eviction. 256 was a
+// regression vs previously-deployed values on the same hardware.
+#define DEFAULT_MAX_COLD 1024
 #elif defined(ESP32S3)
 #define DEFAULT_MAX_COLD 128
 #elif defined(ESP32C3) || defined(ESP32C6)
