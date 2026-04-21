@@ -30,9 +30,14 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install ast-grep
+        env:
+          AST_GREP_VERSION: "0.42.1"
+          AST_GREP_SHA256: "5de8b87cba67fc8dc3e239d54b6484802ad745a7ae3de76be4fe89661dc52657"
         run: |
+          set -euo pipefail
           curl -fsSL -o /tmp/ast-grep.zip \
-            https://github.com/ast-grep/ast-grep/releases/latest/download/app-x86_64-unknown-linux-gnu.zip
+            "https://github.com/ast-grep/ast-grep/releases/download/${AST_GREP_VERSION}/app-x86_64-unknown-linux-gnu.zip"
+          echo "${AST_GREP_SHA256}  /tmp/ast-grep.zip" | sha256sum -c -
           unzip -o /tmp/ast-grep.zip -d /tmp/ast-grep
           sudo install /tmp/ast-grep/ast-grep /usr/local/bin/ast-grep
           ast-grep --version
