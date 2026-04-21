@@ -1,0 +1,41 @@
+name: ast-grep
+
+# Static analysis for patterns that clang-tidy/flawfinder don't cover well,
+# in particular ESP32/FreeRTOS mutex usage. See .ast-grep/rules/ for the
+# individual rule definitions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/*.cpp'
+      - '**/*.h'
+      - '**/*.ino'
+      - '.ast-grep/**'
+      - 'sgconfig.yml'
+      - '.github/workflows/ast-grep.yml'
+  pull_request:
+    paths:
+      - '**/*.cpp'
+      - '**/*.h'
+      - '**/*.ino'
+      - '.ast-grep/**'
+      - 'sgconfig.yml'
+      - '.github/workflows/ast-grep.yml'
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ast-grep
+        run: |
+          curl -fsSL -o /tmp/ast-grep.zip \
+            https://github.com/ast-grep/ast-grep/releases/latest/download/app-x86_64-unknown-linux-gnu.zip
+          unzip -o /tmp/ast-grep.zip -d /tmp/ast-grep
+          sudo install /tmp/ast-grep/ast-grep /usr/local/bin/ast-grep
+          ast-grep --version
+
+      - name: Scan
+        run: ast-grep scan --config sgconfig.yml src/ lib/
