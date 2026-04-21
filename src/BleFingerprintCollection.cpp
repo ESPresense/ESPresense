@@ -262,7 +262,8 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
         const uint8_t *advData = advertisedDevice->getPayload();
         const size_t advLen = advertisedDevice->getPayloadLength();
 #endif
-        ClassifyResult result = tieredMemory->classify(mac, advData, advLen, rssi);
+        uint8_t idType = ID_TYPE_MISC;
+        ClassifyResult result = tieredMemory->classify(mac, advData, advLen, rssi, &idType);
 
         if (result == ClassifyResult::DROP) {
             tierDropCount.fetch_add(1, std::memory_order_relaxed);
@@ -275,7 +276,10 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
             if (xSemaphoreTake(coldMutex, MAX_WAIT) == pdTRUE) {
                 const uint32_t nowMs = millis();
                 ColdTier &cold = tieredMemory->coldTier();
-                cold.insert(mac, rssi, nowMs);  // create-or-update; increments seenCount
+                // Pass idType so eviction bonuses (iBeacon +50, known-MAC +100)
+                // actually get applied — without this, idType stays ID_TYPE_MISC
+                // and EvictionScorer's bonuses are dead code.
+                cold.insert(mac, rssi, nowMs, idType);  // create-or-update; increments seenCount
                 if (ColdRecord *rec = cold.lookup(mac)) {
                     if (rec->seenCount >= DEFAULT_COLD_PROMOTION_COUNT &&
                         rssi > DEFAULT_COLD_PROMOTION_RSSI) {

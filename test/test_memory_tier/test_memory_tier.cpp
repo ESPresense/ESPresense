@@ -738,6 +738,117 @@ void test_remove_nonexistent_mac(void) {
 }
 
 // ============================================================================
+// idType propagation tests (regression: PR #2313 review)
+// ============================================================================
+
+void test_classifier_outputs_idtype_ibeacon(void) {
+    // iBeacon payload should report ID_TYPE_IBEACON via the out-param so
+    // EvictionScorer's +50 bonus can actually fire.
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+    uint8_t ibeaconData[25] = {0x02, 0x15};  // iBeacon prefix + 23 bytes
+
+    QuickClassifier classifier;
+    uint8_t idType = 0xFF;
+    ClassifyResult result = classifier.classify(mac, ibeaconData, sizeof(ibeaconData), -70, &idType);
+
+    TEST_ASSERT_EQUAL(ClassifyResult::HOT, result);
+    TEST_ASSERT_EQUAL(ID_TYPE_IBEACON, idType);
+}
+
+void test_classifier_outputs_idtype_known_mac(void) {
+    uint8_t knownMac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+
+    QuickClassifier classifier;
+    classifier.addKnownMac(knownMac);
+
+    uint8_t idType = 0xFF;
+    ClassifyResult result = classifier.classify(knownMac, nullptr, 0, -80, &idType);
+
+    TEST_ASSERT_EQUAL(ClassifyResult::HOT, result);
+    TEST_ASSERT_EQUAL(ID_TYPE_KNOWN_MAC, idType);
+}
+
+void test_classifier_outputs_idtype_misc_for_unknown(void) {
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    QuickClassifier classifier;
+    uint8_t idType = 0xFF;
+    ClassifyResult result = classifier.classify(mac, nullptr, 0, -70, &idType);
+
+    TEST_ASSERT_EQUAL(ClassifyResult::COLD, result);
+    TEST_ASSERT_EQUAL(ID_TYPE_MISC, idType);
+}
+
+void test_classifier_does_not_touch_idtype_on_drop(void) {
+    // Below MIN_RSSI: we should DROP without writing the out-param.
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    QuickClassifier classifier;
+    uint8_t idType = 0x77;  // sentinel
+    ClassifyResult result = classifier.classify(mac, nullptr, 0, -95, &idType);
+
+    TEST_ASSERT_EQUAL(ClassifyResult::DROP, result);
+    TEST_ASSERT_EQUAL(0x77, idType);  // untouched
+}
+
+void test_cold_tier_insert_stores_idtype(void) {
+    // Bug fix: ColdRecord.idType was never populated, so EvictionScorer
+    // bonuses for iBeacon/known-MAC were dead code.
+    ColdTier tier;
+    uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+
+    TEST_ASSERT_TRUE(tier.insert(mac, -70, 1000, ID_TYPE_IBEACON));
+    ColdRecord* rec = tier.lookup(mac);
+    TEST_ASSERT_NOT_NULL(rec);
+    TEST_ASSERT_EQUAL(ID_TYPE_IBEACON, rec->idType);
+}
+
+void test_cold_tier_insert_defaults_idtype_to_misc(void) {
+    // Existing callers that didn't pass idType should get ID_TYPE_MISC.
+    ColdTier tier;
+    uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+
+    TEST_ASSERT_TRUE(tier.insert(mac, -70, 1000));
+    ColdRecord* rec = tier.lookup(mac);
+    TEST_ASSERT_NOT_NULL(rec);
+    TEST_ASSERT_EQUAL(ID_TYPE_MISC, rec->idType);
+}
+
+void test_cold_tier_insert_upgrades_idtype_on_update(void) {
+    // First sighting missed the payload → MISC. Next sighting sees iBeacon
+    // prefix → record should upgrade to ID_TYPE_IBEACON (never downgrade).
+    ColdTier tier;
+    uint8_t mac[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+
+    tier.insert(mac, -70, 1000, ID_TYPE_MISC);
+    tier.insert(mac, -68, 2000, ID_TYPE_IBEACON);
+
+    ColdRecord* rec = tier.lookup(mac);
+    TEST_ASSERT_NOT_NULL(rec);
+    TEST_ASSERT_EQUAL(ID_TYPE_IBEACON, rec->idType);
+
+    // And the reverse (don't downgrade known → misc)
+    tier.insert(mac, -68, 3000, ID_TYPE_MISC);
+    rec = tier.lookup(mac);
+    TEST_ASSERT_EQUAL(ID_TYPE_IBEACON, rec->idType);
+}
+
+void test_classifier_strong_rssi_unknown_stays_cold(void) {
+    // Dead-conditional fix: unknown device with strong signal still goes COLD
+    // because promotion is sighting-count driven, not RSSI-driven. This pins
+    // the behavior so a future "optimization" doesn't accidentally flip
+    // strong-signal unknowns to HOT (which would defeat the cold-tier filter).
+    uint8_t mac[6] = {0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC};
+
+    QuickClassifier classifier;
+    ClassifyResult weakModerate = classifier.classify(mac, nullptr, 0, -88);  // just above drop
+    ClassifyResult strong       = classifier.classify(mac, nullptr, 0, -40);  // very close
+
+    TEST_ASSERT_EQUAL(ClassifyResult::COLD, weakModerate);
+    TEST_ASSERT_EQUAL(ClassifyResult::COLD, strong);
+}
+
+// ============================================================================
 // Test Runner
 // ============================================================================
 
@@ -816,6 +927,16 @@ int main(int argc, char **argv) {
     // Safety Tests (guard against underflow/invalid state)
     RUN_TEST(test_double_remove_no_underflow);
     RUN_TEST(test_remove_nonexistent_mac);
+
+    // idType propagation (regression: PR #2313 review)
+    RUN_TEST(test_classifier_outputs_idtype_ibeacon);
+    RUN_TEST(test_classifier_outputs_idtype_known_mac);
+    RUN_TEST(test_classifier_outputs_idtype_misc_for_unknown);
+    RUN_TEST(test_classifier_does_not_touch_idtype_on_drop);
+    RUN_TEST(test_cold_tier_insert_stores_idtype);
+    RUN_TEST(test_cold_tier_insert_defaults_idtype_to_misc);
+    RUN_TEST(test_cold_tier_insert_upgrades_idtype_on_update);
+    RUN_TEST(test_classifier_strong_rssi_unknown_stays_cold);
 
     return UNITY_END();
 }

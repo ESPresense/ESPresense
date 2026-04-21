@@ -203,9 +203,13 @@ public:
      * @param advData Advertisement data (may be null)
      * @param advLen Length of advertisement data
      * @param rssi Signal strength
+     * @param outIdType Optional out-param receiving the detected idType
+     *                  (ID_TYPE_IBEACON / ID_TYPE_KNOWN_MAC / ID_TYPE_MISC).
+     *                  Written whenever the result is not DROP.
      * @return ClassifyResult (DROP, COLD, or HOT)
      */
-    ClassifyResult classify(const uint8_t* mac, const uint8_t* advData, size_t advLen, int8_t rssi) {
+    ClassifyResult classify(const uint8_t* mac, const uint8_t* advData, size_t advLen,
+                            int8_t rssi, uint8_t* outIdType = nullptr) {
         // Drop weak signals immediately - most common case, check first
         if (rssi < MIN_RSSI) {
             return ClassifyResult::DROP;
@@ -213,20 +217,21 @@ public:
 
         // Known MACs always go HOT
         if (isKnownMac(mac)) {
+            if (outIdType) *outIdType = ID_TYPE_KNOWN_MAC;
             return ClassifyResult::HOT;
         }
 
         // Check for iBeacon signature
         if (isIBeacon(advData, advLen)) {
+            if (outIdType) *outIdType = ID_TYPE_IBEACON;
             return ClassifyResult::HOT;
         }
 
-        // Moderate RSSI goes to COLD
-        if (rssi < MIN_RSSI_COLD) {
-            return ClassifyResult::COLD;
-        }
-
-        // Default: COLD tier for unknown devices with decent signal
+        // Unknown device above the drop floor: park in COLD. Promotion to HOT
+        // is driven by repeated sightings (seenCount) in ColdTier, not by
+        // instantaneous RSSI — a close-range random-MAC advertiser that only
+        // beacons once should not consume a hot slot.
+        if (outIdType) *outIdType = ID_TYPE_MISC;
         return ClassifyResult::COLD;
     }
 
@@ -264,12 +269,7 @@ inline ClassifyResult quickClassify(const uint8_t* mac, const uint8_t* advData, 
         return ClassifyResult::DROP;
     }
 
-    // Moderate RSSI goes to COLD
-    if (rssi < QuickClassifier::MIN_RSSI_COLD) {
-        return ClassifyResult::COLD;
-    }
-
-    // Default: COLD tier
+    // Unknown devices go to COLD regardless of RSSI (promotion is sighting-driven)
     return ClassifyResult::COLD;
 }
 
@@ -324,9 +324,13 @@ public:
      * @param mac 6-byte MAC address
      * @param rssi Signal strength
      * @param nowMs Current timestamp
+     * @param idType Device classification hint (ID_TYPE_IBEACON / ID_TYPE_KNOWN_MAC /
+     *               ID_TYPE_MISC). Stored on the record so EvictionScorer / eviction
+     *               bonuses actually fire; without this the field is always 0 and
+     *               the scoring is dead code.
      * @return true if inserted/updated
      */
-    bool insert(const uint8_t* mac, int8_t rssi, uint32_t nowMs) {
+    bool insert(const uint8_t* mac, int8_t rssi, uint32_t nowMs, uint8_t idType = ID_TYPE_MISC) {
         if (!isEnabled()) return false;
 
         // Single probe pass: find existing OR first available slot
@@ -369,6 +373,11 @@ public:
             if (existing->seenCount < 255) {
                 existing->seenCount++;
             }
+            // Upgrade classification if caller has a stronger signal this time
+            // (e.g. first sighting missed the iBeacon payload). Never downgrade.
+            if (existing->idType == ID_TYPE_MISC && idType != ID_TYPE_MISC) {
+                existing->idType = idType;
+            }
             MEM_LOG("Updated MAC %02X:..:%02X rssi=%d seen=%d",
                     mac[0], mac[5], rssi, existing->seenCount);
             return true;
@@ -404,6 +413,7 @@ public:
         record->lastSeenMs = nowMs;
         record->firstSeenMs = nowMs;
         record->seenCount = 1;
+        record->idType = idType;  // Feeds EvictionScorer bonuses for iBeacon/known-MAC
         record->setValid();
 
         count_++;
@@ -896,13 +906,15 @@ public:
      * @return Classification result
      */
     ClassifyResult classify(const uint8_t* mac, const uint8_t* advData,
-                            size_t advLen, int8_t rssi) {
+                            size_t advLen, int8_t rssi,
+                            uint8_t* outIdType = nullptr) {
         if (!config_.enabled) {
             // Backward compatibility: everything goes to HOT
+            if (outIdType) *outIdType = ID_TYPE_MISC;
             return ClassifyResult::HOT;
         }
 
-        return classifier_.classify(mac, advData, advLen, rssi);
+        return classifier_.classify(mac, advData, advLen, rssi, outIdType);
     }
 
     /**
