@@ -19,20 +19,29 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
 
 bool pub(const char *topic, uint8_t qos, bool retain, JsonVariantConst jsonDoc, bool dup, uint16_t message_id)
 {
-    // Heap-allocate the serialized payload. Previously this used a VLA
-    // (`char buffer[jsonSize + 1]`) on the caller's FreeRTOS task stack.
-    // Arduino-ESP32's loopTask stack is only 8 KB, and our global
-    // StaticJsonDocument<12 KB> can serialize to several KB of JSON for
-    // telemetry/discovery payloads — large enough to smash the task TCB
-    // and adjacent heap metadata, producing "malformed packet" broker
-    // disconnects and FreeRTOS 0xcdcd scheduler panics. AsyncMqttClient
-    // copies the payload synchronously in PublishOutPacket's ctor, so
-    // the buffer can be freed as soon as publish() returns.
+    // Heap-allocate the serialized payload rather than using a VLA on the
+    // caller's FreeRTOS task stack. AsyncMqttClient copies the payload
+    // synchronously into its own std::vector inside PublishOutPacket's ctor
+    // before publish() returns, so the buffer can be freed immediately.
+    //
+    // Motivation: fleet-wide MQTT sessions on WROVER nodes were being
+    // dropped by the broker with "Invalid PUBLISH (QoS=0 and DUP=1)" /
+    // "malformed packet" (~36 events/24h across 7 nodes). Replacing the
+    // `char buffer[jsonSize + 1]` VLA with this heap allocation eliminates
+    // the symptom. A variable-length stack buffer under ArduinoJson's
+    // recursive serializer — combined with deep discovery call chains on an
+    // 8 KB loopTask stack — is a known embedded footgun even when the
+    // nominal jsonSize is small; keep it off the task stack.
+    //
+    // The (measureJson, serializeJson) pair is TOCTOU-racy against any
+    // concurrent mutation of a shared JsonDocument. If measured and
+    // serialized sizes disagree we refuse to publish rather than emit
+    // truncated JSON that the broker would flag as malformed.
     size_t const jsonSize = measureJson(jsonDoc);
     std::unique_ptr<char[]> buffer(new (std::nothrow) char[jsonSize + 1]);
     if (!buffer) return false;
     size_t const buffSize = serializeJson(jsonDoc, buffer.get(), jsonSize + 1);
-    if (buffSize == 0) return false;
+    if (buffSize == 0 || buffSize != jsonSize) return false;
     return pub(topic, qos, retain, buffer.get(), buffSize, dup, message_id);
 }
 
