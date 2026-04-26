@@ -1,0 +1,41 @@
+{
+  "name": "baseline_4node_6x4m",
+  "metadata": {
+    "description": "Tier-1 ESP32 reference: 4 nodes ceiling-corner-mounted in a 6m x 4m two-room residential layout. Living room 0..4m x, bedroom 4..6m x. Used as the canonical ESPresense accuracy baseline.",
+    "board_variant": "esp32",
+    "node_count": 4
+  },
+  "bounds": { "x_min": 0.0, "y_min": 0.0, "x_max": 6.0, "y_max": 4.0 },
+  "rooms": [
+    { "name": "living",  "x_min": 0.0, "y_min": 0.0, "x_max": 4.0, "y_max": 4.0 },
+    { "name": "bedroom", "x_min": 4.0, "y_min": 0.0, "x_max": 6.0, "y_max": 4.0 }
+  ],
+  "stations": [
+    { "id": "node-living-nw",  "x": 0.2, "y": 3.8, "z": 2.4, "cal_rssi": -59.0, "absorption": 3.0 },
+    { "id": "node-living-sw",  "x": 0.2, "y": 0.2, "z": 2.4, "cal_rssi": -59.0, "absorption": 3.0 },
+    { "id": "node-bedroom-ne", "x": 5.8, "y": 3.8, "z": 2.4, "cal_rssi": -59.0, "absorption": 3.0 },
+    { "id": "node-bedroom-se", "x": 5.8, "y": 0.2, "z": 2.4, "cal_rssi": -59.0, "absorption": 3.0 }
+  ],
+  "tracks": [
+    {
+      "name": "diagonal_walk",
+      "samples_per_segment": 30,
+      "points": [
+        [0.5, 0.5],
+        [3.0, 2.0],
+        [5.5, 3.5]
+      ]
+    },
+    {
+      "name": "living_to_bedroom",
+      "samples_per_segment": 30,
+      "points": [
+        [1.0, 2.0],
+        [3.0, 2.0],
+        [3.9, 2.0],
+        [4.1, 2.0],
+        [5.0, 2.0]
+      ]
+    }
+  ]
+}

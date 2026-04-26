@@ -1,0 +1,50 @@
+name: Accuracy harness
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/accuracy_harness/**"
+      - "lib/rssi_distance/**"
+      - "docs/accuracy.md"
+      - ".github/workflows/accuracy-harness.yml"
+  pull_request:
+    paths:
+      - "tools/accuracy_harness/**"
+      - "lib/rssi_distance/**"
+      - "docs/accuracy.md"
+      - ".github/workflows/accuracy-harness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  harness-tests:
+    name: Harness unit tests + baseline regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - name: Run harness unit tests
+        run: |
+          python3 -m unittest discover -s tools/accuracy_harness/tests -t . -v
+
+      - name: Re-generate baseline report
+        run: |
+          python3 -m tools.accuracy_harness baseline \
+            --output /tmp/baseline-current.json \
+            --markdown /tmp/baseline-current.md
+
+      - name: Compare against checked-in baseline (regression guard)
+        run: |
+          if ! diff -u tools/accuracy_harness/reports/baseline-v1.json /tmp/baseline-current.json; then
+            echo "::error::Accuracy baseline drifted. Re-run the harness locally and commit the updated reports/ + docs/accuracy.md, with a PR description explaining the change."
+            exit 1
+          fi
+          echo "Baseline matches checked-in snapshot."

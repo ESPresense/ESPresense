@@ -1,0 +1,79 @@
+{
+  "harness_version": "0.1.0",
+  "scenarios": [
+    {
+      "base_seed": 20260426,
+      "noise": {
+        "gaussian_std_db": 2.5,
+        "multipath_attenuation_db": 6.0,
+        "multipath_probability": 0.1
+      },
+      "scenario": "baseline_4node_6x4m",
+      "tracks": [
+        {
+          "max_error_m": 3.52020587820617,
+          "mean_error_m": 0.9672247876618806,
+          "median_error_m": 0.7782024458419659,
+          "p95_error_m": 2.354582286463498,
+          "room_misid_rate": 0.29508196721311475,
+          "samples": 61,
+          "single_station_outage": {
+            "node-bedroom-ne": {
+              "median_error_m": 0.922493363065626,
+              "p95_error_m": 4.869672722185868,
+              "samples": 61
+            },
+            "node-bedroom-se": {
+              "median_error_m": 0.94657138962047,
+              "p95_error_m": 3.0546229284138398,
+              "samples": 61
+            },
+            "node-living-nw": {
+              "median_error_m": 1.0249238332743666,
+              "p95_error_m": 2.7054252745631526,
+              "samples": 61
+            },
+            "node-living-sw": {
+              "median_error_m": 0.8633182129665441,
+              "p95_error_m": 5.019234967905441,
+              "samples": 61
+            }
+          },
+          "track": "diagonal_walk"
+        },
+        {
+          "max_error_m": 4.189376989560764,
+          "mean_error_m": 1.1415483841461964,
+          "median_error_m": 0.8182863076930641,
+          "p95_error_m": 3.153390241648087,
+          "room_misid_rate": 0.3305785123966942,
+          "samples": 121,
+          "single_station_outage": {
+            "node-bedroom-ne": {
+              "median_error_m": 1.0210172512779774,
+              "p95_error_m": 4.347244140111196,
+              "samples": 121
+            },
+            "node-bedroom-se": {
+              "median_error_m": 1.0313495431957886,
+              "p95_error_m": 4.019092481310132,
+              "samples": 121
+            },
+            "node-living-nw": {
+              "median_error_m": 1.011809167617009,
+              "p95_error_m": 3.59507938767304,
+              "samples": 121
+            },
+            "node-living-sw": {
+              "median_error_m": 1.020497310870621,
+              "p95_error_m": 3.7411562609449085,
+              "samples": 121
+            }
+          },
+          "track": "living_to_bedroom"
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}
