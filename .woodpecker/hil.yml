@@ -41,6 +41,7 @@ steps:
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          python3 ./tools/hil/check_no_bootloop.py --port $DEVICE --window 30 --log-out /tmp/${FIRMWARE_ENV}-bootlog.txt
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -79,6 +80,7 @@ steps:
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          python3 ./tools/hil/check_no_bootloop.py --port $DEVICE --window 30 --log-out /tmp/${FIRMWARE_ENV}-bootlog.txt
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -118,6 +120,7 @@ steps:
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          python3 ./tools/hil/check_no_bootloop.py --port $DEVICE --window 30 --log-out /tmp/${FIRMWARE_ENV}-bootlog.txt
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -156,6 +159,7 @@ steps:
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          python3 ./tools/hil/check_no_bootloop.py --port $DEVICE --window 30 --log-out /tmp/${FIRMWARE_ENV}-bootlog.txt
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
