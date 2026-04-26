@@ -220,7 +220,13 @@ void test_filter_time_window_drops_expired() {
     TEST_ASSERT_TRUE(f.getReadingCount() >= 1);
     mockAdvanceMillis(2000);  // jump past the window
     f.addMeasurement(-70.0f);
-    // Old -50 readings should have aged out; median should reflect just -70.
+    // Lock in the precondition: addMeasurement() must have evicted both
+    // expired -50 readings via removeExpiredReadings(). getMedianIQR()
+    // does NOT filter by timeWindowMs itself, so without this count
+    // assert a future refactor that moves expiration logic out of
+    // addMeasurement could break the window contract silently while
+    // this test still happened to pass.
+    TEST_ASSERT_EQUAL_UINT16(1, f.getReadingCount());
     TEST_ASSERT_FLOAT_WITHIN(0.001f, -70.0f, f.getMedianIQR());
 }
 

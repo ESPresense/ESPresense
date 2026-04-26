@@ -79,13 +79,15 @@ welcome.
 
 | board     | formula rows | filter rows | real-RSSI capture? |
 |-----------|--------------|-------------|--------------------|
-| esp32     | 5            | shared      | none yet           |
+| esp32     | 4            | shared      | none yet           |
 | esp32c3   | 3            | shared      | none yet           |
 | esp32s3   | 3            | shared      | none yet           |
 | esp32c6   | 3            | shared      | none yet           |
+| `_any`    | 2            | shared      | n/a                |
 
 Filter rows are board-agnostic (synthetic streams). Once captures
-arrive they get split per-board.
+arrive they get split per-board. The `_any` rows test the
+absorption-guard math itself (not a board calibration).
 
 ## Open follow-ups
 
@@ -95,7 +97,7 @@ arrive they get split per-board.
   lives in the Companion app (Python), not the firmware. **A native
   distance-calc fixture for #1817 is not reproducible from the issue
   data** because the firmware-side numbers are reportedly correct.
-  Filed as ESPA-3.4 follow-up: capture a Companion-side fixture from
+  Filed as ESPA-24 follow-up: capture a Companion-side fixture from
   the user's MQTT trace once available.
 - **#1384 (distance reporting problems)** — sparse / dropping distance
   reports. Could be rolling-window starvation

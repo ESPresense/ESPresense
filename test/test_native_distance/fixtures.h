@@ -66,9 +66,10 @@ static const FormulaFixture kFormulaFixtures[] = {
      "rssi 12 dB above calRssi -> 0.251 m (closer than 1m anchor)"},
 
     // --- Absorption guard: n<=0 should fall back to n=2 (free-space).
-    {"absorption_zero_guard","esp32",   -59.0f, -65.02f, 0.0f, 2.0000f, 0.02f,
+    // Tagged "_any" because the guard is board-agnostic (pure math, not calibration).
+    {"absorption_zero_guard","_any",    -59.0f, -65.02f, 0.0f, 2.0000f, 0.02f,
      "n=0 must NOT divide by zero; helper falls back to n=2"},
-    {"absorption_neg_guard", "esp32",   -59.0f, -65.02f, -1.5f, 2.0000f, 0.02f,
+    {"absorption_neg_guard", "_any",    -59.0f, -65.02f, -1.5f, 2.0000f, 0.02f,
      "negative n is meaningless; helper falls back to n=2"},
 };
 static const size_t kFormulaFixtureCount =
@@ -113,7 +114,7 @@ static const float kBimodalStream[] = {
     -60, -70, -60, -70, -60, -70, -60, -70, -60, -70,
 };
 
-// Drifting stream from -70 down to -50 in 1 dB steps. Median 60.5,
+// Drifting stream from -70 up to -51 in 1 dB steps. Mean -60.5,
 // IQR ~10, fence wide enough that all samples survive.
 static const float kDriftingStream[] = {
     -70, -69, -68, -67, -66, -65, -64, -63, -62, -61,

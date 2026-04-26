@@ -12,5 +12,5 @@ esp32c3_n3_4m,esp32c3,-65,-83.06,3.0,4.0000,0.05,n=3 indoor; 18.06 dB drop -> 4.
 esp32s3_n3_5_2m,esp32s3,-62,-72.535,3.5,2.0000,0.02,n=3.5 through-wall; 10.535 dB drop -> 2.0 m
 esp32c6_n3_5_3m,esp32c6,-67,-83.71,3.5,3.0000,0.04,n=3.5 through-wall; 16.71 dB drop -> 3.0 m
 esp32_close_quarter_m,esp32,-59,-47,2.0,0.2512,0.005,rssi 12 dB above calRssi -> 0.251 m (closer than 1m anchor)
-absorption_zero_guard,esp32,-59,-65.02,0.0,2.0000,0.02,n=0 must NOT divide by zero; helper falls back to n=2
-absorption_neg_guard,esp32,-59,-65.02,-1.5,2.0000,0.02,negative n is meaningless; helper falls back to n=2
+absorption_zero_guard,_any,-59,-65.02,0.0,2.0000,0.02,n=0 must NOT divide by zero; helper falls back to n=2
+absorption_neg_guard,_any,-59,-65.02,-1.5,2.0000,0.02,negative n is meaningless; helper falls back to n=2
