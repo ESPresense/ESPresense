@@ -9,6 +9,42 @@ on:
   release:
     types: [published]
 jobs:
+  test-native:
+    # Host-side unit tests for the RSSI -> distance pipeline.
+    # Runs in parallel with `build`; fails PRs that drift the
+    # log-distance formula or AdaptivePercentileRSSI math.
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Cache pip
+      uses: actions/cache@v5
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-native-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-native-
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO (native)
+      uses: actions/cache@v5
+      with:
+        path: |
+          ~/.platformio
+          ~/.platformio/.cache
+        key: ${{ runner.os }}-pio-native-${{ hashFiles('platformio.ini') }}
+        restore-keys: |
+          ${{ runner.os }}-pio-native-
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.x'
+    - name: Install PlatformIO
+      run: |
+        pip install wheel
+        pip install -U platformio
+        pip install "click<8.2" --force-reinstall --no-deps
+    - name: Run native unit tests
+      run: pio test -e native --without-uploading -v
+
   build:
     runs-on: ubuntu-latest
     strategy:

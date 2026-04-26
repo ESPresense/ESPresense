@@ -11,6 +11,7 @@
 #include "Logger.h"
 #include "mbedtls/aes.h"
 #include "rssi.h"
+#include "rssi_distance.h"
 #include "string_utils.h"
 #include "util.h"
 
@@ -32,7 +33,7 @@ BleFingerprint::BleFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     addressType = advertisedDevice->getAddressType();
     raw = advertisedDevice->getRSSI();
     rssi = raw - BleFingerprintCollection::rxAdjRssi;
-    dist = pow(10, ((float)get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    dist = rssiToLogDistance((float)get1mRssi(), rssi, BleFingerprintCollection::absorption);
     seenCount = 1;
     queryReport = nullptr;
     fingerprintAddress();
@@ -579,7 +580,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
     rssi = adaptivePercentileRSSI->getMedianIQR();
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();
-    dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
+    dist = rssiToLogDistance((float)get1mRssi(), rssi, BleFingerprintCollection::absorption);
     distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
