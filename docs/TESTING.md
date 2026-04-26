@@ -1,6 +1,6 @@
 # ESPresense hardware test matrix
 
-**Status:** Draft v1 — source of truth for the pinned "boards-supported" discussion. Authored by the QA Engineer ([ESPA-22](/ESPA/issues/ESPA-22)). Community Manager pins / republishes ([ESPA-10](/ESPA/issues/ESPA-10)). Tech Lead owns tier-1 designations and the platform-support roadmap ([ESPA-18](/ESPA/issues/ESPA-18)) — if this doc and the roadmap disagree, the roadmap wins and this doc gets corrected.
+**Status:** Draft v1 — source of truth for the pinned "boards-supported" discussion. The platform-support roadmap is authoritative for tier-1 designations; if this doc and the roadmap disagree, the roadmap wins and this doc gets corrected.
 
 This file answers two questions the community keeps asking and the project has not had a public answer for:
 
@@ -55,7 +55,7 @@ Snapshot date: **2026-04-26**. Re-reviewed each release. Open a PR or comment on
 
 | `[env:*]` | Reference board | Build CI | HIL | Tag | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `esp32c6` | `esp32-c6-devkitc-1` | ✅ | ⚠ `failure: ignore` | **tier-1 (soft-fail)** | HIL job runs on every PR but failures don't block. Maintainership status — `help wanted` per [ESPA-18](/ESPA/issues/ESPA-18); see [#1354](https://github.com/ESPresense/ESPresense/issues/1354) for Seeed XIAO C6, [#2042](https://github.com/ESPresense/ESPresense/pull/2042) for the original add. Treat as more reliable than community-tested but less reliable than blocking-HIL until soft-fail is removed. |
+| `esp32c6` | `esp32-c6-devkitc-1` | ✅ | ⚠ `failure: ignore` | **tier-1 (soft-fail)** | HIL job runs on every PR but failures don't block. Maintainership status: `help wanted`. See [#1354](https://github.com/ESPresense/ESPresense/issues/1354) for Seeed XIAO C6, [#2042](https://github.com/ESPresense/ESPresense/pull/2042) for the original add. Treat as more reliable than community-tested but less reliable than blocking-HIL until soft-fail is removed. |
 | `esp32c6-cdc` | `esp32-c6-devkitc-1` | ✅ | — | **untested** | |
 | `esp32c6-verbose` | `esp32-c6-devkitc-1` | ✅ | — | debug build of `esp32c6` | |
 
@@ -95,7 +95,7 @@ These are hardware-revision or peripheral-level breakages on a tier where the **
 
 These are the things we know are missing and tracked separately, not silent omissions:
 
-- **`esp32c6` HIL is `failure: ignore`** — either fix the failures or downgrade C6 from tier-1. Tech Lead's call ([ESPA-18](/ESPA/issues/ESPA-18)).
+- **`esp32c6` HIL is `failure: ignore`** — either fix the failures or downgrade C6 from tier-1. Maintainer call.
 - **No HIL coverage for any `-cdc` variant** — at minimum a smoke test that the device enumerates as USB-CDC and accepts Improv over CDC instead of UART. Sub-task candidate.
 - **No HIL coverage for M5Stack or Macchina** — these have no automated regression protection at all. If the project wants to keep shipping their `[env:*]` builds, we should either deprecate them or solicit a community-hosted HIL volunteer.
 - **Real-RSSI fixtures** — distance-calc fixture suite ([PR #2317](https://github.com/ESPresense/ESPresense/pull/2317)) is currently synthetic seeds. Real captures from each tier-1 board would catch antenna/silicon variation that synthetic seeds miss.
