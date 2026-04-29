@@ -1,6 +1,7 @@
 #include "AdaptivePercentileRSSI.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <new>
 
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t initialMaxReadings)
     : timeWindowMs(timeWindowMs),
@@ -10,7 +11,8 @@ AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t i
       count(0),
       totalReadings(0),
       lastRateCheck(0) {
-    readings = new Reading[maxReadings];
+    readings = new (std::nothrow) Reading[maxReadings];
+    if (readings == nullptr) maxReadings = 0;
 }
 
 AdaptivePercentileRSSI::~AdaptivePercentileRSSI() {
@@ -27,7 +29,12 @@ AdaptivePercentileRSSI::AdaptivePercentileRSSI(const AdaptivePercentileRSSI& oth
       lastRateCheck(other.lastRateCheck) {
 
     // Allocate new memory and copy the readings
-    readings = new Reading[maxReadings];
+    readings = new (std::nothrow) Reading[maxReadings];
+    if (readings == nullptr) {
+        maxReadings = 0;
+        head = tail = count = 0;
+        return;
+    }
 
     // Deep copy the readings array
     for (uint16_t i = 0; i < maxReadings; i++) {
@@ -52,7 +59,12 @@ AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercenti
         lastRateCheck = other.lastRateCheck;
 
         // Allocate new memory and copy the readings
-        readings = new Reading[maxReadings];
+        readings = new (std::nothrow) Reading[maxReadings];
+        if (readings == nullptr) {
+            maxReadings = 0;
+            head = tail = count = 0;
+            return *this;
+        }
 
         // Deep copy the readings array
         for (uint16_t i = 0; i < maxReadings; i++) {
@@ -114,15 +126,16 @@ void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
     // Limit to reasonable bounds
     idealSize = constrain(idealSize, MIN_READINGS, MAX_READINGS);
 
-    // Only resize if there's a significant difference
-    if (abs(idealSize - maxReadings) > maxReadings / 4) {
+    // Only grow when ingestion rate justifies it; never shrink (avoids heap churn)
+    if (idealSize > maxReadings && (idealSize - maxReadings) > maxReadings / 4) {
         resizeBuffer(idealSize);
     }
 }
 
 void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
-    // Create new buffer
-    Reading* newReadings = new Reading[newSize];
+    // Create new buffer; bail on allocation failure rather than aborting
+    Reading* newReadings = new (std::nothrow) Reading[newSize];
+    if (newReadings == nullptr) return;
 
     // Copy existing readings to new buffer
     uint16_t newCount = min(count, newSize);
@@ -145,8 +158,9 @@ void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
 float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
     if (count == 0) return 0;
 
-    // Create temporary array for sorting
-    float* values = new float[count];
+    // Create temporary array for sorting; bail rather than abort on OOM
+    float* values = new (std::nothrow) float[count];
+    if (values == nullptr) return 0;
     uint16_t validCount = 0;
 
     uint32_t currentTime = millis();
@@ -191,8 +205,9 @@ float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
 {
     if (count == 0) return 0.0f;
 
-    // 1) Copy all current readings into a scratch array
-    float* vals = new float[count];
+    // 1) Copy all current readings into a scratch array; bail rather than abort on OOM
+    float* vals = new (std::nothrow) float[count];
+    if (vals == nullptr) return 0.0f;
     uint16_t idx = tail;
 
     for (uint16_t i = 0; i < count; ++i) {

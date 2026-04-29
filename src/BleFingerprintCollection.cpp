@@ -12,6 +12,13 @@
 namespace BleFingerprintCollection {
 namespace {
 
+constexpr uint32_t MIN_BLE_PROCESS_FREE_HEAP = 49152;
+constexpr uint32_t MIN_BLE_PROCESS_MAX_ALLOC = 24576;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_FREE_HEAP = 32768;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_MAX_ALLOC = 16384;
+unsigned long lastBleDropLog = 0;
+unsigned long lastLowHeapSkipLog = 0;
+
 struct FingerprintSlot {
     BleFingerprint *fingerprint = nullptr;
     uint16_t refs = 0;
@@ -186,6 +193,17 @@ void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
 #else
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
 #endif
+
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_BLE_PROCESS_FREE_HEAP || maxAllocHeap < MIN_BLE_PROCESS_MAX_ALLOC) {
+        const auto now = millis();
+        if (now - lastBleDropLog > 5000) {
+            lastBleDropLog = now;
+            log_w("Dropping BLE advert, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        }
+        return;
+    }
 
     if (onSeen) onSeen(true);
     auto lease = GetFingerprint(advertisedDevice);
@@ -472,6 +490,17 @@ FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
         return existing;
 
     CleanupOldFingerprints();
+
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_FINGERPRINT_CREATE_FREE_HEAP || maxAllocHeap < MIN_FINGERPRINT_CREATE_MAX_ALLOC) {
+        const auto now = millis();
+        if (now - lastLowHeapSkipLog > 5000) {
+            lastLowHeapSkipLog = now;
+            log_w("Skipping new fingerprint, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        }
+        return {};
+    }
 
     auto slotIndex = findAvailableSlot();
     if (slotIndex == static_cast<size_t>(-1)) {
