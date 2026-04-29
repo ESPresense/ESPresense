@@ -28,6 +28,13 @@ AdaptivePercentileRSSI::AdaptivePercentileRSSI(const AdaptivePercentileRSSI& oth
       totalReadings(other.totalReadings),
       lastRateCheck(other.lastRateCheck) {
 
+    if (other.readings == nullptr || maxReadings == 0) {
+        readings = nullptr;
+        maxReadings = 0;
+        head = tail = count = 0;
+        return;
+    }
+
     // Allocate new memory and copy the readings
     readings = new (std::nothrow) Reading[maxReadings];
     if (readings == nullptr) {
@@ -48,6 +55,7 @@ AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercenti
 
         // Clean up existing resources
         delete[] readings;
+        readings = nullptr;
 
         // Copy all member variables
         timeWindowMs = other.timeWindowMs;
@@ -57,6 +65,12 @@ AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercenti
         count = other.count;
         totalReadings = other.totalReadings;
         lastRateCheck = other.lastRateCheck;
+
+        if (other.readings == nullptr || maxReadings == 0) {
+            maxReadings = 0;
+            head = tail = count = 0;
+            return *this;
+        }
 
         // Allocate new memory and copy the readings
         readings = new (std::nothrow) Reading[maxReadings];
@@ -77,6 +91,11 @@ AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercenti
 void AdaptivePercentileRSSI::addMeasurement(float rssi) {
     uint32_t currentTime = millis();
     totalReadings++;
+
+    if (readings == nullptr || maxReadings == 0) {
+        resizeBuffer(MIN_READINGS);
+        if (readings == nullptr || maxReadings == 0) return;
+    }
 
     // Add new reading to the circular buffer
     if (count < maxReadings) {
@@ -100,6 +119,8 @@ void AdaptivePercentileRSSI::addMeasurement(float rssi) {
 }
 
 void AdaptivePercentileRSSI::removeExpiredReadings(uint32_t currentTime) {
+    if (readings == nullptr || maxReadings == 0) return;
+
     while (count > 0) {
         uint32_t age = currentTime - readings[tail].timestamp;
 
@@ -114,6 +135,8 @@ void AdaptivePercentileRSSI::removeExpiredReadings(uint32_t currentTime) {
 }
 
 void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
+    if (readings == nullptr || maxReadings == 0 || count == 0) return;
+
     // Calculate the rate of incoming readings (readings per second)
     float elapsedSeconds = (currentTime - readings[tail].timestamp) / 1000.0f;
     if (elapsedSeconds <= 0) return;
@@ -133,40 +156,43 @@ void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
 }
 
 void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
+    if (newSize == 0) return;
+
     // Create new buffer; bail on allocation failure rather than aborting
     Reading* newReadings = new (std::nothrow) Reading[newSize];
     if (newReadings == nullptr) return;
 
     // Copy existing readings to new buffer
-    uint16_t newCount = min(count, newSize);
-    uint16_t oldIdx = (tail + count - newCount) % maxReadings; // Start from most recent if we need to drop old readings
+    uint16_t newCount = (readings == nullptr || maxReadings == 0) ? 0 : min(count, newSize);
+    if (newCount > 0) {
+        uint16_t oldIdx = (tail + count - newCount) % maxReadings; // Start from most recent if we need to drop old readings
 
-    for (uint16_t i = 0; i < newCount; i++) {
-        newReadings[i] = readings[oldIdx];
-        oldIdx = (oldIdx + 1) % maxReadings;
+        for (uint16_t i = 0; i < newCount; i++) {
+            newReadings[i] = readings[oldIdx];
+            oldIdx = (oldIdx + 1) % maxReadings;
+        }
     }
 
     // Update pointers
     delete[] readings;
     readings = newReadings;
     maxReadings = newSize;
-    head = newCount;
+    head = newCount % newSize;
     tail = 0;
     count = newCount;
 }
 
 float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
-    if (count == 0) return 0;
+    if (readings == nullptr || maxReadings == 0 || count == 0) return 0;
 
-    // Create temporary array for sorting; bail rather than abort on OOM
-    float* values = new (std::nothrow) float[count];
-    if (values == nullptr) return 0;
+    float values[MAX_READINGS];
     uint16_t validCount = 0;
+    uint16_t sampleCount = min(count, MAX_READINGS);
 
     uint32_t currentTime = millis();
     uint16_t idx = tail;
 
-    for (uint16_t i = 0; i < count; i++) {
+    for (uint16_t i = 0; i < sampleCount; i++) {
         uint32_t age = currentTime - readings[idx].timestamp;
 
         if (age <= timeWindowMs || age > 0xFFFFFFFF - timeWindowMs) {
@@ -177,7 +203,6 @@ float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
     }
 
     if (validCount == 0) {
-        delete[] values;
         return 0;
     }
 
@@ -194,7 +219,6 @@ float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
         result = values[lowerIdx];
     }
 
-    delete[] values;
     return result;
 }
 
@@ -203,26 +227,26 @@ float AdaptivePercentileRSSI::getP75RSSI() {
 }
 float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
 {
-    if (count == 0) return 0.0f;
+    if (readings == nullptr || maxReadings == 0 || count == 0) return 0.0f;
 
-    // 1) Copy all current readings into a scratch array; bail rather than abort on OOM
-    float* vals = new (std::nothrow) float[count];
-    if (vals == nullptr) return 0.0f;
+    // 1) Copy all current readings into a bounded stack scratch array.
+    float vals[MAX_READINGS];
     uint16_t idx = tail;
+    uint16_t sampleCount = min(count, MAX_READINGS);
 
-    for (uint16_t i = 0; i < count; ++i) {
+    for (uint16_t i = 0; i < sampleCount; ++i) {
         vals[i] = readings[idx].rssi;
         idx = (idx + 1) % maxReadings;
     }
 
     // 2) Sort
-    std::sort(vals, vals + count);
+    std::sort(vals, vals + sampleCount);
 
     auto interp = [&](float p) -> float {
-        float pos   = p * (count - 1);            // rank (0-based)
+        float pos   = p * (sampleCount - 1);      // rank (0-based)
         uint16_t lo = static_cast<uint16_t>(pos);
         float frac  = pos - lo;
-        return (lo + 1 < count)
+        return (lo + 1 < sampleCount)
                ? vals[lo] * (1 - frac) + vals[lo + 1] * frac
                : vals[lo];
     };
@@ -238,14 +262,12 @@ float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
     // 3) Mean of values inside Tukey fence
     float sum = 0.0f;
     uint16_t survivors = 0;
-    for (uint16_t i = 0; i < count; ++i) {
+    for (uint16_t i = 0; i < sampleCount; ++i) {
         if (vals[i] >= lower && vals[i] <= upper) {
             sum += vals[i];
             ++survivors;
         }
     }
-
-    delete[] vals;
 
     return survivors ? (sum / survivors) : med;   // fallback to median if all clipped
 }
@@ -255,7 +277,7 @@ uint16_t AdaptivePercentileRSSI::getReadingCount() {
 }
 
 float AdaptivePercentileRSSI::getAverageInterval() {
-    if (count < 2) return 0;
+    if (readings == nullptr || maxReadings == 0 || count < 2) return 0;
 
     uint32_t firstTimestamp = readings[tail].timestamp;
     uint32_t lastTimestamp = readings[(head + maxReadings - 1) % maxReadings].timestamp;
@@ -270,7 +292,7 @@ void AdaptivePercentileRSSI::setTimeWindow(uint32_t newTimeWindowMs) {
 }
 
 float AdaptivePercentileRSSI::getRSSIVariance() {
-    if (count < 2) return 0;
+    if (readings == nullptr || maxReadings == 0 || count < 2) return 0;
 
     uint32_t currentTime = millis();
     uint16_t validCount = 0;
@@ -304,7 +326,7 @@ float AdaptivePercentileRSSI::getRSSIVariance() {
 }
 
 float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossExponent) {
-    if (count < 2) return 0;
+    if (readings == nullptr || maxReadings == 0 || count < 2) return 0;
 
     uint32_t currentTime = millis();
     uint16_t validCount = 0;

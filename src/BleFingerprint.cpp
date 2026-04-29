@@ -1,6 +1,7 @@
 #include "BleFingerprint.h"
 
 #include <math.h>
+#include <new>
 #include <stdint.h>
 
 #include "BleFingerprintCollection.h"
@@ -44,9 +45,10 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     dist = other.dist;
     distVar = other.distVar;
     raw = other.raw;
-    if (other.adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
-    else
+    if (other.adaptivePercentileRSSI) {
+        auto *filter = new (std::nothrow) AdaptivePercentileRSSI(*other.adaptivePercentileRSSI);
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(filter);
+    } else
         adaptivePercentileRSSI.reset();
 }
 
@@ -574,13 +576,22 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    if (!adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
-    adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
-    rssi = adaptivePercentileRSSI->getMedianIQR();
-    rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+    if (!adaptivePercentileRSSI) {
+        auto *filter = new (std::nothrow) AdaptivePercentileRSSI();
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(filter);
+    }
+
+    if (adaptivePercentileRSSI) {
+        adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
+        rssi = adaptivePercentileRSSI->getMedianIQR();
+        rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+    } else {
+        rssi = raw - BleFingerprintCollection::rxAdjRssi;
+        rssiVar = 0;
+    }
+
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    distVar = adaptivePercentileRSSI ? adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption) : 0;
 
     if (!added) {
         added = true;
