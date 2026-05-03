@@ -583,6 +583,9 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
 
     if (adaptivePercentileRSSI) {
         adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
+    }
+
+    if (adaptivePercentileRSSI && adaptivePercentileRSSI->getReadingCount() > 0) {
         rssi = adaptivePercentileRSSI->getMedianIQR();
         rssiVar = adaptivePercentileRSSI->getRSSIVariance();
     } else {
@@ -591,7 +594,9 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     }
 
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    distVar = adaptivePercentileRSSI ? adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption) : 0;
+    distVar = (adaptivePercentileRSSI && adaptivePercentileRSSI->getReadingCount() > 1)
+        ? adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption)
+        : 0;
 
     if (!added) {
         added = true;

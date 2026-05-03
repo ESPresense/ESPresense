@@ -5,7 +5,7 @@
 
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t initialMaxReadings)
     : timeWindowMs(timeWindowMs),
-      maxReadings(initialMaxReadings),
+      maxReadings(min(initialMaxReadings, MAX_READINGS)),
       head(0),
       tail(0),
       count(0),
