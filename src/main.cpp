@@ -248,6 +248,9 @@ void setupNetwork() {
     if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
         ESP.restart();
 
+    if (!MDNS.begin(HeadlessWiFiSettings.hostname.c_str()))
+        Log.println("Error starting mDNS responder");
+
     GUI::Connected(true, false);
 
 #ifdef FIRMWARE
@@ -459,7 +462,23 @@ void connectToMqtt() {
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessageRaw);
     mqttClient.setClientId(HeadlessWiFiSettings.hostname.c_str());
-    mqttClient.setServer(mqttHost.c_str(), mqttPort);
+
+    String hostLower = mqttHost;
+    hostLower.toLowerCase();
+    int dotLocal = hostLower.indexOf(".local");
+    if (dotLocal > 0) hostLower.remove(dotLocal);
+    if (hostLower.length() > 0 && hostLower.indexOf('.') < 0) {
+        IPAddress mqttIP = MDNS.queryHost(hostLower.c_str());
+        if (mqttIP != IPAddress()) {
+            Log.printf("Resolved %s via mDNS to %s\r\n", mqttHost.c_str(), mqttIP.toString().c_str());
+            mqttClient.setServer(mqttIP, mqttPort);
+        } else {
+            Log.printf("mDNS lookup failed for %s, using string\r\n", mqttHost.c_str());
+            mqttClient.setServer(mqttHost.c_str(), mqttPort);
+        }
+    } else {
+        mqttClient.setServer(mqttHost.c_str(), mqttPort);
+    }
     mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
     mqttClient.connect();
