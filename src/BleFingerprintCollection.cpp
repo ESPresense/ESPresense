@@ -315,13 +315,13 @@ bool Config(String &id, String &json) {
 }
 
 void ConnectToWifi(bool updating) {
-    knownMacs = HeadlessWiFiSettings.string("known_macs", DEFAULT_KNOWN_MACS, "Known BLE mac addresses (no colons, space seperated)");
-    knownIrks = HeadlessWiFiSettings.string("known_irks", DEFAULT_KNOWN_IRKS, "Known BLE identity resolving keys, should be 32 hex chars space seperated");
+    knownMacs = HeadlessWiFiSettings.string("known_macs", DEFAULT_KNOWN_MACS, "Known BLE mac addresses (no colons, space separated)");
+    knownIrks = HeadlessWiFiSettings.string("known_irks", DEFAULT_KNOWN_IRKS, "Known BLE identity resolving keys, should be 32 hex chars space separated");
 
     query = HeadlessWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
     requeryMs = HeadlessWiFiSettings.integer("requery_ms", 30, 3600, DEFAULT_REQUERY_MS / 1000, "Requery interval in seconds") * 1000;
 
-    countIds = HeadlessWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space seperated)");
+    countIds = HeadlessWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space separated)");
     countEnter = HeadlessWiFiSettings.floating("count_enter", 0, 100, DEFAULT_COUNT_ENTER, "Start counting devices less than distance (in meters)");
     countExit = HeadlessWiFiSettings.floating("count_exit", 0, 100, DEFAULT_COUNT_EXIT, "Stop counting devices greater than distance (in meters)");
     countMs = HeadlessWiFiSettings.integer("count_ms", 0, 3000000, DEFAULT_COUNT_MS, "Include devices with age less than (in ms)");
@@ -411,6 +411,22 @@ bool Command(String &command, String &pay) {
     } else if (command == "connect_all") {
         allowConnectAll = pay.isEmpty() ? false : pay.toInt() != 0;
         spurt("/connect_all", String(allowConnectAll));
+    } else if (command == "forget_ms") {
+        forgetMs = pay.isEmpty() ? DEFAULT_FORGET_MS : pay.toInt();
+        spurt("/forget_ms", String(forgetMs));
+    } else if (command == "requery_ms") {
+        requeryMs = pay.isEmpty() ? DEFAULT_REQUERY_MS : pay.toInt();
+        // requery_ms is persisted in seconds (UI stores 30..3600s and multiplies by 1000 at boot)
+        spurt("/requery_ms", String(requeryMs / 1000));
+    } else if (command == "count_enter") {
+        countEnter = pay.isEmpty() ? DEFAULT_COUNT_ENTER : pay.toFloat();
+        spurt("/count_enter", String(countEnter));
+    } else if (command == "count_exit") {
+        countExit = pay.isEmpty() ? DEFAULT_COUNT_EXIT : pay.toFloat();
+        spurt("/count_exit", String(countExit));
+    } else if (command == "count_ms") {
+        countMs = pay.isEmpty() ? DEFAULT_COUNT_MS : pay.toInt();
+        spurt("/count_ms", String(countMs));
     } else
         return false;
     return true;

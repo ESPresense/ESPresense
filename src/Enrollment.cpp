@@ -393,6 +393,19 @@ bool Loop() {
     return true;
 }
 
+/**
+ * @brief Handle the `enroll` and `cancelEnroll` MQTT commands.
+ *
+ * Payload grammar for `enroll`:
+ *   - `<id>|<name>`  — explicit id and display name (pipe-separated).
+ *   - `<name>`       — display name only; id is derived from the IRK at capture time.
+ *   - `PRESS`        — sentinel for a UI button press; no id or name supplied.
+ *   - empty          — same as `PRESS`.
+ *
+ * Side effects: switches advertising to connectable HRM mode (see `Loop()`), and opens
+ * a 120 s enrollment window after which `Loop()` silently clears `enrolling`. The
+ * `cancelEnroll` command closes the window immediately and clears any pending name/id.
+ */
 bool Command(String &command, String &pay) {
     if (command == "enroll") {
         const int separatorIndex = pay.indexOf('|');
