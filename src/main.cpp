@@ -50,7 +50,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && pub((roomsTopic + "/forget_ms").c_str(), 0, true, String(BleFingerprintCollection::forgetMs).c_str())
             && pub((roomsTopic + "/requery_ms").c_str(), 0, true, String(BleFingerprintCollection::requeryMs).c_str())
             && pub((roomsTopic + "/ref_rssi").c_str(), 0, true, String(BleFingerprintCollection::rxRefRssi).c_str())
-            && pub((roomsTopic + "/connect_all").c_str(), 0, true, String((int)BleFingerprintCollection::allowConnectAll).c_str())
             && Updater::SendOnline()
             && Motion::SendOnline()
             && Switch::SendOnline()

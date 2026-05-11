@@ -91,19 +91,15 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
         bool baseAllow = !ignore;
         bool newQuery = false;
         if (baseAllow) {
-            if (BleFingerprintCollection::allowConnectAll) {
+            DeviceConfig dcCheck;
+            bool found = BleFingerprintCollection::FindDeviceConfig(newId, dcCheck);
+            if (!found) {
+                found = BleFingerprintCollection::FindDeviceConfigByAlias(newId, dcCheck);
+            }
+            if (found && dcCheck.allowConnect) {
                 newQuery = true;
             } else {
-                DeviceConfig dcCheck;
-                bool found = BleFingerprintCollection::FindDeviceConfig(newId, dcCheck);
-                if (!found) {
-                    found = BleFingerprintCollection::FindDeviceConfigByAlias(newId, dcCheck);
-                }
-                if (found && dcCheck.allowConnect) {
-                    newQuery = true;
-                } else {
-                    newQuery = !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
-                }
+                newQuery = !BleFingerprintCollection::query.isEmpty() && prefixExists(BleFingerprintCollection::query, newId);
             }
         }
         if (newQuery != allowQuery) {

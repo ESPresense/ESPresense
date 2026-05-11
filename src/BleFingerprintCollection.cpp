@@ -142,7 +142,6 @@ int forgetMs = DEFAULT_FORGET_MS,
     countMs = DEFAULT_COUNT_MS,
     requeryMs = DEFAULT_REQUERY_MS,
     maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
-bool allowConnectAll = false;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 TCallbackBool onSeen = nullptr;
@@ -339,7 +338,6 @@ void ConnectToWifi(bool updating) {
     forgetMs = HeadlessWiFiSettings.integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     txRefRssi = HeadlessWiFiSettings.integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
     maxDivisor = HeadlessWiFiSettings.integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
-    allowConnectAll = HeadlessWiFiSettings.checkbox("connect_all", false, "Allow active BLE connections to all devices (overrides query filter)");
     if (!updating)
         configureSlots(maxFingerprints);
 
@@ -408,9 +406,6 @@ bool Command(String &command, String &pay) {
     } else if (command == "max_divisor") {
         maxDivisor = pay.isEmpty() ? DEFAULT_MAX_DIVISOR : pay.toInt();
         spurt("/max_divisor", String(maxDivisor));
-    } else if (command == "connect_all") {
-        allowConnectAll = pay.isEmpty() ? false : pay.toInt() != 0;
-        spurt("/connect_all", String(allowConnectAll));
     } else if (command == "forget_ms") {
         forgetMs = pay.isEmpty() ? DEFAULT_FORGET_MS : pay.toInt();
         spurt("/forget_ms", String(forgetMs));
