@@ -398,9 +398,11 @@ bool Loop() {
 // Accepted payload grammar for "enroll":
 //   "id|name"  — bind the next connecting device to this stable id and friendly name
 //                (id segment becomes the published fingerprint id, e.g. "myphone:abcdef")
-//   "name"     — bind to a friendly name only (id auto-derived from MAC/IRK)
+//   "name"     — bind to a friendly name only; id is derived via slugify(name)
+//                at capture time (see slugify() in lib/utils/string_utils.cpp)
 //   "PRESS"    — sentinel meaning "user pressed the Enroll button on the web UI";
-//                clears id and name and just opens the 2-minute enrollment window
+//                clears id and name; id is then derived from the IRK at capture
+//                time as "irk:<hex>" once the connecting device is resolved
 //   ""         — same as "PRESS"
 //
 // The enrollment window is fixed at 120 s (see enrollingEndMillis below). "cancelEnroll"
