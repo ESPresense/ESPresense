@@ -393,6 +393,19 @@ bool Loop() {
     return true;
 }
 
+// Dispatches MQTT / WebSocket enrollment commands.
+//
+// Accepted payload grammar for "enroll":
+//   "id|name"  — bind the next connecting device to this stable id and friendly name
+//                (id segment becomes the published fingerprint id, e.g. "myphone:abcdef")
+//   "name"     — bind to a friendly name only (id auto-derived from MAC/IRK)
+//   "PRESS"    — sentinel meaning "user pressed the Enroll button on the web UI";
+//                clears id and name and just opens the 2-minute enrollment window
+//   ""         — same as "PRESS"
+//
+// The enrollment window is fixed at 120 s (see enrollingEndMillis below). "cancelEnroll"
+// closes the window immediately and clears any pending id/name. Both commands also push
+// fresh state to any connected WebSocket clients via HttpWebServer::SendState().
 bool Command(String &command, String &pay) {
     if (command == "enroll") {
         const int separatorIndex = pay.indexOf('|');
