@@ -49,6 +49,15 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         ) {
             online = true;
             reconnectTries = 0;
+            pub((roomsTopic + "/count_enter").c_str(), 0, true, String(BleFingerprintCollection::countEnter).c_str());
+            pub((roomsTopic + "/count_exit").c_str(), 0, true, String(BleFingerprintCollection::countExit).c_str());
+            pub((roomsTopic + "/count_ms").c_str(), 0, true, String(BleFingerprintCollection::countMs).c_str());
+            pub((roomsTopic + "/skip_distance").c_str(), 0, true, String(BleFingerprintCollection::skipDistance).c_str());
+            pub((roomsTopic + "/skip_ms").c_str(), 0, true, String(BleFingerprintCollection::skipMs).c_str());
+            pub((roomsTopic + "/max_divisor").c_str(), 0, true, String(BleFingerprintCollection::maxDivisor).c_str());
+            pub((roomsTopic + "/forget_ms").c_str(), 0, true, String(BleFingerprintCollection::forgetMs).c_str());
+            pub((roomsTopic + "/requery_ms").c_str(), 0, true, String(BleFingerprintCollection::requeryMs).c_str());
+            pub((roomsTopic + "/ref_rssi").c_str(), 0, true, String((int)BleFingerprintCollection::rxRefRssi).c_str());
         } else {
             Log.println("Error sending status=online");
         }
