@@ -30,17 +30,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
-            && pub((roomsTopic + "/name").c_str(), 0, true, room.c_str())
-            && pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str())
-            && pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str())
-            && pub((roomsTopic + "/tx_ref_rssi").c_str(), 0, true, String(BleFingerprintCollection::txRefRssi).c_str())
-            && pub((roomsTopic + "/rx_adj_rssi").c_str(), 0, true, String(BleFingerprintCollection::rxAdjRssi).c_str())
-            && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str())
-            && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str())
-            && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str())
-            && pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str())
-            && pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str())
-            && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
             && Updater::SendOnline()
             && Motion::SendOnline()
             && Switch::SendOnline()
@@ -49,6 +38,17 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         ) {
             online = true;
             reconnectTries = 0;
+            pub((roomsTopic + "/name").c_str(), 0, true, room.c_str());
+            pub((roomsTopic + "/max_distance").c_str(), 0, true, String(BleFingerprintCollection::maxDistance).c_str());
+            pub((roomsTopic + "/absorption").c_str(), 0, true, String(BleFingerprintCollection::absorption).c_str());
+            pub((roomsTopic + "/tx_ref_rssi").c_str(), 0, true, String(BleFingerprintCollection::txRefRssi).c_str());
+            pub((roomsTopic + "/rx_adj_rssi").c_str(), 0, true, String((int)BleFingerprintCollection::rxAdjRssi).c_str());
+            pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str());
+            pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str());
+            pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str());
+            pub((roomsTopic + "/known_macs").c_str(), 0, true, BleFingerprintCollection::knownMacs.c_str());
+            pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str());
+            pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str());
             pub((roomsTopic + "/count_enter").c_str(), 0, true, String(BleFingerprintCollection::countEnter).c_str());
             pub((roomsTopic + "/count_exit").c_str(), 0, true, String(BleFingerprintCollection::countExit).c_str());
             pub((roomsTopic + "/count_ms").c_str(), 0, true, String(BleFingerprintCollection::countMs).c_str());
