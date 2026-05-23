@@ -374,10 +374,8 @@ void onMqttMessage(const char *topic, const char *payload) {
             ESP.restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
-        else if (command == "wifi_sleep") {
+        else if (command == "wifi_sleep")
             spurt("/wifi_sleep", pay);
-            WiFi.setSleep(pay != "false" && pay != "0");
-        }
         else if (command == "name")
             spurt("/room", pay.isEmpty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))
