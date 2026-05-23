@@ -177,11 +177,7 @@ void setupNetwork() {
     } else {
         ethernetType = 0;
     }
-#ifdef ESP32
     WiFi.setSleep(wifiSleep);
-#elif defined(ESP8266)
-    WiFi.setSleepMode(wifiSleep ? WIFI_LIGHT_SLEEP : WIFI_NONE_SLEEP);
-#endif
     Log.printf("WiFi sleep:   %s\r\n", wifiSleep ? "enabled" : "disabled");
 
     mqttHost = HeadlessWiFiSettings.string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
