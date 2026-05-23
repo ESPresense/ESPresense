@@ -169,7 +169,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.string("wifi-ssid", "", "WiFi SSID");
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
-    auto wifiSleep = HeadlessWiFiSettings.checkbox("wifi_sleep", true, "Enable WiFi modem sleep mode");
+    auto wifiSleep = HeadlessWiFiSettings.checkbox("wifi_sleep", DEFAULT_WIFI_SLEEP, "Enable WiFi modem sleep mode");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     if (MultiNetwork.supportsEthernet()) {
         std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
@@ -374,6 +374,10 @@ void onMqttMessage(const char *topic, const char *payload) {
             ESP.restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
+        else if (command == "wifi_sleep") {
+            spurt("/wifi_sleep", pay);
+            WiFi.setSleep(pay != "false" && pay != "0");
+        }
         else if (command == "name")
             spurt("/room", pay.isEmpty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))
