@@ -27,6 +27,7 @@ steps:
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32
       PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32/build_cache
+      PLATFORMIO_BUILD_DIR: /cache/platformio-esp32/build
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
     commands:
       - |
@@ -65,6 +66,7 @@ steps:
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32c3
       PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c3/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c3/build_cache
+      PLATFORMIO_BUILD_DIR: /cache/platformio-esp32c3/build
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
     commands:
       - |
@@ -103,6 +105,7 @@ steps:
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
       PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c6/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c6/build_cache
+      PLATFORMIO_BUILD_DIR: /cache/platformio-esp32c6/build
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
     commands:
       - |
@@ -141,6 +144,7 @@ steps:
       PLATFORMIO_CORE_DIR: /cache/platformio-esp32s3
       PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32s3/libdeps
       PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32s3/build_cache
+      PLATFORMIO_BUILD_DIR: /cache/platformio-esp32s3/build
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
     commands:
       - |
