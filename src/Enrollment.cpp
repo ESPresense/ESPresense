@@ -32,7 +32,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param pServer Server instance that reported the connection.
      */
 #ifdef NIMBLE_V2
-    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override {
+    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) {
         std::string addr = connInfo.getAddress().toString();
         Log.print("Connected to: ");
         Log.println(addr.c_str());
