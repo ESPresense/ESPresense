@@ -2,6 +2,9 @@
 
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLECharacteristic.h>
+#ifdef NIMBLE_V2
+#include <NimBLEConnInfo.h>
+#endif
 #include <NimBLEDescriptor.h>
 #include <NimBLEDevice.h>
 #include <NimBLEService.h>
@@ -28,6 +31,17 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      *
      * @param pServer Server instance that reported the connection.
      */
+#ifdef NIMBLE_V2
+    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override {
+        std::string addr = connInfo.getAddress().toString();
+        Log.print("Connected to: ");
+        Log.println(addr.c_str());
+        if (enrolling) {
+            connectionToEnroll = connInfo.getConnHandle();
+            NimBLEDevice::startAdvertising();
+        }
+    };
+#else
     void onConnect(NimBLEServer *pServer) {
         if (enrolling) {
             NimBLEDevice::startAdvertising();
@@ -52,6 +66,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
             connectionToEnroll = desc->conn_handle;
         }
     };
+#endif
 
     /**
      * @brief Handle a BLE client disconnection and resume advertising if enrolling.
@@ -59,12 +74,21 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * When enrollment mode is active, this callback restarts BLE advertising so the
      * device remains discoverable for new connections.
      */
+#ifdef NIMBLE_V2
+    void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) {
+        if (enrolling) {
+            Log.printf("Client disconnected, conn: %u reason: %d\r\n", connInfo.getConnHandle(), reason);
+            NimBLEDevice::startAdvertising();
+        }
+    };
+#else
     void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
             Log.println("Client disconnected");
             NimBLEDevice::startAdvertising();
         }
     };
+#endif
 
     /**
      * @brief Logs the updated MTU size and connection handle for a BLE connection.
@@ -72,9 +96,15 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param MTU Negotiated MTU size for the connection.
      * @param desc Pointer to the BLE connection descriptor containing the connection handle.
      */
+#ifdef NIMBLE_V2
+    void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) {
+        Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, connInfo.getConnHandle());
+    };
+#else
     void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc) {
         Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
     };
+#endif
 
     /**
      * @brief Callback invoked when BLE authentication for a connection completes.
@@ -83,9 +113,15 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      *
      * @param desc Pointer to the connection descriptor containing `sec_state.encrypted` and `conn_handle`.
      */
+#ifdef NIMBLE_V2
+    void onAuthenticationComplete(NimBLEConnInfo &connInfo) {
+        Log.printf("Encrypt connection %s conn: %d!\r\n", connInfo.isEncrypted() ? "success" : "failed", connInfo.getConnHandle());
+    }
+#else
     void onAuthenticationComplete(ble_gap_conn_desc *desc) {
         Log.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
     }
+#endif
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
