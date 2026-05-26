@@ -32,7 +32,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param pServer Server instance that reported the connection.
      */
 #ifdef NIMBLE_V2
-    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) {
+    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override {
         std::string addr = connInfo.getAddress().toString();
         Log.print("Connected to: ");
         Log.println(addr.c_str());
@@ -75,7 +75,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * device remains discoverable for new connections.
      */
 #ifdef NIMBLE_V2
-    void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) {
+    void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) override {
         if (enrolling) {
             Log.printf("Client disconnected, conn: %u reason: %d\r\n", connInfo.getConnHandle(), reason);
             NimBLEDevice::startAdvertising();
@@ -97,7 +97,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param desc Pointer to the BLE connection descriptor containing the connection handle.
      */
 #ifdef NIMBLE_V2
-    void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) {
+    void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) override {
         Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, connInfo.getConnHandle());
     };
 #else
@@ -114,7 +114,7 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @param desc Pointer to the connection descriptor containing `sec_state.encrypted` and `conn_handle`.
      */
 #ifdef NIMBLE_V2
-    void onAuthenticationComplete(NimBLEConnInfo &connInfo) {
+    void onAuthenticationComplete(NimBLEConnInfo &connInfo) override {
         Log.printf("Encrypt connection %s conn: %d!\r\n", connInfo.isEncrypted() ? "success" : "failed", connInfo.getConnHandle());
     }
 #else
