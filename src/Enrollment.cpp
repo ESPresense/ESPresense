@@ -201,6 +201,25 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * @param desc Pointer to the GAP connection descriptor for the client (provides conn_handle and peer address).
      * @param subValue Subscription value where `0` = unsubscribed, `1` = notifications, `2` = indications, `3` = notifications and indications.
      */
+#ifdef NIMBLE_V2
+    void onSubscribe(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo, uint16_t subValue) override {
+        String str = "Client ID: ";
+        str += connInfo.getConnHandle();
+        str += " Address: ";
+        str += connInfo.getAddress().toString().c_str();
+        if (subValue == 0) {
+            str += " Unsubscribed to ";
+        } else if (subValue == 1) {
+            str += " Subscribed to notfications for ";
+        } else if (subValue == 2) {
+            str += " Subscribed to indications for ";
+        } else if (subValue == 3) {
+            str += " Subscribed to notifications and indications for ";
+        }
+        str += std::string(pCharacteristic->getUUID()).c_str();
+        Log.println(str);
+    };
+#else
     void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
         String str = "Client ID: ";
         str += desc->conn_handle;
@@ -218,6 +237,7 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         str += std::string(pCharacteristic->getUUID()).c_str();
         Log.println(str);
     };
+#endif
 };
 
 class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
