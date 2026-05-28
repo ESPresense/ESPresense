@@ -139,6 +139,10 @@
 #define DEFAULT_ARDUINO_OTA false
 #define DEFAULT_AUTO_UPDATE false
 
+#ifndef DEFAULT_WIFI_SLEEP
+#define DEFAULT_WIFI_SLEEP true
+#endif
+
 #if defined M5STICK
 
 #define DEFAULT_LED1_TYPE 1
