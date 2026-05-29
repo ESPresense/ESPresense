@@ -22,6 +22,8 @@
 #include "Switch.h"
 #include "Button.h"
 #include "MultiNetwork.h"
+#include "Relay.h"
+#include "Network.h" 
 #include "SerialImprov.h"
 #include "Logger.h"
 #include "Updater.h"
