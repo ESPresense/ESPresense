@@ -64,7 +64,7 @@ class ValidateSchemaTests(unittest.TestCase):
 
 
 class TargetsTests(unittest.TestCase):
-    def test_parse(self, tmpfile=None) -> None:
+    def test_parse(self) -> None:
         from tempfile import NamedTemporaryFile
         with NamedTemporaryFile("w", suffix=".txt", delete=False) as fh:
             fh.write("# header\nlatest,esp32\n  v4.0.6, m5atom  # legacy\n\n")

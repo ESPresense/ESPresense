@@ -186,7 +186,7 @@ def check_target(
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or '').split("\n", 1)[0])
     parser.add_argument(
         "--base", default=DEFAULT_BASE, help="Manifest host (default: %(default)s)"
     )
