@@ -254,9 +254,27 @@ void BleFingerprint::fingerprintAddress() {
     else {
         switch (addressType) {
             case BLE_ADDR_PUBLIC:
-            case BLE_ADDR_PUBLIC_ID:
+            case BLE_ADDR_PUBLIC_ID: {
+                // iOS devices use BLE_ADDR_PUBLIC_ID but may have an enrolled IRK.
+                // Check knownIrks before falling back to public MAC to avoid tracking
+                // by rotating public MAC instead of stable IRK.
+                const auto &knownIrks = BleFingerprintCollection::irks;
+                if (!knownIrks.empty()) {
+#ifdef NIMBLE_V2
+                    const auto naddress = address.getVal();
+#else
+                    const auto *naddress = address.getNative();
+#endif
+                    auto it = std::find_if(knownIrks.begin(), knownIrks.end(), [naddress](uint8_t *irk) { return ble_ll_resolv_rpa(naddress, irk); });
+                    if (it != knownIrks.end()) {
+                        auto irk_hex = hexStr(*it, 16);
+                        setId(String("irk:") + irk_hex.c_str(), ID_TYPE_KNOWN_IRK);
+                        break;
+                    }
+                }
                 setId(mac, ID_TYPE_PUBLIC_MAC);
                 break;
+            }
             case BLE_ADDR_RANDOM:
             case BLE_ADDR_RANDOM_ID: {
 #ifdef NIMBLE_V2
