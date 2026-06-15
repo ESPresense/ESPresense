@@ -554,6 +554,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
 
 void scanTask(void *parameter) {
     NimBLEDevice::init("ESPresense");
+    NimBLEDevice::deleteAllBonds();
     Enrollment::Setup();
     NimBLEDevice::setMTU(23);
 
