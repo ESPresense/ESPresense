@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <AsyncTCP.h>
+#include <esp_system.h>
 #include <HeadlessWiFiSettings.h>
 #include <ESPAsyncWebServer.h>
 #include <HTTPClient.h>
@@ -62,6 +63,7 @@ int reportFailed = 0;
 bool online = false;         // Have we successfully sent status=online
 bool sentDiscovery = false;  // Have we successfully sent discovery
 UBaseType_t bleStack = 0;
+const char* resetReason = "unknown";  // Captured on boot
 
 int ethernetType = 0;
 String mqttHost, mqttUser, mqttPass;

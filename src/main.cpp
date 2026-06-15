@@ -10,6 +10,26 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
 }
 
 /**
+ * @brief Convert ESP reset reason enum to human-readable string.
+ * @return Pointer to static string describing the reset reason.
+ */
+const char* getResetReasonString() {
+    switch (esp_reset_reason()) {
+        case ESP_RST_POWERON:   return "power_on";
+        case ESP_RST_EXT:       return "external";
+        case ESP_RST_SW:        return "software";
+        case ESP_RST_PANIC:     return "panic";
+        case ESP_RST_INT_WDT:   return "int_watchdog";
+        case ESP_RST_TASK_WDT:  return "task_watchdog";
+        case ESP_RST_WDT:       return "watchdog";
+        case ESP_RST_DEEPSLEEP: return "deep_sleep";
+        case ESP_RST_BROWNOUT:  return "brownout";
+        case ESP_RST_SDIO:      return "sdio";
+        default:                return "unknown";
+    }
+}
+
+/**
  * @brief Publish device telemetry and perform online/discovery announcements.
  *
  * Attempts to send status and discovery payloads when the device is not marked online
@@ -60,6 +80,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && sendTeleSensorDiscovery("Free Mem", EC_DIAGNOSTIC, "{{ value_json.freeHeap }}", DEVICE_CLASS_NONE, "bytes")
             && (BleFingerprintCollection::countIds.isEmpty() ? sendDeleteDiscovery("sensor", "Count") : sendTeleSensorDiscovery("Count", EC_NONE, "{{ value_json.count }}"))
             && sendButtonDiscovery("Restart", EC_DIAGNOSTIC)
+            && sendTeleSensorDiscovery("Reset Reason", EC_DIAGNOSTIC, "{{ value_json.resetReason }}")
             && sendNumberDiscovery("Max Distance", EC_CONFIG)
             && sendNumberDiscovery("Absorption", EC_CONFIG)
 
@@ -115,6 +136,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 #else
     doc["ver"] = ESP.getSketchMD5() + "-" + getBuildTimestamp();
 #endif
+    doc["resetReason"] = resetReason;
 
     if (!BleFingerprintCollection::countIds.isEmpty())
         doc["count"] = count;
@@ -136,15 +158,34 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
+#ifdef ESP32
+    auto psramSize = ESP.getPsramSize();
+    if (psramSize > 0) {
+        doc["psram"] = psramSize;
+    }
+#endif
     doc["fingerprints"] = fingerprintCount;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
 
+    // Tiered memory (ColdTier pre-filter) stats — DEBUG: prune once stable
+    if (BleFingerprintCollection::isTieredMemoryEnabled()) {
+        doc["tierDrop"] = BleFingerprintCollection::getTierDropCount();
+        doc["tierCold"] = BleFingerprintCollection::getTierColdCount();
+        doc["tierHot"] = BleFingerprintCollection::getTierHotCount();
+        doc["tierPromote"] = BleFingerprintCollection::getTierPromoteCount();
+        doc["tierCap"] = BleFingerprintCollection::getColdTierCapacity();
+        doc["tierCount"] = BleFingerprintCollection::getColdTierCount();
+        if (BleFingerprintCollection::isColdTierUsingPsram()) {
+            doc["tierPsram"] = true;
+        }
+    }
+
     if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 
     teleFails++;
-    log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
+    log_e("Error sending telemetry (%d times since boot)", teleFails);
     return false;
 }
 
@@ -462,6 +503,7 @@ void connectToMqtt() {
     mqttClient.setServer(mqttHost.c_str(), mqttPort);
     mqttClient.setWill(statusTopic.c_str(), 0, true, "offline");
     mqttClient.setCredentials(mqttUser.c_str(), mqttPass.c_str());
+    mqttClient.setKeepAlive(60);  // 60 seconds - more tolerant than default 15s
     mqttClient.connect();
 }
 
@@ -622,6 +664,10 @@ void setup() {
 #endif
     Log.printf("Pre-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
+
+    // Capture reset reason immediately on boot
+    resetReason = getResetReasonString();
+    Log.printf("Reset reason: %s\r\n", resetReason);
 
 #if M5STICK
     AXP192::Setup();
