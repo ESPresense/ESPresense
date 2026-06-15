@@ -142,6 +142,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 }
 
 void onRestart(AsyncWebServerRequest *request) {
+    if (!request->hasHeader("X-Requested-With")) {
+        request->send(403, "text/plain", "Forbidden");
+        return;
+    }
     request->send(200, "text/plain", "Restarting...");
     ESP.restart();
 }
