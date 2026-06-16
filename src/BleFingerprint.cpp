@@ -516,6 +516,7 @@ void BleFingerprint::fingerprintServiceData(BLEAdvertisedDevice *advertisedDevic
                 if (parsedFlora.hasBattery) battery = parsedFlora.battery;
             }
             setId("flora:" + getMac(), ID_TYPE_FLORA);
+#ifndef NIMBLE_V2
         } else if (uuid == eddystoneUUID && strServiceData.length() > 0) {
             if (strServiceData[0] == EDDYSTONE_URL_FRAME_TYPE && strServiceData.length() <= 18) {
                 BLEEddystoneURL oBeacon = BLEEddystoneURL();
