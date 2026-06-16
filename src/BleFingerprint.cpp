@@ -540,7 +540,6 @@ void BleFingerprint::fingerprintServiceData(BLEAdvertisedDevice *advertisedDevic
                               strServiceData[16], strServiceData[17]),
                       ID_TYPE_EBEACON);
             }
-#endif
         } else {
             std::string uuidStr = uuid.toString();
             fingerprint = fingerprint + uuidStr.c_str();
