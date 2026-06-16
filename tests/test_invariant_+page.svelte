@@ -22,10 +22,14 @@ static long send_request(const char *endpoint, const char *auth_header, const ch
         struct curl_slist *headers = NULL;
         if (auth_header && strlen(auth_header) > 0) {
             headers = curl_slist_append(headers, auth_header);
-            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         }
         if (csrf_header && strlen(csrf_header) > 0) {
             headers = curl_slist_append(headers, csrf_header);
+        }
+        
+        // Set headers after all are appended
+        if (headers) {
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         }
         
         curl_easy_perform(curl);
@@ -47,7 +51,7 @@ START_TEST(test_protected_endpoints_reject_unauthenticated)
         "Authorization: Bearer !!!malformed!!!"      // Malformed token
     };
     
-    // Test without X-Requested-With header
+    // Test without X-Requested-With header (should be rejected)
     for (int e = 0; e < 2; e++) {
         for (int a = 0; a < 3; a++) {
             long code = send_request(endpoints[e], auth_cases[a], "");
@@ -57,7 +61,7 @@ START_TEST(test_protected_endpoints_reject_unauthenticated)
         }
     }
     
-    // Test WITH X-Requested-With header but invalid/missing auth (bypass attempt)
+    // Test WITH X-Requested-With header but invalid/missing auth (bypass attempt - should still be rejected)
     const char *csrf_header = "X-Requested-With: XMLHttpRequest";
     for (int e = 0; e < 2; e++) {
         for (int a = 0; a < 3; a++) {
