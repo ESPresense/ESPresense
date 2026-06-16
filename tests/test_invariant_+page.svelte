@@ -6,7 +6,7 @@
 
 #define BASE_URL "http://localhost:8080"
 
-static long send_request(const char *endpoint, const char *auth_header)
+static long send_request(const char *endpoint, const char *auth_header, const char *csrf_header)
 {
     CURL *curl = curl_easy_init();
     long http_code = 0;
@@ -23,6 +23,9 @@ static long send_request(const char *endpoint, const char *auth_header)
         if (auth_header && strlen(auth_header) > 0) {
             headers = curl_slist_append(headers, auth_header);
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        }
+        if (csrf_header && strlen(csrf_header) > 0) {
+            headers = curl_slist_append(headers, csrf_header);
         }
         
         curl_easy_perform(curl);
@@ -44,11 +47,23 @@ START_TEST(test_protected_endpoints_reject_unauthenticated)
         "Authorization: Bearer !!!malformed!!!"      // Malformed token
     };
     
+    // Test without X-Requested-With header
     for (int e = 0; e < 2; e++) {
         for (int a = 0; a < 3; a++) {
-            long code = send_request(endpoints[e], auth_cases[a]);
+            long code = send_request(endpoints[e], auth_cases[a], "");
             ck_assert_msg(code == 401 || code == 403,
                 "Endpoint %s accepted unauthenticated request (auth='%s', code=%ld)",
+                endpoints[e], auth_cases[a], code);
+        }
+    }
+    
+    // Test WITH X-Requested-With header but invalid/missing auth (bypass attempt)
+    const char *csrf_header = "X-Requested-With: XMLHttpRequest";
+    for (int e = 0; e < 2; e++) {
+        for (int a = 0; a < 3; a++) {
+            long code = send_request(endpoints[e], auth_cases[a], csrf_header);
+            ck_assert_msg(code == 401 || code == 403,
+                "Endpoint %s accepted request with X-Requested-With but invalid auth (auth='%s', code=%ld)",
                 endpoints[e], auth_cases[a], code);
         }
     }

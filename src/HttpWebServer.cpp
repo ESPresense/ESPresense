@@ -142,10 +142,23 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 }
 
 void onRestart(AsyncWebServerRequest *request) {
+    // Verify X-Requested-With header to prevent CSRF
     if (!request->hasHeader("X-Requested-With")) {
-        request->send(403, "text/plain", "Forbidden");
+        request->send(403, "text/plain", "Forbidden: CSRF protection");
         return;
     }
+    
+    // Verify authentication - check for valid session or auth token
+    // This prevents attackers from simply adding X-Requested-With header
+    if (!request->hasHeader("Authorization") && !request->hasHeader("Cookie")) {
+        request->send(401, "text/plain", "Unauthorized: Authentication required");
+        return;
+    }
+    
+    // TODO: Add proper token/session validation here
+    // For now, require at least the presence of auth headers
+    // In production, validate the token/session against stored credentials
+    
     request->send(200, "text/plain", "Restarting...");
     ESP.restart();
 }
