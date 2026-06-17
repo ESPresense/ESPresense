@@ -25,8 +25,14 @@ static long send_request(const char *endpoint, const char *csrf_header)
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         }
 
-        curl_easy_perform(curl);
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
 
         if (headers) curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
@@ -44,6 +50,9 @@ START_TEST(test_endpoints_reject_requests_without_csrf_header)
 
     for (int e = 0; e < 2; e++) {
         long code = send_request(endpoints[e], "");
+        ck_assert_msg(code != -1,
+            "Network error: could not connect to server for endpoint %s",
+            endpoints[e]);
         ck_assert_msg(code == 403,
             "Endpoint %s accepted a request without X-Requested-With header (code=%ld)",
             endpoints[e], code);
@@ -60,6 +69,9 @@ START_TEST(test_endpoints_accept_requests_with_csrf_header)
 
     for (int e = 0; e < 2; e++) {
         long code = send_request(endpoints[e], csrf_header);
+        ck_assert_msg(code != -1,
+            "Network error: could not connect to server for endpoint %s",
+            endpoints[e]);
         ck_assert_msg(code >= 200 && code < 300,
             "Endpoint %s rejected a legitimate UI request with X-Requested-With header (code=%ld)",
             endpoints[e], code);
