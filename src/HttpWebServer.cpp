@@ -150,11 +150,6 @@ void onRestart(AsyncWebServerRequest *request) {
         request->send(403, "text/plain", "Forbidden");
         return;
     }
-    request->send(200, "text/plain", "Restarting...");
-    ESP.restart();
-}
-
-void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "GET, POST, DELETE, OPTIONS");
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "Content-Type");

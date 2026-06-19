@@ -24,9 +24,30 @@ static long send_request(const char *endpoint, const char *csrf_header)
             headers = curl_slist_append(headers, csrf_header);
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
         }
-
         CURLcode res = curl_easy_perform(curl);
         if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
             fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
                     endpoint, curl_easy_strerror(res));
             http_code = -1;
@@ -42,9 +63,33 @@ static long send_request(const char *endpoint, const char *csrf_header)
 
 static long send_request_multi_header(const char *endpoint,
                                       const char *header1,
-                                      const char *header2)
-{
-    CURL *curl = curl_easy_init();
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
+        CURLcode res = curl_easy_perform(curl);
+        if (res != CURLE_OK) {
+            fprintf(stderr, "curl_easy_perform() failed for %s: %s\n",
+                    endpoint, curl_easy_strerror(res));
+            http_code = -1;
+        } else {
+            curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+        }
+        ck_assert_msg(code != -1,
+            "Network error: could not connect to server for endpoint %s",
+            endpoints[e]);
     long http_code = 0;
 
     if (curl) {
@@ -61,6 +106,9 @@ static long send_request_multi_header(const char *endpoint,
         if (header2 && strlen(header2) > 0)
             headers = curl_slist_append(headers, header2);
         if (headers)
+        ck_assert_msg(code != -1,
+            "Network error: could not connect to server for endpoint %s",
+            endpoints[e]);
             curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
         CURLcode res = curl_easy_perform(curl);
