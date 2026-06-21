@@ -142,6 +142,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventTyp
 }
 
 void onRestart(AsyncWebServerRequest *request) {
+    // Require X-Requested-With to prevent cross-site request forgery.
+    // Browsers enforce CORS preflight for requests with custom headers, so a
+    // third-party website cannot set this header on a cross-origin request
+    // without explicit server approval — stopping browser-based CSRF attacks.
+    if (!request->hasHeader("X-Requested-With")) {
+        request->send(403, "text/plain", "Forbidden");
+        return;
+    }
     request->send(200, "text/plain", "Restarting...");
     ESP.restart();
 }

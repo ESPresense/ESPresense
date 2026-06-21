@@ -54,10 +54,10 @@
                     params.append(key, value);
                 }
             }
-            await fetch("/wifi/main", { method: "POST", body: params });
+            await fetch("/wifi/main", { method: "POST", body: params, headers: { "X-Requested-With": "XMLHttpRequest" } });
 
             try {
-                await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
+                await fetch("/restart", { method: "POST", headers: { "X-Requested-With": "XMLHttpRequest" }, signal: AbortSignal.timeout(1000) });
             } catch (error) {
                 // often the restart request will fail, so we ignore the error
             }
