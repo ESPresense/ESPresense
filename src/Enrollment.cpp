@@ -337,7 +337,14 @@ void Setup() {
     heartRate->start();
     deviceInfo->start();
 
-    uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() >> 24);
+    // Derive a per-device BLE beacon major/minor from the eFuse MAC. Mask the
+    // low 24 bits (& 0xFFFFFFu) instead of shifting the high bits (>> 24):
+    // the eFuse byte order is not consistent across ESP32 variants, so on
+    // ESP32-C6/S3 >> 24 returns constant OUI/non-MAC bits and every board on
+    // the same silicon revision collides on the same beacon identifiers
+    // (see issue #2402). Masking the low 24 bits yields a unique value on
+    // every supported target.
+    uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() & 0xFFFFFFu);
     major = (nodeId & 0xFFFF0000) >> 16;
     minor = nodeId & 0xFFFF;
 
