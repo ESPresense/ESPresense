@@ -737,12 +737,15 @@ bool BleFingerprint::query() {
 }
 
 bool BleFingerprint::queryBatteryIfDue() {
-    if (batteryQueryInterval == 0 || isBatteryQuerying) return false;
+    // Resolve interval (per-device override → global) and RSSI gate on every call so
+    // settings changes take effect without restarting the device.
+    uint32_t interval = BleFingerprintCollection::BatteryQueryIntervalMs(id);
+    if (interval == 0 || isBatteryQuerying) return false;
     auto now = millis();
-    if (now - lastBatteryQueryMillis < batteryQueryInterval) return false;
+    if (now - lastBatteryQueryMillis < interval) return false;
     // Only query if recently seen and signal is decent
     if (now - lastSeenMillis > 10000) return false; // not seen in last 10s
-    if (rssi < -90) return false; // too weak
+    if (rssi < BleFingerprintCollection::BatteryQueryRssiDbm(id)) return false; // too weak
 
     queryBattery(); // attempt regardless of outcome
     return true;

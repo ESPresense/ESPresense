@@ -141,7 +141,9 @@ int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
     countMs = DEFAULT_COUNT_MS,
     requeryMs = DEFAULT_REQUERY_MS,
-    maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
+    maxFingerprints = DEFAULT_MAX_FINGERPRINTS,
+    batteryQueryIntervalMs = 0,
+    batteryQueryRssiDbm = -90;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 TCallbackBool onSeen = nullptr;
@@ -279,6 +281,11 @@ bool Config(String &id, String &json) {
         config.name = doc["name"].as<String>();
     if (doc.containsKey("connect") && doc["connect"].is<bool>())
         config.allowConnect = doc["connect"].as<bool>();
+    // Periodic-battery per-device overrides (issue #2385). 0 / 0 = inherit global.
+    if (doc.containsKey("battery_periodic_interval"))
+        config.batteryQueryIntervalMs = doc["battery_periodic_interval"].as<uint32_t>() * 1000UL;
+    if (doc.containsKey("battery_periodic_rssi"))
+        config.batteryQueryRssiDbm = (int8_t)doc["battery_periodic_rssi"].as<int>();
     auto isNew = addOrReplace(config);
 
     if (isNew) {
@@ -319,6 +326,10 @@ void ConnectToWifi(bool updating) {
 
     query = HeadlessWiFiSettings.string("query", DEFAULT_QUERY, "Query device ids for characteristics (eg. flora:)");
     requeryMs = HeadlessWiFiSettings.integer("requery_ms", 30, 3600, DEFAULT_REQUERY_MS / 1000, "Requery interval in seconds") * 1000;
+
+    // Periodic battery query (issue #2385). 0 = disabled (preserves legacy behavior).
+    batteryQueryIntervalMs = HeadlessWiFiSettings.integer("battery_periodic_interval", 0, 86400, 0, "Periodic battery query interval in seconds (0 = disabled, range 0..86400)") * 1000;
+    batteryQueryRssiDbm = (int8_t)HeadlessWiFiSettings.integer("battery_periodic_rssi", -100, 0, -90, "Minimum RSSI (dBm) required to issue a periodic battery query (e.g. -90)");
 
     countIds = HeadlessWiFiSettings.string("count_ids", DEFAULT_COUNT_IDS, "Include id prefixes (space separated)");
     countEnter = HeadlessWiFiSettings.floating("count_enter", 0, 100, DEFAULT_COUNT_ENTER, "Start counting devices less than distance (in meters)");
@@ -414,6 +425,19 @@ bool Command(String &command, String &pay) {
         // and multiplies by 1000 — see line 322); in memory the variable is ms.
         requeryMs = pay.isEmpty() ? DEFAULT_REQUERY_MS : pay.toInt();
         spurt("/requery_ms", String(requeryMs / 1000));
+    } else if (command == "battery_periodic_interval") {
+        // Persisted as seconds on disk; in memory we keep ms to match requeryMs.
+        int secs = pay.isEmpty() ? 0 : pay.toInt();
+        if (secs < 0) secs = 0;
+        if (secs > 86400) secs = 86400;
+        batteryQueryIntervalMs = secs * 1000;
+        spurt("/battery_periodic_interval", String(secs));
+    } else if (command == "battery_periodic_rssi") {
+        int rssi = pay.isEmpty() ? -90 : pay.toInt();
+        if (rssi < -100) rssi = -100;
+        if (rssi > 0) rssi = 0;
+        batteryQueryRssiDbm = (int8_t)rssi;
+        spurt("/battery_periodic_rssi", String(batteryQueryRssiDbm));
     } else if (command == "count_enter") {
         countEnter = pay.isEmpty() ? DEFAULT_COUNT_ENTER : pay.toFloat();
         spurt("/count_enter", String(countEnter));
@@ -596,6 +620,25 @@ bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config) {
     }
     log_e("Couldn't take deviceConfigMutex!");
     return false;
+}
+
+uint32_t BatteryQueryIntervalMs(const String &id) {
+    DeviceConfig dc;
+    // Try direct id first, then alias (mirrors GetFingerprint id resolution).
+    if (!FindDeviceConfig(id, dc))
+        FindDeviceConfigByAlias(id, dc);
+    if (dc.batteryQueryIntervalMs != 0)
+        return dc.batteryQueryIntervalMs;
+    return static_cast<uint32_t>(batteryQueryIntervalMs);
+}
+
+int8_t BatteryQueryRssiDbm(const String &id) {
+    DeviceConfig dc;
+    if (!FindDeviceConfig(id, dc))
+        FindDeviceConfigByAlias(id, dc);
+    if (dc.batteryQueryRssiDbm != 0)
+        return dc.batteryQueryRssiDbm;
+    return batteryQueryRssiDbm;
 }
 
 }  // namespace BleFingerprintCollection

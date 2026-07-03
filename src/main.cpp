@@ -26,7 +26,7 @@ void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *fu
  * @return `true` if the telemetry document was published successfully, `false` otherwise.
  * `false` is also returned when telemetry publishing is disabled or the function is rate-limited.
  */
-bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpReported, unsigned int count, unsigned int fingerprintCount) {
+bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned int totalFpQueried, unsigned int totalFpBatteryQueried, unsigned int totalFpReported, unsigned int count, unsigned int fingerprintCount) {
     if (!online) {
         if (
             pub(statusTopic.c_str(), 0, true, "online")
@@ -124,6 +124,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
         doc["seen"] = totalFpSeen;
     if (totalFpQueried > 0)
         doc["queried"] = totalFpQueried;
+    if (totalFpBatteryQueried > 0)
+        doc["batteryQueried"] = totalFpBatteryQueried;
     if (totalFpReported > 0)
         doc["reported"] = totalFpReported;
     if (reportFailed > 0)
@@ -489,6 +491,7 @@ bool reportDevice(BleFingerprint *f) {
 unsigned int totalSeen = 0;
 unsigned int totalFpSeen = 0;
 unsigned int totalFpQueried = 0;
+unsigned int totalFpBatteryQueried = 0;
 unsigned int totalFpReported = 0;
 
 void reportSetup() {
@@ -514,7 +517,7 @@ void reportLoop() {
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, fingerprintCount);
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpBatteryQueried, totalFpReported, count, fingerprintCount);
     yield();
 
     auto reported = 0;
@@ -581,6 +584,10 @@ void scanTask(void *parameter) {
         while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
             if (lease.fingerprint->query())
                 totalFpQueried++;
+            // Issue #2385: drive the periodic battery query from the existing scan loop.
+            // No-op when interval is 0 (default), preserving legacy behavior.
+            if (lease.fingerprint->queryBatteryIfDue())
+                totalFpBatteryQueried++;
             BleFingerprintCollection::Release(lease);
         }
 

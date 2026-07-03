@@ -91,6 +91,32 @@
                     bind:value={$extraSettings.values['requery_ms']}/>
             </label>
         </p>
+        <p>
+            <label>
+                Periodic battery query interval in seconds (0 = disabled, range 0..86400):<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="86400"
+                    name="battery_periodic_interval"
+                    placeholder={$extraSettings.defaults['battery_periodic_interval']}
+                    bind:value={$extraSettings.values['battery_periodic_interval']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                Minimum RSSI for periodic battery query (dBm):<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="-100"
+                    max="0"
+                    name="battery_periodic_rssi"
+                    placeholder={$extraSettings.defaults['battery_periodic_rssi']}
+                    bind:value={$extraSettings.values['battery_periodic_rssi']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#counting" target="_blank">Counting</a>
         </h2>

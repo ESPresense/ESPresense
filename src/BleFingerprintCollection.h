@@ -17,6 +17,10 @@ struct DeviceConfig {
     String name;
     int8_t calRssi = NO_RSSI;
     bool allowConnect = false;
+    // Per-device overrides for the periodic battery query path (issue #2385).
+    // 0 (interval) or 0 (rssi) means "fall back to the global setting".
+    uint32_t batteryQueryIntervalMs = 0;
+    int8_t batteryQueryRssiDbm = 0;
 };
 
 namespace BleFingerprintCollection {
@@ -55,6 +59,21 @@ size_t Size(bool cleanup = true);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
 
+/**
+ * @brief Resolve the periodic battery-query interval for a fingerprint, in milliseconds.
+ *
+ * Per-device override wins when non-zero; otherwise the global setting applies. Returns 0
+ * when both are disabled (preserves historical behavior of never polling battery).
+ */
+uint32_t BatteryQueryIntervalMs(const String &id);
+
+/**
+ * @brief Resolve the minimum-RSSI gate for the periodic battery query, in dBm.
+ *
+ * Per-device override wins when non-zero; otherwise the global setting applies.
+ */
+int8_t BatteryQueryRssiDbm(const String &id);
+
 extern TCallbackBool onSeen;
 extern TCallbackFingerprint onAdd;
 extern TCallbackFingerprint onDel;
@@ -66,7 +85,7 @@ extern TCallbackFingerprint onCountDel;
 extern String include, exclude, query, knownMacs, knownIrks, countIds;
 extern float skipDistance, maxDistance, absorption, countEnter, countExit;
 extern int8_t rxRefRssi, rxAdjRssi, txRefRssi, maxDivisor;
-extern int forgetMs, skipMs, countMs, requeryMs, maxFingerprints;
+extern int forgetMs, skipMs, countMs, requeryMs, maxFingerprints, batteryQueryIntervalMs, batteryQueryRssiDbm;
 extern std::vector<DeviceConfig> deviceConfigs;
 extern std::vector<uint8_t *> irks;
 }  // namespace BleFingerprintCollection
