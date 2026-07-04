@@ -337,7 +337,11 @@ void Setup() {
     heartRate->start();
     deviceInfo->start();
 
-    uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() >> 24);
+    // CHIPID: lower 24 bits of the eFuse MAC (NIC-specific + unique bytes).
+    // Historically this used (>> 24), which works on classic ESP32 but
+    // extracts the wrong bytes on ESP32-C6/S3 and yields duplicate iBeacon
+    // major/minor IDs across devices. Mask the lower 3 bytes instead.
+    uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() & 0xFFFFFFu);
     major = (nodeId & 0xFFFF0000) >> 16;
     minor = nodeId & 0xFFFF;
 
