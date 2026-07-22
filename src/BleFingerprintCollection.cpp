@@ -1,10 +1,12 @@
 #include "BleFingerprintCollection.h"
 
+#include "BleMemoryTier.h"
 #include "defaults.h"
 #include "mqtt.h"
 #include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <HeadlessWiFiSettings.h>
 #include <new>
@@ -159,9 +161,47 @@ unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintMutex;
 SemaphoreHandle_t deviceConfigMutex;
 
+// --- Tiered memory pre-filter (ColdTier) ------------------------------------
+// Drops noise (weak RSSI, transient random MACs) BEFORE a live fingerprint slot
+// is allocated. Sits on top of the slot pool from PR #2208 — does not replace
+// it. Single TieredMemoryManager instance; ColdTier internal storage prefers
+// PSRAM with fallback to internal SRAM.
+TieredMemoryConfig tieredMemoryConfig;
+TieredMemoryManager *tieredMemory = nullptr;
+SemaphoreHandle_t coldMutex;
+
+std::atomic<uint32_t> tierDropCount{0};
+std::atomic<uint32_t> tierColdCount{0};
+std::atomic<uint32_t> tierHotCount{0};
+std::atomic<uint32_t> tierPromoteCount{0};
+
+bool tieredMemoryReady() {
+    return tieredMemory != nullptr && tieredMemory->config().enabled && tieredMemory->coldTier().isEnabled();
+}
+
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
+    coldMutex = xSemaphoreCreateMutex();
+
+    tieredMemoryConfig.enabled = DEFAULT_TIERED_MEMORY_ENABLED != 0;
+    tieredMemoryConfig.maxCold = DEFAULT_MAX_COLD;
+    tieredMemoryConfig.minRssi = DEFAULT_COLD_MIN_RSSI;
+
+    tieredMemory = new (std::nothrow) TieredMemoryManager(tieredMemoryConfig);
+    if (tieredMemory == nullptr) {
+        log_w("TieredMemoryManager allocation failed; tiered pre-filter disabled");
+    } else if (!tieredMemory->coldTier().isEnabled()) {
+        log_w("ColdTier backing allocation failed; tiered pre-filter disabled (will pass everything HOT)");
+    } else {
+        log_i("ColdTier: %u records @ %s (%u bytes), minRssi=%d, promote>=%d sightings w/ rssi>%d",
+              (unsigned)tieredMemory->coldTier().capacity(),
+              tieredMemory->coldTier().isUsingPsram() ? "PSRAM" : "internal SRAM",
+              (unsigned)(tieredMemory->coldTier().capacity() * sizeof(ColdRecord)),
+              (int)tieredMemoryConfig.minRssi,
+              DEFAULT_COLD_PROMOTION_COUNT,
+              DEFAULT_COLD_PROMOTION_RSSI);
+    }
 }
 
 void Count(BleFingerprint *f, bool counting) {
@@ -187,12 +227,97 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 #endif
 
     if (onSeen) onSeen(true);
+
+    // ColdTier pre-filter: drop / defer BEFORE taking the slot-pool mutex and
+    // allocating a BleFingerprint. Shrinks mutex contention and keeps hot slots
+    // for devices that actually matter. When the tier is disabled (alloc
+    // failure or explicitly off) classify() returns HOT for everything and we
+    // fall through to the original behaviour.
+    if (tieredMemoryReady() && coldMutex != nullptr) {
+        const int8_t rssi = static_cast<int8_t>(advertisedDevice->getRSSI());
+        // NimBLEAdvertisedDevice::getAddress() returns NimBLEAddress by VALUE;
+        // taking a pointer into the temporary via getVal()/getNative() in a
+        // single expression is UB — the temporary dies at the `;`. Copy the
+        // six bytes into a stack buffer that outlives every downstream call.
+        uint8_t mac[6];
+        {
+            const auto addr = advertisedDevice->getAddress();
+#ifdef NIMBLE_V2
+            memcpy(mac, addr.getVal(), 6);
+#else
+            memcpy(mac, addr.getNative(), 6);
+#endif
+        }
+        // Pass the raw advertisement payload so classify()'s isIBeacon() check
+        // can fire — iBeacons (02 15 prefix) go straight to HOT instead of
+        // taking the cold-then-promote path. Important for presence tracking:
+        // most deployed beacons are iBeacons and we don't want 5 sightings of
+        // latency before they show up.
+#ifdef NIMBLE_V2
+        const auto payload = advertisedDevice->getPayload();
+        const uint8_t *advData = payload.data();
+        const size_t advLen = payload.size();
+#else
+        const uint8_t *advData = advertisedDevice->getPayload();
+        const size_t advLen = advertisedDevice->getPayloadLength();
+#endif
+        uint8_t idType = ID_TYPE_MISC;
+        ClassifyResult result = tieredMemory->classify(mac, advData, advLen, rssi, &idType);
+
+        if (result == ClassifyResult::DROP) {
+            tierDropCount.fetch_add(1, std::memory_order_relaxed);
+            if (onSeen) onSeen(false);
+            return;  // no slot-pool mutex, no heap allocation
+        }
+
+        if (result == ClassifyResult::COLD) {
+            bool shouldPromote = false;
+            if (xSemaphoreTake(coldMutex, MAX_WAIT) == pdTRUE) {
+                const uint32_t nowMs = millis();
+                ColdTier &cold = tieredMemory->coldTier();
+                // Pass idType so eviction bonuses (iBeacon +50, known-MAC +100)
+                // actually get applied — without this, idType stays ID_TYPE_MISC
+                // and EvictionScorer's bonuses are dead code.
+                cold.insert(mac, rssi, nowMs, idType);  // create-or-update; increments seenCount
+                if (ColdRecord *rec = cold.lookup(mac)) {
+                    if (rec->seenCount >= DEFAULT_COLD_PROMOTION_COUNT &&
+                        rssi > DEFAULT_COLD_PROMOTION_RSSI) {
+                        shouldPromote = true;
+                        cold.remove(mac);  // leaving cold — avoid double-tracking
+                    }
+                }
+                xSemaphoreGive(coldMutex);
+            } else {
+                log_e("Couldn't take coldMutex in Seen");
+            }
+
+            if (!shouldPromote) {
+                tierColdCount.fetch_add(1, std::memory_order_relaxed);
+                if (onSeen) onSeen(false);
+                return;
+            }
+            tierPromoteCount.fetch_add(1, std::memory_order_relaxed);
+            // fall through to HOT path
+        }
+
+        tierHotCount.fetch_add(1, std::memory_order_relaxed);
+    }
+
     auto lease = GetFingerprint(advertisedDevice);
     if (lease && lease.fingerprint->seen(advertisedDevice) && onAdd)
         onAdd(lease.fingerprint);
     Release(lease);
     if (onSeen) onSeen(false);
 }
+
+uint32_t getTierDropCount() { return tierDropCount.load(std::memory_order_relaxed); }
+uint32_t getTierColdCount() { return tierColdCount.load(std::memory_order_relaxed); }
+uint32_t getTierHotCount() { return tierHotCount.load(std::memory_order_relaxed); }
+uint32_t getTierPromoteCount() { return tierPromoteCount.load(std::memory_order_relaxed); }
+size_t getColdTierCapacity() { return tieredMemory ? tieredMemory->coldTier().capacity() : 0; }
+size_t getColdTierCount() { return tieredMemory ? tieredMemory->coldTier().count() : 0; }
+bool isColdTierUsingPsram() { return tieredMemory && tieredMemory->coldTier().isUsingPsram(); }
+bool isTieredMemoryEnabled() { return tieredMemoryReady(); }
 
 /**
  * @brief Add a device configuration or replace an existing one with the same id.
@@ -204,8 +329,10 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
  * @return true if a new configuration was added, false if an existing configuration was replaced.
  */
 bool addOrReplace(DeviceConfig config) {
-    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
+        return false;
+    }
 
     std::vector<String> idsToDelete;
     bool isReplacement = false;
@@ -292,8 +419,10 @@ bool Config(String &id, String &json) {
         }
     }
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex in Config!");
+        return false;
+    }
     for (auto &slot : fingerprints) {
         if (slot.fingerprint == nullptr || slot.pendingDelete)
             continue;
@@ -516,16 +645,20 @@ FingerprintLease GetFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) 
 #else
 FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
 #endif
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take semaphore!");
+        return {};
+    }
     auto f = getFingerprintInternal(advertisedDevice);
     xSemaphoreGive(fingerprintMutex);
     return f;
 }
 
 FingerprintLease AcquireNext(size_t &cursor, bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        return {};
+    }
     if (cleanup) CleanupOldFingerprints();
 
     while (cursor < fingerprints.size()) {
@@ -544,8 +677,13 @@ void Release(FingerprintLease &lease) {
     if (!lease)
         return;
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        // Leak the lease rather than touch shared state without the mutex —
+        // the slot's refs stays elevated so the fingerprint isn't freed
+        // from under another reader; acceptable trade-off vs corruption.
+        return;
+    }
 
     if (lease.slot < fingerprints.size()) {
         auto &slot = fingerprints[lease.slot];
@@ -560,8 +698,10 @@ void Release(FingerprintLease &lease) {
 }
 
 size_t Size(bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE)
+    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take fingerprintMutex!");
+        return 0;
+    }
     if (cleanup) CleanupOldFingerprints();
     auto count = activeFingerprints;
     xSemaphoreGive(fingerprintMutex);
