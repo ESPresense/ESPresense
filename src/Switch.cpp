@@ -121,13 +121,13 @@ bool SendDiscovery() {
 
     if (switch_1Pin >= 0){
         if (!sendNumberDiscovery("switch_1 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("switch_1", EC_NONE);
+        sendBinarySensorDiscovery("switch_1", EC_NONE);
     }
     if (switch_2Pin >= 0){
         if (!sendNumberDiscovery("switch_2 Timeout", EC_CONFIG)) return false;
-        sendSensorDiscovery("switch_2", EC_NONE);
+        sendBinarySensorDiscovery("switch_2", EC_NONE);
     }
-    return sendSensorDiscovery("switch", EC_NONE);
+    return sendBinarySensorDiscovery("switch", EC_NONE);
 }
 
 bool Command(String& command, String& pay) {
