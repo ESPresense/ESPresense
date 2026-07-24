@@ -299,6 +299,16 @@
         </p>
         <p>
             <label>
+                Switch One mode:<br />
+                <select name="switch_1_mode" bind:value={$hardwareSettings.values['switch_1_mode']}>
+                    <option disabled selected hidden>Input (Binary Sensor)</option>
+                    <option value="0">Input (Binary Sensor)</option>
+                    <option value="1">Output (Switch)</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
                 Switch One timeout (in seconds):<br />
                 <input
                     type="number"
@@ -334,6 +344,16 @@
                     name="switch_2_pin"
                     placeholder={$hardwareSettings.defaults['switch_2_pin']}
                     bind:value={$hardwareSettings.values['switch_2_pin']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                Switch Two mode:<br />
+                <select name="switch_2_mode" bind:value={$hardwareSettings.values['switch_2_mode']}>
+                    <option disabled selected hidden>Input (Binary Sensor)</option>
+                    <option value="0">Input (Binary Sensor)</option>
+                    <option value="1">Output (Switch)</option>
+                </select>
             </label>
         </p>
         <p>
