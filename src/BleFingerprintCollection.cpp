@@ -194,6 +194,12 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
     if (onSeen) onSeen(false);
 }
 
+enum class AddOrReplaceResult {
+    Failed,
+    Added,
+    Replaced,
+};
+
 /**
  * @brief Add a device configuration or replace an existing one with the same id.
  *
@@ -201,12 +207,13 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
  * are removed and their ids are scheduled for deletion (deletion occurs after the function returns).
  *
  * @param config DeviceConfig to add or use to replace an existing entry with the same `id`.
- * @return true if a new configuration was added, false if an existing configuration was replaced.
+ * @return Added for a new config, Replaced when an existing config was updated, Failed if the mutex
+ *         could not be acquired (shared state left unchanged).
  */
-bool addOrReplace(DeviceConfig config) {
+AddOrReplaceResult addOrReplace(DeviceConfig config) {
     if (xSemaphoreTake(deviceConfigMutex, MAX_WAIT) != pdTRUE) {
         log_e("Couldn't take deviceConfigMutex in addOrReplace!");
-        return false;
+        return AddOrReplaceResult::Failed;
     }
 
     std::vector<String> idsToDelete;
@@ -242,7 +249,7 @@ bool addOrReplace(DeviceConfig config) {
         deleteConfig(id);
     }
 
-    return !isReplacement;
+    return isReplacement ? AddOrReplaceResult::Replaced : AddOrReplaceResult::Added;
 }
 
 bool removeConfig(const String &id) {
@@ -281,9 +288,11 @@ bool Config(String &id, String &json) {
         config.name = doc["name"].as<String>();
     if (doc.containsKey("connect") && doc["connect"].is<bool>())
         config.allowConnect = doc["connect"].as<bool>();
-    auto isNew = addOrReplace(config);
+    auto result = addOrReplace(config);
+    if (result == AddOrReplaceResult::Failed)
+        return false;
 
-    if (isNew) {
+    if (result == AddOrReplaceResult::Added) {
         auto p = id.indexOf("irk:");
         if (p == 0) {
             auto irk_hex = id.substring(4);
