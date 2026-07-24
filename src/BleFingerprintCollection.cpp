@@ -12,6 +12,10 @@
 namespace BleFingerprintCollection {
 namespace {
 
+constexpr uint32_t MIN_FINGERPRINT_CREATE_FREE_HEAP = 32768;
+constexpr uint32_t MIN_FINGERPRINT_CREATE_MAX_ALLOC = 16384;
+unsigned long lastLowHeapSkipLog = 0;
+
 struct FingerprintSlot {
     BleFingerprint *fingerprint = nullptr;
     uint16_t refs = 0;
@@ -484,6 +488,17 @@ FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
         return existing;
 
     CleanupOldFingerprints();
+
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    const uint32_t maxAllocHeap = ESP.getMaxAllocHeap();
+    if (freeHeap < MIN_FINGERPRINT_CREATE_FREE_HEAP || maxAllocHeap < MIN_FINGERPRINT_CREATE_MAX_ALLOC) {
+        const auto now = millis();
+        if (now - lastLowHeapSkipLog > 5000) {
+            lastLowHeapSkipLog = now;
+            log_w("Skipping new fingerprint, low heap: free=%u max=%u", static_cast<unsigned int>(freeHeap), static_cast<unsigned int>(maxAllocHeap));
+        }
+        return {};
+    }
 
     auto slotIndex = findAvailableSlot();
     if (slotIndex == static_cast<size_t>(-1)) {
