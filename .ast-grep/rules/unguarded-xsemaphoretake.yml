@@ -1,0 +1,50 @@
+id: unguarded-xsemaphoretake
+language: cpp
+severity: error
+message: |
+  xSemaphoreTake() failure path must return before touching shared state.
+  Falling through runs the critical section unlocked and then xSemaphoreGive()s
+  a mutex that was never acquired, corrupting FreeRTOS mutex state and any
+  data the mutex was supposed to guard. See git history: bb81432 (#1114),
+  0f6bcc3 (#2127), 10ad32a (#2131) for prior manifestations of this bug class.
+
+note: |
+  Bad:
+    if (xSemaphoreTake(m, MAX_WAIT) != pdTRUE)
+        log_e("failed");         // falls through, no return
+    critical_section();
+    xSemaphoreGive(m);
+
+  Good:
+    if (xSemaphoreTake(m, MAX_WAIT) != pdTRUE) {
+        log_e("failed");
+        return /* safe sentinel */;
+    }
+    critical_section();
+    xSemaphoreGive(m);
+
+  Also OK (explicit documented reason to proceed without lock):
+    if (xSemaphoreTake(m, ...) == pdTRUE) {
+        ...
+        xSemaphoreGive(m);
+    } else {
+        // proceed without lock because <documented invariant>
+        ...
+    }
+
+rule:
+  any:
+    # Pattern A: `if (xSemaphoreTake(...) != pdTRUE) <single-statement>`
+    # where the single statement is NOT a return/break/continue.
+    - all:
+        - pattern: |
+            if (xSemaphoreTake($$$ARGS) != pdTRUE)
+              $BODY
+        - not:
+            has:
+              any:
+                - kind: return_statement
+                - kind: break_statement
+                - kind: continue_statement
+                - kind: goto_statement
+              stopBy: end
