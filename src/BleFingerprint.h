@@ -150,8 +150,9 @@ class BleFingerprint {
     uint32_t batteryQueryInterval = 0;
     bool isBatteryQuerying = false;
     unsigned long seenCount = 1, lastSeenCount = 0;
-    uint16_t mv = 0;
-    uint8_t battery = 0xFF, addressType = 0xFF;
+    uint32_t illuminance = 0;
+    uint16_t mv = 0, conductivity = 0;
+    uint8_t battery = 0xFF, addressType = 0xFF, moisture = 0xFF;
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
