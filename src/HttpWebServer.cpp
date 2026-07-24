@@ -60,7 +60,10 @@ void serializeDevices(JsonObject &root, bool showAll) {
 bool servingJson = false;
 
 void serveJson(AsyncWebServerRequest *request) {
-    if (servingJson) request->send(429, "Too Many Requests", "Too Many Requests");
+    if (servingJson) {
+        request->send(429, "Too Many Requests", "Too Many Requests");
+        return;  // without this we send twice and leak the first response, plus a second 12KB buffer
+    }
     servingJson = true;
     bool showAll = false;
     const String &url = request->url();

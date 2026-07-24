@@ -680,6 +680,19 @@ void loop() {
         auto freeHeap = ESP.getFreeHeap();
         if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
         if (freeHeap > 40000) Updater::Loop();
+
+        // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
+        // telemetry both fail, nothing recovers), so reboot after 60s stuck below the
+        // threshold mqtt already refuses to publish under. Same escape hatch as the stuck
+        // BLE controller restart in BleFingerprintCollection::CleanupOldFingerprints().
+        static uint8_t lowHeapPasses = 0;
+        if (freeHeap < MQTT_MIN_FREE_MEMORY) {
+            if (++lowHeapPasses >= 12) {
+                Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+            }
+        } else
+            lowHeapPasses = 0;
     }
     GUI::Loop();
     Motion::Loop();
