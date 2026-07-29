@@ -10,12 +10,12 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test": "playwright test",
+    "test": "svelte-kit sync && playwright test",
     "test:ui": "playwright test --ui"
   },
   "devDependencies": {
     "@gfx/zopfli": "^1.0.15",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.62.0",
     "@rollup/plugin-strip": "^3.0.4",
     "@skeletonlabs/skeleton": "^4.15.2",
     "@skeletonlabs/skeleton-svelte": "^4.15.2",
