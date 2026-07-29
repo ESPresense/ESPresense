@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-    "test": "playwright test",
+    "test": "svelte-kit sync && playwright test",
     "test:ui": "playwright test --ui"
   },
   "devDependencies": {
