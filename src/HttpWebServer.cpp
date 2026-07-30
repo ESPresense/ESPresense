@@ -64,6 +64,15 @@ void serveJson(AsyncWebServerRequest *request) {
         request->send(429, "Too Many Requests", "Too Many Requests");
         return;  // without this we send twice and leak the first response, plus a second 12KB buffer
     }
+    // Refuse rather than emit a 200 with a null or truncated body when we can't afford the
+    // response buffer: under low heap the JSON_BUFFER_SIZE document fails to allocate,
+    // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). Same
+    // overload bail-out sendDataWs() does below with code 1013.
+    // ponytail: 2x JSON_BUFFER_SIZE floor covers doc + serialized copy + TCP buffers; tune on hardware.
+    if (ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
+        request->send(503, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     servingJson = true;
     bool showAll = false;
     const String &url = request->url();
