@@ -6,6 +6,13 @@ when:
   - event: cron
     branch: main
 
+# Pin to the docker/Linux agent with the ESP32 hardware. Without this the scheduler
+# can hand these steps (image:, privileged, /dev/esp32 mounts) to a local-backend
+# Windows agent, where they fail instantly with no useful log.
+labels:
+  backend: docker
+  platform: linux/amd64
+
 steps:
   - name: test-esp32
     image: ghcr.io/espresense/firmware-tester:1
