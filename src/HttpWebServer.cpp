@@ -64,6 +64,20 @@ void serveJson(AsyncWebServerRequest *request) {
         request->send(429, "Too Many Requests", "Too Many Requests");
         return;  // without this we send twice and leak the first response, plus a second 12KB buffer
     }
+    // Refuse rather than emit a 200 with a null or truncated body when we can't afford the
+    // response buffer: under memory pressure the JSON_BUFFER_SIZE document fails to allocate,
+    // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). 429 to
+    // match the concurrent-request guard four lines up — same "come back later" meaning.
+    //
+    // The document needs one *contiguous* JSON_BUFFER_SIZE block, so getMaxAllocHeap (largest
+    // free block) is the binding check — getFreeHeap alone lies under fragmentation, where
+    // total free is tens of KB but no single 12KB block exists and the alloc still fails.
+    // The getFreeHeap floor stays as headroom for the serialized copy + TCP send buffers.
+    // ponytail: +4KB slack over the doc for AsyncJson overhead; tune on hardware.
+    if (ESP.getMaxAllocHeap() < JSON_BUFFER_SIZE + 4096 || ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     servingJson = true;
     bool showAll = false;
     const String &url = request->url();
@@ -79,6 +93,15 @@ void serveJson(AsyncWebServerRequest *request) {
 
     auto *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
     JsonObject root = response->getRoot();
+    // The heap pre-check above is racy — BLE/WiFi can fragment between it and this alloc.
+    // If the document buffer didn't allocate, root is null and would serialize as a bare
+    // `null` sent with a 200. Catch it here and refuse instead; this is the airtight guard.
+    if (root.isNull()) {
+        delete response;
+        servingJson = false;
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     serializeInfo(root);
     switch (subJson) {
         case 1:
