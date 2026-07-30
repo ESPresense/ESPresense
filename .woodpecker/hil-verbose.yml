@@ -7,6 +7,7 @@ when:
 steps:
   - name: test-esp32-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
@@ -39,6 +40,7 @@ steps:
 
   - name: test-esp32c3-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
@@ -71,6 +73,7 @@ steps:
 
   - name: test-esp32c6-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     failure: ignore
@@ -104,6 +107,7 @@ steps:
 
   - name: test-esp32s3-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
