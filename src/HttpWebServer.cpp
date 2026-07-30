@@ -93,6 +93,15 @@ void serveJson(AsyncWebServerRequest *request) {
 
     auto *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
     JsonObject root = response->getRoot();
+    // The heap pre-check above is racy — BLE/WiFi can fragment between it and this alloc.
+    // If the document buffer didn't allocate, root is null and would serialize as a bare
+    // `null` sent with a 200. Catch it here and refuse instead; this is the airtight guard.
+    if (root.isNull()) {
+        delete response;
+        servingJson = false;
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     serializeInfo(root);
     switch (subJson) {
         case 1:
