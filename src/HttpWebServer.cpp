@@ -65,11 +65,16 @@ void serveJson(AsyncWebServerRequest *request) {
         return;  // without this we send twice and leak the first response, plus a second 12KB buffer
     }
     // Refuse rather than emit a 200 with a null or truncated body when we can't afford the
-    // response buffer: under low heap the JSON_BUFFER_SIZE document fails to allocate,
+    // response buffer: under memory pressure the JSON_BUFFER_SIZE document fails to allocate,
     // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). 429 to
     // match the concurrent-request guard four lines up — same "come back later" meaning.
-    // ponytail: 2x JSON_BUFFER_SIZE floor covers doc + serialized copy + TCP buffers; tune on hardware.
-    if (ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
+    //
+    // The document needs one *contiguous* JSON_BUFFER_SIZE block, so getMaxAllocHeap (largest
+    // free block) is the binding check — getFreeHeap alone lies under fragmentation, where
+    // total free is tens of KB but no single 12KB block exists and the alloc still fails.
+    // The getFreeHeap floor stays as headroom for the serialized copy + TCP send buffers.
+    // ponytail: +4KB slack over the doc for AsyncJson overhead; tune on hardware.
+    if (ESP.getMaxAllocHeap() < JSON_BUFFER_SIZE + 4096 || ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
         request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
         return;
     }
