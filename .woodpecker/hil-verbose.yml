@@ -4,6 +4,11 @@
 when:
   - event: manual
 
+# Pin to the docker/Linux agent with the ESP32 hardware (see hil.yml).
+labels:
+  backend: docker
+  platform: linux/amd64
+
 steps:
   - name: test-esp32-verbose
     image: ghcr.io/espresense/firmware-tester:1
