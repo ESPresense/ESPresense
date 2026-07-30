@@ -66,11 +66,11 @@ void serveJson(AsyncWebServerRequest *request) {
     }
     // Refuse rather than emit a 200 with a null or truncated body when we can't afford the
     // response buffer: under low heap the JSON_BUFFER_SIZE document fails to allocate,
-    // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). Same
-    // overload bail-out sendDataWs() does below with code 1013.
+    // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). 429 to
+    // match the concurrent-request guard four lines up — same "come back later" meaning.
     // ponytail: 2x JSON_BUFFER_SIZE floor covers doc + serialized copy + TCP buffers; tune on hardware.
     if (ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
-        request->send(503, "application/json", F("{\"error\":\"low memory\"}"));
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
         return;
     }
     servingJson = true;
