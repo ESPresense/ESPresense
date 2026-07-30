@@ -291,6 +291,11 @@ float AdaptivePercentileRSSI::getRSSIVariance() {
 float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossExponent) {
     if (count < 2) return 0;
 
+    // Mirror the rssiToLogDistance() guard so dist and distVar agree on the
+    // effective path-loss exponent. Without this, a misconfigured (<=0)
+    // absorption produced a finite dist but NaN/Inf distVar.
+    const float n = (pathLossExponent > 0.0f) ? pathLossExponent : 2.0f;
+
     uint32_t currentTime = millis();
     uint16_t validCount = 0;
     float sumDistance = 0;
@@ -306,7 +311,7 @@ float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossE
         if (age <= timeWindowMs || age > 0xFFFFFFFF - timeWindowMs) {
             // Convert RSSI to distance
             float rssi = readings[idx].rssi;
-            float exponent = (refRSSI - rssi) / (10.0f * pathLossExponent);
+            float exponent = (refRSSI - rssi) / (10.0f * n);
             float distance = pow(10.0f, exponent); // d = 10^((P0 - RSSI) / (10 * n))
 
             sumDistance += distance;

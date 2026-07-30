@@ -1,0 +1,6 @@
+name,sampleCount,expectedMedianIqr,toleranceDb,note
+filter_steady_minus65,20,-65.0,0.01,constant -65 dBm -> trimmed mean -65
+filter_one_outlier,20,-65.0,0.01,one -90 outlier dropped by Tukey fence on constant core
+filter_bimodal,20,-65.0,0.5,bimodal -60/-70 -> wide fence yields mean ~ -65
+filter_drift_ramp,20,-60.5,0.5,linear ramp -70..-51 -> mean of survivors ~ -60.5
+filter_two_outliers,20,-65.0,0.01,outliers on both sides dropped by Tukey fence
