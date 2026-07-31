@@ -20,6 +20,31 @@ void serializeInfo(JsonObject &root) {
 #endif
 }
 
+// The three numbers telemetry already publishes over MQTT, on their own endpoint so a heap
+// complaint can be diagnosed with curl and no broker: freeHeap falling while fingerprints
+// holds steady is a leak, maxHeap falling while freeHeap holds is fragmentation, both
+// moving with the device count is churn. Working that out took months of graph-swapping
+// on #2309.
+//
+// Deliberately allocation-free, and deliberately not routed through serveJson. That path
+// refuses with 429 when it cannot afford a 12KB document — so hanging these numbers off it
+// would hide them precisely when the node is in the trouble they describe. A fixed stack
+// buffer answers at any heap level. It also keeps the cost off /json, which the UI polls:
+// no fingerprintMutex acquisition (contending the scan task) and no second walk of the
+// free-block list on every poll.
+void serveTele(AsyncWebServerRequest *request) {
+    char buf[224];
+    // Size(false): a GET reports what is there, it does not expire fingerprints as a side
+    // effect of being observed.
+    snprintf(buf, sizeof(buf),
+             "{\"room\":\"%s\",\"freeHeap\":%u,\"maxHeap\":%u,\"fingerprints\":%u}",
+             room.c_str(),
+             static_cast<unsigned>(ESP.getFreeHeap()),
+             static_cast<unsigned>(ESP.getMaxAllocHeap()),
+             static_cast<unsigned>(BleFingerprintCollection::Size(false)));
+    request->send(200, "application/json", buf);
+}
+
 void serializeState(JsonObject &root) {
     JsonObject node = root.createNestedObject("state");
     node["enrolling"] = enrolling;
@@ -193,6 +218,10 @@ void Init(AsyncWebServer *server) {
 
     server->on("/restart", HTTP_POST, onRestart);
     server->on("/reboot", HTTP_POST, onRestart);
+    // Before "/json": that handler matches path prefixes too (which is how /json/devices
+    // reaches serveJson), and the first registered match wins — so registering this after
+    // it would silently route /json/tele into the 12KB path this exists to avoid.
+    server->on("/json/tele", HTTP_GET, serveTele);
     server->on("/json", HTTP_GET, serveJson);
 
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
