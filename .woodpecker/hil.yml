@@ -14,6 +14,14 @@ labels:
   platform: linux/amd64
 
 steps:
+  - name: ble-flood
+    image: ghcr.io/espresense/ble-loadgen:1
+    pull: true
+    detach: true
+    privileged: true
+    network_mode: host
+    depends_on: []
+
   - name: test-esp32
     image: ghcr.io/espresense/firmware-tester:1
     pull: true
@@ -48,12 +56,6 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          # Ask the bench BLE flood (ble-flood.service on the host) for load, and stop
-          # asking however this step exits. Each step owns its own request file so one
-          # finishing early does not cut the flood out from under the others.
-          mkdir -p /lock/bleflood.d
-          touch /lock/bleflood.d/$FIRMWARE_ENV
-          trap "rm -f /lock/bleflood.d/$FIRMWARE_ENV" EXIT
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -93,12 +95,6 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          # Ask the bench BLE flood (ble-flood.service on the host) for load, and stop
-          # asking however this step exits. Each step owns its own request file so one
-          # finishing early does not cut the flood out from under the others.
-          mkdir -p /lock/bleflood.d
-          touch /lock/bleflood.d/$FIRMWARE_ENV
-          trap "rm -f /lock/bleflood.d/$FIRMWARE_ENV" EXIT
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -138,12 +134,6 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          # Ask the bench BLE flood (ble-flood.service on the host) for load, and stop
-          # asking however this step exits. Each step owns its own request file so one
-          # finishing early does not cut the flood out from under the others.
-          mkdir -p /lock/bleflood.d
-          touch /lock/bleflood.d/$FIRMWARE_ENV
-          trap "rm -f /lock/bleflood.d/$FIRMWARE_ENV" EXIT
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -183,12 +173,6 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          # Ask the bench BLE flood (ble-flood.service on the host) for load, and stop
-          # asking however this step exits. Each step owns its own request file so one
-          # finishing early does not cut the flood out from under the others.
-          mkdir -p /lock/bleflood.d
-          touch /lock/bleflood.d/$FIRMWARE_ENV
-          trap "rm -f /lock/bleflood.d/$FIRMWARE_ENV" EXIT
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
