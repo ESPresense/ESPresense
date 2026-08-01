@@ -674,6 +674,21 @@ void setup() {
  */
 void loop() {
     reportLoop();
+    // #2309 diagnostic: which heap capability actually depletes under the BLE flood. The
+    // failing allocations are INTERNAL / INTERNAL+DMA (PSRAM can't satisfy them). Both
+    // sizes falling together = genuine exhaustion; free staying high while the largest
+    // block collapses = fragmentation. Logged every second so the ~11s-to-crash window
+    // is captured at resolution the 5s slow-loop can't give.
+    static unsigned long lastHeapLog = 0;
+    if (millis() - lastHeapLog > 1000) {
+        lastHeapLog = millis();
+        Log.printf("HEAPCAP int_free=%u int_max=%u dma_free=%u dma_max=%u dflt_free=%u\r\n",
+                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+                   (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_DMA),
+                   (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_DMA),
+                   (unsigned)heap_caps_get_free_size(MALLOC_CAP_DEFAULT));
+    }
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
