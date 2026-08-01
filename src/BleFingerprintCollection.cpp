@@ -20,25 +20,24 @@ struct FingerprintSlot {
 std::vector<FingerprintSlot> fingerprints;
 size_t activeFingerprints = 0;
 
-// Fingerprints detached from their slot, owned here until onDel runs.
-// Notification happens outside fingerprintMutex — onDel logs to serial/TCP and
-// blocks for milliseconds, which starved the other task's 100ms mutex wait.
-std::vector<BleFingerprint *> pendingNotify;
+// Fingerprints detached from their slot, owned here until FingerprintLock's
+// destructor notifies and frees them outside the mutex.
+std::vector<BleFingerprint *> dying;
 
 void removeSlot(size_t index, bool notify = true) {
     auto &slot = fingerprints[index];
     if (slot.fingerprint == nullptr || slot.refs != 0)
         return;
 
-    auto *dying = slot.fingerprint;
+    auto *doomed = slot.fingerprint;
     slot.fingerprint = nullptr;
     if (activeFingerprints > 0)
         --activeFingerprints;
 
     if (notify && onDel)
-        pendingNotify.push_back(dying);
+        dying.push_back(doomed);
     else
-        delete dying;
+        delete doomed;
 }
 
 size_t findEmptySlot() {
@@ -155,6 +154,34 @@ const TickType_t MAX_WAIT = pdMS_TO_TICKS(100);
 unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintMutex;
 SemaphoreHandle_t deviceConfigMutex;
+
+// Holds fingerprintMutex for the scope, then runs the deferred onDel callbacks
+// *after* releasing it. onDel logs to serial and TCP, which blocks for
+// milliseconds per line — doing that under the lock starved the other task's
+// MAX_WAIT acquire and dropped BLE advertisements.
+struct FingerprintLock {
+    const bool ok;
+
+    FingerprintLock() : ok(xSemaphoreTake(fingerprintMutex, MAX_WAIT) == pdTRUE) {}
+
+    ~FingerprintLock() {
+        if (!ok) return;
+
+        std::vector<BleFingerprint *> doomed;
+        doomed.swap(dying);  // hand off while we still hold the lock
+        xSemaphoreGive(fingerprintMutex);
+
+        for (auto *f : doomed) {
+            if (onDel) onDel(f);
+            delete f;
+        }
+    }
+
+    FingerprintLock(const FingerprintLock &) = delete;
+    FingerprintLock &operator=(const FingerprintLock &) = delete;
+
+    explicit operator bool() const { return ok; }
+};
 
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
@@ -300,7 +327,8 @@ bool Config(String &id, String &json) {
         }
     }
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+    FingerprintLock lock;
+    if (!lock) {
         log_e("Couldn't take fingerprintMutex in Config!");
         return false;
     }
@@ -318,7 +346,6 @@ bool Config(String &id, String &json) {
         } else
             fingerprint->fingerprintAddress();
     }
-    xSemaphoreGive(fingerprintMutex);
 
     return true;
 }
@@ -443,7 +470,7 @@ bool Command(String &command, String &pay) {
  *
  * Runs at most once every 5 seconds; each fingerprint whose time since last seen
  * exceeds `forgetMs` is detached from its slot and queued for `onDel` notification,
- * which the caller runs via notifyPending() once fingerprintMutex is released. If no
+ * which FingerprintLock runs once it releases fingerprintMutex. If no
  * fingerprints remain and the system uptime exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`,
  * the function logs a message and calls `ESP.restart()`.
  *
@@ -522,61 +549,31 @@ FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     return {created, slotIndex};
 }
 
-/**
- * @brief Run the onDel callback for fingerprints retired since the last drain.
- *
- * Must be called with fingerprintMutex NOT held: onDel writes to serial and TCP,
- * which blocks long enough to time out the other task's MAX_WAIT acquire.
- */
-void notifyPending() {
-    for (;;) {
-        if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) return;
-        if (pendingNotify.empty()) {
-            xSemaphoreGive(fingerprintMutex);
-            return;
-        }
-        auto *dying = pendingNotify.back();
-        pendingNotify.pop_back();
-        xSemaphoreGive(fingerprintMutex);
-
-        if (onDel) onDel(dying);
-        delete dying;
-    }
-}
-
 #ifdef NIMBLE_V2
 FingerprintLease GetFingerprint(const NimBLEAdvertisedDevice *advertisedDevice) {
 #else
 FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
 #endif
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+    FingerprintLock lock;
+    if (!lock) {
         log_e("Couldn't take semaphore!");
         return {};
     }
-    auto f = getFingerprintInternal(advertisedDevice);
-    xSemaphoreGive(fingerprintMutex);
-    notifyPending();
-    return f;
+    return getFingerprintInternal(advertisedDevice);
 }
 
 FingerprintLease AcquireNext(size_t &cursor, bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+    FingerprintLock lock;
+    if (!lock) {
         log_e("Couldn't take fingerprintMutex!");
         return {};
     }
     if (cleanup) CleanupOldFingerprints();
 
-    while (cursor < fingerprints.size()) {
-        auto lease = acquireSlot(cursor++);
-        if (lease) {
-            xSemaphoreGive(fingerprintMutex);
-            notifyPending();
+    while (cursor < fingerprints.size())
+        if (auto lease = acquireSlot(cursor++))
             return lease;
-        }
-    }
 
-    xSemaphoreGive(fingerprintMutex);
-    notifyPending();
     return {};
 }
 
@@ -584,7 +581,8 @@ void Release(FingerprintLease &lease) {
     if (!lease)
         return;
 
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+    FingerprintLock lock;
+    if (!lock) {
         log_e("Couldn't take fingerprintMutex!");
         // Leak the lease rather than touch shared state without the mutex —
         // the slot's refs stays elevated so the fingerprint isn't freed
@@ -598,20 +596,17 @@ void Release(FingerprintLease &lease) {
             --slot.refs;
     }
 
-    xSemaphoreGive(fingerprintMutex);
     lease = {};
 }
 
 size_t Size(bool cleanup) {
-    if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) {
+    FingerprintLock lock;
+    if (!lock) {
         log_e("Couldn't take fingerprintMutex!");
         return 0;
     }
     if (cleanup) CleanupOldFingerprints();
-    auto count = activeFingerprints;
-    xSemaphoreGive(fingerprintMutex);
-    notifyPending();
-    return count;
+    return activeFingerprints;
 }
 
 bool FindDeviceConfig(const String &id, DeviceConfig &config) {
