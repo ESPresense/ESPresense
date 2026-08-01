@@ -15,33 +15,30 @@ namespace {
 struct FingerprintSlot {
     BleFingerprint *fingerprint = nullptr;
     uint16_t refs = 0;
-    bool pendingDelete = false;
 };
 
 std::vector<FingerprintSlot> fingerprints;
 size_t activeFingerprints = 0;
 
-void finalizeSlot(FingerprintSlot &slot) {
-    if (!slot.pendingDelete || slot.refs != 0 || slot.fingerprint == nullptr)
-        return;
-
-    delete slot.fingerprint;
-    slot.fingerprint = nullptr;
-    slot.pendingDelete = false;
-}
+// Fingerprints detached from their slot, owned here until onDel runs.
+// Notification happens outside fingerprintMutex — onDel logs to serial/TCP and
+// blocks for milliseconds, which starved the other task's 100ms mutex wait.
+std::vector<BleFingerprint *> pendingNotify;
 
 void removeSlot(size_t index, bool notify = true) {
     auto &slot = fingerprints[index];
-    if (slot.fingerprint == nullptr || slot.pendingDelete)
+    if (slot.fingerprint == nullptr || slot.refs != 0)
         return;
 
-    if (notify && onDel)
-        onDel(slot.fingerprint);
-
-    slot.pendingDelete = true;
+    auto *dying = slot.fingerprint;
+    slot.fingerprint = nullptr;
     if (activeFingerprints > 0)
         --activeFingerprints;
-    finalizeSlot(slot);
+
+    if (notify && onDel)
+        pendingNotify.push_back(dying);
+    else
+        delete dying;
 }
 
 size_t findEmptySlot() {
@@ -57,7 +54,7 @@ size_t findEvictionSlot() {
 
     for (size_t i = 0; i < fingerprints.size(); ++i) {
         auto &slot = fingerprints[i];
-        if (slot.fingerprint == nullptr || slot.pendingDelete || slot.refs != 0)
+        if (slot.fingerprint == nullptr || slot.refs != 0)
             continue;
 
         auto age = slot.fingerprint->getMsSinceLastSeen();
@@ -80,7 +77,7 @@ size_t findAvailableSlot() {
         return eviction;
 
     removeSlot(eviction);
-    return fingerprints[eviction].fingerprint == nullptr ? eviction : static_cast<size_t>(-1);
+    return eviction;
 }
 
 void configureSlots(size_t capacity) {
@@ -96,7 +93,7 @@ void configureSlots(size_t capacity) {
 
 FingerprintLease acquireSlot(size_t index) {
     auto &slot = fingerprints[index];
-    if (slot.fingerprint == nullptr || slot.pendingDelete)
+    if (slot.fingerprint == nullptr)
         return {};
 
     ++slot.refs;
@@ -106,7 +103,7 @@ FingerprintLease acquireSlot(size_t index) {
 FingerprintLease findByAddress(const NimBLEAddress &mac) {
     for (size_t i = fingerprints.size(); i-- > 0;) {
         auto &slot = fingerprints[i];
-        if (slot.fingerprint != nullptr && !slot.pendingDelete && slot.fingerprint->getAddress() == mac)
+        if (slot.fingerprint != nullptr && slot.fingerprint->getAddress() == mac)
             return acquireSlot(i);
     }
     return {};
@@ -114,7 +111,7 @@ FingerprintLease findByAddress(const NimBLEAddress &mac) {
 
 BleFingerprint *findById(const String &id) {
     for (auto &slot : fingerprints)
-        if (slot.fingerprint != nullptr && !slot.pendingDelete && slot.fingerprint->getId() == id)
+        if (slot.fingerprint != nullptr && slot.fingerprint->getId() == id)
             return slot.fingerprint;
     return nullptr;
 }
@@ -153,7 +150,7 @@ TCallbackFingerprint onCountAdd = nullptr;
 TCallbackFingerprint onCountDel = nullptr;
 
 // Private
-const TickType_t MAX_WAIT = portTICK_PERIOD_MS * 100;
+const TickType_t MAX_WAIT = pdMS_TO_TICKS(100);
 
 unsigned long lastCleanup = 0;
 SemaphoreHandle_t fingerprintMutex;
@@ -308,7 +305,7 @@ bool Config(String &id, String &json) {
         return false;
     }
     for (auto &slot : fingerprints) {
-        if (slot.fingerprint == nullptr || slot.pendingDelete)
+        if (slot.fingerprint == nullptr)
             continue;
 
         auto *fingerprint = slot.fingerprint;
@@ -444,11 +441,13 @@ bool Command(String &command, String &pay) {
 /**
  * @brief Removes stale Bluetooth fingerprints and performs end-of-life actions.
  *
- * Runs at most once every 5 seconds; for each fingerprint whose time since last seen
- * exceeds `forgetMs` this function invokes the `onDel` callback (if set), deletes
- * the fingerprint object, and removes it from the internal collection. If no
+ * Runs at most once every 5 seconds; each fingerprint whose time since last seen
+ * exceeds `forgetMs` is detached from its slot and queued for `onDel` notification,
+ * which the caller runs via notifyPending() once fingerprintMutex is released. If no
  * fingerprints remain and the system uptime exceeds `ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS`,
  * the function logs a message and calls `ESP.restart()`.
+ *
+ * Must be called with fingerprintMutex held.
  */
 void CleanupOldFingerprints() {
     auto now = millis();
@@ -457,15 +456,15 @@ void CleanupOldFingerprints() {
     bool any = false;
     for (size_t i = 0; i < fingerprints.size(); ++i) {
         auto &slot = fingerprints[i];
-        if (slot.fingerprint == nullptr || slot.pendingDelete)
+        if (slot.fingerprint == nullptr)
             continue;
 
-        auto age = slot.fingerprint->getMsSinceLastSeen();
-        if (age > forgetMs) {
-            removeSlot(i);
-        } else {
+        // A leased fingerprint still counts as present; removeSlot() won't touch it
+        // and it gets reaped on a later pass once the reader releases.
+        if (slot.refs != 0 || slot.fingerprint->getMsSinceLastSeen() <= forgetMs)
             any = true;
-        }
+        else
+            removeSlot(i);
     }
     if (!any) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
@@ -519,9 +518,30 @@ FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
     auto &slot = fingerprints[slotIndex];
     slot.fingerprint = created;
     slot.refs = 1;
-    slot.pendingDelete = false;
     ++activeFingerprints;
     return {created, slotIndex};
+}
+
+/**
+ * @brief Run the onDel callback for fingerprints retired since the last drain.
+ *
+ * Must be called with fingerprintMutex NOT held: onDel writes to serial and TCP,
+ * which blocks long enough to time out the other task's MAX_WAIT acquire.
+ */
+void notifyPending() {
+    for (;;) {
+        if (xSemaphoreTake(fingerprintMutex, MAX_WAIT) != pdTRUE) return;
+        if (pendingNotify.empty()) {
+            xSemaphoreGive(fingerprintMutex);
+            return;
+        }
+        auto *dying = pendingNotify.back();
+        pendingNotify.pop_back();
+        xSemaphoreGive(fingerprintMutex);
+
+        if (onDel) onDel(dying);
+        delete dying;
+    }
 }
 
 #ifdef NIMBLE_V2
@@ -535,6 +555,7 @@ FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice) {
     }
     auto f = getFingerprintInternal(advertisedDevice);
     xSemaphoreGive(fingerprintMutex);
+    notifyPending();
     return f;
 }
 
@@ -549,11 +570,13 @@ FingerprintLease AcquireNext(size_t &cursor, bool cleanup) {
         auto lease = acquireSlot(cursor++);
         if (lease) {
             xSemaphoreGive(fingerprintMutex);
+            notifyPending();
             return lease;
         }
     }
 
     xSemaphoreGive(fingerprintMutex);
+    notifyPending();
     return {};
 }
 
@@ -571,10 +594,8 @@ void Release(FingerprintLease &lease) {
 
     if (lease.slot < fingerprints.size()) {
         auto &slot = fingerprints[lease.slot];
-        if (slot.fingerprint == lease.fingerprint && slot.refs > 0) {
+        if (slot.fingerprint == lease.fingerprint && slot.refs > 0)
             --slot.refs;
-            finalizeSlot(slot);
-        }
     }
 
     xSemaphoreGive(fingerprintMutex);
@@ -589,6 +610,7 @@ size_t Size(bool cleanup) {
     if (cleanup) CleanupOldFingerprints();
     auto count = activeFingerprints;
     xSemaphoreGive(fingerprintMutex);
+    notifyPending();
     return count;
 }
 
