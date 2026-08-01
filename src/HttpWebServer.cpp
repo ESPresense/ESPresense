@@ -3,6 +3,7 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
+#include "TeleJson.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -33,15 +34,20 @@ void serializeInfo(JsonObject &root) {
 // no fingerprintMutex acquisition (contending the scan task) and no second walk of the
 // free-block list on every poll.
 void serveTele(AsyncWebServerRequest *request) {
-    char buf[224];
+    char buf[256];
     // Size(false): a GET reports what is there, it does not expire fingerprints as a side
     // effect of being observed.
-    snprintf(buf, sizeof(buf),
-             "{\"room\":\"%s\",\"freeHeap\":%u,\"maxHeap\":%u,\"fingerprints\":%u}",
-             room.c_str(),
-             static_cast<unsigned>(ESP.getFreeHeap()),
-             static_cast<unsigned>(ESP.getMaxAllocHeap()),
-             static_cast<unsigned>(BleFingerprintCollection::Size(false)));
+    size_t const len = buildTeleJson(buf, sizeof(buf), room.c_str(),
+                                     ESP.getFreeHeap(),
+                                     ESP.getMaxAllocHeap(),
+                                     BleFingerprintCollection::Size(false));
+    if (len == 0) {
+        // Only reachable via an absurdly long room. Refusing beats the alternative: a
+        // truncated body under a 200 is indistinguishable from a corrupt response, and
+        // this endpoint is what people reach for when they already distrust the node.
+        request->send(500, "application/json", F("{\"error\":\"telemetry did not fit\"}"));
+        return;
+    }
     request->send(200, "application/json", buf);
 }
 
