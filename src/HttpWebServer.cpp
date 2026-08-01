@@ -218,8 +218,6 @@ void Init(AsyncWebServer *server) {
 
     server->on("/restart", HTTP_POST, onRestart);
     server->on("/reboot", HTTP_POST, onRestart);
-    // reaches serveJson), and the first registered match wins — so registering this after
-    // it would silently route /json/tele into the 12KB path this exists to avoid.
     server->on("/json/tele", HTTP_GET, serveTele);
     server->on("/json", HTTP_GET, serveJson);
 
