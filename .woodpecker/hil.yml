@@ -14,7 +14,6 @@ labels:
   platform: linux/amd64
 
 steps:
-  # BLE advertisement flood```
   - name: ble-flood
     image: ghcr.io/espresense/ble-loadgen:1
     pull: true
