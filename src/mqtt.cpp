@@ -7,6 +7,15 @@
 
 bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_t length, bool dup, uint16_t message_id)
 {
+    // AsyncMqttClient builds the outgoing packet in a std::vector<uint8_t>. Under memory
+    // pressure that reserve() fails, and because we build with -fno-exceptions a failed
+    // std::vector allocation calls abort() rather than throwing — a hard crash instead of a
+    // dropped message. The vector needs one contiguous block roughly the size of the packet
+    // (topic + payload + MQTT framing), so gate on the largest free block, not total heap.
+    // ponytail: 256B covers topic + framing; a skipped telemetry publish beats a reboot.
+    if (ESP.getMaxAllocHeap() < length + 256)
+        return false;
+
     for (int i = 0; i < 10; i++)
     {
         if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
