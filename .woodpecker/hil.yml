@@ -56,7 +56,11 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          # Serialize build+upload across all pipelines/chips (one at a time) so concurrent
+          # builds cannot clobber the shared cache/workspace (ld: reopening firmware.elf,
+          # missing .d files). The long monitor below stays under the per-device lock, so
+          # device runs still parallelize.
+          flock -w 3600 /lock/build.lock env PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -95,7 +99,11 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          # Serialize build+upload across all pipelines/chips (one at a time) so concurrent
+          # builds cannot clobber the shared cache/workspace (ld: reopening firmware.elf,
+          # missing .d files). The long monitor below stays under the per-device lock, so
+          # device runs still parallelize.
+          flock -w 3600 /lock/build.lock env PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -134,7 +142,11 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          # Serialize build+upload across all pipelines/chips (one at a time) so concurrent
+          # builds cannot clobber the shared cache/workspace (ld: reopening firmware.elf,
+          # missing .d files). The long monitor below stays under the per-device lock, so
+          # device runs still parallelize.
+          flock -w 3600 /lock/build.lock env PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -173,7 +185,11 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          # Serialize build+upload across all pipelines/chips (one at a time) so concurrent
+          # builds cannot clobber the shared cache/workspace (ld: reopening firmware.elf,
+          # missing .d files). The long monitor below stays under the per-device lock, so
+          # device runs still parallelize.
+          flock -w 3600 /lock/build.lock env PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
