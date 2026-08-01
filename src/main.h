@@ -53,6 +53,7 @@
 
 TimerHandle_t reconnectTimer;
 TaskHandle_t scanTaskHandle;
+TaskHandle_t reportTaskHandle;
 
 unsigned long updateStartedMillis = 0;
 unsigned long lastTeleMillis = 0;

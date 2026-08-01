@@ -540,6 +540,19 @@ void reportLoop() {
     }
 }
 
+// Runs the report/MQTT-publish pipeline on its own task, pinned (REPORT_PINNED_TO_CORE) to the
+// same core as WiFi/AsyncTCP. That co-location is the fix for #2309's dual-core OOM: reportLoop's
+// yield() hands the core to AsyncTCP, which drains the outgoing queue before the next batch is
+// produced — the producer can't outrun the consumer. When report generation and TCP transmission
+// sit on different cores, the send backlog grows unbounded in internal RAM until an allocation
+// aborts. Single-core parts had this coupling for free.
+void reportTask(void *parameter) {
+    while (true) {
+        reportLoop();
+        delay(1);
+    }
+}
+
 #ifdef NIMBLE_V2
 class MyScanCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice* advertisedDevice) {
@@ -657,6 +670,7 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
+    xTaskCreatePinnedToCore(reportTask, "reportTask", REPORT_TASK_STACK_SIZE, nullptr, 1, &reportTaskHandle, REPORT_PINNED_TO_CORE);
     Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(ESP.getFreeHeap()));
     Log.println();
 }
@@ -673,7 +687,7 @@ void setup() {
  * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
  */
 void loop() {
-    reportLoop();
+    // reportLoop() runs on its own core-pinned reportTask now (see setup) — not here.
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
