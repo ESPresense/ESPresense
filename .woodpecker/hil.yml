@@ -19,16 +19,15 @@ steps:
   # starts with the run and the runner kills it at the end. network_mode host because raw
   # HCI (HCI_CHANNEL_USER) only works in the host netns — a bridge-net container can't even
   # open an AF_BLUETOOTH socket. Needs the USB adapter passed through to the bench and BlueZ
-  # absent (see firmware-tester bench/README.md).
+  # absent (see the ble-loadgen README). No commands: the image entrypoint is
+  # `python3 ble_flood.py` and its CMD supplies --index/--rate.
   - name: ble-flood
-    image: ghcr.io/espresense/firmware-tester:1
+    image: ghcr.io/espresense/ble-loadgen:1
     pull: true
     detach: true
     privileged: true
     network_mode: host
     depends_on: []
-    commands:
-      - python3 /scripts/ble_flood.py --index 0 --rate 40
 
   - name: test-esp32
     image: ghcr.io/espresense/firmware-tester:1
