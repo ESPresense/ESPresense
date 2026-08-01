@@ -14,13 +14,7 @@ labels:
   platform: linux/amd64
 
 steps:
-  # BLE advertisement flood, one fresh random address ~40x/sec, so every node burns
-  # fingerprint slots and the #2309 heap decline shows up in a HIL window. Detached: it
-  # starts with the run and the runner kills it at the end. network_mode host because raw
-  # HCI (HCI_CHANNEL_USER) only works in the host netns — a bridge-net container can't even
-  # open an AF_BLUETOOTH socket. Needs the USB adapter passed through to the bench and BlueZ
-  # absent (see the ble-loadgen README). No commands: the image entrypoint is
-  # `python3 ble_flood.py` and its CMD supplies --index/--rate.
+  # BLE advertisement flood```
   - name: ble-flood
     image: ghcr.io/espresense/ble-loadgen:1
     pull: true
