@@ -1,16 +1,18 @@
 #include "AdaptivePercentileRSSI.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <new>
 
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t initialMaxReadings)
     : timeWindowMs(timeWindowMs),
       maxReadings(initialMaxReadings),
+      allocated(min(INITIAL_ALLOCATED, initialMaxReadings)),
       head(0),
       tail(0),
       count(0),
       totalReadings(0),
       lastRateCheck(0) {
-    readings = new Reading[maxReadings];
+    readings = new (std::nothrow) Reading[allocated];
 }
 
 AdaptivePercentileRSSI::~AdaptivePercentileRSSI() {
@@ -20,19 +22,17 @@ AdaptivePercentileRSSI::~AdaptivePercentileRSSI() {
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(const AdaptivePercentileRSSI& other)
     : timeWindowMs(other.timeWindowMs),
       maxReadings(other.maxReadings),
+      allocated(other.allocated),
       head(other.head),
       tail(other.tail),
       count(other.count),
       totalReadings(other.totalReadings),
       lastRateCheck(other.lastRateCheck) {
 
-    // Allocate new memory and copy the readings
-    readings = new Reading[maxReadings];
-
-    // Deep copy the readings array
-    for (uint16_t i = 0; i < maxReadings; i++) {
-        readings[i] = other.readings[i];
-    }
+    // Allocate new memory and deep-copy the (right-sized) buffer
+    readings = new (std::nothrow) Reading[allocated];
+    if (readings)
+        for (uint16_t i = 0; i < allocated; i++) readings[i] = other.readings[i];
 }
 
 AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercentileRSSI& other) {
@@ -45,19 +45,17 @@ AdaptivePercentileRSSI& AdaptivePercentileRSSI::operator=(const AdaptivePercenti
         // Copy all member variables
         timeWindowMs = other.timeWindowMs;
         maxReadings = other.maxReadings;
+        allocated = other.allocated;
         head = other.head;
         tail = other.tail;
         count = other.count;
         totalReadings = other.totalReadings;
         lastRateCheck = other.lastRateCheck;
 
-        // Allocate new memory and copy the readings
-        readings = new Reading[maxReadings];
-
-        // Deep copy the readings array
-        for (uint16_t i = 0; i < maxReadings; i++) {
-            readings[i] = other.readings[i];
-        }
+        // Allocate new memory and deep-copy the (right-sized) buffer
+        readings = new (std::nothrow) Reading[allocated];
+        if (readings)
+            for (uint16_t i = 0; i < allocated; i++) readings[i] = other.readings[i];
     }
     return *this;
 }
@@ -66,15 +64,21 @@ void AdaptivePercentileRSSI::addMeasurement(float rssi) {
     uint32_t currentTime = millis();
     totalReadings++;
 
+    // Grow the buffer on demand toward the drop threshold, so a device holding few readings keeps
+    // a small array instead of pre-allocating all of maxReadings. Lossless: the set of readings
+    // kept (newest up to maxReadings, within the time window) is unchanged.
+    if (count == allocated && allocated < maxReadings)
+        growBuffer();
+
     // Add new reading to the circular buffer
-    if (count < maxReadings) {
+    if (count < allocated) {
         readings[head] = {rssi, currentTime};
-        head = (head + 1) % maxReadings;
+        head = (head + 1) % allocated;
         count++;
-    } else {
+    } else {  // buffer full at the drop threshold: overwrite oldest
         readings[head] = {rssi, currentTime};
-        head = (head + 1) % maxReadings;
-        tail = (tail + 1) % maxReadings;
+        head = (head + 1) % allocated;
+        tail = (tail + 1) % allocated;
     }
 
     // Remove expired readings
@@ -93,7 +97,7 @@ void AdaptivePercentileRSSI::removeExpiredReadings(uint32_t currentTime) {
 
         // Handle uint32_t overflow
         if (age > timeWindowMs && age < 0xFFFFFFFF - timeWindowMs) {
-            tail = (tail + 1) % maxReadings;
+            tail = (tail + 1) % allocated;
             count--;
         } else {
             break;
@@ -121,25 +125,47 @@ void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
 }
 
 void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
-    // Create new buffer
-    Reading* newReadings = new Reading[newSize];
+    // newSize is the new drop threshold. Growth toward a larger threshold is lazy (growBuffer);
+    // here we only shrink the allocation when the threshold drops below it, dropping the oldest
+    // readings that no longer fit — same as the old behavior, just without over-allocating.
+    maxReadings = newSize;
+    uint16_t newAlloc = min(allocated, newSize);
+    if (newAlloc < INITIAL_ALLOCATED) newAlloc = min((uint16_t)INITIAL_ALLOCATED, newSize);
+    if (newAlloc == allocated) return;
 
-    // Copy existing readings to new buffer
-    uint16_t newCount = min(count, newSize);
-    uint16_t oldIdx = (tail + count - newCount) % maxReadings; // Start from most recent if we need to drop old readings
+    Reading* newReadings = new (std::nothrow) Reading[newAlloc];
+    if (!newReadings) return;
 
+    uint16_t newCount = min(count, newAlloc);
+    uint16_t oldIdx = (tail + count - newCount) % allocated; // start from the most recent newCount
     for (uint16_t i = 0; i < newCount; i++) {
         newReadings[i] = readings[oldIdx];
-        oldIdx = (oldIdx + 1) % maxReadings;
+        oldIdx = (oldIdx + 1) % allocated;
     }
 
-    // Update pointers
     delete[] readings;
     readings = newReadings;
-    maxReadings = newSize;
-    head = newCount;
+    allocated = newAlloc;
+    head = newCount % newAlloc;
     tail = 0;
     count = newCount;
+}
+
+void AdaptivePercentileRSSI::growBuffer() {
+    uint16_t newAlloc = min((uint16_t)(allocated * 2), maxReadings);
+    if (newAlloc <= allocated) return;
+
+    Reading* newReadings = new (std::nothrow) Reading[newAlloc];
+    if (!newReadings) return; // OOM: keep the smaller buffer (drops oldest early, but never crashes)
+
+    for (uint16_t i = 0; i < count; i++)
+        newReadings[i] = readings[(tail + i) % allocated];
+
+    delete[] readings;
+    readings = newReadings;
+    allocated = newAlloc;
+    tail = 0;
+    head = count % newAlloc; // count < newAlloc here, so head = count
 }
 
 float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
@@ -159,7 +185,7 @@ float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
             values[validCount++] = readings[idx].rssi;
         }
 
-        idx = (idx + 1) % maxReadings;
+        idx = (idx + 1) % allocated;
     }
 
     if (validCount == 0) {
@@ -197,7 +223,7 @@ float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
 
     for (uint16_t i = 0; i < count; ++i) {
         vals[i] = readings[idx].rssi;
-        idx = (idx + 1) % maxReadings;
+        idx = (idx + 1) % allocated;
     }
 
     // 2) Sort
@@ -243,7 +269,7 @@ float AdaptivePercentileRSSI::getAverageInterval() {
     if (count < 2) return 0;
 
     uint32_t firstTimestamp = readings[tail].timestamp;
-    uint32_t lastTimestamp = readings[(head + maxReadings - 1) % maxReadings].timestamp;
+    uint32_t lastTimestamp = readings[(head + allocated - 1) % allocated].timestamp;
 
     return (lastTimestamp - firstTimestamp) / (float)(count - 1);
 }
@@ -275,7 +301,7 @@ float AdaptivePercentileRSSI::getRSSIVariance() {
             validCount++;
         }
 
-        idx = (idx + 1) % maxReadings;
+        idx = (idx + 1) % allocated;
     }
 
     if (validCount < 2) return 0;
@@ -314,7 +340,7 @@ float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossE
             validCount++;
         }
 
-        idx = (idx + 1) % maxReadings;
+        idx = (idx + 1) % allocated;
     }
 
     if (validCount < 2) return 0;
