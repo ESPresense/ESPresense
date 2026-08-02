@@ -46,6 +46,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
     commands:
       - |
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
       - |
@@ -87,6 +88,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
     commands:
       - |
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
       - |
@@ -128,6 +130,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
     commands:
       - |
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
       - |
@@ -169,6 +172,7 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
     commands:
       - |
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
       - |
