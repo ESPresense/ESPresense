@@ -36,7 +36,7 @@ steps:
       - |
         export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-        flock -w 3600 /lock/esp32-verbose.lock bash -c '
+        flock -w 3600 /lock/esp32.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
@@ -70,7 +70,7 @@ steps:
       - |
         export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-        flock -w 3600 /lock/esp32c3-verbose.lock bash -c '
+        flock -w 3600 /lock/esp32c3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
@@ -105,7 +105,7 @@ steps:
       - |
         export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-        flock -w 3600 /lock/esp32c6-verbose.lock bash -c '
+        flock -w 3600 /lock/esp32c6.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
@@ -139,7 +139,7 @@ steps:
       - |
         export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-        flock -w 3600 /lock/esp32s3-verbose.lock bash -c '
+        flock -w 3600 /lock/esp32s3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
