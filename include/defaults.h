@@ -74,7 +74,7 @@
 #elif defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
-#define DEFAULT_MAX_FINGERPRINTS 75
+#define DEFAULT_MAX_FINGERPRINTS 60
 #endif
 
 // RX_ADJ_RSSI Defaults
