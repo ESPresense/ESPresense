@@ -7,6 +7,20 @@
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+#ifdef HEAP_TRACE
+    // On the first exhaustion (fires ~1s before the Guru), dump the internal-heap breakdown:
+    // a large allocated_blocks count with small total_allocated = a small-object leak.
+    static bool dumped = false;
+    if (!dumped) {
+        dumped = true;
+        multi_heap_info_t info;
+        heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
+        ESP_EARLY_LOGE("heap", "EXHAUSTED internal: alloc=%u free=%u largest=%u minfree=%u alloc_blocks=%u free_blocks=%u",
+                       (unsigned)info.total_allocated_bytes, (unsigned)info.total_free_bytes,
+                       (unsigned)info.largest_free_block, (unsigned)info.minimum_free_bytes,
+                       (unsigned)info.allocated_blocks, (unsigned)info.free_blocks);
+    }
+#endif
 }
 
 /**
@@ -674,6 +688,21 @@ void setup() {
  */
 void loop() {
     reportLoop();
+#ifdef HEAP_TRACE
+    // Trace the heap every 500ms so the pre-crash trajectory is visible: if free falls while
+    // the fingerprint count is flat, it's a leak somewhere else; if free tracks fp count, it's
+    // pool pressure. alloc_blocks climbing without fp climbing = a small-object leak. (#2309)
+    static unsigned long lastTrace = 0;
+    if (millis() - lastTrace > 500) {
+        lastTrace = millis();
+        multi_heap_info_t info;
+        heap_caps_get_info(&info, MALLOC_CAP_INTERNAL);
+        Log.printf("[HEAP] t=%lu free=%u largest=%u minfree=%u alloc_blocks=%u fp=%u\r\n",
+                   millis(), (unsigned)info.total_free_bytes, (unsigned)info.largest_free_block,
+                   (unsigned)info.minimum_free_bytes, (unsigned)info.allocated_blocks,
+                   (unsigned)BleFingerprintCollection::Size(false));
+    }
+#endif
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
