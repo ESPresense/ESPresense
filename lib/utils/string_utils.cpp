@@ -25,6 +25,12 @@ std::string lowertrim(std::string str, char toTrim)
 
 static std::string normalizeWordSeparators(const std::string &text, char replacement)
 {
+    // DIAG(#2309): a garbage text.size() here is the esp32 abort (length_error with 53KB free).
+    // Log the implausible size + bail instead of throwing, so the flood keeps running and we see it.
+    if (text.size() > 512) {
+        ets_printf("[CORRUPT] normalizeWordSeparators size=%u data=%p\n", (unsigned)text.size(), (const void *)text.data());
+        return std::string();
+    }
     std::string out;
     out.reserve(text.size());
     bool lastWasReplacement = false;

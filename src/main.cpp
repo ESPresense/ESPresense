@@ -514,7 +514,9 @@ void reportLoop() {
     GUI::Count(count);
 
     yield();
+    if (!heap_caps_check_integrity_all(true)) ets_printf("[CORRUPT] heap bad BEFORE sendTelemetry fp=%u\n", (unsigned)fingerprintCount);
     sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, fingerprintCount);
+    if (!heap_caps_check_integrity_all(true)) ets_printf("[CORRUPT] heap bad AFTER sendTelemetry fp=%u\n", (unsigned)fingerprintCount);
     yield();
 
     auto reported = 0;
@@ -535,6 +537,7 @@ void reportLoop() {
             totalFpReported++;
             reported++;
         }
+        if (!heap_caps_check_integrity_all(true)) ets_printf("[CORRUPT] heap bad AFTER reportDevice mac=%s\n", f->getMac().c_str());
         BleFingerprintCollection::Release(lease);
         yield();
     }
