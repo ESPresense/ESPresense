@@ -69,7 +69,9 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
+#if defined(ESP32S3)
+#define DEFAULT_MAX_FINGERPRINTS 60  // DIAG: leak-vs-pressure test — does free stabilize at fp=60?
+#elif defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
 #define DEFAULT_MAX_FINGERPRINTS 100
