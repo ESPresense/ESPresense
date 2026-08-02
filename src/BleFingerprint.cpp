@@ -570,13 +570,25 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    if (!adaptivePercentileRSSI)
+    auto adjusted = raw - BleFingerprintCollection::rxAdjRssi;
+    // Lazy filter: a device seen once can't be smoothed anyway, and under churn (a room full of
+    // rotating-MAC phones, or #2309's flood) the pool fills with seen-once devices whose
+    // ~200-byte AdaptivePercentileRSSI (object + Reading[]) is pure waste — that overhead is
+    // what stopped the pool fitting 200 on the ~100KB-free S3. Defer it to the 2nd sighting and
+    // use the raw reading until then; real (repeatedly-seen) devices still get the full filter.
+    if (!adaptivePercentileRSSI && seenCount >= 2)
         adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
-    adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
-    rssi = adaptivePercentileRSSI->getMedianIQR();
-    rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+    if (adaptivePercentileRSSI) {
+        adaptivePercentileRSSI->addMeasurement(adjusted);
+        rssi = adaptivePercentileRSSI->getMedianIQR();
+        rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+        distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    } else {
+        rssi = adjusted;
+        rssiVar = 0;
+        distVar = 0;
+    }
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;

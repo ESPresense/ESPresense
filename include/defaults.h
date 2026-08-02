@@ -69,13 +69,10 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3)
-#define DEFAULT_MAX_FINGERPRINTS 150
-#elif defined(ESP32C3) || defined(ESP32C6)
+// 200 on every flavor. Lazy AdaptivePercentileRSSI allocation (BleFingerprint::seen) drops the
+// per-fingerprint cost enough that even S3's ~100KB-free heap holds a full pool of seen-once
+// devices without exhausting (#2309). Chips that need less can still lower it via max_fingerprints.
 #define DEFAULT_MAX_FINGERPRINTS 200
-#else
-#define DEFAULT_MAX_FINGERPRINTS 60
-#endif
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
