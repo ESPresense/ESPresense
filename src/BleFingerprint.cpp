@@ -164,8 +164,13 @@ void BleFingerprint::fingerprint(const NimBLEAdvertisedDevice *advertisedDevice)
 void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice) {
 #endif
     if (advertisedDevice->haveName()) {
-        const std::string name = advertisedDevice->getName();
-        if (!name.empty()) setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
+        const std::string &nameSrc = advertisedDevice->getName();  // DIAG(#2309): ref, no copy yet
+        if (nameSrc.size() > 512) {
+            ets_printf("[CORRUPT] getName size=%u data=%p mac=%s\n", (unsigned)nameSrc.size(), (const void *)nameSrc.data(), getMac().c_str());
+        } else if (!nameSrc.empty()) {
+            const std::string name = nameSrc;
+            setId(String("name:") + kebabify(name).c_str(), ID_TYPE_NAME, String(name.c_str()));
+        }
     }
 
     if (advertisedDevice->getAdvType() > 0)
@@ -380,7 +385,9 @@ void BleFingerprint::fingerprintServiceData(BLEAdvertisedDevice *advertisedDevic
     String fingerprint = "";
     for (int i = 0; i < serviceDataCount; i++) {
         BLEUUID uuid = advertisedDevice->getServiceDataUUID(i);
-        std::string strServiceData = advertisedDevice->getServiceData(i);
+        const std::string &sdSrc = advertisedDevice->getServiceData(i);  // DIAG(#2309)
+        if (sdSrc.size() > 512) { ets_printf("[CORRUPT] getServiceData i=%d/%u size=%u mac=%s\n", i, (unsigned)serviceDataCount, (unsigned)sdSrc.size(), getMac().c_str()); continue; }
+        std::string strServiceData = sdSrc;
 #ifdef VERBOSE
         Log.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, uuid.toString().c_str(), hexStr(strServiceData).c_str());
 #endif
@@ -475,7 +482,9 @@ void BleFingerprint::fingerprintManufactureData(const NimBLEAdvertisedDevice *ad
 #else
 void BleFingerprint::fingerprintManufactureData(BLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower) {
 #endif
-    std::string strManufacturerData = advertisedDevice->getManufacturerData();
+    const std::string &mdSrc = advertisedDevice->getManufacturerData();  // DIAG(#2309)
+    if (mdSrc.size() > 512) { ets_printf("[CORRUPT] getManufacturerData size=%u mac=%s\n", (unsigned)mdSrc.size(), getMac().c_str()); return; }
+    std::string strManufacturerData = mdSrc;
 #ifdef VERBOSE
     Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
