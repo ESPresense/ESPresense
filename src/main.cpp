@@ -467,18 +467,32 @@ void connectToMqtt() {
 
 bool reportBuffer(BleFingerprint *f) {
     if (!mqttClient.connected()) return false;
-    auto report = f->getReport();
-    String const topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
-    return mqttClient.publish(topic.c_str(), 0, false, report.getPayload().c_str());
+    // Read f's fields into local snapshots under the field lock, then publish unlocked — the
+    // scan task mutates the same id/getReport() String on the other core (#2309 race).
+    String topic, payload;
+    {
+        BleFingerprintCollection::FieldGuard g;
+        if (!g) return false;
+        auto report = f->getReport();
+        topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
+        payload = report.getPayload();
+    }
+    return mqttClient.publish(topic.c_str(), 0, false, payload.c_str());
 }
 
 bool reportDevice(BleFingerprint *f) {
     doc.clear();
     JsonObject obj = doc.to<JsonObject>();
-    if (!f->report(&obj))
-        return false;
-
-    String const devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
+    // report() reads f's id/name Strings into obj (ArduinoJson copies them, so doc is a
+    // self-contained snapshot) and updates f's report bookkeeping — all under the field lock so
+    // it can't race the scan task's seen() writes. pub() then serializes the snapshot unlocked.
+    String devicesTopic;
+    {
+        BleFingerprintCollection::FieldGuard g;
+        if (!g || !f->report(&obj))
+            return false;
+        devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
+    }
     if (pub(devicesTopic.c_str(), 0, false, doc))
         return true;
 

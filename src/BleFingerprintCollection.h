@@ -51,6 +51,24 @@ FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 FingerprintLease AcquireNext(size_t &cursor, bool cleanup = true);
 void Release(FingerprintLease &lease);
+
+// Serializes a fingerprint's mutable String fields (id/name/discoveredIrk, written by the scan
+// task inside seen()) against readers on another core (report loop, /json serialize). A lease
+// only guards lifetime (refs), NOT concurrent field access — on a dual-core chip that let core 0
+// realloc a String while core 1 read its buffer pointer, a torn read that faulted (#2309).
+// Hold ONLY across the field read/write, never across MQTT/HTTP I/O: snapshot under the guard,
+// release, then do I/O. Never hold while calling AcquireNext/Release — fingerprintMutex is
+// non-recursive, so re-taking it on the same task self-deadlocks.
+bool LockFields();
+void UnlockFields();
+struct FieldGuard {
+    const bool ok;
+    FieldGuard() : ok(LockFields()) {}
+    ~FieldGuard() { if (ok) UnlockFields(); }
+    explicit operator bool() const { return ok; }
+    FieldGuard(const FieldGuard &) = delete;
+    FieldGuard &operator=(const FieldGuard &) = delete;
+};
 size_t Size(bool cleanup = true);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);

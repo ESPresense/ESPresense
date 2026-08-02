@@ -188,6 +188,12 @@ void Setup() {
     deviceConfigMutex = xSemaphoreCreateMutex();
 }
 
+// Plain take/give of the same fingerprintMutex the lease system uses, exposed so cross-core
+// readers/writers can serialize a single fingerprint's field access (see header). Deliberately
+// no dying-drain like FingerprintLock — this guards short field snapshots, not slot lifecycle.
+bool LockFields() { return xSemaphoreTake(fingerprintMutex, MAX_WAIT) == pdTRUE; }
+void UnlockFields() { xSemaphoreGive(fingerprintMutex); }
+
 void Count(BleFingerprint *f, bool counting) {
     if (counting) {
         if (onCountAdd) onCountAdd(f);
@@ -212,8 +218,16 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 
     if (onSeen) onSeen(true);
     auto lease = GetFingerprint(advertisedDevice);
-    if (lease && lease.fingerprint->seen(advertisedDevice) && onAdd)
-        onAdd(lease.fingerprint);
+    bool added = false;
+    if (lease) {
+        // seen() writes the fingerprint's id/name/filter; hold the field lock so a reader on
+        // the other core (report loop, /json) can't tear a String mid-realloc. Not nested with
+        // GetFingerprint's lock (that one already released). Drop the advert if the lock is
+        // busy — cheaper than blocking the scan task past MAX_WAIT.
+        BleFingerprintCollection::FieldGuard g;
+        if (g) added = lease.fingerprint->seen(advertisedDevice);
+    }
+    if (added && onAdd) onAdd(lease.fingerprint);
     Release(lease);
     if (onSeen) onSeen(false);
 }

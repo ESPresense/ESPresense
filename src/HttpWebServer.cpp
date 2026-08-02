@@ -76,13 +76,20 @@ void serializeDevices(JsonObject &root, bool showAll) {
     size_t cursor = 0;
     while (auto lease = BleFingerprintCollection::AcquireNext(cursor)) {
         auto *fingerprint = lease.fingerprint;
-        bool visible = fingerprint->getVisible();
-        if (showAll || visible) {
-            JsonObject node = devices.createNestedObject();
-            if (fingerprint->fill(&node)) {
-                if (showAll && visible) node[F("vis")] = true;
-            } else
-                devices.remove(devices.size() - 1);
+        {
+            // fill() reads the fingerprint's id/name Strings while the scan task may be
+            // rewriting them on the other core (#2309). Hold the field lock across the read
+            // (ArduinoJson copies into node, so it's a snapshot), then release it BEFORE
+            // Release(lease) — the mutex is non-recursive and Release re-takes it.
+            BleFingerprintCollection::FieldGuard g;
+            bool visible = g && fingerprint->getVisible();
+            if (g && (showAll || visible)) {
+                JsonObject node = devices.createNestedObject();
+                if (fingerprint->fill(&node)) {
+                    if (showAll && visible) node[F("vis")] = true;
+                } else
+                    devices.remove(devices.size() - 1);
+            }
         }
         BleFingerprintCollection::Release(lease);
     }
