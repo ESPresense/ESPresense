@@ -682,11 +682,13 @@ void loop() {
         if (freeHeap > 40000) Updater::Loop();
 
         // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
-        // telemetry both fail, nothing recovers), so reboot after 60s stuck below the
-        // threshold mqtt already refuses to publish under. Same escape hatch as the stuck
-        // BLE controller restart in BleFingerprintCollection::CleanupOldFingerprints().
+        // telemetry both fail, nothing recovers), so reboot after 60s of genuinely severe
+        // exhaustion. Decoupled from MQTT_MIN_FREE_MEMORY (the mqtt publish-backpressure
+        // threshold): that one is raised high enough to hold the node in a healthy band, so
+        // reusing it here would reboot a node that is actually fine and just shedding publishes.
+        static const uint32_t REBOOT_MIN_FREE_HEAP = 10000;
         static uint8_t lowHeapPasses = 0;
-        if (freeHeap < MQTT_MIN_FREE_MEMORY) {
+        if (freeHeap < REBOOT_MIN_FREE_HEAP) {
             if (++lowHeapPasses >= 12) {
                 Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
                 ESP.restart();
