@@ -69,8 +69,15 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
+// S3 boots with only ~100KB free (the IDF 5.4 / Arduino 3.2.1 SDK bump for DIO flash cut the
+// baseline from ~160KB). Each fingerprint costs ~560 bytes (object + id String + ~160-byte
+// AdaptivePercentileRSSI Reading[]), so the pool fills the heap and, once exhausted,
+// reports/JSON/MQTT crash — the #2309 flood crash. Measured: 200 exhausts at ~fp165; 60 runs
+// the 3-min flood clean. #2445 set 150 (thin margin vs the ~165 crash point); tighten to 100
+// (2× the ~50 devices a typical node tracks) to leave headroom for the report doc + WiFi/MQTT.
+// Not a leak — the pool is stable under eviction.
 #if defined(ESP32S3)
-#define DEFAULT_MAX_FINGERPRINTS 150
+#define DEFAULT_MAX_FINGERPRINTS 100
 #elif defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
