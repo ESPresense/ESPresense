@@ -29,11 +29,13 @@ private:
 
     static constexpr uint16_t MIN_READINGS = 10;
     static constexpr uint16_t MAX_READINGS = 200;
+    static constexpr uint16_t INITIAL_ALLOCATED = 4; // grow on demand from here toward maxReadings
     static constexpr uint32_t RATE_CHECK_INTERVAL_MS = 10000; // Check rate every 10 seconds
 
-    Reading* readings;      // Dynamic array for readings
+    Reading* readings;      // Dynamic array for readings (sized `allocated`, grown on demand)
     uint32_t timeWindowMs;  // Time window in milliseconds
-    uint16_t maxReadings;   // Current maximum readings
+    uint16_t maxReadings;   // Drop threshold: newest `maxReadings` readings are kept (rate-adjusted)
+    uint16_t allocated;     // Actual buffer size; grows from INITIAL_ALLOCATED up to maxReadings
     uint16_t head;          // Index for newest reading
     uint16_t tail;          // Index for oldest reading
     uint16_t count;         // Current number of readings
@@ -43,6 +45,7 @@ private:
     void removeExpiredReadings(uint32_t currentTime);
     void adjustBufferSize(uint32_t currentTime);
     void resizeBuffer(uint16_t newSize);
+    void growBuffer();  // double `allocated` toward maxReadings, re-linearizing the buffer
 };
 
 #endif
