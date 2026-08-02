@@ -1,6 +1,7 @@
 #include "BleFingerprint.h"
 
 #include <math.h>
+#include <new>
 #include <stdint.h>
 
 #include "BleFingerprintCollection.h"
@@ -45,7 +46,7 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     distVar = other.distVar;
     raw = other.raw;
     if (other.adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new (std::nothrow) AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
     else
         adaptivePercentileRSSI.reset();
 }
@@ -577,7 +578,7 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     // what stopped the pool fitting 200 on the ~100KB-free S3. Defer it to the 2nd sighting and
     // use the raw reading until then; real (repeatedly-seen) devices still get the full filter.
     if (!adaptivePercentileRSSI && seenCount >= 2)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new (std::nothrow) AdaptivePercentileRSSI());
     if (adaptivePercentileRSSI) {
         adaptivePercentileRSSI->addMeasurement(adjusted);
         rssi = adaptivePercentileRSSI->getMedianIQR();
