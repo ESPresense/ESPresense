@@ -34,11 +34,13 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
     commands:
       - |
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
+      - |
         flock -w 3600 /lock/esp32-verbose.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t nobuild -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -67,11 +69,13 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
     commands:
       - |
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
+      - |
         flock -w 3600 /lock/esp32c3-verbose.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t nobuild -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -101,11 +105,13 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
     commands:
       - |
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
+      - |
         flock -w 3600 /lock/esp32c6-verbose.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t nobuild -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -134,11 +140,13 @@ steps:
       PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
     commands:
       - |
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/build.lock pio run -e $FIRMWARE_ENV
+      - |
         flock -w 3600 /lock/esp32s3-verbose.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t nobuild -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
