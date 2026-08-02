@@ -69,7 +69,11 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
+// ESP32C5 has 384KB SRAM, the smallest of any supported chip (C6 512KB, C3 400KB),
+// and runs the IDF 5.5 stack which is fatter than the others'.
+#if defined(ESP32C5)
+#define DEFAULT_MAX_FINGERPRINTS 50
+#elif defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
 #define DEFAULT_MAX_FINGERPRINTS 100
@@ -123,11 +127,19 @@
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
 #else
+#ifdef ESP32C5
+#define DEFAULT_I2C_BUS_1_SDA 0
+#define DEFAULT_I2C_BUS_1_SCL 1
+#define DEFAULT_I2C_BUS_2_SDA -1
+#define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS 1
+#else
 #define DEFAULT_I2C_BUS_1_SDA 21
 #define DEFAULT_I2C_BUS_1_SCL 22
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
+#endif
 #endif
 #endif
 #endif

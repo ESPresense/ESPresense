@@ -158,3 +158,43 @@ steps:
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
+
+  - name: test-esp32c5
+    image: ghcr.io/espresense/firmware-tester:1
+    privileged: true
+    depends_on: []
+    volumes:
+      - cache_volume:/cache
+      - /dev/esp32c5:/dev/esp32c5
+      - /var/lock/woodpecker:/lock
+    environment:
+      DEVICE: /dev/esp32c5
+      # HIL board is cabled to the devkit's native USB port, so serial only comes
+      # out of the CDC build. Switch to esp32c5 if it moves to the UART port.
+      FIRMWARE_ENV: esp32c5-cdc
+      GITHUB_TOKEN:
+        from_secret: github_token
+      WIFI_SSID:
+        from_secret: wifi_ssid
+      WIFI_PASSWORD:
+        from_secret: wifi_password
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c5
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c5/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c5/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c5/platforms
+    commands:
+      - |
+        flock -w 3600 /lock/esp32c5.lock bash -c '
+          set -e
+          if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
+            DURATION_SECS=180
+          elif [ "$CI_PIPELINE_EVENT" = "cron" ]; then
+            DURATION_SECS=28800
+          else
+            DURATION_SECS=28800
+          fi
+          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+          python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+        '
