@@ -70,13 +70,16 @@
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
 // The right-sized AdaptivePercentileRSSI buffer (grow-on-demand) cut per-fingerprint cost enough
-// that S3/C3/C6 hold a full 200 pool under the 40/s flood and pass HIL (verified: S3 fp=200,
-// "3m elapsed cleanly"). Classic esp32 is the tightest-heap flavor (its baseline leaves less free
-// than S3's ~100KB) and at 200 runs at ~0KB free — a legitimate std::string in the advert path
-// (NimBLEUUID->id) then aborts. Cap it at 100 (2x a typical ~50-device node) to keep headroom;
-// max_fingerprints is user-tunable if a given board proves it can go higher. (#2309)
-#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
+// that C3/C6 hold a full 200 pool under the 40/s flood and pass HIL reliably. S3 *can* reach 200
+// but only clears with ~1.7KB free — thinner than run-to-run WiFi/BT variance, so it's flaky
+// (2/3 HIL runs passed). Capped at 180 for a real (~10KB) margin so it passes every time. Classic
+// esp32 is the tightest-heap flavor and at 200 runs at ~0KB free, where a legitimate std::string
+// in the advert path (NimBLEUUID->id) aborts; capped at 100. All still user-tunable via
+// max_fingerprints, and all remain well above a typical ~50-device node. (#2309)
+#if defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
+#elif defined(ESP32S3)
+#define DEFAULT_MAX_FINGERPRINTS 180
 #else
 #define DEFAULT_MAX_FINGERPRINTS 100
 #endif
