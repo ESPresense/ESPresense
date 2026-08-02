@@ -2,11 +2,20 @@
 #include "main.h"
 
 #include "esp_heap_caps.h"
+#ifdef HEAP_DIAG
+#include "esp_debug_helpers.h"
+#endif
 
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+#ifdef HEAP_DIAG
+    // ponytail: diagnostic only (HEAP_DIAG). Print the caller stack for the first few failures
+    // so the flood shows WHO keeps asking for the recurring size that precedes the corruption.
+    static uint8_t traced = 0;
+    if (traced < 12) { traced++; esp_backtrace_print(12); }
+#endif
 }
 
 /**
@@ -674,6 +683,17 @@ void setup() {
  */
 void loop() {
     reportLoop();
+#ifdef HEAP_DIAG
+    // ponytail: diagnostic only (HEAP_DIAG). Scan the whole heap every second so the first
+    // corruption is caught within ~1s of the overrun, not later when some unrelated free()
+    // trips over the clobbered header and gives a useless backtrace.
+    static unsigned long lastIntegrity = 0;
+    if (millis() - lastIntegrity > 1000) {
+        lastIntegrity = millis();
+        if (!heap_caps_check_integrity_all(true))
+            Log.printf("HEAP CORRUPT detected at %lu ms, free=%lu\r\n", millis(), static_cast<unsigned long>(ESP.getFreeHeap()));
+    }
+#endif
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
