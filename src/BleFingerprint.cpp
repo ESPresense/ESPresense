@@ -1,6 +1,7 @@
 #include "BleFingerprint.h"
 
 #include <math.h>
+#include <new>
 #include <stdint.h>
 
 #include "BleFingerprintCollection.h"
@@ -45,7 +46,7 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
     distVar = other.distVar;
     raw = other.raw;
     if (other.adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new (std::nothrow) AdaptivePercentileRSSI(*other.adaptivePercentileRSSI));
     else
         adaptivePercentileRSSI.reset();
 }
@@ -170,8 +171,15 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->getAdvType() > 0)
         connectable = true;
 
+    // A BLE advertisement carries at most 31 bytes (legacy) of AD structures, so a handful of
+    // service UUIDs/data entries is the real ceiling. NimBLE 1.4.0 (esp32) can hand back a bogus
+    // count for a malformed/partial advert; iterating it reads out of bounds and copies a
+    // garbage-sized std::string -> length_error abort under -fno-exceptions (#2309). Treat an
+    // implausible count as "no service data" rather than trusting untrusted radio input.
     size_t serviceAdvCount = advertisedDevice->getServiceUUIDCount();
     size_t serviceDataCount = advertisedDevice->getServiceDataCount();
+    if (serviceAdvCount > 24) serviceAdvCount = 0;
+    if (serviceDataCount > 24) serviceDataCount = 0;
     bool haveTxPower = advertisedDevice->haveTXPower();
     int8_t txPower = advertisedDevice->getTXPower();
 
@@ -570,13 +578,25 @@ bool BleFingerprint::seen(BLEAdvertisedDevice *advertisedDevice) {
     if (ignore || hidden) return false;
 
     raw = advertisedDevice->getRSSI();
-    if (!adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
-    adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
-    rssi = adaptivePercentileRSSI->getMedianIQR();
-    rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+    auto adjusted = raw - BleFingerprintCollection::rxAdjRssi;
+    // Lazy filter: a device seen once can't be smoothed anyway, and under churn (a room full of
+    // rotating-MAC phones, or #2309's flood) the pool fills with seen-once devices whose
+    // ~200-byte AdaptivePercentileRSSI (object + Reading[]) is pure waste — that overhead is
+    // what stopped the pool fitting 200 on the ~100KB-free S3. Defer it to the 2nd sighting and
+    // use the raw reading until then; real (repeatedly-seen) devices still get the full filter.
+    if (!adaptivePercentileRSSI && seenCount >= 2)
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new (std::nothrow) AdaptivePercentileRSSI());
+    if (adaptivePercentileRSSI) {
+        adaptivePercentileRSSI->addMeasurement(adjusted);
+        rssi = adaptivePercentileRSSI->getMedianIQR();
+        rssiVar = adaptivePercentileRSSI->getRSSIVariance();
+        distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    } else {
+        rssi = adjusted;
+        rssiVar = 0;
+        distVar = 0;
+    }
     dist = pow(10, float(get1mRssi() - rssi) / (10.0f * BleFingerprintCollection::absorption));
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
