@@ -245,13 +245,11 @@ void setupNetwork() {
 
     // Serial Improv provisioning over USB. HeadlessWiFiSettings services it from
     // connect()/portal() during bring-up; the main loop() services it at runtime.
-    const char* improvVersion = "Dev";
 #ifdef VERSION
-    char improvVersionBuf[32];
-    snprintf_P(improvVersionBuf, sizeof(improvVersionBuf), VERSION);
-    improvVersion = improvVersionBuf;
+    HeadlessWiFiSettings.beginSerialImprov("ESPresense", String(VERSION), room);
+#else
+    HeadlessWiFiSettings.beginSerialImprov("ESPresense", "Dev", room);
 #endif
-    HeadlessWiFiSettings.beginSerialImprov("ESPresense", improvVersion, room);
 
     if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
         ESP.restart();
