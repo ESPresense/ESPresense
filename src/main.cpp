@@ -229,13 +229,21 @@ void setupNetwork() {
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
-        SerialImprov::Loop(true);
+        HeadlessWiFiSettings.serialImprovLoop();
         return 50;
     };
     unsigned int portalProgress = 0;
     HeadlessWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
         GUI::Portal(portalProgress++);
-        SerialImprov::Loop(false);
+        HeadlessWiFiSettings.serialImprovLoop();
+
+        // Serial Improv provisioned us from the portal: credentials are saved and
+        // WiFi is connected. Restart so MultiNetwork brings the device up normally
+        // (as the old in-tree SerialImprov did after receiving credentials).
+        if (WiFi.status() == WL_CONNECTED) {
+            delay(1500);  // let the PROVISIONED response + device URL flush first
+            ESP.restart();
+        }
 
         if (millis() > portalTimeout)
             ESP.restart();
@@ -244,6 +252,16 @@ void setupNetwork() {
     };
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
+
+    // Serial Improv provisioning over USB. HeadlessWiFiSettings services it from
+    // connect()/portal() during bring-up; the main loop() services it at runtime.
+    const char* improvVersion = "Dev";
+#ifdef VERSION
+    char improvVersionBuf[32];
+    snprintf_P(improvVersionBuf, sizeof(improvVersionBuf), VERSION);
+    improvVersion = improvVersionBuf;
+#endif
+    HeadlessWiFiSettings.beginSerialImprov("ESPresense", improvVersion, room);
 
     if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
         ESP.restart();
@@ -708,7 +726,7 @@ void loop() {
     Switch::Loop();
     Button::Loop();
     HttpWebServer::Loop();
-    SerialImprov::Loop(false);
+    HeadlessWiFiSettings.serialImprovLoop();
     NTP::Loop();
 #if M5STICK
     AXP192::Loop();
