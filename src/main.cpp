@@ -229,13 +229,11 @@ void setupNetwork() {
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
-        SerialImprov::Loop(true);
         return 50;
     };
     unsigned int portalProgress = 0;
     HeadlessWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
         GUI::Portal(portalProgress++);
-        SerialImprov::Loop(false);
 
         if (millis() > portalTimeout)
             ESP.restart();
@@ -244,6 +242,14 @@ void setupNetwork() {
     };
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
+
+    // Serial Improv provisioning over USB. HeadlessWiFiSettings services it from
+    // connect()/portal() during bring-up; the main loop() services it at runtime.
+#ifdef VERSION
+    HeadlessWiFiSettings.beginSerialImprov("ESPresense", String(VERSION), room);
+#else
+    HeadlessWiFiSettings.beginSerialImprov("ESPresense", "Dev", room);
+#endif
 
     if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
         ESP.restart();
@@ -708,7 +714,7 @@ void loop() {
     Switch::Loop();
     Button::Loop();
     HttpWebServer::Loop();
-    SerialImprov::Loop(false);
+    HeadlessWiFiSettings.loop();
     NTP::Loop();
 #if M5STICK
     AXP192::Loop();
