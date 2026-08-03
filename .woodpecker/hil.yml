@@ -19,7 +19,12 @@ variables:
   # below lives in exactly one place instead of four copies drifting apart.
   - &hil_run |
     export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
-    git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+    # Bare $GITHUB_TOKEN, not the braced form: Woodpecker substitutes braced references in
+    # the YAML before the container ever sees it, and secrets are not available at that
+    # point. Braces fail quietly here — an emptied token still clones the public lib_deps,
+    # just anonymously and against the unauthenticated rate limit. Escape as $${...} when
+    # the shell genuinely needs braces, as the duration log line below does.
+    git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
@@ -42,7 +47,9 @@ variables:
         case "$CI_COMMIT_SOURCE_BRANCH" in soak/*) DURATION_SECS=$SOAK_SECS ;; esac
         case "$CI_COMMIT_MESSAGE" in *"[soak]"*) DURATION_SECS=$SOAK_SECS ;; esac
       fi
-      echo "HIL $FIRMWARE_ENV: ${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
+      # $${...} escapes the brace form past Woodpecker so the shell expands it after the
+      # assignments above. Braces are needed to keep the "s" out of the variable name.
+      echo "HIL $FIRMWARE_ENV: $${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
 
       PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
       python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
