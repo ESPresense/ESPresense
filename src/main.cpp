@@ -229,17 +229,18 @@ void setupNetwork() {
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
         GUI::Wifi(connectProgress++);
-        HeadlessWiFiSettings.serialImprovLoop();
+        // No serialImprovLoop() here: connect()/portal() already service Improv
+        // internally and invoke this callback from that same loop.
         return 50;
     };
     unsigned int portalProgress = 0;
     HeadlessWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
         GUI::Portal(portalProgress++);
-        HeadlessWiFiSettings.serialImprovLoop();
 
         // Serial Improv provisioned us from the portal: credentials are saved and
-        // WiFi is connected. Restart so MultiNetwork brings the device up normally
-        // (as the old in-tree SerialImprov did after receiving credentials).
+        // WiFi is connected (portal() serviced Improv just before this callback).
+        // Restart so MultiNetwork brings the device up normally (as the old in-tree
+        // SerialImprov did after receiving credentials).
         if (WiFi.status() == WL_CONNECTED) {
             delay(1500);  // let the PROVISIONED response + device URL flush first
             ESP.restart();
