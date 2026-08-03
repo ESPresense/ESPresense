@@ -683,7 +683,7 @@ void loop() {
         // for twenty minutes without the one number that explained the crash — its largest
         // free block was already under the 2312 byte request that kept failing.
         if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\r\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
-        if (freeHeap > 40000) Updater::Loop();
+        if (freeHeap > 70000) Updater::Loop();
 
         // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
         // telemetry both fail, nothing recovers), so reboot after 60s stuck below the
