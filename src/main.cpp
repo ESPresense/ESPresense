@@ -140,10 +140,24 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     auto freeHeap = ESP.getFreeHeap();
     doc["freeHeap"] = freeHeap;
     doc["maxHeap"] = maxHeap;
+    doc["minHeap"] = ESP.getMinFreeHeap();
     doc["fingerprints"] = fingerprintCount;
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
+    // The same leak-hunt counters /json/tele carries, so the two agree and the soak data
+    // can come from whichever the reporter already has. Most of #2309's graphs are built
+    // from this payload, not from curl.
+    doc["fpNew"] = fpNew.load(std::memory_order_relaxed);
+    doc["fpDel"] = fpDel.load(std::memory_order_relaxed);
+    doc["telePubs"] = telePubs.load(std::memory_order_relaxed);
+    doc["mqttRetries"] = mqttRetries.load(std::memory_order_relaxed);
+    doc["allocFails"] = allocFails.load(std::memory_order_relaxed);
+
+    // This document has never been checked for overflow, and it is now within a few fields
+    // of its capacity. A silently truncated telemetry payload is exactly the kind of
+    // "success that lies" that cost #2309 months, so say so.
+    if (doc.overflowed()) log_e("Telemetry document overflowed; fields were dropped");
 
     if (pub(teleTopic.c_str(), 0, false, doc)) {
         telePubs.fetch_add(1, std::memory_order_relaxed);
