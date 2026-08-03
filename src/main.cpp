@@ -678,7 +678,11 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
+        auto maxAlloc = ESP.getMaxAllocHeap();
+        // maxAlloc as well as freeHeap: #2309's node logged "Low memory: ~20000 bytes free"
+        // for twenty minutes without the one number that explained the crash — its largest
+        // free block was already under the 2312 byte request that kept failing.
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\r\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
         if (freeHeap > 40000) Updater::Loop();
 
         // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
@@ -686,13 +690,18 @@ void loop() {
         // threshold mqtt already refuses to publish under. Same escape hatch as the stuck
         // BLE controller restart in BleFingerprintCollection::CleanupOldFingerprints().
         static uint8_t lowHeapPasses = 0;
-        if (freeHeap < MQTT_MIN_FREE_MEMORY) {
-            if (++lowHeapPasses >= 12) {
+        switch (heapWatchdogTick(freeHeap, maxAlloc, MQTT_MIN_FREE_MEMORY, MIN_MAX_ALLOC_HEAP, lowHeapPasses)) {
+            case HeapTrip::FreeHeap:
                 Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
                 ESP.restart();
-            }
-        } else
-            lowHeapPasses = 0;
+                break;
+            case HeapTrip::MaxAlloc:
+                Log.printf("Heap too fragmented for 60s (largest block %lu, %lu bytes free), restarting\r\n", static_cast<unsigned long>(maxAlloc), static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+                break;
+            case HeapTrip::None:
+                break;
+        }
     }
     GUI::Loop();
     Motion::Loop();
