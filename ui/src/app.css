@@ -45,8 +45,10 @@
   }
 
   /* Buttons */
+  /* cursor-pointer: Skeleton v4 restored this globally in its base layer (Tailwind v4
+     dropped it from preflight); v5 removed that rule and doesn't restore it anywhere. */
   button {
-    @apply px-6 py-3 text-base font-medium rounded-xl transition-all duration-200 focus:ring-4 focus:outline-none;
+    @apply px-6 py-3 text-base font-medium rounded-xl transition-all duration-200 focus:ring-4 focus:outline-none cursor-pointer;
   }
 
   /* Primary buttons (blue) */
