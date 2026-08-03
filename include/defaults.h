@@ -76,13 +76,7 @@
 // esp32 is the tightest-heap flavor and at 200 runs at ~0KB free, where a legitimate std::string
 // in the advert path (NimBLEUUID->id) aborts; capped at 100. All still user-tunable via
 // max_fingerprints, and all remain well above a typical ~50-device node. (#2309)
-#if defined(ESP32C3) || defined(ESP32C6)
-#define DEFAULT_MAX_FINGERPRINTS 200
-#elif defined(ESP32S3)
-#define DEFAULT_MAX_FINGERPRINTS 180
-#else
-#define DEFAULT_MAX_FINGERPRINTS 100
-#endif
+#define DEFAULT_MAX_FINGERPRINTS 200  // TEST: all flavors 200 + bumped task stacks (stack-overflow hypothesis)
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
