@@ -171,8 +171,15 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice) {
     if (advertisedDevice->getAdvType() > 0)
         connectable = true;
 
+    // A BLE advertisement carries at most 31 bytes (legacy) of AD structures, so a handful of
+    // service UUIDs/data entries is the real ceiling. NimBLE 1.4.0 (esp32) can hand back a bogus
+    // count for a malformed/partial advert; iterating it reads out of bounds and copies a
+    // garbage-sized std::string -> length_error abort under -fno-exceptions (#2309). Treat an
+    // implausible count as "no service data" rather than trusting untrusted radio input.
     size_t serviceAdvCount = advertisedDevice->getServiceUUIDCount();
     size_t serviceDataCount = advertisedDevice->getServiceDataCount();
+    if (serviceAdvCount > 24) serviceAdvCount = 0;
+    if (serviceDataCount > 24) serviceDataCount = 0;
     bool haveTxPower = advertisedDevice->haveTXPower();
     int8_t txPower = advertisedDevice->getTXPower();
 
