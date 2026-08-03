@@ -235,12 +235,6 @@ void setupNetwork() {
     HeadlessWiFiSettings.onPortalWaitLoop = [&portalProgress, portalTimeout]() {
         GUI::Portal(portalProgress++);
 
-        // Improv provisioned us: restart so MultiNetwork brings WiFi up normally.
-        if (WiFi.status() == WL_CONNECTED) {
-            delay(1500);  // let the PROVISIONED response + device URL flush first
-            ESP.restart();
-        }
-
         if (millis() > portalTimeout)
             ESP.restart();
 
@@ -722,7 +716,7 @@ void loop() {
     Switch::Loop();
     Button::Loop();
     HttpWebServer::Loop();
-    HeadlessWiFiSettings.serialImprovLoop();
+    HeadlessWiFiSettings.loop();
     NTP::Loop();
 #if M5STICK
     AXP192::Loop();
