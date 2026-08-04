@@ -69,14 +69,16 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-// The right-sized AdaptivePercentileRSSI buffer (grow-on-demand) cut per-fingerprint cost enough
-// that C3/C6 hold a full 200 pool under the 40/s flood and pass HIL reliably. S3 *can* reach 200
-// but only clears with ~1.7KB free — thinner than run-to-run WiFi/BT variance, so it's flaky
-// (2/3 HIL runs passed). Capped at 180 for a real (~10KB) margin so it passes every time. Classic
-// esp32 is the tightest-heap flavor and at 200 runs at ~0KB free, where a legitimate std::string
-// in the advert path (NimBLEUUID->id) aborts; capped at 100. All still user-tunable via
-// max_fingerprints, and all remain well above a typical ~50-device node. (#2309)
-#define DEFAULT_MAX_FINGERPRINTS 200  // TEST: all flavors 200 + bumped task stacks (stack-overflow hypothesis)
+// 200 on every flavor. Three fixes make this fit under the 40/s HIL flood (#2309):
+//   1. Right-sized AdaptivePercentileRSSI buffer (grow-on-demand) cuts per-fingerprint cost — lossless.
+//   2. Bumped NimBLE-host + loop task stacks (5632/6500 -> 8192, see platformio.ini): the deep
+//      advert/report call chains were overflowing the old stacks and clobbering stack-resident
+//      std::strings (garbage-size -> length_error abort under -fno-exceptions). This was the real
+//      cause of S3's earlier "flakiness at 200" — not a heap margin. C3/C6/S3 verified PASS at 200.
+//   3. Bounded advert service counts (BleFingerprint::fingerprint): NimBLE 1.4.0 (esp32 only) can
+//      hand back a bogus count for a malformed advert, driving an OOB read. See that fix.
+// User-tunable via max_fingerprints; all well above a typical ~50-device node.
+#define DEFAULT_MAX_FINGERPRINTS 200
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
