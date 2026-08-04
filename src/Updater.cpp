@@ -79,8 +79,10 @@ void checkForUpdates() {
             http.end();
 
             if (foundNewVersion) {
+#ifndef DIAG_UPDATER_LEAK
                 Log.println("Rebooting to start update");
                 ESP.restart();
+#endif
             }
         }
     }
@@ -217,6 +219,24 @@ void Setup() {
 }
 
 void Loop() {
+#ifdef DIAG_UPDATER_LEAK
+    // Hammer the update check every few seconds and log heap around it. If WiFiClientSecure's
+    // per-handshake TLS churn leaks/fragments, freeHeap craters in minutes instead of the days a
+    // real 15-min cadence takes (#2309). ESP.restart on foundNewVersion is disabled below so it
+    // keeps sampling.
+    {
+        unsigned long now = millis();
+        if (now - lastFirmwareCheck > 3000) {
+            lastFirmwareCheck = now;
+            uint32_t before = ESP.getFreeHeap();
+            checkForUpdates();
+            uint32_t after = ESP.getFreeHeap();
+            Log.printf("[UPDLEAK] free=%u delta=%d largest=%u minfree=%u\r\n",
+                       after, (int)after - (int)before, ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
+        }
+    }
+    return;
+#endif
     if (autoUpdateEnabled) {
         unsigned long now = millis();
         if (now - lastFirmwareCheck > CHECK_FOR_UPDATES_INTERVAL) {
