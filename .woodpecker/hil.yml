@@ -192,7 +192,12 @@ steps:
             DURATION_SECS=28800
           fi
           git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
-          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
+          # erase and upload must be separate invocations: with -t erase in the
+          # target list PlatformIO skips the src-based LDF scan, so the program
+          # gets built without the framework/project libraries and fails on
+          # NetworkInterface.h / FS.h. -t erase alone compiles nothing.
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase
+          PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
