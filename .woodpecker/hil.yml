@@ -196,7 +196,11 @@ steps:
           # target list PlatformIO skips the src-based LDF scan, so the program
           # gets built without the framework/project libraries and fails on
           # NetworkInterface.h / FS.h. -t erase alone compiles nothing.
+          # The erase pass still lays out .pio/build for the truncated library
+          # set, so drop it before the real build; the shared build_cache keeps
+          # the recompile cheap.
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase
+          rm -rf .pio/build/$FIRMWARE_ENV
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
