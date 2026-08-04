@@ -229,10 +229,23 @@ void Loop() {
         if (now - lastFirmwareCheck > 3000) {
             lastFirmwareCheck = now;
             uint32_t before = ESP.getFreeHeap();
-            checkForUpdates();
+            int code = 0;
+            {  // exactly the checkForUpdates() TLS path, but unconditional (CI builds have no
+               // version marker, so the real guard skips the handshake we're trying to measure).
+                WiFiClientSecure client;
+                client.setTimeout(12);
+                client.setInsecure();
+                HTTPClient http;
+                if (http.begin(client, "https://github.com/ESPresense/ESPresense/releases/latest")) {
+                    code = http.sendRequest("HEAD");
+                    http.end();
+                } else {
+                    code = -1000;
+                }
+            }
             uint32_t after = ESP.getFreeHeap();
-            Log.printf("[UPDLEAK] free=%u delta=%d largest=%u minfree=%u\r\n",
-                       after, (int)after - (int)before, ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
+            Log.printf("[UPDLEAK] code=%d free=%u delta=%d largest=%u minfree=%u\r\n",
+                       code, after, (int)after - (int)before, ESP.getMaxAllocHeap(), ESP.getMinFreeHeap());
         }
     }
     return;
