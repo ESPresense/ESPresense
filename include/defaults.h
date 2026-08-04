@@ -69,16 +69,18 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-// 200 on every flavor. Three fixes make this fit under the 40/s HIL flood (#2309):
-//   1. Right-sized AdaptivePercentileRSSI buffer (grow-on-demand) cuts per-fingerprint cost — lossless.
-//   2. Bumped NimBLE-host + loop task stacks (5632/6500 -> 8192, see platformio.ini): the deep
-//      advert/report call chains were overflowing the old stacks and clobbering stack-resident
-//      std::strings (garbage-size -> length_error abort under -fno-exceptions). This was the real
-//      cause of S3's earlier "flakiness at 200" — not a heap margin. C3/C6/S3 verified PASS at 200.
-//   3. Bounded advert service counts (BleFingerprint::fingerprint): NimBLE 1.4.0 (esp32 only) can
-//      hand back a bogus count for a malformed advert, driving an OOB read. See that fix.
-// User-tunable via max_fingerprints; all well above a typical ~50-device node.
+// 200 on S3/C3/C6; 100 on classic esp32. Several fixes let the modern flavors hold 200 under the
+// 40/s HIL flood (#2309): right-sized AdaptivePercentileRSSI buffer (lossless), bumped NimBLE-host +
+// loop task stacks (see platformio.ini), bounded advert service counts, v0.9.4 nothrow MQTT, and
+// serialized fingerprint field access (FingerprintFieldLock) to stop the dual-core scan/report race.
+// Classic esp32 (only chip on NimBLE 1.4.0, and dual-core) still corrupts memory in the 1.4.0 advert
+// callback under the synthetic flood regardless of cap, so it stays at 100 — ample for a typical
+// ~50-device node; esp32-at-200-under-flood is tracked separately. All user-tunable via max_fingerprints.
+#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
+#else
+#define DEFAULT_MAX_FINGERPRINTS 100
+#endif
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
