@@ -5,6 +5,14 @@
 #define CHECK_FOR_UPDATES_INTERVAL 900000
 #endif
 
+// Minimum free heap before an auto-update check will attempt its TLS handshake. GitHub over
+// WiFiClientSecure transiently needs ~80KB (mbedTLS 16KB in/out record buffers); on a loaded node
+// that spike OOMs (#2309). Below this, the check is deferred to the next interval. A healthy S3
+// reports ~100KB free post-boot, so an unloaded node still updates.
+#ifndef UPDATE_MIN_FREE_HEAP
+#define UPDATE_MIN_FREE_HEAP 90000
+#endif
+
 // Number of seconds to wait for a Station Wifi connection to be established
 #ifndef DEFAULT_WIFI_TIMEOUT
 #define DEFAULT_WIFI_TIMEOUT 60
