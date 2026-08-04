@@ -169,9 +169,7 @@ steps:
       - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32c5
-      # HIL board is cabled to the devkit's native USB port, so serial only comes
-      # out of the CDC build. Switch to esp32c5 if it moves to the UART port.
-      FIRMWARE_ENV: esp32c5-cdc
+      FIRMWARE_ENV: esp32c5
       GITHUB_TOKEN:
         from_secret: github_token
       WIFI_SSID:
