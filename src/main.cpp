@@ -692,6 +692,19 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
+#ifdef DIAG_DMA_LEAK
+        // Track the internal-DMA pool (0x1800 = MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA) — the exact pool
+        // the reporter's S3 leak drains (~8KB/6h; can't spill to the N16R8's PSRAM). A declining
+        // dmaFree with flat fingerprints IS the leak; correlate its slope with the BLE flood (this
+        // build) vs a browser /json poll to bisect the subsystem. (#2309)
+        Log.printf("[DMALEAK] t=%lu dmaFree=%u dmaLargest=%u intFree=%u totalFree=%lu fp=%u\r\n",
+                   static_cast<unsigned long>(millis() / 1000),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)),
+                   static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)),
+                   static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
+                   static_cast<unsigned long>(freeHeap),
+                   static_cast<unsigned>(BleFingerprintCollection::Size(false)));
+#endif
         if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
         if (freeHeap > 40000) Updater::Loop();
 
