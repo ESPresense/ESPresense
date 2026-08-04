@@ -76,11 +76,7 @@
 // Classic esp32 (only chip on NimBLE 1.4.0, and dual-core) still corrupts memory in the 1.4.0 advert
 // callback under the synthetic flood regardless of cap, so it stays at 100 — ample for a typical
 // ~50-device node; esp32-at-200-under-flood is tracked separately. All user-tunable via max_fingerprints.
-#if defined(ESP32S3) || defined(ESP32C3) || defined(ESP32C6)
-#define DEFAULT_MAX_FINGERPRINTS 200
-#else
-#define DEFAULT_MAX_FINGERPRINTS 100
-#endif
+#define DEFAULT_MAX_FINGERPRINTS 20  // DIAG: headroom so node survives TLS spikes -> leak trend visible
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
