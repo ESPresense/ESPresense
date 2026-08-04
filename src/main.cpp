@@ -467,18 +467,32 @@ void connectToMqtt() {
 
 bool reportBuffer(BleFingerprint *f) {
     if (!mqttClient.connected()) return false;
-    auto report = f->getReport();
-    String const topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
-    return mqttClient.publish(topic.c_str(), 0, false, report.getPayload().c_str());
+    String topic, payload;
+    {
+        // Snapshot under the lock (#2309) — see reportDevice.
+        BleFingerprintCollection::FingerprintFieldLock lk;
+        if (!lk) return false;
+        auto report = f->getReport();
+        topic = Sprintf(CHANNEL "/devices/%s/%s/%s", f->getId().c_str(), id.c_str(), report.getId().c_str());
+        payload = report.getPayload().c_str();
+    }
+    return mqttClient.publish(topic.c_str(), 0, false, payload.c_str());
 }
 
 bool reportDevice(BleFingerprint *f) {
     doc.clear();
     JsonObject obj = doc.to<JsonObject>();
-    if (!f->report(&obj))
-        return false;
-
-    String const devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
+    String devicesTopic;
+    {
+        // Snapshot the fingerprint's fields into doc/topic under the lock so the scan task can't
+        // mutate its std::strings mid-read on another core (#2309). pub() (blocking I/O) runs on
+        // the copies, outside the lock.
+        BleFingerprintCollection::FingerprintFieldLock lk;
+        if (!lk) return false;
+        if (!f->report(&obj))
+            return false;
+        devicesTopic = Sprintf(CHANNEL "/devices/%s/%s", f->getId().c_str(), id.c_str());
+    }
     if (pub(devicesTopic.c_str(), 0, false, doc))
         return true;
 

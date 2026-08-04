@@ -183,6 +183,14 @@ struct FingerprintLock {
     explicit operator bool() const { return ok; }
 };
 
+// Exported field-access guard (see header). Shares fingerprintMutex with FingerprintLock, so it is
+// mutually exclusive with Seen()'s writer, but it never touches the `dying` list — readers don't
+// detach slots — and never blocks on I/O.
+FingerprintFieldLock::FingerprintFieldLock() : ok(xSemaphoreTake(fingerprintMutex, MAX_WAIT) == pdTRUE) {}
+FingerprintFieldLock::~FingerprintFieldLock() {
+    if (ok) xSemaphoreGive(fingerprintMutex);
+}
+
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
@@ -205,15 +213,34 @@ void Close(BleFingerprint *f, bool close) {
 }
 
 #ifdef NIMBLE_V2
+FingerprintLease getFingerprintInternal(const NimBLEAdvertisedDevice *advertisedDevice);  // fwd (defined below)
+#else
+FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice);  // fwd (defined below)
+#endif
+
+#ifdef NIMBLE_V2
 void Seen(const NimBLEAdvertisedDevice *advertisedDevice) {
 #else
 void Seen(BLEAdvertisedDevice *advertisedDevice) {
 #endif
 
     if (onSeen) onSeen(true);
-    auto lease = GetFingerprint(advertisedDevice);
-    if (lease && lease.fingerprint->seen(advertisedDevice) && onAdd)
-        onAdd(lease.fingerprint);
+
+    // seen() mutates the fingerprint's fields (id/name std::strings, RSSI filter). It must run
+    // under fingerprintMutex so it can't race the report reader on another core (#2309). The lease
+    // keeps a ref, so the object stays alive for the onAdd callback after we drop the lock — and we
+    // deliberately keep onAdd OUTSIDE the lock because it does MQTT/serial I/O that would starve
+    // this scan callback.
+    FingerprintLease lease;
+    bool added = false;
+    {
+        FingerprintLock lock;
+        if (lock) {
+            lease = getFingerprintInternal(advertisedDevice);
+            if (lease) added = lease.fingerprint->seen(advertisedDevice);
+        }
+    }
+    if (added && onAdd && lease) onAdd(lease.fingerprint);
     Release(lease);
     if (onSeen) onSeen(false);
 }

@@ -51,6 +51,21 @@ FingerprintLease GetFingerprint(BLEAdvertisedDevice *advertisedDevice);
 void CleanupOldFingerprints();
 FingerprintLease AcquireNext(size_t &cursor, bool cleanup = true);
 void Release(FingerprintLease &lease);
+
+// RAII guard that serializes access to a fingerprint OBJECT's mutable fields (id/name/RSSI
+// filter/report) against the Seen() writer running on the BLE scan task. A lease keeps the
+// *slot* alive but does NOT stop the scan task mutating the object concurrently — on dual-core
+// that races the report reader and corrupts its std::strings (#2309). Hold this ONLY around fast
+// field access (e.g. snapshotting a device report); never during blocking MQTT/serial I/O, or the
+// scan callback starves and drops advertisements.
+struct FingerprintFieldLock {
+    const bool ok;
+    FingerprintFieldLock();
+    ~FingerprintFieldLock();
+    explicit operator bool() const { return ok; }
+    FingerprintFieldLock(const FingerprintFieldLock &) = delete;
+    FingerprintFieldLock &operator=(const FingerprintFieldLock &) = delete;
+};
 size_t Size(bool cleanup = true);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
