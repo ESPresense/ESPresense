@@ -693,12 +693,22 @@ void loop() {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
 #ifdef DIAG_DMA_LEAK
+        // The BLE flood alone doesn't drain the DMA pool; the reporter's accelerator is a browser
+        // polling /json. Reproduce it: GET our own /json each pass so the AsyncWebServer response +
+        // TCP path runs. If dmaFree now slides, the leak is in that HTTP/TCP path.
+        int jsonRc = 0;
+        {
+            HTTPClient h;
+            WiFiClient c;
+            String url = String("http://") + WiFi.localIP().toString() + "/json";
+            if (h.begin(c, url)) { jsonRc = h.GET(); h.end(); }
+        }
         // Track the internal-DMA pool (0x1800 = MALLOC_CAP_INTERNAL|MALLOC_CAP_DMA) — the exact pool
         // the reporter's S3 leak drains (~8KB/6h; can't spill to the N16R8's PSRAM). A declining
         // dmaFree with flat fingerprints IS the leak; correlate its slope with the BLE flood (this
         // build) vs a browser /json poll to bisect the subsystem. (#2309)
-        Log.printf("[DMALEAK] t=%lu dmaFree=%u dmaLargest=%u intFree=%u totalFree=%lu fp=%u\r\n",
-                   static_cast<unsigned long>(millis() / 1000),
+        Log.printf("[DMALEAK] t=%lu jsonRc=%d dmaFree=%u dmaLargest=%u intFree=%u totalFree=%lu fp=%u\r\n",
+                   static_cast<unsigned long>(millis() / 1000), jsonRc,
                    static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)),
                    static_cast<unsigned>(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_DMA)),
                    static_cast<unsigned>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)),
