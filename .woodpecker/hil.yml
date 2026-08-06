@@ -170,14 +170,12 @@ steps:
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/esp32s3.lock bash -c '
           set -e
-          if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
-            DURATION_SECS=180
-          elif [ "$CI_PIPELINE_EVENT" = "cron" ]; then
-            DURATION_SECS=28800
-          else
-            DURATION_SECS=28800
-          fi
+          # This diag branch runs the #2309 internal-DMA bisect: 4h soak, BLE-flood-only for the
+          # first half, +browser /json load for the second, reporting the dmaFree slope of each.
+          # 8h on cron gives 4h/4h arms with more signal. Needs the DIAG_DMA_LEAK build.
+          DURATION_SECS=14400
+          [ "$CI_PIPELINE_EVENT" = "cron" ] && DURATION_SECS=28800
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+          python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS --dma-bisect
         '

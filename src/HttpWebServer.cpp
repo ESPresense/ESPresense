@@ -161,6 +161,8 @@ void sendDataWs(AsyncWebSocketClient *client) {
         buffer = ws.makeBuffer(len);  // will not allocate correct memory sometimes
         size_t const heap2 = ESP.getFreeHeap();
         if (!buffer || heap1 - heap2 < len) {
+            delete buffer;         // makeBuffer = new; only text()/textAll() delete it, so the
+                                   // unsent buffer + its len-byte payload leak without this (#2309)
             ws.closeAll(1013);     // code 1013 = temporary overload, try again later
             ws.cleanupClients(0);  // disconnect all clients to release memory
             return;                // out of memory
