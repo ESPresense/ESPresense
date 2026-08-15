@@ -184,6 +184,7 @@ public:
      * @return true if added, false if list full
      */
     bool addKnownMac(const uint8_t* mac) {
+        if (isKnownMac(mac)) return true;  // idempotent: settings reload re-registers
         if (knownMacCount_ >= MAX_KNOWN_MACS) {
             MEM_LOG("Known MAC list full (%zu)", MAX_KNOWN_MACS);
             return false;

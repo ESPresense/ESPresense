@@ -218,13 +218,12 @@ void Setup() {
     } else if (!tieredMemory->coldTier().isEnabled()) {
         log_w("ColdTier backing allocation failed; tiered pre-filter disabled (will pass everything HOT)");
     } else {
-        log_i("ColdTier: %u records @ %s (%u bytes), minRssi=%d, promote>=%d sightings w/ rssi>%d",
+        log_i("ColdTier: %u records @ %s (%u bytes), minRssi=%d, promote>=%d sightings",
               (unsigned)tieredMemory->coldTier().capacity(),
               tieredMemory->coldTier().isUsingPsram() ? "PSRAM" : "internal SRAM",
               (unsigned)(tieredMemory->coldTier().capacity() * sizeof(ColdRecord)),
               (int)tieredMemoryConfig.minRssi,
-              DEFAULT_COLD_PROMOTION_COUNT,
-              DEFAULT_COLD_PROMOTION_RSSI);
+              DEFAULT_COLD_PROMOTION_COUNT);
     }
 }
 
@@ -304,8 +303,17 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
                 // and EvictionScorer's bonuses are dead code.
                 cold.insert(mac, rssi, nowMs, idType);  // create-or-update; increments seenCount
                 if (ColdRecord *rec = cold.lookup(mac)) {
-                    if (rec->seenCount >= DEFAULT_COLD_PROMOTION_COUNT &&
-                        rssi > DEFAULT_COLD_PROMOTION_RSSI) {
+                    // Promotion is sighting-count driven ONLY. Do not gate on RSSI
+                    // here: ESPresense is a multilateration system, and a fix needs
+                    // three or more nodes reporting the same device. The distant
+                    // nodes — the ones supplying the geometric spread that makes a
+                    // solution possible — are precisely the ones reading weak. An
+                    // RSSI floor on promotion silences them, so devices collapse to
+                    // a single reporting node and never resolve to a position.
+                    // The -90 dBm DROP floor in QuickClassifier is the only signal
+                    // strength filter; below that a reading is too noisy to invert
+                    // into a distance anyway.
+                    if (rec->seenCount >= DEFAULT_COLD_PROMOTION_COUNT) {
                         shouldPromote = true;
                         cold.remove(mac);  // leaving cold — avoid double-tracking
                     }
@@ -522,6 +530,39 @@ void ConnectToWifi(bool updating) {
             continue;
         }
         irks.push_back(irk);
+    }
+
+    // Register configured known MACs with the ColdTier pre-filter so they skip the
+    // cold-then-promote warmup and take a live slot on first sighting. Without this
+    // QuickClassifier::isKnownMac() never matched anything — the table was allocated
+    // and then left empty — so known_macs got no protection from the pre-filter at all.
+    //
+    // ponytail: exact 6-byte match only. BleFingerprint::fingerprintAddress() uses
+    // prefixExists(), so a shorter prefix entry (e.g. an OUI) is still honoured for
+    // naming but does not register here; it just takes the normal sighting-count
+    // warmup instead of jumping straight to HOT. Build a prefix table only if someone
+    // actually relies on OUI-wide known_macs.
+    if (tieredMemoryReady()) {
+        start = 0;
+        while (start < static_cast<size_t>(knownMacs.length())) {
+            while (start < static_cast<size_t>(knownMacs.length()) && std::isspace(static_cast<unsigned char>(knownMacs[start])))
+                ++start;
+            if (start >= static_cast<size_t>(knownMacs.length()))
+                break;
+
+            size_t end = start;
+            while (end < static_cast<size_t>(knownMacs.length()) && !std::isspace(static_cast<unsigned char>(knownMacs[end])))
+                ++end;
+
+            auto mac_hex = knownMacs.substring(start, end);
+            start = end;
+            if (mac_hex.length() != 12)  // prefix entry, not a full MAC
+                continue;
+
+            uint8_t mac[6];
+            if (hextostr(mac_hex, mac, 6))
+                tieredMemory->classifier().addKnownMac(mac);
+        }
     }
 }
 

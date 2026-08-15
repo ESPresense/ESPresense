@@ -848,6 +848,42 @@ void test_classifier_strong_rssi_unknown_stays_cold(void) {
     TEST_ASSERT_EQUAL(ClassifyResult::COLD, strong);
 }
 
+void test_weak_device_still_reaches_promotion_threshold(void) {
+    // Multilateration regression: a device heard weakly (but above the -90 drop
+    // floor) must still accumulate sightings toward promotion. Distant nodes read
+    // weak by definition, and a fix needs 3+ nodes reporting — if weak readings
+    // could not promote, every device would collapse to its single nearest node
+    // and never resolve to a position.
+    const uint8_t promotionCount = 5;  // DEFAULT_COLD_PROMOTION_COUNT
+    uint8_t mac[6] = {0xDE, 0xAD, 0xBE, 0xEF, 0x00, 0x01};
+    ColdTier cold(64);
+    TEST_ASSERT_TRUE(cold.isEnabled());
+
+    for (int i = 0; i < promotionCount; i++)
+        cold.insert(mac, -88, 1000 + i * 100);  // consistently weak, never close
+
+    ColdRecord *rec = cold.lookup(mac);
+    TEST_ASSERT_NOT_NULL(rec);
+    TEST_ASSERT_GREATER_OR_EQUAL(promotionCount, rec->seenCount);
+}
+
+void test_add_known_mac_is_idempotent(void) {
+    // ConnectToWifi() re-registers known_macs on every settings reload. Without
+    // dedup the 32-entry table fills with duplicates and legitimate later entries
+    // get rejected.
+    uint8_t mac[6] = {0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF};
+    QuickClassifier classifier;
+
+    for (int i = 0; i < 50; i++)
+        TEST_ASSERT_TRUE(classifier.addKnownMac(mac));
+
+    // Still recognised, and a second distinct MAC still fits (table not exhausted).
+    TEST_ASSERT_EQUAL(ClassifyResult::HOT, classifier.classify(mac, nullptr, 0, -88));
+    uint8_t other[6] = {0x11, 0x22, 0x33, 0x44, 0x55, 0x66};
+    TEST_ASSERT_TRUE(classifier.addKnownMac(other));
+    TEST_ASSERT_EQUAL(ClassifyResult::HOT, classifier.classify(other, nullptr, 0, -88));
+}
+
 // ============================================================================
 // Test Runner
 // ============================================================================
@@ -937,6 +973,10 @@ int main(int argc, char **argv) {
     RUN_TEST(test_cold_tier_insert_defaults_idtype_to_misc);
     RUN_TEST(test_cold_tier_insert_upgrades_idtype_on_update);
     RUN_TEST(test_classifier_strong_rssi_unknown_stays_cold);
+
+    // Multilateration coverage (regression: promotion must not gate on RSSI)
+    RUN_TEST(test_weak_device_still_reaches_promotion_threshold);
+    RUN_TEST(test_add_known_mac_is_idempotent);
 
     return UNITY_END();
 }

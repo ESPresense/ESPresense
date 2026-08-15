@@ -103,9 +103,9 @@
 #ifndef DEFAULT_COLD_PROMOTION_COUNT
 #define DEFAULT_COLD_PROMOTION_COUNT 5
 #endif
-#ifndef DEFAULT_COLD_PROMOTION_RSSI
-#define DEFAULT_COLD_PROMOTION_RSSI -75
-#endif
+// No promotion RSSI floor by design — see the promotion comment in
+// BleFingerprintCollection::Seen(). Gating promotion on signal strength starves
+// multilateration of the distant nodes it needs to solve a position.
 
 // RX_ADJ_RSSI Defaults
 #ifdef M5STICK
