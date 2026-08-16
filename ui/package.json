@@ -15,7 +15,7 @@
   },
   "devDependencies": {
     "@gfx/zopfli": "^1.0.15",
-    "@playwright/test": "^1.62.0",
+    "@playwright/test": "^1.62.1",
     "@rollup/plugin-strip": "^3.0.4",
     "@skeletonlabs/skeleton": "^5.0.0",
     "@skeletonlabs/skeleton-svelte": "^5.0.0",
