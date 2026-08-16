@@ -328,6 +328,9 @@ void onMqttDisconnect(bool sessionPresent) {
     (void)sessionPresent;
     GUI::Connected(true, false);
     Log.println("Disconnected from MQTT");
+    // The library owns reconnection now, but reconnectTries is still reported in
+    // telemetry; count disconnects here so the counter doesn't go permanently dead.
+    reconnectTries++;
     online = false;
 }
 
@@ -661,6 +664,18 @@ void loop() {
                 break;
             case HeapTrip::None:
                 break;
+        }
+
+        // PsychicMqttClient owns MQTT reconnect, but nothing supervises the link itself
+        // any more -- the 3s reconnect timer this migration deleted was also what
+        // restarted a node whose wifi or broker never came back. Reuse this tick for it.
+        // ponytail: one flat timeout, add backoff or a /set override only if reboot loops show up.
+        static uint16_t offlinePasses = 0;
+        if (MultiNetwork.isOnline() && mqttClient.connected()) {
+            offlinePasses = 0;
+        } else if (++offlinePasses > 60) {  // 60 * 5s = 5 minutes
+            Log.println("Offline for 5 minutes, restarting");
+            ESP.restart();
         }
     }
     GUI::Loop();
