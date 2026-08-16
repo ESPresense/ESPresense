@@ -417,6 +417,17 @@ void onMqttMessageRaw(char *topic, char *payload, int retain, int qos, bool dup)
 
 void connectToMqtt() {
     mqttClient.setAutoReconnect(true);
+    // The old AsyncMqttClient dispatched onConnect/onMessage on the async_tcp
+    // task (CONFIG_ASYNC_TCP_STACK_SIZE = 16384, prio 10). PsychicMqttClient
+    // dispatches them on the esp-mqtt task, whose IDF default stack is only
+    // 6144 bytes. Our inbound chain (onMqttMessage -> Config/Set command
+    // handlers, String temporaries, JSON parsing) plus PsychicMqttClient's
+    // per-message topic/payload copies (stack VLAs up to the MQTT buffer
+    // size) does not fit that budget -- plain ESP32 nodes died with a silent
+    // SW_CPU_RESET boot-loop right after the first fingerprint publish
+    // provoked broker/companion traffic (fw 8ea10223, PR #2206). Give the
+    // task the stack the old stack had; keep esp-mqtt's default priority.
+    mqttClient.setTaskStackAndPriority(16384, 5);
     mqttClient.onConnect(onMqttConnect);
     mqttClient.onDisconnect(onMqttDisconnect);
     mqttClient.onMessage(onMqttMessageRaw);
