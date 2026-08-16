@@ -47,6 +47,7 @@ jobs:
     - name: Close stale UI build PRs
       if: |
         steps.check_changes.outputs.changes > '0' &&
+        !startsWith(github.head_ref, 'dependabot/') &&
         (github.event_name == 'push' ||
          github.event.pull_request.head.repo.full_name == github.repository)
       uses: actions/github-script@v9
@@ -100,6 +101,7 @@ jobs:
     - name: Create Pull Request
       if: |
         steps.check_changes.outputs.changes > '0' &&
+        !startsWith(github.head_ref, 'dependabot/') &&
         (github.event_name == 'push' ||
          github.event.pull_request.head.repo.full_name == github.repository)
       uses: peter-evans/create-pull-request@v8
