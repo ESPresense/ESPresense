@@ -1,10 +1,12 @@
 #include "BleFingerprintCollection.h"
 
+#include "BleMemoryTier.h"
 #include "defaults.h"
 #include "mqtt.h"
 #include "Logger.h"
 #include <Arduino.h>
 #include <algorithm>
+#include <atomic>
 #include <cctype>
 #include <HeadlessWiFiSettings.h>
 #include <new>
@@ -183,9 +185,46 @@ struct FingerprintLock {
     explicit operator bool() const { return ok; }
 };
 
+// --- Tiered memory pre-filter (ColdTier) ------------------------------------
+// Drops noise (weak RSSI, transient random MACs) BEFORE a live fingerprint slot
+// is allocated. Sits on top of the slot pool from PR #2208 — does not replace
+// it. Single TieredMemoryManager instance; ColdTier internal storage prefers
+// PSRAM with fallback to internal SRAM.
+TieredMemoryConfig tieredMemoryConfig;
+TieredMemoryManager *tieredMemory = nullptr;
+SemaphoreHandle_t coldMutex;
+
+std::atomic<uint32_t> tierDropCount{0};
+std::atomic<uint32_t> tierColdCount{0};
+std::atomic<uint32_t> tierHotCount{0};
+std::atomic<uint32_t> tierPromoteCount{0};
+
+bool tieredMemoryReady() {
+    return tieredMemory != nullptr && tieredMemory->config().enabled && tieredMemory->coldTier().isEnabled();
+}
+
 void Setup() {
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
+    coldMutex = xSemaphoreCreateMutex();
+
+    tieredMemoryConfig.enabled = DEFAULT_TIERED_MEMORY_ENABLED != 0;
+    tieredMemoryConfig.maxCold = DEFAULT_MAX_COLD;
+    tieredMemoryConfig.minRssi = DEFAULT_COLD_MIN_RSSI;
+
+    tieredMemory = new (std::nothrow) TieredMemoryManager(tieredMemoryConfig);
+    if (tieredMemory == nullptr) {
+        log_w("TieredMemoryManager allocation failed; tiered pre-filter disabled");
+    } else if (!tieredMemory->coldTier().isEnabled()) {
+        log_w("ColdTier backing allocation failed; tiered pre-filter disabled (will pass everything HOT)");
+    } else {
+        log_i("ColdTier: %u records @ %s (%u bytes), minRssi=%d, promote>=%d sightings",
+              (unsigned)tieredMemory->coldTier().capacity(),
+              tieredMemory->coldTier().isUsingPsram() ? "PSRAM" : "internal SRAM",
+              (unsigned)(tieredMemory->coldTier().capacity() * sizeof(ColdRecord)),
+              (int)tieredMemoryConfig.minRssi,
+              DEFAULT_COLD_PROMOTION_COUNT);
+    }
 }
 
 void Count(BleFingerprint *f, bool counting) {
@@ -211,6 +250,91 @@ void Seen(BLEAdvertisedDevice *advertisedDevice) {
 #endif
 
     if (onSeen) onSeen(true);
+
+    // ColdTier pre-filter: drop / defer BEFORE taking the slot-pool mutex and
+    // allocating a BleFingerprint. Shrinks mutex contention and keeps hot slots
+    // for devices that actually matter. When the tier is disabled (alloc
+    // failure or explicitly off) classify() returns HOT for everything and we
+    // fall through to the original behaviour.
+    if (tieredMemoryReady() && coldMutex != nullptr) {
+        const int8_t rssi = static_cast<int8_t>(advertisedDevice->getRSSI());
+        // NimBLEAdvertisedDevice::getAddress() returns NimBLEAddress by VALUE;
+        // taking a pointer into the temporary via getVal()/getNative() in a
+        // single expression is UB — the temporary dies at the `;`. Copy the
+        // six bytes into a stack buffer that outlives every downstream call.
+        uint8_t mac[6];
+        {
+            const auto addr = advertisedDevice->getAddress();
+#ifdef NIMBLE_V2
+            memcpy(mac, addr.getVal(), 6);
+#else
+            memcpy(mac, addr.getNative(), 6);
+#endif
+        }
+        // Pass the raw advertisement payload so classify()'s isIBeacon() check
+        // can fire — iBeacons (02 15 prefix) go straight to HOT instead of
+        // taking the cold-then-promote path. Important for presence tracking:
+        // most deployed beacons are iBeacons and we don't want 5 sightings of
+        // latency before they show up.
+#ifdef NIMBLE_V2
+        const auto payload = advertisedDevice->getPayload();
+        const uint8_t *advData = payload.data();
+        const size_t advLen = payload.size();
+#else
+        const uint8_t *advData = advertisedDevice->getPayload();
+        const size_t advLen = advertisedDevice->getPayloadLength();
+#endif
+        uint8_t idType = ID_TYPE_MISC;
+        ClassifyResult result = tieredMemory->classify(mac, advData, advLen, rssi, &idType);
+
+        if (result == ClassifyResult::DROP) {
+            tierDropCount.fetch_add(1, std::memory_order_relaxed);
+            if (onSeen) onSeen(false);
+            return;  // no slot-pool mutex, no heap allocation
+        }
+
+        if (result == ClassifyResult::COLD) {
+            bool shouldPromote = false;
+            if (xSemaphoreTake(coldMutex, MAX_WAIT) == pdTRUE) {
+                const uint32_t nowMs = millis();
+                ColdTier &cold = tieredMemory->coldTier();
+                // Pass idType so eviction bonuses (iBeacon +50, known-MAC +100)
+                // actually get applied — without this, idType stays ID_TYPE_MISC
+                // and EvictionScorer's bonuses are dead code.
+                cold.insert(mac, rssi, nowMs, idType);  // create-or-update; increments seenCount
+                if (ColdRecord *rec = cold.lookup(mac)) {
+                    // Promotion is sighting-count driven ONLY. Do not gate on RSSI
+                    // here: ESPresense is a multilateration system, and a fix needs
+                    // three or more nodes reporting the same device. The distant
+                    // nodes — the ones supplying the geometric spread that makes a
+                    // solution possible — are precisely the ones reading weak. An
+                    // RSSI floor on promotion silences them, so devices collapse to
+                    // a single reporting node and never resolve to a position.
+                    // The -90 dBm DROP floor in QuickClassifier is the only signal
+                    // strength filter; below that a reading is too noisy to invert
+                    // into a distance anyway.
+                    if (rec->seenCount >= DEFAULT_COLD_PROMOTION_COUNT) {
+                        shouldPromote = true;
+                        cold.remove(mac);  // leaving cold — avoid double-tracking
+                    }
+                }
+                xSemaphoreGive(coldMutex);
+            } else {
+                log_e("Couldn't take coldMutex in Seen");
+            }
+
+            if (!shouldPromote) {
+                tierColdCount.fetch_add(1, std::memory_order_relaxed);
+                if (onSeen) onSeen(false);
+                return;
+            }
+            tierPromoteCount.fetch_add(1, std::memory_order_relaxed);
+            // fall through to HOT path
+        }
+
+        tierHotCount.fetch_add(1, std::memory_order_relaxed);
+    }
+
     auto lease = GetFingerprint(advertisedDevice);
     if (lease && lease.fingerprint->seen(advertisedDevice) && onAdd)
         onAdd(lease.fingerprint);
@@ -223,6 +347,15 @@ enum class AddOrReplaceResult {
     Added,
     Replaced,
 };
+
+uint32_t getTierDropCount() { return tierDropCount.load(std::memory_order_relaxed); }
+uint32_t getTierColdCount() { return tierColdCount.load(std::memory_order_relaxed); }
+uint32_t getTierHotCount() { return tierHotCount.load(std::memory_order_relaxed); }
+uint32_t getTierPromoteCount() { return tierPromoteCount.load(std::memory_order_relaxed); }
+size_t getColdTierCapacity() { return tieredMemory ? tieredMemory->coldTier().capacity() : 0; }
+size_t getColdTierCount() { return tieredMemory ? tieredMemory->coldTier().count() : 0; }
+bool isColdTierUsingPsram() { return tieredMemory && tieredMemory->coldTier().isUsingPsram(); }
+bool isTieredMemoryEnabled() { return tieredMemoryReady(); }
 
 /**
  * @brief Add a device configuration or replace an existing one with the same id.
@@ -397,6 +530,39 @@ void ConnectToWifi(bool updating) {
             continue;
         }
         irks.push_back(irk);
+    }
+
+    // Register configured known MACs with the ColdTier pre-filter so they skip the
+    // cold-then-promote warmup and take a live slot on first sighting. Without this
+    // QuickClassifier::isKnownMac() never matched anything — the table was allocated
+    // and then left empty — so known_macs got no protection from the pre-filter at all.
+    //
+    // ponytail: exact 6-byte match only. BleFingerprint::fingerprintAddress() uses
+    // prefixExists(), so a shorter prefix entry (e.g. an OUI) is still honoured for
+    // naming but does not register here; it just takes the normal sighting-count
+    // warmup instead of jumping straight to HOT. Build a prefix table only if someone
+    // actually relies on OUI-wide known_macs.
+    if (tieredMemoryReady()) {
+        start = 0;
+        while (start < static_cast<size_t>(knownMacs.length())) {
+            while (start < static_cast<size_t>(knownMacs.length()) && std::isspace(static_cast<unsigned char>(knownMacs[start])))
+                ++start;
+            if (start >= static_cast<size_t>(knownMacs.length()))
+                break;
+
+            size_t end = start;
+            while (end < static_cast<size_t>(knownMacs.length()) && !std::isspace(static_cast<unsigned char>(knownMacs[end])))
+                ++end;
+
+            auto mac_hex = knownMacs.substring(start, end);
+            start = end;
+            if (mac_hex.length() != 12)  // prefix entry, not a full MAC
+                continue;
+
+            uint8_t mac[6];
+            if (hextostr(mac_hex, mac, 6))
+                tieredMemory->classifier().addKnownMac(mac);
+        }
     }
 }
 
