@@ -137,6 +137,21 @@ bool Command(String& command, String& pay) {
     } else if (command == "switch_2_timeout") {
         switch_2Timeout = pay.toInt();
         spurt("/switch_2_timeout", pay);
+    } else if (command == "web_portal") {
+        // Accept on/1/true/off/0/false; persist, then restart so the boot-time
+        // gate in setupNetwork() re-evaluates web_portal and skips
+        // HeadlessWiFiSettings.httpSetup() on next boot. The HTTP server is
+        // private to HeadlessWiFiSettingsClass and exposes no public stop API
+        // here, so a graceful in-process toggle is not possible without a
+        // library change; the reboot path is the supported fallback.
+        String norm = pay;
+        norm.toLowerCase();
+        norm.trim();
+        bool on = (norm == "on" || norm == "1" || norm == "true");
+        bool off = (norm == "off" || norm == "0" || norm == "false");
+        if (!on && !off) return false;
+        spurt("/web_portal", on ? "1" : "0");
+        ESP.restart();
     } else
         return false;
     return true;

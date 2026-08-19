@@ -170,6 +170,7 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
+    auto webPortal = HeadlessWiFiSettings.checkbox("web_portal", true, "Enable web portal (HTTP UI)");
     if (MultiNetwork.supportsEthernet()) {
         std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
         ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
@@ -305,7 +306,11 @@ void setupNetwork() {
     teleTopic = roomsTopic + "/telemetry";
     setTopic = roomsTopic + "/+/set";
     configTopic = CHANNEL + String("/settings/+/config");
-    HeadlessWiFiSettings.httpSetup();
+    // Gate the post-connect HTTP server start so a node can run headless (MQTT only).
+    // Captive-portal startup is a separate path (HeadlessWiFiSettings.portal() ->
+    // httpSetup(true)) and is unaffected; OTA-success marking has no server
+    // dependency, so it runs unconditionally below.
+    if (webPortal) HeadlessWiFiSettings.httpSetup();
     Updater::MarkOtaSuccess();
 }
 
