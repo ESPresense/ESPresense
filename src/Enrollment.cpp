@@ -334,8 +334,11 @@ void Setup() {
     modelNum->setValue(std::string(room.c_str()));
     modelNum->setCallbacks(&chrCallbacks);
 
+#ifndef NIMBLE_V2
+    // NimBLE 2.x starts services with the server; start() is deprecated there.
     heartRate->start();
     deviceInfo->start();
+#endif
 
     uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() >> 24);
     major = (nodeId & 0xFFFF0000) >> 16;

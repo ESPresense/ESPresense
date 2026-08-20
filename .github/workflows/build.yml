@@ -15,17 +15,17 @@ jobs:
       matrix:
         env: [esp32, esp32c3, esp32c3-cdc, esp32c6, esp32c6-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32c6-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom, macchina-a0]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
 
     - name: Cache pip
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     - name: Cache PlatformIO
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: |
           ~/.platformio
@@ -43,7 +43,7 @@ jobs:
         echo "PLATFORMIO_LIBDEPS_DIR=~/.platformio/libdeps" >> $GITHUB_ENV
 
     - name: Set up Python
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
