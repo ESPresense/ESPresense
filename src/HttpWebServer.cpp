@@ -1,5 +1,7 @@
 #include "HttpWebServer.h"
 
+#include <esp_timer.h>
+
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
@@ -27,6 +29,11 @@ void serializeInfo(JsonObject &root) {
 // moving with the device count is churn. Working that out took months of graph-swapping
 // on #2309.
 //
+// Now also the leak-hunt event counters. Those three shapes say what kind of problem it is
+// but not whose; regressing freeHeap against fpNew/fpDel/telePubs/mqttRetries over a soak
+// is what names the owner, and polling this endpoint into a CSV is how that data gets
+// collected without a broker in the loop.
+//
 // Deliberately allocation-free, and deliberately not routed through serveJson. That path
 // refuses with 429 when it cannot afford a 12KB document — so hanging these numbers off it
 // would hide them precisely when the node is in the trouble they describe. A fixed stack
@@ -34,13 +41,25 @@ void serializeInfo(JsonObject &root) {
 // no fingerprintMutex acquisition (contending the scan task) and no second walk of the
 // free-block list on every poll.
 void serveTele(AsyncWebServerRequest *request) {
-    char buf[256];
+    // 512, not 256: eleven fields with every counter saturated at ten digits still leave
+    // ~280 characters for the room name, more headroom than the four-field body had in 256.
+    // Still a stack buffer, on the AsyncTCP task's 8KB stack.
+    char buf[512];
+    TeleCounters counters;
+    counters.uptime = esp_timer_get_time() / 1000000;
+    counters.minHeap = ESP.getMinFreeHeap();
+    counters.fpNew = fpNew.load(std::memory_order_relaxed);
+    counters.fpDel = fpDel.load(std::memory_order_relaxed);
+    counters.telePubs = telePubs.load(std::memory_order_relaxed);
+    counters.mqttRetries = mqttRetries.load(std::memory_order_relaxed);
+    counters.allocFails = allocFails.load(std::memory_order_relaxed);
     // Size(false): a GET reports what is there, it does not expire fingerprints as a side
     // effect of being observed.
     size_t const len = buildTeleJson(buf, sizeof(buf), room.c_str(),
                                      ESP.getFreeHeap(),
                                      ESP.getMaxAllocHeap(),
-                                     BleFingerprintCollection::Size(false));
+                                     BleFingerprintCollection::Size(false),
+                                     counters);
     if (len == 0) {
         // Only reachable via an absurdly long room. Refusing beats the alternative: a
         // truncated body under a 200 is indistinguishable from a corrupt response, and
