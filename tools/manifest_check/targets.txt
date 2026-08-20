@@ -1,0 +1,26 @@
+# ESPresense web-installer manifest endpoints to probe.
+# Format: version,flavor   (one pair per line; '#' starts a comment)
+#
+# Add a row when a release ships or when a new flavor enters the installer
+# dropdown. Drop a row when a release is removed from the public installer.
+#
+# Reference: issue #2225 ("Failed to download manifest"). Web installer fetches
+# https://espresense.com/releases/{version}.json?flavor={flavor} per selection.
+
+# 'latest' is whatever the installer's default points at; it must always work.
+latest,esp32
+latest,esp32c3
+latest,esp32s3
+latest,esp32c6
+latest,m5atom
+latest,m5stickc
+
+# v4.0.6 is the version flagged in #2225 with persistent intermittent 500s.
+v4.0.6,esp32
+v4.0.6,esp32c3
+v4.0.6,esp32s3
+v4.0.6,m5atom
+
+# v4.0.5 is the last-known-working release reported on #2225; keep as a sentinel.
+v4.0.5,esp32
+v4.0.5,m5atom
