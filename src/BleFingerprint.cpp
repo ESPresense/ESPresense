@@ -119,7 +119,16 @@ bool BleFingerprint::setId(const String &newId, short newIdType, const String &n
 
     if (id != newId) {
         bool newHidden = shouldHide(newId);
-        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.isEmpty() && prefixExists(BleFingerprintCollection::countIds, newId);
+        // Support wildcard counting: "*" counts all filtered devices
+        if (!BleFingerprintCollection::countIds.isEmpty()) {
+            if (BleFingerprintCollection::countIds == "*") {
+                countable = !ignore && !newHidden;
+            } else {
+                countable = !ignore && !newHidden && prefixExists(BleFingerprintCollection::countIds, newId);
+            }
+        } else {
+            countable = false;
+        }
         hidden = newHidden;
         added = false;
         auto timeSlot = calculateTimeSlot();
