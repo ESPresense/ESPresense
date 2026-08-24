@@ -12,6 +12,7 @@
 #include "mbedtls/aes.h"
 #include "rssi.h"
 #include "string_utils.h"
+#include "TeltonikaEye.h"
 #include "util.h"
 
 class ClientCallbacks : public BLEClientCallbacks {
@@ -178,6 +179,10 @@ void BleFingerprint::fingerprint(BLEAdvertisedDevice *advertisedDevice) {
     if (serviceAdvCount > 0) fingerprintServiceAdvertisements(advertisedDevice, serviceAdvCount, haveTxPower, txPower);
     if (serviceDataCount > 0) fingerprintServiceData(advertisedDevice, serviceDataCount, haveTxPower, txPower);
     if (advertisedDevice->haveManufacturerData()) fingerprintManufactureData(advertisedDevice, haveTxPower, txPower);
+
+    // Teltonika EYE battery data only arrives in the BLE Scan Response, which is only solicited
+    // during the periodic active-scan window; skip the payload walk entirely otherwise.
+    if (BleFingerprintCollection::periodicActiveScan) fingerprintTeltonikaEye(advertisedDevice);
 }
 
 int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data) {
@@ -555,6 +560,55 @@ void BleFingerprint::fingerprintManufactureData(BLEAdvertisedDevice *advertisedD
     }
 }
 
+/**
+ * @brief Scan for Teltonika EYE beacon battery telemetry (Company ID 0x089A) and merge it
+ * into this fingerprint's mv/lowBattery fields without altering its existing iBeacon identity.
+ *
+ * Teltonika's manufacturer-specific-data block is carried in the BLE Scan Response, only
+ * present once NimBLE has appended it onto the advertisement payload (requested during the
+ * periodic active-scan window). NimBLE-Arduino v2's getManufacturerData() takes an index, so
+ * every manufacturer-data AD structure (Apple's iBeacon block, Teltonika's, etc.) can be
+ * inspected directly. The classic (non-V2) library has no such index, so the raw AD
+ * structures are walked by length/type instead of relying on a fixed offset.
+ */
+#ifdef NIMBLE_V2
+void BleFingerprint::fingerprintTeltonikaEye(const NimBLEAdvertisedDevice *advertisedDevice) {
+    const uint8_t count = advertisedDevice->getManufacturerDataCount();
+    for (uint8_t idx = 0; idx < count; idx++) {
+        const std::string data = advertisedDevice->getManufacturerData(idx);
+        TeltonikaEyeData eye = parseTeltonikaEye(reinterpret_cast<const uint8_t *>(data.data()), data.size());
+        if (eye.valid) {
+            lowBattery = eye.lowBattery ? 1 : 0;
+            if (eye.hasVoltage) mv = eye.mv;
+        }
+    }
+}
+#else
+void BleFingerprint::fingerprintTeltonikaEye(BLEAdvertisedDevice *advertisedDevice) {
+    const uint8_t *payload = advertisedDevice->getPayload();
+    const size_t len = advertisedDevice->getPayloadLength();
+    if (payload == nullptr) return;
+
+    size_t i = 0;
+    while (i + 1 < len) {
+        const uint8_t fieldLen = payload[i];
+        if (fieldLen == 0 || i + 1 + fieldLen > len) break;  // zero/truncated field, stop rather than read out of bounds
+
+        const uint8_t adType = payload[i + 1];
+        if (adType == 0xFF) {  // Manufacturer Specific Data
+            const uint8_t *mfgData = payload + i + 2;
+            const size_t mfgLen = fieldLen - 1;
+            TeltonikaEyeData eye = parseTeltonikaEye(mfgData, mfgLen);
+            if (eye.valid) {
+                lowBattery = eye.lowBattery ? 1 : 0;
+                if (eye.hasVoltage) mv = eye.mv;
+            }
+        }
+        i += 1 + fieldLen;
+    }
+}
+#endif
+
 #ifdef NIMBLE_V2
 bool BleFingerprint::seen(const NimBLEAdvertisedDevice *advertisedDevice) {
 #else
@@ -605,6 +659,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     if (mv) (*doc)[F("mV")] = mv;
     if (battery != 0xFF) (*doc)[F("batt")] = battery;
+    if (lowBattery >= 0) (*doc)[F("low_battery_indicator")] = lowBattery;
     if (temp) (*doc)[F("temp")] = serialized(String(temp, 2));
     if (humidity) (*doc)[F("rh")] = serialized(String(humidity, 2));
     if (!discoveredIrk.isEmpty()) (*doc)[F("irk")] = discoveredIrk;

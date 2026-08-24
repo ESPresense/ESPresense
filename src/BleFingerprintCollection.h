@@ -67,6 +67,7 @@ extern String include, exclude, query, knownMacs, knownIrks, countIds;
 extern float skipDistance, maxDistance, absorption, countEnter, countExit;
 extern int8_t rxRefRssi, rxAdjRssi, txRefRssi, maxDivisor;
 extern int forgetMs, skipMs, countMs, requeryMs, maxFingerprints;
+extern bool periodicActiveScan;
 extern std::vector<DeviceConfig> deviceConfigs;
 extern std::vector<uint8_t *> irks;
 }  // namespace BleFingerprintCollection
