@@ -578,7 +578,7 @@ void BleFingerprint::fingerprintTeltonikaEye(const NimBLEAdvertisedDevice *adver
         const std::string data = advertisedDevice->getManufacturerData(idx);
         TeltonikaEyeData eye = parseTeltonikaEye(reinterpret_cast<const uint8_t *>(data.data()), data.size());
         if (eye.valid) {
-            lowBattery = eye.lowBattery ? 1 : 0;
+            if (eye.hasFlags) lowBattery = eye.lowBattery ? 1 : 0;
             if (eye.hasVoltage) mv = eye.mv;
         }
     }
@@ -600,7 +600,7 @@ void BleFingerprint::fingerprintTeltonikaEye(BLEAdvertisedDevice *advertisedDevi
             const size_t mfgLen = fieldLen - 1;
             TeltonikaEyeData eye = parseTeltonikaEye(mfgData, mfgLen);
             if (eye.valid) {
-                lowBattery = eye.lowBattery ? 1 : 0;
+                if (eye.hasFlags) lowBattery = eye.lowBattery ? 1 : 0;
                 if (eye.hasVoltage) mv = eye.mv;
             }
         }

@@ -589,9 +589,10 @@ static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
         return;
     }
 
-    if (nextWindowMillis == 0) nextWindowMillis = millis() + EYE_ACTIVE_SCAN_INTERVAL_MS;
+    const unsigned long now = millis();
+    if (nextWindowMillis == 0) nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
 
-    if (!active && millis() >= nextWindowMillis) {
+    if (!active && (long)(now - nextWindowMillis) >= 0) {
         pBLEScan->stop();
         pBLEScan->setActiveScan(true);
 #ifdef NIMBLE_V2
@@ -600,10 +601,10 @@ static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
         pBLEScan->start(0, nullptr, true);
 #endif
         active = true;
-        windowEndMillis = millis() + EYE_ACTIVE_SCAN_DURATION_MS;
-        nextWindowMillis = millis() + EYE_ACTIVE_SCAN_INTERVAL_MS;
+        windowEndMillis = now + EYE_ACTIVE_SCAN_DURATION_MS;
+        nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
         Log.println("EYE active scan window opened");
-    } else if (active && millis() >= windowEndMillis) {
+    } else if (active && (long)(now - windowEndMillis) >= 0) {
         pBLEScan->stop();
         pBLEScan->setActiveScan(false);
 #ifdef NIMBLE_V2

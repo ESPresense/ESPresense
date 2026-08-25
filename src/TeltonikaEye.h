@@ -12,6 +12,7 @@
 //   voltage_mV = 2000 + rawBattery * 10, only meaningful when bit7 is set
 struct TeltonikaEyeData {
     bool valid = false;       // true if the 0x089A/v1 header matched
+    bool hasFlags = false;    // true if the flags byte was present (header-only payloads leave lowBattery unset)
     bool hasVoltage = false;  // true if the voltage-present flag was set and a raw byte was available
     uint16_t mv = 0;
     bool lowBattery = false;
@@ -27,6 +28,7 @@ inline TeltonikaEyeData parseTeltonikaEye(const uint8_t *data, size_t len) {
     if (len < 4) return result;
 
     const uint8_t flags = data[3];
+    result.hasFlags = true;
     result.lowBattery = (flags & 0x40) != 0;
     const bool voltagePresent = (flags & 0x80) != 0;
     if (voltagePresent && len >= 5) {
