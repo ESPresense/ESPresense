@@ -570,6 +570,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
  */
 static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
     static bool active = false;
+    static bool windowScheduled = false;
     static unsigned long nextWindowMillis = 0;
     static unsigned long windowEndMillis = 0;
 
@@ -585,12 +586,15 @@ static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
             active = false;
             Log.println("EYE active scan window closed (feature disabled)");
         }
-        nextWindowMillis = 0;  // re-arm so re-enabling starts a fresh interval rather than firing immediately
+        windowScheduled = false;  // re-arm so re-enabling starts a fresh interval rather than firing immediately
         return;
     }
 
     const unsigned long now = millis();
-    if (nextWindowMillis == 0) nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
+    if (!windowScheduled) {
+        nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
+        windowScheduled = true;
+    }
 
     if (!active && (long)(now - nextWindowMillis) >= 0) {
         pBLEScan->stop();
@@ -603,6 +607,7 @@ static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
         active = true;
         windowEndMillis = now + EYE_ACTIVE_SCAN_DURATION_MS;
         nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
+        windowScheduled = true;
         Log.println("EYE active scan window opened");
     } else if (active && (long)(now - windowEndMillis) >= 0) {
         pBLEScan->stop();
