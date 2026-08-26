@@ -54,7 +54,7 @@ static int readBatteryMilliVolts() {
     return smoothMilliVolts;
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     adcPin = HeadlessWiFiSettings.integer("battery_adc_pin", DEFAULT_BATTERY_ADC_PIN, "Battery ADC pin (-1 disables)");
     adcMultiplier = HeadlessWiFiSettings.floating("battery_adc_multiplier", 0, 100, DEFAULT_BATTERY_ADC_MULTIPLIER, "Battery ADC multiplier (mV per ADC count)");
     adcOffset = HeadlessWiFiSettings.integer("battery_adc_offset", DEFAULT_BATTERY_ADC_OFFSET, "Battery ADC offset (counts)");

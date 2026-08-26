@@ -53,8 +53,8 @@ void SerialReport() {
     LEDs::SerialReport();
 }
 
-void ConnectToWifi() {
-    LEDs::ConnectToWifi();
+void ConnectToWifi(bool updating) {
+    LEDs::ConnectToWifi(updating);
 }
 
 void Loop() {

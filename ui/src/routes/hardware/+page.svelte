@@ -463,6 +463,19 @@
                     bind:value={$hardwareSettings.values['dhtTemp_offset']}/>
             </label>
         </p>
+        <p>
+            <label>
+                DHT humidity offset:<br />
+                <input
+                    type="number"
+                    step="0.01"
+                    min="-100"
+                    max="100"
+                    name="dhtHumidity_offset"
+                    placeholder={$hardwareSettings.defaults['dhtHumidity_offset']}
+                    bind:value={$hardwareSettings.values['dhtHumidity_offset']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
@@ -629,7 +642,7 @@
                 <input name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
             </label>
         </p>
-        <h4>SHTC1/3, SHTW1/2, SHT3x/4x, SHT85 - Temperature and Humidity Sensor:</h4>
+        <h4>SHTC1/3, SHTW1/2, SHT2x/3x/4x, SHT85, HTU21D, Si7021 (GY-21) - Temperature and Humidity Sensor:</h4>
         <p>
             <label>
                 I2C Bus (-1 to disable):<br />

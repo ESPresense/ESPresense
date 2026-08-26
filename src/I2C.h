@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 
 namespace I2C {
-    void ConnectToWifi();
+    void ConnectToWifi(bool updating);
     void SerialReport();
     void Setup();
 }
