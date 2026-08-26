@@ -17,7 +17,7 @@ int I2C_Bus_1_SCL = 0;
 int I2C_Bus_2_SDA = 0;
 int I2C_Bus_2_SCL = 0;
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
 
     I2C_Bus_1_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 48, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
     I2C_Bus_1_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 48, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
@@ -27,15 +27,15 @@ void ConnectToWifi() {
 
     I2CDebug = HeadlessWiFiSettings.checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
-    if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SDA != -1) {
+    if (I2C_Bus_1_SDA != -1 && I2C_Bus_1_SCL != -1) {
         I2C_Bus_1_Started = Wire.begin(I2C_Bus_1_SDA, I2C_Bus_1_SCL);
     }
 
-    if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SDA != -1) {
 #if SOC_I2C_NUM > 1
+    if (I2C_Bus_2_SDA != -1 && I2C_Bus_2_SCL != -1) {
         I2C_Bus_2_Started = Wire1.begin(I2C_Bus_2_SDA, I2C_Bus_2_SCL);
-#endif
     }
+#endif
 }
 
 void Setup() {
@@ -84,8 +84,8 @@ void SerialReport() {
         }
     }
 
-    if (I2C_Bus_2_Started) {
 #if SOC_I2C_NUM > 1
+    if (I2C_Bus_2_Started) {
         Log.println("Scanning I2C for devices on Bus 2...");
 
         for (address = 1; address < 127; address++) {
@@ -108,8 +108,8 @@ void SerialReport() {
                 Log.println(address, HEX);
             }
         }
-#endif
     }
+#endif
 
     if (nDevices == 0) {
         Log.println("No I2C devices found\r\n");

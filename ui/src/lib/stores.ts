@@ -1,6 +1,9 @@
 import { readable, writable } from 'svelte/store';
 import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
+// Firmware info store
+export const firmwareInfo = writable<{ ver: string; firm: string }>({ ver: '', firm: '' });
+
 // Room name store that stops polling once room name is found
 export const roomName = readable<string>('', function start(set) {
     let errors = 0;
@@ -10,9 +13,12 @@ export const roomName = readable<string>('', function start(set) {
         outstanding = true;
         fetch("/json")
             .then(d => d.json())
-            .then((r: { room: string }) => {
+            .then((r: { room: string; ver?: string; firm?: string }) => {
                 outstanding = false;
                 errors = 0;
+                if (r.ver || r.firm) {
+                    firmwareInfo.set({ ver: r.ver ?? '', firm: r.firm ?? '' });
+                }
                 if (r.room) {
                     clearInterval(interval); // Stop polling once we have the room name
                     set(r.room);

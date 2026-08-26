@@ -24,7 +24,7 @@ namespace HX711
         digitalWrite(sckPin, LOW);
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         sckPin = HeadlessWiFiSettings.integer("HX711_sckPin", 0, "HX711 SCK (Clock) pin");
         doutPin = HeadlessWiFiSettings.integer("HX711_doutPin", 0, "HX711 DOUT (Data) pin");

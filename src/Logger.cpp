@@ -12,6 +12,12 @@
 #include <cstring>
 #include <vector>
 
+#ifndef ARDUINO_V3
+#ifdef Serial
+#undef Serial
+#endif
+#endif
+
 namespace {
 
 // TCP logging state
@@ -138,7 +144,11 @@ Logger::Logger(LoggerSerialType& serial) : serial_(serial), serialEnabled_(true)
  * @return Logger& Reference to the singleton Logger associated with the global Serial interface.
  */
 Logger& Logger::instance() {
+#ifdef ARDUINO_V3
     static Logger instance(Serial);
+#else
+    static Logger instance(::Serial);
+#endif
     return instance;
 }
 

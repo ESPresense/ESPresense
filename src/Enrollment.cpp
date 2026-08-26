@@ -2,6 +2,9 @@
 
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLECharacteristic.h>
+#ifdef NIMBLE_V2
+#include <NimBLEConnInfo.h>
+#endif
 #include <NimBLEDescriptor.h>
 #include <NimBLEDevice.h>
 #include <NimBLEService.h>
@@ -28,6 +31,17 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      *
      * @param pServer Server instance that reported the connection.
      */
+#ifdef NIMBLE_V2
+    void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override {
+        std::string addr = connInfo.getAddress().toString();
+        Log.print("Connected to: ");
+        Log.println(addr.c_str());
+        if (enrolling) {
+            connectionToEnroll = connInfo.getConnHandle();
+            NimBLEDevice::startAdvertising();
+        }
+    };
+#else
     void onConnect(NimBLEServer *pServer) {
         if (enrolling) {
             NimBLEDevice::startAdvertising();
@@ -38,58 +52,76 @@ class ServerCallbacks : public NimBLEServerCallbacks {
      * @brief Handle a new BLE connection and record it for enrollment when active.
      *
      * If enrollment mode is active, stores the connection handle from the provided
-     * connection info into the global `connectionToEnroll` so the connection
+     * connection descriptor into the global `connectionToEnroll` so the connection
      * can be used for the enrollment process.
      *
      * @param pServer Pointer to the NimBLE server for the connection.
-     * @param connInfo Reference to the connection info containing the peer address and connection handle.
+     * @param desc Pointer to the connection descriptor containing the peer address and connection handle.
      */
-    void onConnect(NimBLEServer *pServer, NimBLEConnInfo& connInfo) {
-        std::string addr = connInfo.getAddress().toString();
+    void onConnect(NimBLEServer *pServer, ble_gap_conn_desc *desc) {
+        std::string addr = NimBLEAddress(desc->peer_ota_addr).toString();
         Log.print("Connected to: ");
         Log.println(addr.c_str());
         if (enrolling) {
-            connectionToEnroll = connInfo.getConnHandle();
+            connectionToEnroll = desc->conn_handle;
         }
     };
+#endif
 
     /**
      * @brief Handle a BLE client disconnection and resume advertising if enrolling.
      *
      * When enrollment mode is active, this callback restarts BLE advertising so the
      * device remains discoverable for new connections.
-     *
-     * @param pServer Pointer to the NimBLE server for the connection.
-     * @param connInfo Reference to the connection info for the disconnected client.
-     * @param reason Disconnect reason code.
      */
-    void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo& connInfo, int reason) {
+#ifdef NIMBLE_V2
+    void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) override {
+        if (enrolling) {
+            Log.printf("Client disconnected, conn: %u reason: %d\r\n", connInfo.getConnHandle(), reason);
+            NimBLEDevice::startAdvertising();
+        }
+    };
+#else
+    void onDisconnect(NimBLEServer *pServer) {
         if (enrolling) {
             Log.println("Client disconnected");
             NimBLEDevice::startAdvertising();
         }
     };
+#endif
 
     /**
      * @brief Logs the updated MTU size and connection handle for a BLE connection.
      *
      * @param MTU Negotiated MTU size for the connection.
-     * @param connInfo Reference to the connection info containing the connection handle.
+     * @param desc Pointer to the BLE connection descriptor containing the connection handle.
      */
-    void onMTUChange(uint16_t MTU, NimBLEConnInfo& connInfo) {
+#ifdef NIMBLE_V2
+    void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) override {
         Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, connInfo.getConnHandle());
     };
+#else
+    void onMTUChange(uint16_t MTU, ble_gap_conn_desc *desc) {
+        Log.printf("MTU updated: %u for connection ID: %u\r\n", MTU, desc->conn_handle);
+    };
+#endif
 
     /**
      * @brief Callback invoked when BLE authentication for a connection completes.
      *
      * Logs whether the link became encrypted and the associated connection handle.
      *
-     * @param connInfo Reference to the connection info containing encryption state and connection handle.
+     * @param desc Pointer to the connection descriptor containing `sec_state.encrypted` and `conn_handle`.
      */
-    void onAuthenticationComplete(NimBLEConnInfo& connInfo) {
+#ifdef NIMBLE_V2
+    void onAuthenticationComplete(NimBLEConnInfo &connInfo) override {
         Log.printf("Encrypt connection %s conn: %d!\r\n", connInfo.isEncrypted() ? "success" : "failed", connInfo.getConnHandle());
     }
+#else
+    void onAuthenticationComplete(ble_gap_conn_desc *desc) {
+        Log.printf("Encrypt connection %s conn: %d!\r\n", desc->sec_state.encrypted ? "success" : "failed", desc->conn_handle);
+    }
+#endif
 };
 
 class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
@@ -120,18 +152,44 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
     };
 
     /**
+     * @brief Callback invoked when a characteristic notification is being sent to subscribed clients.
+     *
+     * Called with the characteristic that is notifying so implementers can react to or log the notification event.
+     *
+     * @param pCharacteristic Pointer to the characteristic that is sending the notification.
+     */
+    void onNotify(NimBLECharacteristic *pCharacteristic) {
+        Log.println("Sending notification to clients");
+    };
+
+    /**
      * @brief Logs the final status of a notification or indication for a characteristic.
      *
-     * Records the characteristic and the BLE stack return code.
+     * Records the characteristic, the notification/indication status, and the BLE stack return code.
      *
      * @param pCharacteristic Pointer to the characteristic for which the status was reported.
+     * @param status The notification/indication status value.
      * @param code Numeric BLE stack return code associated with the operation.
      */
+#ifdef NIMBLE_V2
     void onStatus(NimBLECharacteristic *pCharacteristic, int code) {
         String str = ("Notification/Indication return code: ");
         str += code;
+        str += ", ";
+        str += NimBLEUtils::returnCodeToString(code);
         Log.println(str);
     };
+#else
+    void onStatus(NimBLECharacteristic *pCharacteristic, Status status, int code) {
+        String str = ("Notification/Indication status code: ");
+        str += status;
+        str += ", return code: ";
+        str += code;
+        str += ", ";
+        str += NimBLEUtils::returnCodeToString(code);
+        Log.println(str);
+    };
+#endif
 
     /**
      * @brief Log a client's subscription state change for a characteristic.
@@ -140,10 +198,11 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
      * when a client subscribes or unsubscribes to notifications/indications.
      *
      * @param pCharacteristic Pointer to the characteristic whose subscription changed.
-     * @param connInfo Reference to the connection info for the client (provides conn_handle and peer address).
+     * @param desc Pointer to the GAP connection descriptor for the client (provides conn_handle and peer address).
      * @param subValue Subscription value where `0` = unsubscribed, `1` = notifications, `2` = indications, `3` = notifications and indications.
      */
-    void onSubscribe(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo& connInfo, uint16_t subValue) {
+#ifdef NIMBLE_V2
+    void onSubscribe(NimBLECharacteristic *pCharacteristic, NimBLEConnInfo &connInfo, uint16_t subValue) override {
         String str = "Client ID: ";
         str += connInfo.getConnHandle();
         str += " Address: ";
@@ -160,6 +219,25 @@ class CharacteristicCallbacks : public NimBLECharacteristicCallbacks {
         str += std::string(pCharacteristic->getUUID()).c_str();
         Log.println(str);
     };
+#else
+    void onSubscribe(NimBLECharacteristic *pCharacteristic, ble_gap_conn_desc *desc, uint16_t subValue) {
+        String str = "Client ID: ";
+        str += desc->conn_handle;
+        str += " Address: ";
+        str += std::string(NimBLEAddress(desc->peer_ota_addr)).c_str();
+        if (subValue == 0) {
+            str += " Unsubscribed to ";
+        } else if (subValue == 1) {
+            str += " Subscribed to notfications for ";
+        } else if (subValue == 2) {
+            str += " Subscribed to indications for ";
+        } else if (subValue == 3) {
+            str += " Subscribed to notifications and indications for ";
+        }
+        str += std::string(pCharacteristic->getUUID()).c_str();
+        Log.println(str);
+    };
+#endif
 };
 
 class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
@@ -170,8 +248,7 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      *
      * @param pDescriptor Pointer to the NimBLEDescriptor that was written.
      */
-    void onWrite(NimBLEDescriptor *pDescriptor, NimBLEConnInfo &connInfo) override {
-        (void)connInfo;
+    void onWrite(NimBLEDescriptor *pDescriptor) {
         std::string dscVal = pDescriptor->getValue();
         Log.print("Descriptor written value:");
         Log.println(dscVal.c_str());
@@ -184,8 +261,7 @@ class DescriptorCallbacks : public NimBLEDescriptorCallbacks {
      *
      * @param pDescriptor Descriptor that was read.
      */
-    void onRead(NimBLEDescriptor *pDescriptor, NimBLEConnInfo &connInfo) override {
-        (void)connInfo;
+    void onRead(NimBLEDescriptor *pDescriptor) {
         std::string uuid = pDescriptor->getUUID().toString();
         Log.print(uuid.c_str());
         Log.println(" Descriptor read");
@@ -258,8 +334,11 @@ void Setup() {
     modelNum->setValue(std::string(room.c_str()));
     modelNum->setCallbacks(&chrCallbacks);
 
+#ifndef NIMBLE_V2
+    // NimBLE 2.x starts services with the server; start() is deprecated there.
     heartRate->start();
     deviceInfo->start();
+#endif
 
     uint32_t nodeId = (uint32_t)(ESP.getEfuseMac() >> 24);
     major = (nodeId & 0xFFFF0000) >> 16;
@@ -273,7 +352,12 @@ void Setup() {
     oBeacon.setSignalPower(BleFingerprintCollection::txRefRssi);
     oAdvertisementData = new NimBLEAdvertisementData();
     oAdvertisementData->setFlags(BLE_HS_ADV_F_BREDR_UNSUP);
+#ifdef NIMBLE_V2
+    std::string beaconData(reinterpret_cast<const char*>(&oBeacon.getData()), sizeof(NimBLEBeacon::BeaconData));
+    oAdvertisementData->setManufacturerData(beaconData);
+#else
     oAdvertisementData->setManufacturerData(oBeacon.getData());
+#endif
 
     pServer->start();
 }
@@ -296,16 +380,28 @@ bool Loop() {
         auto pAdvertising = NimBLEDevice::getAdvertising();
         if (enrolling) {
             pAdvertising->reset();
+#ifdef NIMBLE_V2
             pAdvertising->enableScanResponse(true);
-            pAdvertising->setPreferredParams(0x06, 0x12);  // functions that help with iPhone connections issue
+            pAdvertising->setPreferredParams(0x06, 0x12);
             pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_UND);
+#else
+            pAdvertising->setScanResponse(true);
+            pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+            pAdvertising->setMinPreferred(0x12);
+            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_UND);
+#endif
             pAdvertising->addServiceUUID(heartRate->getUUID());
             pAdvertising->start();
             Log.printf("%u Advert | HRM\r\n", xPortGetCoreID());
         } else {
             pAdvertising->reset();
+#ifdef NIMBLE_V2
             pAdvertising->enableScanResponse(false);
             pAdvertising->setConnectableMode(BLE_GAP_CONN_MODE_NON);
+#else
+            pAdvertising->setScanResponse(false);
+            pAdvertising->setAdvertisementType(BLE_GAP_CONN_MODE_NON);
+#endif
             pAdvertising->setAdvertisementData(*oAdvertisementData);
             pAdvertising->start();
             Log.printf("%u Advert | iBeacon\r\n", xPortGetCoreID());
@@ -356,6 +452,21 @@ bool Loop() {
     return true;
 }
 
+// Dispatches MQTT / WebSocket enrollment commands.
+//
+// Accepted payload grammar for "enroll":
+//   "id|name"  — bind the next connecting device to this stable id and friendly name
+//                (id segment becomes the published fingerprint id, e.g. "myphone:abcdef")
+//   "name"     — bind to a friendly name only; id is derived via slugify(name)
+//                at capture time (see slugify() in lib/utils/string_utils.cpp)
+//   "PRESS"    — sentinel meaning "user pressed the Enroll button on the web UI";
+//                clears id and name; id is then derived from the IRK at capture
+//                time as "irk:<hex>" once the connecting device is resolved
+//   ""         — same as "PRESS"
+//
+// The enrollment window is fixed at 120 s (see enrollingEndMillis below). "cancelEnroll"
+// closes the window immediately and clears any pending id/name. Both commands also push
+// fresh state to any connected WebSocket clients via HttpWebServer::SendState().
 bool Command(String &command, String &pay) {
     if (command == "enroll") {
         const int separatorIndex = pay.indexOf('|');

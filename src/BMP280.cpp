@@ -32,13 +32,11 @@ namespace BMP280
     {
         if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
 
-        bmp = new Adafruit_BMP280(
 #if SOC_I2C_NUM > 1
-            BMP280_I2c_Bus == 1 ? &Wire : &Wire1
+        bmp = new Adafruit_BMP280(BMP280_I2c_Bus == 1 ? &Wire : &Wire1);
 #else
-            &Wire
+        bmp = new Adafruit_BMP280(&Wire);
 #endif
-        );
         if (BMP280_I2c == "0x76") {
             BMP280_status = bmp->begin(0x76);
         } else if (BMP280_I2c == "0x77") {
@@ -61,7 +59,7 @@ namespace BMP280
         );
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         BMP280_I2c_Bus = HeadlessWiFiSettings.integer("BMP280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BMP280_I2c = HeadlessWiFiSettings.string("BMP280_I2c", "", "I2C address (0x76 or 0x77)");

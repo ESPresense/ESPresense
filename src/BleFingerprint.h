@@ -5,8 +5,10 @@
 #include <NimBLEAdvertisedDevice.h>
 #include <NimBLEBeacon.h>
 #include <NimBLEDevice.h>
+#ifndef NIMBLE_V2
 #include <NimBLEEddystoneTLM.h>
-// NimBLEEddystoneURL removed in NimBLE 2.x (Google shutdown)
+#include <NimBLEEddystoneURL.h>
+#endif
 
 #include <memory>
 
@@ -64,15 +66,20 @@
 
 class BleFingerprint {
    public:
-    BleFingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-
+#ifdef NIMBLE_V2
+    BleFingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
+    bool seen(const NimBLEAdvertisedDevice *advertisedDevice);
+#else
+    BleFingerprint(BLEAdvertisedDevice *advertisedDevice);
     bool seen(BLEAdvertisedDevice *advertisedDevice);
+#endif
 
     bool fill(JsonObject *doc);
 
     bool report(JsonObject *doc);
 
     bool query();
+    bool queryBatteryIfDue();
 
     const String getId() const { return id; }
 
@@ -126,30 +133,41 @@ class BleFingerprint {
     void expire();
 
    private:
+    bool queryBattery();
 
     bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
     uint64_t nextReportMs = 0;
     uint64_t lastReportedMs = 0;
     NimBLEAddress address;
-    String id, name;
+    String id, name, discoveredIrk;
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
+    uint32_t lastBatteryQueryMillis = 0;
+    uint32_t batteryQueryInterval = 0;
+    bool isBatteryQuerying = false;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
-    AdaptivePercentileRSSI adaptivePercentileRSSI;
+    std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
     static bool shouldHide(const String &s);
     uint8_t calculateTimeSlot(); // Calculate time slot (0-3) based on device ID
-    void fingerprint(NimBLEAdvertisedDevice *advertisedDevice);
-    void fingerprintServiceAdvertisements(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
-    void fingerprintServiceData(NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
-    void fingerprintManufactureData(NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#ifdef NIMBLE_V2
+    void fingerprint(const NimBLEAdvertisedDevice *advertisedDevice);
+    void fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
+    void fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
+    void fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#else
+    void fingerprint(BLEAdvertisedDevice *advertisedDevice);
+    void fingerprintServiceAdvertisements(BLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
+    void fingerprintServiceData(BLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
+    void fingerprintManufactureData(BLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+#endif
 };
 
 #endif

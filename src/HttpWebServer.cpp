@@ -3,6 +3,7 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
+#include "TeleJson.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -12,6 +13,42 @@ namespace HttpWebServer {
 
 void serializeInfo(JsonObject &root) {
     root["room"] = room;
+#ifdef VERSION
+    root["ver"] = VERSION;
+#endif
+#ifdef FIRMWARE
+    root["firm"] = FIRMWARE;
+#endif
+}
+
+// The three numbers telemetry already publishes over MQTT, on their own endpoint so a heap
+// complaint can be diagnosed with curl and no broker: freeHeap falling while fingerprints
+// holds steady is a leak, maxHeap falling while freeHeap holds is fragmentation, both
+// moving with the device count is churn. Working that out took months of graph-swapping
+// on #2309.
+//
+// Deliberately allocation-free, and deliberately not routed through serveJson. That path
+// refuses with 429 when it cannot afford a 12KB document — so hanging these numbers off it
+// would hide them precisely when the node is in the trouble they describe. A fixed stack
+// buffer answers at any heap level. It also keeps the cost off /json, which the UI polls:
+// no fingerprintMutex acquisition (contending the scan task) and no second walk of the
+// free-block list on every poll.
+void serveTele(AsyncWebServerRequest *request) {
+    char buf[256];
+    // Size(false): a GET reports what is there, it does not expire fingerprints as a side
+    // effect of being observed.
+    size_t const len = buildTeleJson(buf, sizeof(buf), room.c_str(),
+                                     ESP.getFreeHeap(),
+                                     ESP.getMaxAllocHeap(),
+                                     BleFingerprintCollection::Size(false));
+    if (len == 0) {
+        // Only reachable via an absurdly long room. Refusing beats the alternative: a
+        // truncated body under a 200 is indistinguishable from a corrupt response, and
+        // this endpoint is what people reach for when they already distrust the node.
+        request->send(500, "application/json", F("{\"error\":\"telemetry did not fit\"}"));
+        return;
+    }
+    request->send(200, "application/json", buf);
 }
 
 void serializeState(JsonObject &root) {
@@ -24,8 +61,7 @@ void serializeState(JsonObject &root) {
 void serializeConfigs(JsonObject &root) {
     JsonArray configs = root.createNestedArray("configs");
 
-    auto deviceConfigs = BleFingerprintCollection::deviceConfigs;
-    for (auto it = deviceConfigs.begin(); it != deviceConfigs.end(); ++it) {
+    for (auto it = BleFingerprintCollection::deviceConfigs.begin(); it != BleFingerprintCollection::deviceConfigs.end(); ++it) {
         const JsonObject &node = configs.createNestedObject();
         node["id"] = it->id;
         node["alias"] = it->alias;
@@ -37,23 +73,42 @@ void serializeConfigs(JsonObject &root) {
 void serializeDevices(JsonObject &root, bool showAll) {
     JsonArray devices = root.createNestedArray("devices");
 
-    auto f = BleFingerprintCollection::GetCopy();
-    for (auto it = f.begin(); it != f.end(); ++it) {
-        bool visible = (*it)->getVisible();
+    size_t cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor)) {
+        auto *fingerprint = lease.fingerprint;
+        bool visible = fingerprint->getVisible();
         if (showAll || visible) {
             JsonObject node = devices.createNestedObject();
-            if ((*it)->fill(&node)) {
+            if (fingerprint->fill(&node)) {
                 if (showAll && visible) node[F("vis")] = true;
             } else
                 devices.remove(devices.size() - 1);
         }
+        BleFingerprintCollection::Release(lease);
     }
 }
 
 bool servingJson = false;
 
 void serveJson(AsyncWebServerRequest *request) {
-    if (servingJson) request->send(429, "Too Many Requests", "Too Many Requests");
+    if (servingJson) {
+        request->send(429, "Too Many Requests", "Too Many Requests");
+        return;  // without this we send twice and leak the first response, plus a second 12KB buffer
+    }
+    // Refuse rather than emit a 200 with a null or truncated body when we can't afford the
+    // response buffer: under memory pressure the JSON_BUFFER_SIZE document fails to allocate,
+    // serializes as `null`, and gets sent as a 200 (or AsyncTCP resets mid-body). 429 to
+    // match the concurrent-request guard four lines up — same "come back later" meaning.
+    //
+    // The document needs one *contiguous* JSON_BUFFER_SIZE block, so getMaxAllocHeap (largest
+    // free block) is the binding check — getFreeHeap alone lies under fragmentation, where
+    // total free is tens of KB but no single 12KB block exists and the alloc still fails.
+    // The getFreeHeap floor stays as headroom for the serialized copy + TCP send buffers.
+    // ponytail: +4KB slack over the doc for AsyncJson overhead; tune on hardware.
+    if (ESP.getMaxAllocHeap() < JSON_BUFFER_SIZE + 4096 || ESP.getFreeHeap() < JSON_BUFFER_SIZE * 2) {
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     servingJson = true;
     bool showAll = false;
     const String &url = request->url();
@@ -69,6 +124,15 @@ void serveJson(AsyncWebServerRequest *request) {
 
     auto *response = new AsyncJsonResponse(false, JSON_BUFFER_SIZE);
     JsonObject root = response->getRoot();
+    // The heap pre-check above is racy — BLE/WiFi can fragment between it and this alloc.
+    // If the document buffer didn't allocate, root is null and would serialize as a bare
+    // `null` sent with a 200. Catch it here and refuse instead; this is the airtight guard.
+    if (root.isNull()) {
+        delete response;
+        servingJson = false;
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
     serializeInfo(root);
     switch (subJson) {
         case 1:
@@ -101,7 +165,7 @@ void sendDataWs(AsyncWebSocketClient *client) {
             ws.cleanupClients(0);  // disconnect all clients to release memory
             return;                // out of memory
         }
-        serializeJson(doc, (char *)buffer->get(), len + 1);
+        serializeJson(doc, buffer->get(), len);
     }
     if (client) {
         client->text(buffer);
@@ -141,8 +205,14 @@ void onRestart(AsyncWebServerRequest *request) {
 
 void Init(AsyncWebServer *server) {
     DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Origin"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "*");
-    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "*");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Methods"), "GET, POST, DELETE, OPTIONS");
+    DefaultHeaders::Instance().addHeader(F("Access-Control-Allow-Headers"), "Content-Type");
+
+    // Low-risk browser hardening headers for the local Web UI and JSON endpoints.
+    DefaultHeaders::Instance().addHeader(F("X-Content-Type-Options"), F("nosniff"));
+    DefaultHeaders::Instance().addHeader(F("Referrer-Policy"), F("no-referrer"));
+    DefaultHeaders::Instance().addHeader(F("Permissions-Policy"),
+                                         F("accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), usb=()"));
 
     server->on("/", HTTP_OPTIONS, [](AsyncWebServerRequest *request) {
         AsyncWebServerResponse *response = request->beginResponse(200);
@@ -154,6 +224,7 @@ void Init(AsyncWebServer *server) {
 
     server->on("/restart", HTTP_POST, onRestart);
     server->on("/reboot", HTTP_POST, onRestart);
+    server->on("/json/tele", HTTP_GET, serveTele);
     server->on("/json", HTTP_GET, serveJson);
 
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
