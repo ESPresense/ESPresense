@@ -16,9 +16,19 @@ export default defineConfig({
     ],
     build: {
         sourcemap: false,
-        rollupOptions: {
+        // Prefer one shared JS payload for flash size. SvelteKit still emits tiny
+        // entry/node stubs; this collapses app code into a single chunk group.
+        rolldownOptions: {
             output: {
-                manualChunks: () => 'index'
+                codeSplitting: {
+                    groups: [
+                        {
+                            name: 'index',
+                            test: (id) => !id.includes('node_modules/.vite'),
+                            includeDependenciesRecursively: true,
+                        }
+                    ]
+                }
             }
         }
     },

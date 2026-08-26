@@ -642,7 +642,7 @@
                 <input name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
             </label>
         </p>
-        <h4>SHTC1/3, SHTW1/2, SHT3x/4x, SHT85 - Temperature and Humidity Sensor:</h4>
+        <h4>SHTC1/3, SHTW1/2, SHT2x/3x/4x, SHT85, HTU21D, Si7021 (GY-21) - Temperature and Humidity Sensor:</h4>
         <p>
             <label>
                 I2C Bus (-1 to disable):<br />
