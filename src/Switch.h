@@ -3,7 +3,7 @@
 
 namespace Switch {
 void Setup();
-void ConnectToWifi();
+void ConnectToWifi(bool updating);
 void SerialReport();
 void Loop();
 bool SendDiscovery();

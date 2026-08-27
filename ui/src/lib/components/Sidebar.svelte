@@ -3,6 +3,7 @@
     import SidebarItem from "./SidebarItem.svelte";
     import DarkModeToggle from "./DarkModeToggle.svelte";
     import Icon from "./Icon.svelte";
+    import { firmwareInfo } from "$lib/stores";
 </script>
 
 <div class="h-full w-full flex flex-col">
@@ -19,7 +20,12 @@
         <SidebarItem icon="device" title="Devices" href="{base}/devices" />
         <SidebarItem icon="fingerprint" title="Fingerprints" href="{base}/fingerprints" />
     </nav>
-    <div class="p-6">
+    <div class="px-6 pb-2">
         <DarkModeToggle />
     </div>
+    {#if $firmwareInfo.ver}
+        <div class="px-6 pb-4 text-xs text-gray-400 dark:text-gray-500">
+            {$firmwareInfo.ver}{#if $firmwareInfo.firm} · {$firmwareInfo.firm}{/if}
+        </div>
+    {/if}
 </div>

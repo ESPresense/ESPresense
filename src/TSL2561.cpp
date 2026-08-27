@@ -21,7 +21,7 @@ namespace TSL2561
     {
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         TSL2561_I2c_Bus = HeadlessWiFiSettings.integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         TSL2561_I2c = HeadlessWiFiSettings.string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
