@@ -53,7 +53,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_1_pin"
                     placeholder={$hardwareSettings.defaults['led_1_pin']}
                     bind:value={$hardwareSettings.values['led_1_pin']}/>
@@ -106,7 +106,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_2_pin"
                     placeholder={$hardwareSettings.defaults['led_2_pin']}
                     bind:value={$hardwareSettings.values['led_2_pin']}/>
@@ -159,7 +159,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="led_3_pin"
                     placeholder={$hardwareSettings.defaults['led_3_pin']}
                     bind:value={$hardwareSettings.values['led_3_pin']}/>
@@ -463,6 +463,19 @@
                     bind:value={$hardwareSettings.values['dhtTemp_offset']}/>
             </label>
         </p>
+        <p>
+            <label>
+                DHT humidity offset:<br />
+                <input
+                    type="number"
+                    step="0.01"
+                    min="-100"
+                    max="100"
+                    name="dhtHumidity_offset"
+                    placeholder={$hardwareSettings.defaults['dhtHumidity_offset']}
+                    bind:value={$hardwareSettings.values['dhtHumidity_offset']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
@@ -474,7 +487,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_1_SDA"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_1_SDA']}
                     bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
@@ -487,7 +500,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_1_SCL"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_1_SCL']}
                     bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
@@ -501,7 +514,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_2_SDA"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_2_SDA']}
                     bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
@@ -514,7 +527,7 @@
                     type="number"
                     step="1"
                     min="-1"
-                    max="39"
+                    max="48"
                     name="I2C_Bus_2_SCL"
                     placeholder={$hardwareSettings.defaults['I2C_Bus_2_SCL']}
                     bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>
@@ -629,7 +642,7 @@
                 <input name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
             </label>
         </p>
-        <h4>SHTC1/3, SHTW1/2, SHT3x/4x, SHT85 - Temperature and Humidity Sensor:</h4>
+        <h4>SHTC1/3, SHTW1/2, SHT2x/3x/4x, SHT85, HTU21D, Si7021 (GY-21) - Temperature and Humidity Sensor:</h4>
         <p>
             <label>
                 I2C Bus (-1 to disable):<br />

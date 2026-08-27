@@ -6,6 +6,7 @@ const mockExtraSettings = {
 		known_macs: 'aabbccddeeff 112233445566',
 		known_irks: 'abcd1234efgh5678',
 		forget_ms: '180000',
+		max_fingerprints: '256',
 		query: 'flora: mi:',
 		requery_ms: '300',
 		count_ids: 'apple: tile:',
@@ -22,6 +23,7 @@ const mockExtraSettings = {
 	},
 	defaults: {
 		forget_ms: '180000',
+		max_fingerprints: '256',
 		requery_ms: '300',
 		count_enter: '2.5',
 		count_exit: '5.0',
@@ -193,6 +195,20 @@ test.describe('Settings Page', () => {
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
+		// Delay the POST response so "Saving..." state is observable
+		await page.route('**/wifi/extras', async (route) => {
+			if (route.request().method() === 'POST') {
+				await new Promise((r) => setTimeout(r, 500));
+				await route.fulfill({ status: 200 });
+			} else {
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify(mockExtraSettings)
+				});
+			}
+		});
+
 		await page.goto('/settings');
 		await page.waitForSelector('form#extras');
 

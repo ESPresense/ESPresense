@@ -1,6 +1,9 @@
 import { readable, writable } from 'svelte/store';
 import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
+// Firmware info store
+export const firmwareInfo = writable<{ ver: string; firm: string }>({ ver: '', firm: '' });
+
 // Room name store that stops polling once room name is found
 export const roomName = readable<string>('', function start(set) {
     let errors = 0;
@@ -10,9 +13,12 @@ export const roomName = readable<string>('', function start(set) {
         outstanding = true;
         fetch("/json")
             .then(d => d.json())
-            .then((r: { room: string }) => {
+            .then((r: { room: string; ver?: string; firm?: string }) => {
                 outstanding = false;
                 errors = 0;
+                if (r.ver || r.firm) {
+                    firmwareInfo.set({ ver: r.ver ?? '', firm: r.firm ?? '' });
+                }
                 if (r.room) {
                     clearInterval(interval); // Stop polling once we have the room name
                     set(r.room);
@@ -30,19 +36,44 @@ export const roomName = readable<string>('', function start(set) {
     };
 });
 
-// Dark mode store with persistence
-export const darkMode = writable<boolean>(false, (set) => {
-    if (typeof window !== 'undefined') {
-        // Initialize from localStorage or system preference
-        const stored = localStorage.getItem('darkMode');
-        const systemPrefersDark = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-            ? window.matchMedia('(prefers-color-scheme: dark)').matches
-            : false;
-        const isDark = stored ? stored === 'true' : systemPrefersDark;
-        set(isDark);
+type ThemeMode = 'system' | 'light' | 'dark';
 
-        // Update document class
-        if (isDark) document.documentElement.classList.add('dark');
+const themeStorageKey = 'theme';
+const legacyDarkModeKey = 'darkMode';
+
+function getSystemPrefersDark(): boolean {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        : false;
+}
+
+function applyTheme(mode: ThemeMode): void {
+    if (typeof document === 'undefined') return;
+    const isDark = mode === 'dark' || (mode === 'system' && getSystemPrefersDark());
+    document.documentElement.classList.toggle('dark', isDark);
+}
+
+function resolveInitialTheme(): ThemeMode {
+    if (typeof window === 'undefined') return 'system';
+    const storedTheme = localStorage.getItem(themeStorageKey);
+    if (storedTheme === 'light' || storedTheme === 'dark' || storedTheme === 'system') {
+        return storedTheme;
+    }
+    const legacyDarkMode = localStorage.getItem(legacyDarkModeKey);
+    if (legacyDarkMode === 'true' || legacyDarkMode === 'false') {
+        const migrated = legacyDarkMode === 'true' ? 'dark' : 'light';
+        localStorage.setItem(themeStorageKey, migrated);
+        return migrated;
+    }
+    return 'system';
+}
+
+// Theme mode store with persistence
+export const themeMode = writable<ThemeMode>('system', (set) => {
+    if (typeof window !== 'undefined') {
+        const initialTheme = resolveInitialTheme();
+        set(initialTheme);
+        applyTheme(initialTheme);
     }
 
     return () => {};
@@ -50,13 +81,9 @@ export const darkMode = writable<boolean>(false, (set) => {
 
 // Subscribe to changes and update localStorage and document class
 if (typeof window !== 'undefined') {
-    darkMode.subscribe(isDark => {
-        localStorage.setItem('darkMode', isDark.toString());
-        if (isDark) {
-            document.documentElement.classList.add('dark');
-        } else {
-            document.documentElement.classList.remove('dark');
-        }
+    themeMode.subscribe((mode) => {
+        localStorage.setItem(themeStorageKey, mode);
+        applyTheme(mode);
     });
 }
 

@@ -1,6 +1,7 @@
 #include <array>
 #include <cstring>
 #include <string>
+#include <vector>
 
 #include <unity.h>
 
@@ -75,6 +76,20 @@ void test_rpc_response_with_url() {
     TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
 }
 
+void test_rpc_response_truncates_long_url() {
+    std::string url(200, 'a');
+    auto packet = BuildRPCResponse(0x02, url.c_str(), true);
+
+    TEST_ASSERT_EQUAL_size_t(128, packet.size);
+    assertImprovHeader(packet, 0x04);
+    TEST_ASSERT_EQUAL_UINT8(118, packet.data[8]);
+    TEST_ASSERT_EQUAL_UINT8(0x02, packet.data[9]);
+    TEST_ASSERT_EQUAL_UINT8(116, packet.data[10]);
+    TEST_ASSERT_EQUAL_UINT8(115, packet.data[11]);
+    TEST_ASSERT_EQUAL_MEMORY(url.data(), packet.data + 12, 115);
+    TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
+}
+
 void test_info_response_payload() {
     auto packet = BuildInfoResponse("ESPresense", "1.2.3", "esp32", "livingroom");
     assertImprovHeader(packet, 0x04);
@@ -103,6 +118,29 @@ void test_info_response_payload() {
     cursor += 1;
     TEST_ASSERT_EQUAL_UINT8(10, roomLength);
     TEST_ASSERT_EQUAL_MEMORY("livingroom", packet.data + cursor, roomLength);
+
+    TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
+}
+
+void test_info_response_truncates_long_fields() {
+    std::string longField(200, 'b');
+    auto packet = BuildInfoResponse(longField.c_str(), longField.c_str(), longField.c_str(), longField.c_str());
+
+    TEST_ASSERT_EQUAL_size_t(128, packet.size);
+    assertImprovHeader(packet, 0x04);
+    TEST_ASSERT_EQUAL_UINT8(118, packet.data[8]);
+    TEST_ASSERT_EQUAL_UINT8(116, packet.data[10]);
+
+    const uint8_t firmwareLength = packet.data[11];
+    TEST_ASSERT_EQUAL_UINT8(112, firmwareLength);
+    TEST_ASSERT_EQUAL_MEMORY(longField.data(), packet.data + 12, firmwareLength);
+
+    size_t cursor = 12 + firmwareLength;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
+    cursor += 1;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
+    cursor += 1;
+    TEST_ASSERT_EQUAL_UINT8(0, packet.data[cursor]);
 
     TEST_ASSERT_EQUAL_UINT8(CalculateChecksum(packet), packet.data[packet.size - 1]);
 }
@@ -137,14 +175,76 @@ void test_decode_wifi_credentials_rejects_invalid() {
     TEST_ASSERT_FALSE(DecodeWifiCredentials(payload, payload[0], ssid, password));
 }
 
+// Regression coverage for issue #2316: SSIDs containing punctuation or whitespace
+// must round-trip through the Improv binary protocol byte-for-byte. The decoder
+// is length-prefixed, so embedded apostrophes, quotes, backslashes, ampersands,
+// equals signs, and even raw newlines should not be reinterpreted or split.
+namespace {
+
+void roundtripSsidThroughImprov(const std::string& ssid, const std::string& password) {
+    const uint8_t ssidLen = static_cast<uint8_t>(ssid.size());
+    const uint8_t passLen = static_cast<uint8_t>(password.size());
+    const uint8_t totalLen = static_cast<uint8_t>(ssidLen + passLen + 2);
+
+    std::vector<uint8_t> payload(static_cast<size_t>(totalLen) + 1, 0);
+    payload[0] = totalLen;
+    payload[1] = ssidLen;
+    std::memcpy(payload.data() + 2, ssid.data(), ssidLen);
+    payload[2 + ssidLen] = passLen;
+    std::memcpy(payload.data() + 3 + ssidLen, password.data(), passLen);
+
+    std::string decodedSsid;
+    std::string decodedPassword;
+    TEST_ASSERT_TRUE(DecodeWifiCredentials(payload.data(), payload[0], decodedSsid, decodedPassword));
+    TEST_ASSERT_EQUAL_size_t(ssid.size(), decodedSsid.size());
+    if (!ssid.empty()) {
+        TEST_ASSERT_EQUAL_MEMORY(ssid.data(), decodedSsid.data(), ssid.size());
+    }
+    TEST_ASSERT_EQUAL_size_t(password.size(), decodedPassword.size());
+    if (!password.empty()) {
+        TEST_ASSERT_EQUAL_MEMORY(password.data(), decodedPassword.data(), password.size());
+    }
+}
+
+}  // namespace
+
+void test_decode_wifi_credentials_apostrophe_in_ssid() {
+    // #2316 — "Peter's Wifi" must arrive intact, not "Peter'\ns Wifi"
+    roundtripSsidThroughImprov(std::string("Peter's Wifi"), std::string("hunter2"));
+}
+
+void test_decode_wifi_credentials_punctuation_in_ssid() {
+    // Characters that have meaning in URL-encoded forms or shells must be
+    // copied verbatim by the length-prefixed Improv decoder.
+    roundtripSsidThroughImprov(std::string("a=b&c\"d\\e"), std::string("p&q=r"));
+}
+
+void test_decode_wifi_credentials_embedded_newline_is_preserved() {
+    // If a newline is present in the source bytes, the decoder must not silently
+    // strip it — that would mask provisioning corruption rather than expose it.
+    roundtripSsidThroughImprov(std::string("Peter'\ns Wifi"), std::string(""));
+}
+
+void test_decode_wifi_credentials_whitespace_around_ssid() {
+    // Leading/trailing whitespace must survive the decode so any
+    // trim-on-store policy lives at the storage layer, not silently here.
+    roundtripSsidThroughImprov(std::string("  spaced  "), std::string("\tpw\n"));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_state_response_success);
     RUN_TEST(test_state_response_error);
     RUN_TEST(test_rpc_response_without_url);
     RUN_TEST(test_rpc_response_with_url);
+    RUN_TEST(test_rpc_response_truncates_long_url);
     RUN_TEST(test_info_response_payload);
+    RUN_TEST(test_info_response_truncates_long_fields);
     RUN_TEST(test_decode_wifi_credentials_success);
     RUN_TEST(test_decode_wifi_credentials_rejects_invalid);
+    RUN_TEST(test_decode_wifi_credentials_apostrophe_in_ssid);
+    RUN_TEST(test_decode_wifi_credentials_punctuation_in_ssid);
+    RUN_TEST(test_decode_wifi_credentials_embedded_newline_is_preserved);
+    RUN_TEST(test_decode_wifi_credentials_whitespace_around_ssid);
     return UNITY_END();
 }

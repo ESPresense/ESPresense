@@ -6,15 +6,24 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]
 
-  # Maintain dependencies for npm
+  # Maintain dependencies for npm — all ui bumps land as one weekly PR
   - package-ecosystem: "npm"
     directory: "ui/"
     schedule:
       interval: "weekly"
+    groups:
+      ui:
+        patterns: ["*"]
 
   # Maintain dependencies for nuget
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      nuget:
+        patterns: ["*"]

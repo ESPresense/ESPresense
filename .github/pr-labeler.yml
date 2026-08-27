@@ -1,0 +1,8 @@
+feature: ['feature/*', 'feat/*']
+enhancement: ['enhancement/*', 'enhance/*']
+fix: ['fix/*', 'bugfix/*']
+bug: 'bug/*'
+chore: 'chore/*'
+major: 'major/*'
+minor: 'minor/*'
+patch: 'patch/*'
