@@ -6,6 +6,7 @@
 #include "BleFingerprintCollection.h"
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
+#include "MikrotikTag.h"
 #include "defaults.h"
 #include "globals.h"
 #include "Logger.h"
@@ -523,6 +524,10 @@ void BleFingerprint::fingerprintManufactureData(BLEAdvertisedDevice *advertisedD
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("mifit:" + getMac(), ID_TYPE_MIFIT);
+        } else if (manuf == "094f" && isMikrotikTagManufacturerData(strManufacturerData))  // MikroTik TG-BT5 native format
+        {
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("mikrotik:" + getMac(), ID_TYPE_MIKROTIK);
         } else if (manuf == "0006" && strManufacturerData.length() == 29)  // microsoft
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
