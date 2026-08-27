@@ -35,6 +35,7 @@ const mockHardwareSettings = {
 		dht11_pin: '-1',
 		dht22_pin: '-1',
 		dhtTemp_offset: '0',
+		dhtHumidity_offset: '0',
 		I2C_Bus_1_SDA: '21',
 		I2C_Bus_1_SCL: '22',
 		I2C_Bus_2_SDA: '-1',
@@ -213,6 +214,21 @@ test.describe('Hardware Settings Page', () => {
 	});
 
 	test('should show saving state on submit button', async ({ page }) => {
+		// Gate that holds the POST response until we release it
+		let releasePost!: () => void;
+		const postGate = new Promise<void>((resolve) => {
+			releasePost = resolve;
+		});
+
+		await page.route('**/wifi/hardware', async (route) => {
+			if (route.request().method() === 'POST') {
+				await postGate;
+				await route.fulfill({ status: 200 });
+			} else {
+				await route.fallback();
+			}
+		});
+
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
@@ -221,12 +237,13 @@ test.describe('Hardware Settings Page', () => {
 		// Initial state
 		await expect(submitButton).toHaveText('Save');
 
-		// Click and quickly check for "Saving..." text
-		// Use Promise.all to catch the state change immediately
-		await Promise.all([
-			page.waitForSelector('button[type="submit"]:has-text("Saving...")'),
-			submitButton.click()
-		]);
+		// Click, then assert "Saving..." while POST is held open
+		const clickPromise = submitButton.click();
+		await expect(submitButton).toHaveText('Saving...', { timeout: 5000 });
+
+		// Release the POST response
+		releasePost();
+		await clickPromise;
 
 		// Eventually returns to normal state
 		await expect(submitButton).toHaveText('Save', { timeout: 10000 });

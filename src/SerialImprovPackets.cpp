@@ -48,6 +48,10 @@ PacketBuffer BuildRPCResponse(uint8_t commandId, const char* url, bool includeUr
 
     const char* urlToWrite = includeUrl ? url : nullptr;
     size_t urlLength = (urlToWrite != nullptr) ? std::strlen(urlToWrite) : 0;
+    if (urlLength > 0) {
+        size_t const maxUrlLength = sizeof(buffer.data) - 13;  // fixed packet overhead plus url length byte
+        if (urlLength > maxUrlLength) urlLength = maxUrlLength;
+    }
     const bool hasUrl = (urlToWrite != nullptr) && (urlLength > 0);
 
     const uint8_t dataLength = hasUrl ? static_cast<uint8_t>(1 + urlLength) : 0;
@@ -83,25 +87,33 @@ PacketBuffer BuildInfoResponse(const char* firmware, const char* version, const 
     const char* hardwareName = hardware ? hardware : "";
     const char* roomName = room ? room : "";
 
-    const uint8_t firmwareLen = static_cast<uint8_t>(std::strlen(firmwareName));
-    out[index++] = firmwareLen;
-    std::memcpy(out + index, firmwareName, firmwareLen);
-    index += firmwareLen;
+    auto appendField = [&](const char* value, size_t remainingFields) {
+        size_t const available = sizeof(buffer.data) - index - 1;  // reserve checksum
+        size_t fieldLen = std::strlen(value);
+        size_t const reservedForOtherLengths = remainingFields > 0 ? remainingFields - 1 : 0;
 
-    const uint8_t versionLen = static_cast<uint8_t>(std::strlen(versionString));
-    out[index++] = versionLen;
-    std::memcpy(out + index, versionString, versionLen);
-    index += versionLen;
+        if (available == 0) {
+            return;
+        }
 
-    const uint8_t hardwareLen = static_cast<uint8_t>(std::strlen(hardwareName));
-    out[index++] = hardwareLen;
-    std::memcpy(out + index, hardwareName, hardwareLen);
-    index += hardwareLen;
+        if (available <= reservedForOtherLengths + 1) {
+            fieldLen = 0;
+        } else {
+            size_t const maxFieldLen = available - reservedForOtherLengths - 1;
+            if (fieldLen > maxFieldLen) fieldLen = maxFieldLen;
+        }
 
-    const uint8_t roomLen = static_cast<uint8_t>(std::strlen(roomName));
-    out[index++] = roomLen;
-    std::memcpy(out + index, roomName, roomLen);
-    index += roomLen;
+        out[index++] = static_cast<uint8_t>(fieldLen);
+        if (fieldLen > 0) {
+            std::memcpy(out + index, value, fieldLen);
+            index += fieldLen;
+        }
+    };
+
+    appendField(firmwareName, 4);
+    appendField(versionString, 3);
+    appendField(hardwareName, 2);
+    appendField(roomName, 1);
 
     const uint8_t payloadLength = static_cast<uint8_t>(index - 9);
     const uint8_t dataLength = static_cast<uint8_t>(index - 11);
