@@ -239,7 +239,7 @@ bool SendDiscovery() {
     return sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("Arduino OTA", EC_CONFIG) && sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendButtonDiscovery("Update", EC_DIAGNOSTIC);
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     autoUpdateEnabled = HeadlessWiFiSettings.checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
     prerelease = HeadlessWiFiSettings.checkbox("prerelease", false, "Include pre-released versions in auto-update");
     arduinoOtaEnabled = HeadlessWiFiSettings.checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");

@@ -55,7 +55,7 @@ namespace AHTX0
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         AHTX0_I2c_Bus = HeadlessWiFiSettings.integer("AHTX0_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         AHTX0_I2c = HeadlessWiFiSettings.string("AHTX0_I2c", "", "I2C address (0x38 or 0x39)");

@@ -16,6 +16,7 @@
 #include "CAN.h"
 #include "Enrollment.h"
 #include "GUI.h"
+#include "HeapWatchdog.h"
 #include "HttpReleaseUpdate.h"
 #include "HttpWebServer.h"
 #include "Motion.h"

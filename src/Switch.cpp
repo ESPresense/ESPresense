@@ -44,7 +44,7 @@ void Setup() {
  * The detected logic level for each switch is derived from the selected type: if the type's
  * least-significant bit is set, the detection level is `LOW`; otherwise it is `HIGH`.
  */
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     std::vector<String> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     switch_1Type = HeadlessWiFiSettings.dropdown("switch_1_type", pinTypes, 0, "Switch One pin type");
     switch_1Pin = HeadlessWiFiSettings.integer("switch_1_pin", -1, "Switch One pin (-1 for disable)");

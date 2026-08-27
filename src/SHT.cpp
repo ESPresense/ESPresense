@@ -41,7 +41,7 @@ void Setup() {
     }
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     bus = HeadlessWiFiSettings.integer("SHT_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
 }
 

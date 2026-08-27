@@ -121,7 +121,7 @@ namespace DS18B20
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         ds18b20Pin = HeadlessWiFiSettings.integer("ds18b20_pin", -1, "DS18B20 sensor pin (-1 for disable)");
         dsTempOffset = HeadlessWiFiSettings.floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");

@@ -16,6 +16,7 @@ struct DeviceConfig {
     String alias;
     String name;
     int8_t calRssi = NO_RSSI;
+    bool allowConnect = false;
 };
 
 namespace BleFingerprintCollection {
@@ -34,7 +35,7 @@ struct FingerprintLease {
 };
 
 void Setup();
-void ConnectToWifi();
+void ConnectToWifi(bool updating);
 bool Command(String &command, String &pay);
 bool Config(String &id, String &json);
 

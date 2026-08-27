@@ -3,6 +3,7 @@
 
 #include "esp_heap_caps.h"
 
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
@@ -185,13 +186,15 @@ void setupNetwork() {
     publishTele = HeadlessWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishDevices = HeadlessWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    Updater::ConnectToWifi();
+    bool updating = SPIFFS.exists("/update");
+
+    Updater::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/extras endpoint
     HeadlessWiFiSettings.markExtra();
 
     // Register BLE scanning and fingerprinting settings (part of extras endpoint)
-    BleFingerprintCollection::ConnectToWifi();
+    BleFingerprintCollection::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/hardware endpoint
     // IMPORTANT: This order matters! BleFingerprintCollection must be registered before
@@ -199,28 +202,29 @@ void setupNetwork() {
     HeadlessWiFiSettings.markEndpoint("hardware");
 
     // Register hardware settings (LEDs, PIR, I2C, etc.) - part of hardware endpoint
-    GUI::ConnectToWifi();
+    GUI::ConnectToWifi(updating);
 
-    Motion::ConnectToWifi();
-    Switch::ConnectToWifi();
-    Button::ConnectToWifi();
+    Motion::ConnectToWifi(updating);
+    Switch::ConnectToWifi(updating);
+    Button::ConnectToWifi(updating);
 
 #ifdef SENSORS
-    DHT::ConnectToWifi();
-    I2C::ConnectToWifi();
+    DHT::ConnectToWifi(updating);
+    I2C::ConnectToWifi(updating);
 
-    AHTX0::ConnectToWifi();
-    BH1750::ConnectToWifi();
-    BME280::ConnectToWifi();
-    BMP180::ConnectToWifi();
-    BMP280::ConnectToWifi();
-    SHT::ConnectToWifi();
-    TSL2561::ConnectToWifi();
-    SensirionSGP30::ConnectToWifi();
-    SensirionSCD4x::ConnectToWifi();
-    HX711::ConnectToWifi();
-    DS18B20::ConnectToWifi();
+    AHTX0::ConnectToWifi(updating);
+    BH1750::ConnectToWifi(updating);
+    BME280::ConnectToWifi(updating);
+    BMP180::ConnectToWifi(updating);
+    BMP280::ConnectToWifi(updating);
+    SHT::ConnectToWifi(updating);
+    TSL2561::ConnectToWifi(updating);
+    SensirionSGP30::ConnectToWifi(updating);
+    SensirionSCD4x::ConnectToWifi(updating);
+    HX711::ConnectToWifi(updating);
+    DS18B20::ConnectToWifi(updating);
 #endif
+
 
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
@@ -345,10 +349,6 @@ void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
  * @param payload MQTT message payload string (null-terminated).
  */
 void onMqttMessage(const char *topic, const char *payload) {
-    if (ESP.getFreeHeap() < 40000) {
-        log_w("Skipping MQTT message, low heap: %u", ESP.getFreeHeap());
-        return;
-    }
     String const top = String(topic);
     String pay = String(payload);
 
@@ -410,19 +410,8 @@ std::string payload_buffer_;
  * @param total Total size in bytes of the full MQTT message.
  */
 void onMqttMessageRaw(char *topic, char *payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-    if (index == 0) {
-        if (ESP.getFreeHeap() < 40000 || total > 4096) {
-            log_w("Skipping MQTT message (low heap: %u, size: %u): %s", ESP.getFreeHeap(), total, topic);
-            payload_buffer_.clear();
-            return;
-        }
+    if (index == 0)
         payload_buffer_.reserve(total);
-    }
-    if (payload_buffer_.capacity() < total || payload_buffer_.size() != index) {
-        // Fragment continuity check failed or insufficient capacity; discard buffer
-        payload_buffer_.clear();
-        return;
-    }
 
     // append new payload, may contain incomplete MQTT message
     payload_buffer_.append(payload, len);
@@ -510,10 +499,6 @@ void reportLoop() {
     if (!mqttClient.connected()) {
         return;
     }
-    if (ESP.getFreeHeap() < 40000) {
-        log_w("Skipping reportLoop, low heap: %u", ESP.getFreeHeap());
-        return;
-    }
 
     yield();
     auto fingerprintCount = BleFingerprintCollection::Size();
@@ -563,13 +548,13 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice *advertisedDevice) {
 #endif
         bleStack = uxTaskGetStackHighWaterMark(nullptr);
-        if (ESP.getFreeHeap() >= 40000)
-            BleFingerprintCollection::Seen(advertisedDevice);
+        BleFingerprintCollection::Seen(advertisedDevice);
     }
 };
 
 void scanTask(void *parameter) {
     NimBLEDevice::init("ESPresense");
+    NimBLEDevice::deleteAllBonds();
     Enrollment::Setup();
     NimBLEDevice::setMTU(23);
 
@@ -592,16 +577,14 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        if (ESP.getFreeHeap() >= 40000) {
-            size_t cursor = 0;
-            while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
-                if (lease.fingerprint->query())
-                    totalFpQueried++;
-                BleFingerprintCollection::Release(lease);
-            }
-
-            Enrollment::Loop();
+        size_t cursor = 0;
+        while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+            if (lease.fingerprint->query())
+                totalFpQueried++;
+            BleFingerprintCollection::Release(lease);
         }
+
+        Enrollment::Loop();
 
         if (!pBLEScan->isScanning()) {
 #ifdef NIMBLE_V2
@@ -695,8 +678,30 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
+        auto maxAlloc = ESP.getMaxAllocHeap();
+        // maxAlloc as well as freeHeap: #2309's node logged "Low memory: ~20000 bytes free"
+        // for twenty minutes without the one number that explained the crash — its largest
+        // free block was already under the 2312 byte request that kept failing.
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\r\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
         if (freeHeap > 70000) Updater::Loop();
+
+        // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
+        // telemetry both fail, nothing recovers), so reboot after 60s stuck below the
+        // threshold mqtt already refuses to publish under. Same escape hatch as the stuck
+        // BLE controller restart in BleFingerprintCollection::CleanupOldFingerprints().
+        static uint8_t lowHeapPasses = 0;
+        switch (heapWatchdogTick(freeHeap, maxAlloc, MQTT_MIN_FREE_MEMORY, MIN_MAX_ALLOC_HEAP, lowHeapPasses)) {
+            case HeapTrip::FreeHeap:
+                Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+                break;
+            case HeapTrip::MaxAlloc:
+                Log.printf("Heap too fragmented for 60s (largest block %lu, %lu bytes free), restarting\r\n", static_cast<unsigned long>(maxAlloc), static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+                break;
+            case HeapTrip::None:
+                break;
+        }
     }
     GUI::Loop();
     Motion::Loop();
