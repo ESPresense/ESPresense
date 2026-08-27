@@ -3,9 +3,10 @@
 
 #include "esp_heap_caps.h"
 
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
-    printf("%s was called but failed to allocate %lu bytes with 0x%lX capabilities. \n", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
+    ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
 }
 
 /**
@@ -160,6 +161,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
  */
 void setupNetwork() {
     Log.println("Setup network");
+    WiFi.persistent(false);
     WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
     GUI::Connected(false, false);
 
@@ -184,13 +186,15 @@ void setupNetwork() {
     publishTele = HeadlessWiFiSettings.checkbox("pub_tele", true, "Send to telemetry topic");
     publishDevices = HeadlessWiFiSettings.checkbox("pub_devices", true, "Send to devices topic");
 
-    Updater::ConnectToWifi();
+    bool updating = SPIFFS.exists("/update");
+
+    Updater::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/extras endpoint
     HeadlessWiFiSettings.markExtra();
 
     // Register BLE scanning and fingerprinting settings (part of extras endpoint)
-    BleFingerprintCollection::ConnectToWifi();
+    BleFingerprintCollection::ConnectToWifi(updating);
 
     // Mark endpoint boundary: settings registered after this belong to /wifi/hardware endpoint
     // IMPORTANT: This order matters! BleFingerprintCollection must be registered before
@@ -198,28 +202,29 @@ void setupNetwork() {
     HeadlessWiFiSettings.markEndpoint("hardware");
 
     // Register hardware settings (LEDs, PIR, I2C, etc.) - part of hardware endpoint
-    GUI::ConnectToWifi();
+    GUI::ConnectToWifi(updating);
 
-    Motion::ConnectToWifi();
-    Switch::ConnectToWifi();
-    Button::ConnectToWifi();
+    Motion::ConnectToWifi(updating);
+    Switch::ConnectToWifi(updating);
+    Button::ConnectToWifi(updating);
 
 #ifdef SENSORS
-    DHT::ConnectToWifi();
-    I2C::ConnectToWifi();
+    DHT::ConnectToWifi(updating);
+    I2C::ConnectToWifi(updating);
 
-    AHTX0::ConnectToWifi();
-    BH1750::ConnectToWifi();
-    BME280::ConnectToWifi();
-    BMP180::ConnectToWifi();
-    BMP280::ConnectToWifi();
-    SHT::ConnectToWifi();
-    TSL2561::ConnectToWifi();
-    SensirionSGP30::ConnectToWifi();
-    SensirionSCD4x::ConnectToWifi();
-    HX711::ConnectToWifi();
-    DS18B20::ConnectToWifi();
+    AHTX0::ConnectToWifi(updating);
+    BH1750::ConnectToWifi(updating);
+    BME280::ConnectToWifi(updating);
+    BMP180::ConnectToWifi(updating);
+    BMP280::ConnectToWifi(updating);
+    SHT::ConnectToWifi(updating);
+    TSL2561::ConnectToWifi(updating);
+    SensirionSGP30::ConnectToWifi(updating);
+    SensirionSCD4x::ConnectToWifi(updating);
+    HX711::ConnectToWifi(updating);
+    DS18B20::ConnectToWifi(updating);
 #endif
+
 
     unsigned int connectProgress = 0;
     HeadlessWiFiSettings.onWaitLoop = [&connectProgress]() {
@@ -496,21 +501,26 @@ void reportLoop() {
     }
 
     yield();
-    auto copy = BleFingerprintCollection::GetCopy();
+    auto fingerprintCount = BleFingerprintCollection::Size();
 
     unsigned int count = 0;
-    for (auto &i : copy)
-        if (i->shouldCount())
+    size_t cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+        if (lease.fingerprint->shouldCount())
             count++;
+        BleFingerprintCollection::Release(lease);
+    }
 
     GUI::Count(count);
 
     yield();
-    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, copy.size());
+    sendTelemetry(totalSeen, totalFpSeen, totalFpQueried, totalFpReported, count, fingerprintCount);
     yield();
 
     auto reported = 0;
-    for (auto &f : copy) {
+    cursor = 0;
+    while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+        auto *f = lease.fingerprint;
         auto seen = f->getSeenCount();
         if (seen) {
             totalSeen += seen;
@@ -525,6 +535,7 @@ void reportLoop() {
             totalFpReported++;
             reported++;
         }
+        BleFingerprintCollection::Release(lease);
         yield();
     }
 }
@@ -543,6 +554,7 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
 
 void scanTask(void *parameter) {
     NimBLEDevice::init("ESPresense");
+    NimBLEDevice::deleteAllBonds();
     Enrollment::Setup();
     NimBLEDevice::setMTU(23);
 
@@ -565,10 +577,12 @@ void scanTask(void *parameter) {
         log_e("Error starting continuous ble scan");
 
     while (true) {
-        auto queryable = BleFingerprintCollection::GetCopy(false);
-        for (auto &f : queryable)
-            if (f->query())
+        size_t cursor = 0;
+        while (auto lease = BleFingerprintCollection::AcquireNext(cursor, false)) {
+            if (lease.fingerprint->query())
                 totalFpQueried++;
+            BleFingerprintCollection::Release(lease);
+        }
 
         Enrollment::Loop();
 
@@ -664,8 +678,30 @@ void loop() {
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
         auto freeHeap = ESP.getFreeHeap();
-        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free\r\n", static_cast<unsigned long>(freeHeap));
+        auto maxAlloc = ESP.getMaxAllocHeap();
+        // maxAlloc as well as freeHeap: #2309's node logged "Low memory: ~20000 bytes free"
+        // for twenty minutes without the one number that explained the crash — its largest
+        // free block was already under the 2312 byte request that kept failing.
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\r\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
         if (freeHeap > 70000) Updater::Loop();
+
+        // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
+        // telemetry both fail, nothing recovers), so reboot after 60s stuck below the
+        // threshold mqtt already refuses to publish under. Same escape hatch as the stuck
+        // BLE controller restart in BleFingerprintCollection::CleanupOldFingerprints().
+        static uint8_t lowHeapPasses = 0;
+        switch (heapWatchdogTick(freeHeap, maxAlloc, MQTT_MIN_FREE_MEMORY, MIN_MAX_ALLOC_HEAP, lowHeapPasses)) {
+            case HeapTrip::FreeHeap:
+                Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+                break;
+            case HeapTrip::MaxAlloc:
+                Log.printf("Heap too fragmented for 60s (largest block %lu, %lu bytes free), restarting\r\n", static_cast<unsigned long>(maxAlloc), static_cast<unsigned long>(freeHeap));
+                ESP.restart();
+                break;
+            case HeapTrip::None:
+                break;
+        }
     }
     GUI::Loop();
     Motion::Loop();

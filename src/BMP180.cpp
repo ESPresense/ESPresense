@@ -51,7 +51,7 @@ namespace BMP180
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         BMP180_I2c_Bus = HeadlessWiFiSettings.integer("BMP180_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BMP180_I2c = HeadlessWiFiSettings.string("BMP180_I2c", "", "I2C address (0x77)");

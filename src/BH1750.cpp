@@ -84,7 +84,7 @@ namespace BH1750
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         BH1750_I2c_Bus = HeadlessWiFiSettings.integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BH1750_I2c = HeadlessWiFiSettings.string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
