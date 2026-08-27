@@ -3,6 +3,7 @@
 #include "ArduinoJson.h"
 #include "AsyncJson.h"
 #include "Enrollment.h"
+#include "SPIFFS.h"
 #include "TeleJson.h"
 #include "defaults.h"
 #include "globals.h"
@@ -10,6 +11,53 @@
 #include "ui_routes.h"
 
 namespace HttpWebServer {
+
+namespace {
+// Matches HeadlessWiFiSettings' internal mask sentinel: posting a masked export back must
+// never overwrite the stored secret with the mask itself. Any value equal to this is skipped
+// on import, so `GET /json/settings | POST /json/settings` round-trips without losing secrets.
+constexpr const char *SETTINGS_MASK = "***###***";
+
+// Keys registered via HeadlessWiFiSettings::pstring() - masked from exports unless ?includeSecrets=1.
+bool isSecretSetting(const String &name) {
+    return name == F("wifi-password") || name == F("mqtt_user") || name == F("mqtt_pass");
+}
+
+// Every HeadlessWiFiSettings value lives in a flat SPIFFS file named /<key>. Restrict imports to
+// the charset actually used by registered keys so a crafted body cannot stuff arbitrary paths.
+bool validSettingName(const String &name) {
+    if (name.isEmpty() || name.length() > 31) return false;
+    for (size_t i = 0; i < name.length(); i++) {
+        char const c = name.charAt(i);
+        if (!isalnum(c) && c != '_' && c != '-' && c != '.') return false;
+    }
+    return true;
+}
+
+String jsonEscape(const String &s) {
+    String out;
+    out.reserve(s.length() + 8);
+    for (size_t i = 0; i < s.length(); i++) {
+        char const c = s.charAt(i);
+        switch (c) {
+            case '"': out += F("\\\""); break;
+            case '\\': out += F("\\\\"); break;
+            case '\n': out += F("\\n"); break;
+            case '\r': out += F("\\r"); break;
+            case '\t': out += F("\\t"); break;
+            default:
+                if ((unsigned char)c < 0x20) {
+                    char buf[7];
+                    snprintf(buf, sizeof(buf), "\\u%04x", c);
+                    out += buf;
+                } else {
+                    out += c;
+                }
+        }
+    }
+    return out;
+}
+}  // namespace
 
 void serializeInfo(JsonObject &root) {
     root["room"] = room;
@@ -89,6 +137,96 @@ void serializeDevices(JsonObject &root, bool showAll) {
 }
 
 bool servingJson = false;
+
+// Full-node settings backup/restore (#2493). Every HeadlessWiFiSettings-backed value (wifi, mqtt,
+// room, ble tuning, pins, leds, sensors - everything the /wifi* endpoints edit) persists as a flat
+// SPIFFS file named /<key>, so enumerating the filesystem root exports exactly what a node has
+// explicitly configured - including board- and build-specific settings no static list can keep up
+// with. Values are emitted as the exact stored strings (checkboxes are "1"/"0", ints/floats their
+// decimal form), which is what makes GET -> POST lossless: whatever was exported re-imports
+// byte-identical. Defaults live in firmware code, not on disk, so unset settings are simply absent
+// and a restored node falls back to the same defaults it was built with.
+void serveSettings(AsyncWebServerRequest *request) {
+    // Same doctrine as serveTele: the backup endpoint is most valuable on a troubled node, so
+    // refuse cleanly instead of dying mid-String when the heap cannot afford the document.
+    if (ESP.getMaxAllocHeap() < 8192 || ESP.getFreeHeap() < 16384) {
+        request->send(429, "application/json", F("{\"error\":\"low memory\"}"));
+        return;
+    }
+
+    bool includeSecrets = false;
+    int const paramsNr = request->params();
+    for (int i = 0; i < paramsNr; i++) {
+        const AsyncWebParameter *p = request->getParam(i);
+        if (p->name() == "includeSecrets") includeSecrets = p->value() == "1" || p->value() == "true";
+    }
+
+    String out = F("{\"settings\":{");
+    bool needsComma = false;
+    File dir = SPIFFS.open("/");
+    if (dir) {
+        while (File entry = dir.openNextFile()) {
+            // Core 2.x reports "/key", 3.x reports "key" - SPIFFS is flat, both mean the same file.
+            String key = entry.name();
+            if (key.startsWith("/")) key = key.substring(1);
+            if (!key.isEmpty()) {
+                String value = entry.readString();
+                if (!includeSecrets && isSecretSetting(key)) value = SETTINGS_MASK;
+                if (needsComma) out += ',';
+                out += '"';
+                out += jsonEscape(key);
+                out += F("\":\"");
+                out += jsonEscape(value);
+                out += '"';
+                needsComma = true;
+            }
+            entry.close();
+        }
+        dir.close();
+    }
+    out += F("}}");
+    request->send(200, "application/json", out);
+}
+
+bool applySettings(JsonObject settings, int &written, int &removed, int &skippedMasked) {
+    for (JsonPair kv : settings) {
+        String key = kv.key().c_str();
+        if (!validSettingName(key)) return false;
+
+        String value;
+        JsonVariant v = kv.value();
+        if (v.is<bool>())
+            value = v.as<bool>() ? "1" : "0";  // checkboxes store "1"/"0"; "true" would read back as set
+        else if (v.is<const char *>())
+            value = v.as<const char *>();
+        else if (v.isNull())
+            value = "";  // explicit null clears the override and falls back to the firmware default
+        else
+            serializeJson(v, value);
+
+        if (value == SETTINGS_MASK) {
+            skippedMasked++;
+            continue;  // masked secret from a default GET - keep whatever is stored on this node
+        }
+
+        String fn = "/";
+        fn += key;
+        if (value.isEmpty()) {
+            // HeadlessWiFiSettings::store() removes the file for empty values; mirror that so a
+            // restore can undo an override instead of pinning an empty string over the default.
+            if (SPIFFS.exists(fn) && !SPIFFS.remove(fn)) return false;
+            removed++;
+        } else {
+            File f = SPIFFS.open(fn, "w");
+            if (!f) return false;
+            auto const w = f.print(value);
+            f.close();
+            if (w != value.length()) return false;
+            written++;
+        }
+    }
+    return true;
+}
 
 void serveJson(AsyncWebServerRequest *request) {
     if (servingJson) {
@@ -225,6 +363,9 @@ void Init(AsyncWebServer *server) {
     server->on("/restart", HTTP_POST, onRestart);
     server->on("/reboot", HTTP_POST, onRestart);
     server->on("/json/tele", HTTP_GET, serveTele);
+    // Must be registered before the catch-all "/json" GET route below, which also matches
+    // subpaths (that is how serveJson sees /json/configs and /json/devices).
+    server->on("/json/settings", HTTP_GET, serveSettings);
     server->on("/json", HTTP_GET, serveJson);
 
     server->on("/json/configs", HTTP_DELETE, [](AsyncWebServerRequest *request) {
@@ -240,6 +381,40 @@ void Init(AsyncWebServer *server) {
             request->send(500, "application/json", F("{\"error\":\"Failed to delete config\"}"));
         }
     });
+
+    // Settings import (#2493). Registered before the generic "/json" handler so this body gets
+    // the larger document it needs without changing the memory profile of the configs POST.
+    AsyncCallbackJsonWebHandler *settingsHandler = new AsyncCallbackJsonWebHandler(
+        "/json/settings", [](AsyncWebServerRequest *request, JsonVariant &json) {
+            if (request->method() != HTTP_POST) {
+                request->send(405, "application/json", F("{\"error\":\"Method not allowed\"}"));
+                return;
+            }
+
+            JsonObject root = json.as<JsonObject>();
+            if (root.isNull() || !root["settings"].is<JsonObject>()) {
+                request->send(400, "application/json", F("{\"error\":\"Expected {\\\"settings\\\":{...}}\"}"));
+                return;
+            }
+
+            int written = 0, removed = 0, skippedMasked = 0;
+            if (!applySettings(root["settings"].as<JsonObject>(), written, removed, skippedMasked)) {
+                request->send(500, "application/json", F("{\"error\":\"Failed to persist settings\"}"));
+                return;
+            }
+
+            String out = F("{\"success\":true,\"written\":");
+            out += written;
+            out += F(",\"removed\":");
+            out += removed;
+            out += F(",\"skippedMasked\":");
+            out += skippedMasked;
+            out += F(",\"rebootRequired\":true}");
+            request->send(200, "application/json", out);
+        },
+        8192);  // a full ~100-setting backup does not fit the 1KB default document
+    settingsHandler->setMaxContentLength(8192);
+    server->addHandler(settingsHandler);
 
     AsyncCallbackJsonWebHandler *handler = new AsyncCallbackJsonWebHandler(
         "/json", [](AsyncWebServerRequest *request, JsonVariant &json) {
