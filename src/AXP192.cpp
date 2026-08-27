@@ -1,8 +1,10 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <soc/soc_caps.h>
 
 namespace AXP192 {
+#if SOC_I2C_NUM > 1
 
 uint8_t Read8bit(uint8_t Addr) {
     Wire1.beginTransmission(0x34);
@@ -48,4 +50,8 @@ void Setup() {
 
 void Loop() {
 }
+#else
+void Setup() {}
+void Loop() {}
+#endif
 }  // namespace AXP192

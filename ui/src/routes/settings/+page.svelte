@@ -58,12 +58,12 @@
         </p>
         <p>
             <label>
-                Maximum number of fingerprints to track before LRU eviction:<br />
+                Maximum BLE fingerprints to track:<br />
                 <input
                     type="number"
                     step="1"
-                    min="10"
-                    max="1000"
+                    min="16"
+                    max="2048"
                     name="max_fingerprints"
                     placeholder={$extraSettings.defaults['max_fingerprints']}
                     bind:value={$extraSettings.values['max_fingerprints']}/>
@@ -256,3 +256,4 @@
     </form>
     {/if}
 </div>
+

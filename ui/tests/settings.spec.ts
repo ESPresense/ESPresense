@@ -159,8 +159,8 @@ test.describe('Settings Page', () => {
 
 		// Test max_fingerprints min/max
 		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
-		await expect(maxFingerprints).toHaveAttribute('min', '10');
-		await expect(maxFingerprints).toHaveAttribute('max', '1000');
+		await expect(maxFingerprints).toHaveAttribute('min', '16');
+		await expect(maxFingerprints).toHaveAttribute('max', '2048');
 
 		// Test requery_ms min/max
 		const requeryMs = page.locator('input[name="requery_ms"]');

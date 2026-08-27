@@ -35,10 +35,12 @@ namespace BME280
             ok = BME280.begin(0x76, &Wire);
         } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 1) {
             ok = BME280.begin(0x77, &Wire);
+#if SOC_I2C_NUM > 1
         } else if (BME280_I2c == "0x76" && BME280_I2c_Bus == 2) {
             ok = BME280.begin(0x76, &Wire1);
         } else if (BME280_I2c == "0x77" && BME280_I2c_Bus == 2) {
             ok = BME280.begin(0x77, &Wire1);
+#endif
         } else {
             return;
         }
@@ -59,7 +61,7 @@ namespace BME280
         initialized = true;
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         BME280_I2c_Bus = HeadlessWiFiSettings.integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         BME280_I2c = HeadlessWiFiSettings.string("BME280_I2c", "", "I2C address (0x76 or 0x77)");

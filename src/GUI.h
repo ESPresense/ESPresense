@@ -10,7 +10,7 @@ namespace GUI {
 void Setup(bool beforeWifi);
 void SerialReport();
 bool SendOnline();
-void ConnectToWifi();
+void ConnectToWifi(bool updating);
 bool SendDiscovery();
 void Loop();
 void Added(BleFingerprint *f);

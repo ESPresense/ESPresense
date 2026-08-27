@@ -4,10 +4,14 @@
 #include <string>
 #include <cstring>
 
-#define CHIPID (unsigned int)(ESP.getEfuseMac() >> 24)
+#define CHIPID ((unsigned int)(ESP.getEfuseMac() >> 24))
 #define ESPMAC (Sprintf("%06x", CHIPID))
-#define Sprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const String r = s; free(s); r; })
-#define Stdprintf(f, ...) ({ char* s; asprintf(&s, f, __VA_ARGS__); const std::string r = s; free(s); r; })
+// asprintf mallocs *s and returns -1 on OOM leaving *s indeterminate. The old form read an
+// uninitialized s (String/std::string from a garbage pointer -> strlen/copy fault) and free()'d
+// it -> the #2309 S3 Guru (LoadProhibited / std::length_error) once the heap was exhausted.
+// Guard: only touch/free s when asprintf succeeded; otherwise yield an empty string.
+#define Sprintf(f, ...) ({ char* s = nullptr; String r; if (asprintf(&s, f, __VA_ARGS__) >= 0 && s) { r = s; free(s); } r; })
+#define Stdprintf(f, ...) ({ char* s = nullptr; std::string r; if (asprintf(&s, f, __VA_ARGS__) >= 0 && s) { r = s; free(s); } r; })
 
 std::string slugify(const std::string& text);
 String slugify(const String& text);

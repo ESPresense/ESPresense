@@ -33,9 +33,17 @@ namespace AHTX0
         aht = new Adafruit_AHTX0();
         bool ok = false;
         if (AHTX0_I2c == "0x38") {
+#if SOC_I2C_NUM > 1
             ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x38);
+#else
+            ok = aht->begin(&Wire, 0x38);
+#endif
         } else if (AHTX0_I2c == "0x39") {
+#if SOC_I2C_NUM > 1
             ok = aht->begin(AHTX0_I2c_Bus == 1 ? &Wire : &Wire1, 0x39);
+#else
+            ok = aht->begin(&Wire, 0x39);
+#endif
         } else {
             return;
         }
@@ -47,7 +55,7 @@ namespace AHTX0
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
         AHTX0_I2c_Bus = HeadlessWiFiSettings.integer("AHTX0_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
         AHTX0_I2c = HeadlessWiFiSettings.string("AHTX0_I2c", "", "I2C address (0x38 or 0x39)");

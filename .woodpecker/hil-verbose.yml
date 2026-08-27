@@ -4,9 +4,15 @@
 when:
   - event: manual
 
+# Pin to the docker/Linux agent with the ESP32 hardware (see hil.yml).
+labels:
+  backend: docker
+  platform: linux/amd64
+
 steps:
   - name: test-esp32-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
@@ -22,16 +28,17 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32-verbose.lock bash -c '
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/esp32.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -39,6 +46,7 @@ steps:
 
   - name: test-esp32c3-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
@@ -54,16 +62,17 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c3
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c3/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c3/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32c3-verbose.lock bash -c '
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/esp32c3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -71,6 +80,7 @@ steps:
 
   - name: test-esp32c6-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     failure: ignore
@@ -87,16 +97,17 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c6/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c6/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32c6-verbose.lock bash -c '
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/esp32c6.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
@@ -104,6 +115,7 @@ steps:
 
   - name: test-esp32s3-verbose
     image: ghcr.io/espresense/firmware-tester:1
+    pull: true
     privileged: true
     depends_on: []
     volumes:
@@ -119,16 +131,17 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio
-      PLATFORMIO_LIBDEPS_DIR: /cache/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platforms
+      PLATFORMIO_CORE_DIR: /cache/platformio-esp32s3
+      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32s3/libdeps
+      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32s3/build_cache
+      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
     commands:
       - |
-        flock -w 3600 /lock/esp32s3-verbose.lock bash -c '
+        export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
+        git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        flock -w 3600 /lock/esp32s3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
           PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
           python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS

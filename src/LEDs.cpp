@@ -36,7 +36,7 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, String
     return led;
 }
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     std::vector<String> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
     std::vector<String> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
 
