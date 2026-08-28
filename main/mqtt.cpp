@@ -75,7 +75,7 @@ void Setup(const std::string& host, uint16_t port, const std::string& user, cons
     cfg.session.keepalive = 60;
     cfg.network.reconnect_timeout_ms = 3000;
     cfg.network.timeout_ms = 10000;
-    cfg.buffer.size = 2048;
+    cfg.buffer.size = 1024;
     cfg.task.stack_size = 6144;
     client = esp_mqtt_client_init(&cfg);
     esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, onEvent, nullptr);
