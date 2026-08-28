@@ -34,11 +34,12 @@ steps:
       - |
         . $IDF_PATH/export.sh
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+        cp -r . /tmp/src && cd /tmp/src
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/esp32.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+          ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -67,11 +68,12 @@ steps:
       - |
         . $IDF_PATH/export.sh
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+        cp -r . /tmp/src && cd /tmp/src
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/esp32c3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+          ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -101,11 +103,12 @@ steps:
       - |
         . $IDF_PATH/export.sh
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+        cp -r . /tmp/src && cd /tmp/src
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/esp32c6.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+          ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '
@@ -134,11 +137,12 @@ steps:
       - |
         . $IDF_PATH/export.sh
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+        cp -r . /tmp/src && cd /tmp/src
         git config --global url."https://${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
         flock -w 3600 /lock/esp32s3.lock bash -c '
           set -e
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
-          ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+          ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
           python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
         '

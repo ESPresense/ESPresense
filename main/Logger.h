@@ -8,7 +8,7 @@ class Logger {
    public:
     static Logger& instance();
 
-    void printf(const char* fmt, ...) __attribute__((format(printf, 2, 3)));
+    void printf(const char* fmt, ...) __attribute__((format(printf, 2, 3)));  /* Flawfinder: ignore */
     void print(const char* s);
     void print(const std::string& s) { print(s.c_str()); }
     void print(int v) { printf("%d", v); }
