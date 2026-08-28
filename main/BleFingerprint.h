@@ -7,6 +7,8 @@
 #include <string>
 
 #include "Ble.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "util.h"
 
 #include "QueryReport.h"
@@ -73,11 +75,20 @@ class BleFingerprint {
     bool query();
     bool queryBatteryIfDue();
 
-    const std::string getId() const { return id; }
+    // id/name/discoveredIrk are written from the BLE host task (seen) and the MQTT task
+    // (Config) and read from the loop and httpd tasks: every access goes through fieldLock().
+    // Reading a std::string mid-assignment on another core was a LoadProhibited on the S3.
+    const std::string getId() const { FieldLock l; return id; }
 
-    const std::string getName() const { return name; }
+    const std::string getName() const { FieldLock l; return name; }
 
-    void setName(const std::string &name) { this->name = name; }
+    void setName(const std::string &name) { FieldLock l; this->name = name; }
+
+    static void InitLocks();
+    struct FieldLock {
+        FieldLock() { xSemaphoreTakeRecursive(fieldMutex, portMAX_DELAY); }
+        ~FieldLock() { xSemaphoreGiveRecursive(fieldMutex); }
+    };
 
     bool setId(const std::string &newId, short int newIdType, const std::string &newName = "");
 
@@ -125,6 +136,7 @@ class BleFingerprint {
     void expire();
 
    private:
+    static SemaphoreHandle_t fieldMutex;
     bool queryBattery();
 
     bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
