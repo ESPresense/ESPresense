@@ -112,7 +112,7 @@ void Logger::enableTcp(uint16_t port) {
     if (tcpMutex) return;
     tcpMutex = xSemaphoreCreateMutex();
     originalVprintf = esp_log_set_vprintf(loggerVprintf);
-    xTaskCreate(tcpTask, "logTcp", 2560, (void*)(uintptr_t)port, 1, nullptr);
+    xTaskCreate(tcpTask, "logTcp", 2048, (void*)(uintptr_t)port, 1, nullptr);
 }
 
 bool Logger::isTcpConnected() const { return tcpClient >= 0; }
