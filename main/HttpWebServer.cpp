@@ -213,8 +213,11 @@ esp_err_t notFound(httpd_req_t* req, httpd_err_code_t) {
         httpd_req_get_hdr_value_str(req, "Host", host, sizeof(host));
         std::string ip = Network::localIP();
         if (ip != host) {
+            // httpd keeps the header pointer until the response goes out: it must outlive this scope.
+            static std::string location;
+            location = "http://" + ip + "/";
             httpd_resp_set_status(req, "302 Found");
-            httpd_resp_set_hdr(req, "Location", ("http://" + ip + "/").c_str());
+            httpd_resp_set_hdr(req, "Location", location.c_str());
             return httpd_resp_send(req, nullptr, 0);
         }
     }
