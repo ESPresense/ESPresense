@@ -164,12 +164,11 @@ void setupNetwork() {
     Settings::pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = Settings::integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * Settings::integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
-    if (Network::supportsEthernet()) {
-        std::vector<std::string> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
-        ethernetType = Settings::dropdown("eth", ethernetTypes, 0, "Ethernet Type");
-    } else {
-        ethernetType = 0;
-    }
+    // Registered on every chip so the UI's dropdown always has its options and "None" default;
+    // only the ESP32 (RMII EMAC) acts on it.
+    std::vector<std::string> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
+    ethernetType = Settings::dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    if (!Network::supportsEthernet()) ethernetType = 0;
 
     mqttHost = Settings::string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = Settings::integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
