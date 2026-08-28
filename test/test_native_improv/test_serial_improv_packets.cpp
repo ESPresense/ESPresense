@@ -6,7 +6,7 @@
 #include <unity.h>
 
 #include "SerialImprovPackets.h"
-#include "../../src/SerialImprovPackets.cpp"
+#include "../../main/SerialImprovPackets.cpp"
 
 using SerialImprov::Packets::BuildInfoResponse;
 using SerialImprov::Packets::BuildRPCResponse;

@@ -43,4 +43,4 @@ jobs:
           ast-grep --version
 
       - name: Scan
-        run: ast-grep scan --config sgconfig.yml src/ lib/
+        run: ast-grep scan --config sgconfig.yml main/ components/
