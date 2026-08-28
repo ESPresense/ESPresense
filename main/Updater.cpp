@@ -1,5 +1,6 @@
 #include "Updater.h"
 
+#include "EspOta.h"
 #include "GUI.h"
 #include "HttpWebServer.h"
 #include "Settings.h"
@@ -13,7 +14,7 @@
 
 namespace Updater {
 
-bool autoUpdateEnabled, prerelease;
+bool autoUpdateEnabled, prerelease, arduinoOtaEnabled;
 unsigned long lastFirmwareCheck = 0;
 unsigned short autoUpdateAttempts = 0;
 std::string updateUrl;
@@ -141,6 +142,7 @@ void Setup() {
 }
 
 void Loop() {
+    if (arduinoOtaEnabled) EspOta::Start();
     if (!autoUpdateEnabled) return;
     unsigned long now = millis();
     if (now - lastFirmwareCheck > CHECK_FOR_UPDATES_INTERVAL) {
@@ -150,19 +152,20 @@ void Loop() {
 }
 
 bool SendOnline() {
-    return pub((roomsTopic + "/auto_update").c_str(), 0, true, autoUpdateEnabled ? "ON" : "OFF") &&
+    return pub((roomsTopic + "/arduino_ota").c_str(), 0, true, arduinoOtaEnabled ? "ON" : "OFF") &&
+           pub((roomsTopic + "/auto_update").c_str(), 0, true, autoUpdateEnabled ? "ON" : "OFF") &&
            pub((roomsTopic + "/prerelease").c_str(), 0, true, prerelease ? "ON" : "OFF");
 }
 
 bool SendDiscovery() {
-    // ponytail: ArduinoOTA (espota) is gone with the Arduino core; retire its HA switch.
-    return sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendDeleteDiscovery("switch", "Arduino OTA") &&
+    return sendSwitchDiscovery("Auto Update", EC_CONFIG) && sendSwitchDiscovery("Arduino OTA", EC_CONFIG) &&
            sendSwitchDiscovery("Prerelease", EC_CONFIG) && sendButtonDiscovery("Update", EC_DIAGNOSTIC);
 }
 
 void ConnectToWifi(bool updating) {
     autoUpdateEnabled = Settings::checkbox("auto_update", DEFAULT_AUTO_UPDATE, "Automatically update");
     prerelease = Settings::checkbox("prerelease", false, "Include pre-released versions in auto-update");
+    arduinoOtaEnabled = Settings::checkbox("arduino_ota", DEFAULT_ARDUINO_OTA, "Arduino OTA Update");
     updateUrl = Settings::string("update", "", "If set will update from this url on next boot");
 }
 
@@ -174,7 +177,10 @@ void MarkOtaSuccess() {
 }
 
 bool Command(std::string& command, std::string& pay) {
-    if (command == "auto_update") {
+    if (command == "arduino_ota") {
+        arduinoOtaEnabled = pay == "ON";
+        spurt("/arduino_ota", toStr(arduinoOtaEnabled));
+    } else if (command == "auto_update") {
         autoUpdateEnabled = pay == "ON";
         spurt("/auto_update", toStr(autoUpdateEnabled));
     } else if (command == "prerelease") {
