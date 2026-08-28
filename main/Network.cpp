@@ -33,6 +33,7 @@ EventGroupHandle_t events;
 constexpr int GOT_IP = BIT0, LINK_UP = BIT1, WIFI_STARTED = BIT2;
 std::string hostName = "esp32";
 bool wifiStarted = false;
+volatile bool staConnecting = false;  // between esp_wifi_connect() and CONNECTED/DISCONNECTED
 
 void onWifi(void*, esp_event_base_t base, int32_t id, void* data) {
     if (base == WIFI_EVENT) {
@@ -41,9 +42,11 @@ void onWifi(void*, esp_event_base_t base, int32_t id, void* data) {
                 xEventGroupSetBits(events, WIFI_STARTED);
                 break;
             case WIFI_EVENT_STA_CONNECTED:
+                staConnecting = false;
                 xEventGroupSetBits(events, LINK_UP);
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
+                staConnecting = false;
                 xEventGroupClearBits(events, LINK_UP | GOT_IP);
                 break;
         }
@@ -271,15 +274,15 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         wifiStarted = true;
         xEventGroupWaitBits(events, WIFI_STARTED, pdFALSE, pdTRUE, pdMS_TO_TICKS(2000));
     }
-    esp_wifi_connect();
+    staConnecting = esp_wifi_connect() == ESP_OK;
 
-    // Re-issue connect while the link is down; the driver does not retry on its own here.
+    // Re-issue connect after each failed attempt; the driver does not retry on its own here.
     bool ok = waitForIp(wifiWaitSeconds, [] {
-        if (!(xEventGroupGetBits(events) & LINK_UP)) {
+        if (!(xEventGroupGetBits(events) & LINK_UP) && !staConnecting) {
             Log.print(".");
-            esp_wifi_connect();
+            staConnecting = esp_wifi_connect() == ESP_OK;
         }
-    }, 5000);
+    }, 1000);
 
     if (!ok) {
         Log.println(" failed.");
