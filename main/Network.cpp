@@ -117,6 +117,19 @@ void dnsTask(void* arg) {
     ap.ap.authmode = WIFI_AUTH_OPEN;
     esp_wifi_set_config(WIFI_IF_AP, &ap);
     esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+    // Hand ourselves out as the DNS server so the phone's captive-portal probe lands on us.
+    {
+        esp_netif_ip_info_t apInfo;
+        esp_netif_get_ip_info(apNetif, &apInfo);
+        esp_netif_dhcps_stop(apNetif);
+        esp_netif_dns_info_t dns = {};
+        dns.ip.type = ESP_IPADDR_TYPE_V4;
+        dns.ip.u_addr.ip4.addr = apInfo.ip.addr;
+        esp_netif_set_dns_info(apNetif, ESP_NETIF_DNS_MAIN, &dns);
+        uint8_t offerDns = 1;
+        esp_netif_dhcps_option(apNetif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &offerDns, sizeof(offerDns));
+        esp_netif_dhcps_start(apNetif);
+    }
     Log.println("Starting access point for configuration portal.");
     Log.printf("SSID: '%s'\n", hostName.c_str());
     if (esp_wifi_start() != ESP_OK) Log.println("Failed to start access point!");
