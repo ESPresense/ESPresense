@@ -9,6 +9,7 @@
 #include "Settings.h"
 #include "esp_event.h"
 #include "esp_netif.h"
+#include "dhcpserver/dhcpserver.h"
 #include "esp_wifi.h"
 #include "freertos/event_groups.h"
 #include "nvs_flash.h"
@@ -126,7 +127,7 @@ void dnsTask(void* arg) {
         dns.ip.type = ESP_IPADDR_TYPE_V4;
         dns.ip.u_addr.ip4.addr = apInfo.ip.addr;
         esp_netif_set_dns_info(apNetif, ESP_NETIF_DNS_MAIN, &dns);
-        uint8_t offerDns = 1;
+        uint8_t offerDns = OFFER_DNS;
         esp_netif_dhcps_option(apNetif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &offerDns, sizeof(offerDns));
         esp_netif_dhcps_start(apNetif);
     }
