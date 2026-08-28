@@ -15,6 +15,8 @@ DEFAULTS="sdkconfig.defaults"
 case "$ENV" in *-cdc)     DEFAULTS="$DEFAULTS;sdkconfig.cdc" ;; esac
 case "$ENV" in *-verbose) DEFAULTS="$DEFAULTS;sdkconfig.verbose" ;; esac
 [ $# -eq 0 ] && set -- build
-exec idf.py -B "build/$ENV" -DIDF_TARGET="$TARGET" -DSDKCONFIG="build/$ENV/sdkconfig" \
+# The env var wins over any IDF_TARGET a CI image pre-set (esp-idf-ci-action defaults to esp32).
+export IDF_TARGET="$TARGET"
+exec idf.py -B "build/$ENV" -DSDKCONFIG="build/$ENV/sdkconfig" \
   -DSDKCONFIG_DEFAULTS="$DEFAULTS" -DFW_ENV="$ENV" \
   ${FW_VERSION:+-DFW_VERSION="$FW_VERSION"} ${FW_BRANCH:+-DFW_BRANCH="$FW_BRANCH"} "$@"
