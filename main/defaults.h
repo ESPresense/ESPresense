@@ -186,8 +186,8 @@
 #endif
 
 // Build-time knobs that used to be platformio.ini build flags.
-#define SCAN_TASK_STACK_SIZE 5120
-#define LOOP_TASK_STACK_SIZE 8192
+#define SCAN_TASK_STACK_SIZE 4096
+#define LOOP_TASK_STACK_SIZE 7168
 #define MQTT_MIN_FREE_MEMORY 12192
 // Largest-contiguous-block floor for the low-heap watchdog (#2309): above the 2312 byte
 // allocation that failed in that report, far below a healthy node's ~100KB.

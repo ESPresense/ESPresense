@@ -1,1 +1,4 @@
 CONFIG_BT_NIMBLE_PINNED_TO_CORE_0=y
+# Controller code out of IRAM: on the C3 IRAM is DRAM, and 200 fingerprints need it.
+CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY=y
+CONFIG_BT_CTRL_BLE_MAX_ACT=4
