@@ -202,6 +202,11 @@ esp_err_t onOptions(httpd_req_t* req) {
 }
 
 // Captive portal: iOS/Android probes any host; redirect them to our IP.
+esp_err_t notFound(httpd_req_t* req, httpd_err_code_t);
+// Registered last for GET /*: with the OPTIONS /* handler present, an unknown GET matches the
+// URI and gets a 405 instead of reaching the 404 handler, which is where the redirect lives.
+esp_err_t catchAllGet(httpd_req_t* req) { return notFound(req, HTTPD_404_NOT_FOUND); }
+
 esp_err_t notFound(httpd_req_t* req, httpd_err_code_t) {
     if (captivePortal) {
         char host[64] = {0};
@@ -394,6 +399,7 @@ void Init(bool captive) {
     on("/*", HTTP_OPTIONS, onOptions);
     Settings::registerHttp(server);
     setupRoutes(server);  // from ui_routes.h
+    on("/*", HTTP_GET, catchAllGet);
 }
 
 void Loop() {}
