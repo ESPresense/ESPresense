@@ -132,6 +132,10 @@ void dnsTask(void* arg) {
         esp_netif_set_dns_info(apNetif, ESP_NETIF_DNS_MAIN, &dns);
         uint8_t offerDns = OFFER_DNS;
         esp_netif_dhcps_option(apNetif, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &offerDns, sizeof(offerDns));
+        // RFC 8910 captive-portal URI (DHCP option 114): phones open the portal without probing.
+        static char portalUri[32];
+        snprintf(portalUri, sizeof(portalUri), "http://%s/", ipToStr(apInfo.ip).c_str());
+        esp_netif_dhcps_option(apNetif, ESP_NETIF_OP_SET, ESP_NETIF_CAPTIVEPORTAL_URI, portalUri, strlen(portalUri));
         esp_netif_dhcps_start(apNetif);
     }
     Log.println("Starting access point for configuration portal.");
