@@ -295,7 +295,10 @@ std::string pstring(const std::string& name, const std::string& init, const std:
 long dropdown(const std::string& name, const std::vector<std::string>& options, long init, const std::string& label) {
     auto* p = add(Type::Dropdown, name, toStr(init), label);
     p->options = options;
-    return toInt(p->value.empty() ? p->init : p->value);
+    // The UI binds a <select> to values.<name> only, so an unsaved dropdown must still report
+    // its default or the control renders blank.
+    if (p->value.empty()) p->value = p->init;
+    return toInt(p->value);
 }
 
 long integer(const std::string& name, long init, const std::string& label) {
