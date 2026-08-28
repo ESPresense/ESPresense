@@ -1,2 +1,4 @@
 CONFIG_BT_NIMBLE_PINNED_TO_CORE_0=y
 CONFIG_BT_CTRL_BLE_MAX_ACT=4
+# We scan with filter_duplicates=0; the controller dedup cache is dead weight.
+CONFIG_BT_CTRL_BLE_SCAN_DUPL=n
