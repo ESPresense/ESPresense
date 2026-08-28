@@ -69,9 +69,10 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3)
+#if defined(ESP32S3) || defined(ESP32C3)
+// C3: 200 left the Arduino build 18KB from the floor under a 40/s BLE flood; 150 keeps ~40KB.
 #define DEFAULT_MAX_FINGERPRINTS 150
-#elif defined(ESP32C3) || defined(ESP32C6)
+#elif defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
 #define DEFAULT_MAX_FINGERPRINTS 45
