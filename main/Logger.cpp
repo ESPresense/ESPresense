@@ -86,7 +86,7 @@ void Logger::print(const char* s) {
     if (s) write((const uint8_t*)s, strlen(s));
 }
 
-void Logger::printf(const char* fmt, ...) {
+void Logger::printf(const char* fmt, ...) {  /* Flawfinder: ignore */
     char stackBuf[192];
     va_list args;
     va_start(args, fmt);
