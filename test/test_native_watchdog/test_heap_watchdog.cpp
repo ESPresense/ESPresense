@@ -4,7 +4,7 @@
 // case that matters most here is a heap with plenty free and no contiguous block left.
 #include <unity.h>
 
-#include "../../src/HeapWatchdog.h"
+#include "../../main/HeapWatchdog.h"
 
 namespace {
 

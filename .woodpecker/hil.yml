@@ -18,7 +18,8 @@ variables:
   # step's own DEVICE / FIRMWARE_ENV, including the lock file name, so the soak policy
   # below lives in exactly one place instead of four copies drifting apart.
   - &hil_run |
-    export PLATFORMIO_BUILD_DIR="$PWD/.pio/build-$FIRMWARE_ENV"
+    . $IDF_PATH/export.sh
+    git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
     # Bare $GITHUB_TOKEN, not the braced form: Woodpecker substitutes braced references in
     # the YAML before the container ever sees it, and secrets are not available at that
     # point. Braces fail quietly here — an emptied token still clones the public lib_deps,
@@ -51,9 +52,9 @@ variables:
       # assignments above. Braces are needed to keep the "s" out of the variable name.
       echo "HIL $FIRMWARE_ENV: $${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
 
-      PLATFORMIO_UPLOAD_PORT=$DEVICE pio run -e $FIRMWARE_ENV -t erase -t upload
-      python3 /scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-      python3 /scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+      ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+      python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
     '
 
 steps:
@@ -66,7 +67,7 @@ steps:
     depends_on: []
 
   - name: test-esp32
-    image: ghcr.io/espresense/firmware-tester:1
+    image: espressif/idf:v5.4.4
     pull: true
     privileged: true
     depends_on: []
@@ -83,15 +84,13 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio-esp32
-      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32/platforms
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: /cache/ccache-idf
     commands:
       - *hil_run
 
   - name: test-esp32c3
-    image: ghcr.io/espresense/firmware-tester:1
+    image: espressif/idf:v5.4.4
     pull: true
     privileged: true
     depends_on: []
@@ -108,15 +107,13 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c3
-      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c3/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c3/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c3/platforms
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: /cache/ccache-idf
     commands:
       - *hil_run
 
   - name: test-esp32c6
-    image: ghcr.io/espresense/firmware-tester:1
+    image: espressif/idf:v5.4.4
     pull: true
     privileged: true
     depends_on: []
@@ -133,15 +130,13 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio-esp32c6
-      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32c6/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32c6/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32c6/platforms
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: /cache/ccache-idf
     commands:
       - *hil_run
 
   - name: test-esp32s3
-    image: ghcr.io/espresense/firmware-tester:1
+    image: espressif/idf:v5.4.4
     pull: true
     privileged: true
     depends_on: []
@@ -158,9 +153,7 @@ steps:
         from_secret: wifi_ssid
       WIFI_PASSWORD:
         from_secret: wifi_password
-      PLATFORMIO_CORE_DIR: /cache/platformio-esp32s3
-      PLATFORMIO_LIBDEPS_DIR: /cache/platformio-esp32s3/libdeps
-      PLATFORMIO_BUILD_CACHE_DIR: /cache/platformio-esp32s3/build_cache
-      PLATFORMIO_PLATFORMS_DIR: /cache/platformio-esp32s3/platforms
+      IDF_CCACHE_ENABLE: "1"
+      CCACHE_DIR: /cache/ccache-idf
     commands:
       - *hil_run

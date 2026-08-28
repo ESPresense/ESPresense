@@ -4,10 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
     paths:
-      - "src/**/*.cpp"
-      - "src/**/*.c"
+      - "main/**/*.cpp"
+      - "main/**/*.c"
       - "!ui/**"
-      - "!src/ui*.h"
+      - "!main/ui*.h"
 
 jobs:
   claude-review:

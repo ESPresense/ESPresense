@@ -1,16 +1,19 @@
 # Building
 
-This project uses [PlatformIO](https://platformio.org/) to simplify development.  The easiest way to get started is to install [VSCode](https://code.visualstudio.com/) and the [PlatformIO VSCode plugin](https://marketplace.visualstudio.com/items?itemName=platformio.platformio-ide) (simple instructions [here](https://platformio.org/install/ide?install=vscode)).
+ESPresense is a plain [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) (v5.4) project.
 
-Once you have opened this project, building and uploading the project to your ESP32 board is as easy as clicking on the Build and Upload buttons.
+```sh
+git clone -b v5.4.4 --recursive https://github.com/espressif/esp-idf ~/esp/esp-idf
+~/esp/esp-idf/install.sh esp32,esp32c3,esp32s3,esp32c6
+. ~/esp/esp-idf/export.sh
 
-![PlatformIO Build/Upload Buttons](https://docs.platformio.org/en/latest/_images/platformio-ide-vscode-build-project.png)
+./build.sh esp32                                  # build/esp32/espresense.bin
+./build.sh esp32c3-cdc -p /dev/ttyACM0 flash monitor
+```
 
-## Changing PlatformIO project environment  
-Project environments are used for different board configurations and are stored in ```platformio.ini```
-Platforms can be changed by:
+`build.sh <env>` picks the chip target and sdkconfig fragments for a firmware variant
+(`esp32`, `esp32c3`, `esp32c3-cdc`, `esp32c6`, `esp32s3`, `*-verbose`, `m5stickc`, `m5atom`,
+`macchina-a0`, ...); `envs.cmake` maps the variant to compile definitions. Anything after the
+variant name is passed to `idf.py`.
 
-- Selecting the PlatformIO icon from the left bar in VSCode
-- Selecting the desired build target under project tasks
-
-![PlatformIO Env](https://community.platformio.org/uploads/default/original/2X/4/4d87f4672f1892ce54852fed3b8e3cf21b8aed4f.png)
+Host unit tests: `./test/run.sh`. Web UI: `cd ui && npm run build` regenerates `main/ui_*.h`.
