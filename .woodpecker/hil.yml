@@ -20,6 +20,9 @@ variables:
   - &hil_run |
     . $IDF_PATH/export.sh
     git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+    # The four device steps run concurrently and the component manager writes
+    # managed_components/ into the project dir, so each step builds from its own copy.
+    cp -r . /tmp/src && cd /tmp/src
     # Bare $GITHUB_TOKEN, not the braced form: Woodpecker substitutes braced references in
     # the YAML before the container ever sees it, and secrets are not available at that
     # point. Braces fail quietly here — an emptied token still clones the public lib_deps,
@@ -52,7 +55,7 @@ variables:
       # assignments above. Braces are needed to keep the "s" out of the variable name.
       echo "HIL $FIRMWARE_ENV: $${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
 
-      ./build.sh $FIRMWARE_ENV -p $DEVICE erase-flash flash
+      ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
       python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
     '

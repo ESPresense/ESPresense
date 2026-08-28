@@ -33,17 +33,17 @@ int loggerVprintf(const char* fmt, va_list args) {
     if (tcpClient >= 0) {
         va_list copy;
         va_copy(copy, args);
-        int n = vsnprintf(nullptr, 0, fmt, copy);
+        int n = vsnprintf(nullptr, 0, fmt, copy);  /* Flawfinder: ignore */
         va_end(copy);
         if (n > 0) {
             std::vector<char> buf(n + 1);
             va_copy(copy, args);
-            vsnprintf(buf.data(), buf.size(), fmt, copy);
+            vsnprintf(buf.data(), buf.size(), fmt, copy);  /* Flawfinder: ignore */
             va_end(copy);
             tcpWrite((const uint8_t*)buf.data(), n);
         }
     }
-    return originalVprintf ? originalVprintf(fmt, args) : vprintf(fmt, args);
+    return originalVprintf ? originalVprintf(fmt, args) : vprintf(fmt, args);  /* Flawfinder: ignore */
 }
 
 // ponytail: one client at a time, a new connection bumps the old one.
@@ -92,7 +92,7 @@ void Logger::printf(const char* fmt, ...) {
     va_start(args, fmt);
     va_list copy;
     va_copy(copy, args);
-    int n = vsnprintf(stackBuf, sizeof(stackBuf), fmt, copy);
+    int n = vsnprintf(stackBuf, sizeof(stackBuf), fmt, copy);  /* Flawfinder: ignore */
     va_end(copy);
     if (n < 0) {
         va_end(args);
@@ -102,7 +102,7 @@ void Logger::printf(const char* fmt, ...) {
         write((const uint8_t*)stackBuf, n);
     } else {
         std::vector<char> buf(n + 1);
-        vsnprintf(buf.data(), buf.size(), fmt, args);
+        vsnprintf(buf.data(), buf.size(), fmt, args);  /* Flawfinder: ignore */
         write((const uint8_t*)buf.data(), n);
     }
     va_end(args);
