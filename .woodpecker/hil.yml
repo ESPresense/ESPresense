@@ -42,8 +42,8 @@ variables:
       # Two ways for a PR to ask for a soak, because you do not always know a change is
       # memory-related when you name the branch:
       #   * push it as soak/<whatever>
-      #   * put [soak] anywhere in the head commit message (an empty commit works, and
-      #     unlike renaming a branch it does not close the PR)
+      #   * put [soak] in the PR title (CI_COMMIT_MESSAGE is the PR title on pull_request events;
+      #     an empty commit then re-triggers the pipeline)
       SOAK_SECS=14400
       DURATION_SECS=$SOAK_SECS
       if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
