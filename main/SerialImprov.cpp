@@ -41,10 +41,18 @@ int readByte() {
     return n == 1 ? c : -1;
 }
 
+// Straight to the driver: stdout's VFS layer rewrites 0x0A as CRLF, which corrupts a binary
+// Improv frame (the web installer rejected our packets with a checksum mismatch).
 void writeBytes(const uint8_t* data, size_t len) {
-    fwrite(data, 1, len, stdout);
-    fputc('\n', stdout);
     fflush(stdout);
+    static const uint8_t nl = '\n';
+#if CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+    usb_serial_jtag_write_bytes(data, len, portMAX_DELAY);
+    usb_serial_jtag_write_bytes(&nl, 1, portMAX_DELAY);
+#else
+    uart_write_bytes(UART_NUM_0, data, len);
+    uart_write_bytes(UART_NUM_0, &nl, 1);
+#endif
 }
 }  // namespace
 
