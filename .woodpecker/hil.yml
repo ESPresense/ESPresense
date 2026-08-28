@@ -28,8 +28,15 @@ variables:
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
-      # Soak length. Anything that is not an ordinary PR gets the full run: main, the
-      # nightly cron, and PRs that opt in.
+      # Soak length. Only the nightly cron gets the full run by default; pushes and
+      # ordinary PRs get the smoke. A PR opts in either way below; a push only via
+      # [soak] in the message, since CI_COMMIT_SOURCE_BRANCH is a PR-only variable.
+      #
+      # A push to main used to soak too, so a UI-only dependabot push held all four
+      # device locks for 4h. With flock -w 18000 on top, pipelines stacked up past the
+      # repo's 600m timeout: 1213/1216/1219/1223/1237 all died as "Canceled" with
+      # nothing to say about the firmware, and the containers they orphaned failed the
+      # next runs with "container name already in use" (1210, 1211).
       #
       # 4h, not 8h. #2309 declines at ~22KB/h from ~160KB, so a leak of that size is
       # unambiguous by 4h, and halving the run doubles how many soaks the single bench
@@ -42,7 +49,7 @@ variables:
       #     unlike renaming a branch it does not close the PR)
       SOAK_SECS=14400
       DURATION_SECS=$SOAK_SECS
-      if [ "$CI_PIPELINE_EVENT" = "pull_request" ]; then
+      if [ "$CI_PIPELINE_EVENT" != "cron" ]; then
         DURATION_SECS=180
         case "$CI_COMMIT_SOURCE_BRANCH" in soak/*) DURATION_SECS=$SOAK_SECS ;; esac
         case "$CI_COMMIT_MESSAGE" in *"[soak]"*) DURATION_SECS=$SOAK_SECS ;; esac
