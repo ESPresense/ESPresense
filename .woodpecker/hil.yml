@@ -25,6 +25,9 @@ variables:
     # just anonymously and against the unauthenticated rate limit. Escape as $${...} when
     # the shell genuinely needs braces, as the duration log line below does.
     git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
+    # Everything below runs inside single quotes, so it must contain no apostrophe at
+    # all — not even in a comment. One contraction ends the string and the step dies
+    # with "Syntax error: Unterminated quoted string" *after* the test has passed.
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
@@ -34,7 +37,7 @@ variables:
       #
       # A push to main used to soak too, so a UI-only dependabot push held all four
       # device locks for 4h. With flock -w 18000 on top, pipelines stacked up past the
-      # repo's 600m timeout: 1213/1216/1219/1223/1237 all died as "Canceled" with
+      # 600m repo timeout: 1213/1216/1219/1223/1237 all died as "Canceled" with
       # nothing to say about the firmware, and the containers they orphaned failed the
       # next runs with "container name already in use" (1210, 1211).
       #
