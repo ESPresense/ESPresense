@@ -17,6 +17,12 @@
 #include "string_utils.h"
 #include "util.h"
 
+SemaphoreHandle_t BleFingerprint::fieldMutex = nullptr;
+
+void BleFingerprint::InitLocks() {
+    if (!fieldMutex) fieldMutex = xSemaphoreCreateRecursiveMutex();
+}
+
 BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
@@ -47,6 +53,7 @@ bool BleFingerprint::shouldHide(const std::string &s) {
 }
 
 bool BleFingerprint::setId(const std::string &newId, short newIdType, const std::string &newName) {
+    FieldLock lock;  // recursive: the alias path re-enters
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
     if (idType > 0 && newIdType <= idType) return false;
 
@@ -417,6 +424,7 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
 }
 
 bool BleFingerprint::fill(JsonObject *doc) {
+    FieldLock lock;
     (*doc)["mac"] = getMac();
     (*doc)["id"] = id;
     if (!name.empty()) (*doc)["name"] = name;
@@ -510,7 +518,10 @@ bool BleFingerprint::query() {
             if (client.isConnected() && discoveredIrk.empty()) {
                 std::string irkBytes = client.read(genericAccessService, resolvingKeyChar);
                 if (irkBytes.length() == 16) {
-                    discoveredIrk = hexStr(irkBytes);
+                    {
+                        FieldLock lock;
+                        discoveredIrk = hexStr(irkBytes);
+                    }
                     Log.printf("%u IRK    | %s | discovered IRK: %s\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
                 }
             }

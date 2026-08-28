@@ -189,6 +189,7 @@ struct FingerprintLock {
 };
 
 void Setup() {
+    BleFingerprint::InitLocks();
     fingerprintMutex = xSemaphoreCreateMutex();
     deviceConfigMutex = xSemaphoreCreateMutex();
 }
