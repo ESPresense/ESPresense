@@ -41,7 +41,11 @@ steps:
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+          # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
+      # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      set -o pipefail
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
+        | grep --line-buffered -vE "^[0-9]+ (New|Del) "
         '
 
   - name: test-esp32c3-verbose
@@ -75,7 +79,11 @@ steps:
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+          # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
+      # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      set -o pipefail
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
+        | grep --line-buffered -vE "^[0-9]+ (New|Del) "
         '
 
   - name: test-esp32c6-verbose
@@ -110,7 +118,11 @@ steps:
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+          # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
+      # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      set -o pipefail
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
+        | grep --line-buffered -vE "^[0-9]+ (New|Del) "
         '
 
   - name: test-esp32s3-verbose
@@ -144,5 +156,9 @@ steps:
           DURATION_SECS=${MANUAL_DURATION_SECS:-1800}
           ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS
+          # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
+      # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      set -o pipefail
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
+        | grep --line-buffered -vE "^[0-9]+ (New|Del) "
         '
