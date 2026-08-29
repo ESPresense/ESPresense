@@ -1,12 +1,24 @@
 #include "SinglePWM.h"
 
+#include "esp_private/periph_ctrl.h"
+#include "soc/soc_caps.h"
+
 #include <cmath>
 
 #include "driver/ledc.h"
 
 // One shared 5 kHz / 12-bit low-speed timer; each LED index owns LEDC channel <index>.
 #define PWM_TIMER LEDC_TIMER_0
+// ESP32: high-speed channels on APB, as the Arduino core used. Its low-speed mode's
+// duty_start busy-wait (ledc_ll_set_duty_start) stalled for good under the per-advert LED
+// toggling in HIL 1274 -> Interrupt WDT. Later chips only have low-speed mode.
+#if SOC_LEDC_SUPPORT_HS_MODE
+#define PWM_MODE LEDC_HIGH_SPEED_MODE
+#define PWM_CLK LEDC_USE_APB_CLK
+#else
 #define PWM_MODE LEDC_LOW_SPEED_MODE
+#define PWM_CLK LEDC_AUTO_CLK
+#endif
 
 SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int pin) : LED(index, controlType) {
     this->inverted = inverted;
@@ -14,12 +26,20 @@ SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int 
 }
 
 void SinglePWM::init() {
+    // After a software reset the ESP32 keeps the LEDC channel's duty_start bit set with its
+    // timer stopped, and ledc_ll_set_duty_start() spins on that bit forever inside a critical
+    // section (Interrupt WDT in HIL 1274). Start from a clean peripheral.
+    static bool reset = false;
+    if (!reset) {
+        reset = true;
+        periph_module_reset(PERIPH_LEDC_MODULE);
+    }
     ledc_timer_config_t timer = {};
     timer.speed_mode = PWM_MODE;
     timer.duty_resolution = LEDC_TIMER_12_BIT;
     timer.timer_num = PWM_TIMER;
     timer.freq_hz = 5000;
-    timer.clk_cfg = LEDC_AUTO_CLK;
+    timer.clk_cfg = PWM_CLK;
     if (ledc_timer_config(&timer) != ESP_OK) return;
 
     ledc_channel_config_t channel = {};
