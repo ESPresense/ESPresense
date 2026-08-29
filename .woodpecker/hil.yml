@@ -25,37 +25,15 @@ variables:
     # just anonymously and against the unauthenticated rate limit. Escape as $${...} when
     # the shell genuinely needs braces, as the duration log line below does.
     git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
-    # Everything below runs inside single quotes, so it must contain no apostrophe at
-    # all — not even in a comment. One contraction ends the string and the step dies
-    # with "Syntax error: Unterminated quoted string" *after* the test has passed.
+    # No apostrophes below, comments included: one contraction closes this string.
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
-      # Soak length by event: cron 4h, push to main 1h, ordinary PR 3m. Anything can
-      # opt up to the full soak below.
+      # Opt up to the full soak with a soak/* branch or [soak] in the message. On a
+      # pull_request that message is the PR title, not the head commit subject.
       #
-      # A push used to soak the full 4h, so a UI-only dependabot push held all four
-      # device locks for that long. With flock -w 18000 on top, pipelines stacked up
-      # past the 600m repo timeout: 1213/1216/1219/1223/1237 all died as "Canceled"
-      # with nothing to say about the firmware, and the containers they orphaned
-      # failed the next runs with "container name already in use" (1210, 1211).
-      #
-      # 1h rather than the smoke, because main is what the nightly builds on and a 3m
-      # run only catches an immediate crash. 1h plus the build is ~70m per board, so
-      # even a queue of pushes stays well inside the 600m timeout.
-      #
-      # 4h, not 8h. #2309 declines at ~22KB/h from ~160KB, so a leak of that size is
-      # unambiguous by 4h, and halving the run doubles how many soaks the single bench
-      # can serve — which is the actual constraint now that PRs can request one.
-      #
-      # Two ways to ask for the full soak, because you do not always know a change is
-      # memory-related when you name the branch:
-      #   * push it as soak/<whatever>
-      #   * put [soak] in the message CrowCI reports for the event
-      #
-      # On a pull_request that message is the PR *title*, not the head commit subject.
-      # ESPresense#2495 carried [soak] in its commit subject and still ran the 3m smoke
-      # (pipeline 1255, 6m end to end), so put it in the title to opt a PR in.
+      # Keep wait + build + soak under the 600m repo timeout, or the pipeline is
+      # cancelled with no useful log.
       SOAK_SECS=14400
       case "$CI_PIPELINE_EVENT" in
         cron) DURATION_SECS=$SOAK_SECS ;;
