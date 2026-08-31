@@ -41,7 +41,7 @@ jobs:
     - name: Check for changes
       id: check_changes
       run: |
-        git add src/ui_*.h
+        git add main/ui_*.h
         echo "changes=$(git status --porcelain | wc -l)" >> $GITHUB_OUTPUT
 
     - name: Close stale UI build PRs
@@ -116,7 +116,7 @@ jobs:
         delete-branch: true
         base: ${{ github.event.pull_request.head.ref || github.ref_name }}
         add-paths: |
-          src/ui_*.h
+          main/ui_*.h
         labels: |
           automated pr
           ui

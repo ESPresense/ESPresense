@@ -8,6 +8,10 @@ on:
   pull_request:
   release:
     types: [published]
+
+env:
+  IDF_VERSION: v5.4.4
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,65 +21,35 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    - name: Cache pip
-      uses: actions/cache@v6
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    - name: Cache PlatformIO
-      uses: actions/cache@v6
-      with:
-        path: |
-          ~/.platformio
-          ~/.platformio/.cache
-        key: ${{ runner.os }}-pio-${{ matrix.env }}-${{ hashFiles('platformio.ini') }}
-        restore-keys: |
-          ${{ runner.os }}-pio-${{ matrix.env }}-
-          ${{ runner.os }}-pio-
-
-    - name: Set per-environment PlatformIO directories (isolates C6 variants)
-      run: |
-        echo "PLATFORMIO_CORE_DIR=~/.platformio/core-${{ matrix.env }}" >> $GITHUB_ENV
-        echo "PLATFORMIO_PLATFORMS_DIR=~/.platformio/platforms-${{ matrix.env }}" >> $GITHUB_ENV
-        echo "PLATFORMIO_BUILD_CACHE_DIR=~/.platformio/build_cache-${{ matrix.env }}" >> $GITHUB_ENV
-        echo "PLATFORMIO_LIBDEPS_DIR=~/.platformio/libdeps" >> $GITHUB_ENV
-
-    - name: Set up Python
-      uses: actions/setup-python@v7
-      with:
-        python-version: '3.x'
-
-    - name: Install dependencies
-      run: |
-        pip install wheel
-        pip install -U platformio
-        pip install "click<8.2" --force-reinstall --no-deps
-
-    - name: Setup github_head_sha
-      run: echo "GITHUB_HEAD_SHA=${{ github.event.pull_request.head.sha }}" >> $GITHUB_ENV
-      if: ${{ github.event_name == 'pull_request' }}
-
+    # VERSION / BRANCH land in the firmware as FW_VERSION / FW_BRANCH (see envs.cmake).
     - name: Set pr env
-      run: echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_HEAD_REF}\"' -DVERSION='\"${GITHUB_HEAD_SHA::7}\"'" >> $GITHUB_ENV
+      run: |
+        echo "FW_BRANCH=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
+        echo "FW_VERSION=${HEAD_SHA::7}" >> $GITHUB_ENV
+      env:
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       if: ${{ github.event_name == 'pull_request' }}
 
     - name: Set branch env
-      run:  echo "PLATFORMIO_BUILD_FLAGS=-DBRANCH='\"${GITHUB_REF#refs/heads/}\"' -DVERSION='\"${GITHUB_SHA::7}\"'" >> $GITHUB_ENV
+      run: |
+        echo "FW_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
+        echo "FW_VERSION=${GITHUB_SHA::7}" >> $GITHUB_ENV
       if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
 
     - name: Set rel env
-      run: echo "PLATFORMIO_BUILD_FLAGS=-DVERSION='\"${GITHUB_REF#refs/*/}\"'" >> $GITHUB_ENV
+      run: echo "FW_VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
       if: startsWith(github.ref, 'refs/tags/v')
 
-    - name: Run PlatformIO
-      run: pio run -e ${{ matrix.env }}
+    - name: Build with ESP-IDF
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: ${{ env.IDF_VERSION }}
+        command: FW_VERSION="${{ env.FW_VERSION }}" FW_BRANCH="${{ env.FW_BRANCH }}" ./build.sh ${{ matrix.env }}
 
     - name: Check firmware size fits in OTA partition
       run: |
         MAX_SIZE=1966080  # 0x1E0000 = 1920 KB, must match app0/app1 in partitions_singleapp.csv
-        FW=.pio/build/${{ matrix.env }}/firmware.bin
+        FW=build/${{ matrix.env }}/espresense.bin
         SIZE=$(stat -c%s "$FW")
         echo "Firmware size: ${SIZE} bytes ($(( SIZE / 1024 )) KB / $(( MAX_SIZE / 1024 )) KB max)"
         if [ "$SIZE" -gt "$MAX_SIZE" ]; then
@@ -84,13 +58,23 @@ jobs:
         fi
 
     - name: Rename artifact
-      run: cp .pio/build/${{ matrix.env }}/firmware.bin ${{ matrix.env }}.bin
+      run: cp build/${{ matrix.env }}/espresense.bin ${{ matrix.env }}.bin
 
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
+
+  native-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - name: Host unit tests
+      uses: espressif/esp-idf-ci-action@v1
+      with:
+        esp_idf_version: ${{ env.IDF_VERSION }}
+        command: ./test/run.sh
 
   comment-pr-alpha-link:
     runs-on: ubuntu-latest

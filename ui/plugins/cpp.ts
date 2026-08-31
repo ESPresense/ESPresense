@@ -109,12 +109,12 @@ function generateRoutesForAsset(
       asset.path === 'index.html'
         ? basePath + '/'
         : basePath + '/' + asset.path.slice(0, -5);
-    htmlRoutes.push(`    server->on("${routePath}", HTTP_GET, serve${assetName});`);
+    htmlRoutes.push(`    HttpWebServer::registerGet(server, "${routePath}", serve${assetName});`);
     if (routePath !== basePath + '/') {
-      htmlRoutes.push(`    server->on("${routePath}.html", HTTP_GET, serve${assetName});`);
+      htmlRoutes.push(`    HttpWebServer::registerGet(server, "${routePath}.html", serve${assetName});`);
     }
   } else {
-    routes.push(`    server->on("${basePath}/${asset.path}", HTTP_GET, serve${assetName});`);
+    routes.push(`    HttpWebServer::registerGet(server, "${basePath}/${asset.path}", serve${assetName});`);
   }
 
   return { routes, htmlRoutes };
@@ -193,7 +193,7 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
   const basePath = options.basePath || '';
   const buildDir = resolve(__dirname, options.buildDir || '../build');
   const kitOutDir = resolve(__dirname, options.kitOutDir || '../.svelte-kit/output');
-  const outputDir = resolve(__dirname, options.outputDir || '../../src');
+  const outputDir = resolve(__dirname, options.outputDir || '../../main');
   const outPrefix = options.outPrefix || 'web_';
   const skipExtensions = new Set(
     (options.skipExtensions || ['json', 'map', 'txt']).map((e) =>
@@ -262,8 +262,7 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
  */
 
 #pragma once
-#include <ESPAsyncWebServer.h>
-#include <Arduino.h>
+#include "HttpStatic.h"
 
 `;
 
@@ -282,16 +281,10 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
 
         header += `// ${asset.path}\n`;
         header += `const uint32_t ${compressed.name}_L = ${compressed.length};\n`;
-        header += `const uint8_t ${compressed.name}[] PROGMEM = {\n${compressed.array}\n};\n\n`;
-        header += `inline void serve${pascalCase(asset.name)}(AsyncWebServerRequest* request) {\n`;
-        header += `  AsyncWebServerResponse *response = request->beginResponse(200, "${asset.contentType}", ${compressed.name}, ${compressed.name}_L);\n`;
-        if (asset.path.includes('immutable')) {
-          header += `  response->addHeader(F("Cache-Control"), "public, max-age=31536000, immutable");\n`;
-        }
-        if (compressed.useCompression) {
-          header += `  response->addHeader(F("Content-Encoding"), "gzip");\n`;
-        }
-        header += `  request->send(response);\n`;
+        header += `const uint8_t ${compressed.name}[] = {\n${compressed.array}\n};\n\n`;
+        const immutable = asset.path.includes('immutable');
+        header += `inline esp_err_t serve${pascalCase(asset.name)}(httpd_req_t* req) {\n`;
+        header += `  return HttpWebServer::serveStatic(req, "${asset.contentType}", ${compressed.name}, ${compressed.name}_L, ${compressed.useCompression ? 'true' : 'false'}, ${immutable ? 'true' : 'false'});\n`;
         header += `}\n\n`;
 
         const generatedRoutes = generateRoutesForAsset(asset, basePath);
@@ -364,10 +357,10 @@ ${groupSizeComments.join('\n')}
 
 #pragma once
 
-#include <ESPAsyncWebServer.h>
+#include "HttpStatic.h"
 ${groupNames.map((group) => `#include "${group}.h"`).join('\n')}
 
-inline void setupRoutes(AsyncWebServer* server) {
+inline void setupRoutes(httpd_handle_t server) {
 ${routes.join('\n')}
     // HTML routes
 ${htmlRoutes.join('\n')}

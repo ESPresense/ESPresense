@@ -15,13 +15,13 @@ esp_respond_sender_port = '3232'
 sender_to_esp_port = '3232'
 
 async def main():
-    proc = await asyncio.create_subprocess_exec('pio', 'run', '-e', 'm5atom', '-e', 'macchina-a0')
+    proc = await asyncio.create_subprocess_exec('sh', '-c', './build.sh m5atom && ./build.sh macchina-a0')
     await proc.wait()
 
     for esp in esps:
-        espota = os.path.expanduser('~/.platformio/packages/framework-arduinoespressif32/tools/espota.py')
+        espota = 'tools/espota.py'
         args = ['python3', espota, '-i', esp[0], '-p', sender_to_esp_port, '-P', esp_respond_sender_port,
-                '-f', '.pio/build/' + esp[1] + '/firmware.bin']
+                '-f', 'build/' + esp[1] + '/espresense.bin']
         print(' '.join(args))
         proc = await asyncio.create_subprocess_exec(*args)
         await proc.wait()
