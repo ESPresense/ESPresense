@@ -166,6 +166,11 @@
                 <input id="wifi-timeout" type="number" name="wifi_timeout" bind:value={$mainSettings.values.wifi_timeout} placeholder={String($mainSettings.defaults.wifi_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
+            <label for="wifi-sleep" class="flex items-center space-x-2">
+                <input id="wifi-sleep" type="checkbox" name="wifi_sleep" value="1" bind:checked={$mainSettings.values.wifi_sleep} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                <span>Enable WiFi modem sleep mode</span>
+            </label>
+
             <div>
                 <label for="portal-timeout" class="block text-sm font-medium"> Seconds to wait in captive portal before rebooting </label>
                 <input id="portal-timeout" type="number" name="portal_timeout" bind:value={$mainSettings.values.portal_timeout} placeholder={String($mainSettings.defaults.portal_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
