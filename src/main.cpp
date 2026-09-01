@@ -552,6 +552,76 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks {
     }
 };
 
+#ifndef EYE_ACTIVE_SCAN_INTERVAL_MS
+#define EYE_ACTIVE_SCAN_INTERVAL_MS (60UL * 60UL * 1000UL)  // How often to open an active-scan window
+#endif
+#ifndef EYE_ACTIVE_SCAN_DURATION_MS
+#define EYE_ACTIVE_SCAN_DURATION_MS (60UL * 1000UL)  // How long each active-scan window stays open
+#endif
+
+/**
+ * @brief Periodically flips BLE scanning from passive to active and back, so Teltonika EYE
+ * beacon Scan Responses (which carry battery telemetry) can be captured without paying the
+ * active-scan power/airtime cost permanently.
+ *
+ * Normal ESPresense operation stays passive; this only opens one recurring window covering
+ * every visible beacon at once (never a per-beacon active scan). setActiveScan() has no effect
+ * on an already-running scan, so toggling it requires an explicit stop()/start() cycle.
+ */
+static void updateEyeActiveScanWindow(NimBLEScan *pBLEScan) {
+    static bool active = false;
+    static bool windowScheduled = false;
+    static unsigned long nextWindowMillis = 0;
+    static unsigned long windowEndMillis = 0;
+
+    if (!BleFingerprintCollection::periodicActiveScan) {
+        if (active) {
+            pBLEScan->stop();
+            pBLEScan->setActiveScan(false);
+#ifdef NIMBLE_V2
+            pBLEScan->start(0, true);
+#else
+            pBLEScan->start(0, nullptr, true);
+#endif
+            active = false;
+            Log.println("EYE active scan window closed (feature disabled)");
+        }
+        windowScheduled = false;  // re-arm so re-enabling starts a fresh interval rather than firing immediately
+        return;
+    }
+
+    const unsigned long now = millis();
+    if (!windowScheduled) {
+        nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
+        windowScheduled = true;
+    }
+
+    if (!active && (long)(now - nextWindowMillis) >= 0) {
+        pBLEScan->stop();
+        pBLEScan->setActiveScan(true);
+#ifdef NIMBLE_V2
+        pBLEScan->start(0, true);
+#else
+        pBLEScan->start(0, nullptr, true);
+#endif
+        active = true;
+        windowEndMillis = now + EYE_ACTIVE_SCAN_DURATION_MS;
+        nextWindowMillis = now + EYE_ACTIVE_SCAN_INTERVAL_MS;
+        windowScheduled = true;
+        Log.println("EYE active scan window opened");
+    } else if (active && (long)(now - windowEndMillis) >= 0) {
+        pBLEScan->stop();
+        pBLEScan->setActiveScan(false);
+#ifdef NIMBLE_V2
+        pBLEScan->start(0, true);
+#else
+        pBLEScan->start(0, nullptr, true);
+#endif
+        active = false;
+        Log.println("EYE active scan window closed");
+    }
+}
+
 void scanTask(void *parameter) {
     NimBLEDevice::init("ESPresense");
     NimBLEDevice::deleteAllBonds();
@@ -585,6 +655,7 @@ void scanTask(void *parameter) {
         }
 
         Enrollment::Loop();
+        updateEyeActiveScanWindow(pBLEScan);
 
         if (!pBLEScan->isScanning()) {
 #ifdef NIMBLE_V2

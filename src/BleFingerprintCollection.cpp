@@ -138,6 +138,7 @@ int forgetMs = DEFAULT_FORGET_MS,
     countMs = DEFAULT_COUNT_MS,
     requeryMs = DEFAULT_REQUERY_MS,
     maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
+bool periodicActiveScan = false;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 TCallbackBool onSeen = nullptr;
@@ -368,6 +369,7 @@ void ConnectToWifi(bool updating) {
     skipDistance = HeadlessWiFiSettings.floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     skipMs = HeadlessWiFiSettings.integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
     maxFingerprints = HeadlessWiFiSettings.integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
+    periodicActiveScan = HeadlessWiFiSettings.checkbox("eye_active_scan", false, "Periodic EYE Active Scan (60s active scan every 60min, to read Teltonika EYE beacon battery data)");
 
     rxRefRssi = HeadlessWiFiSettings.integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
     rxAdjRssi = HeadlessWiFiSettings.integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");

@@ -152,6 +152,7 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
+    int8_t lowBattery = -1;  // -1 = unknown/not reported, 0/1 = Teltonika EYE low-battery indicator
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
@@ -162,11 +163,13 @@ class BleFingerprint {
     void fingerprintServiceAdvertisements(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
     void fingerprintServiceData(const NimBLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
     void fingerprintManufactureData(const NimBLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+    void fingerprintTeltonikaEye(const NimBLEAdvertisedDevice *advertisedDevice);
 #else
     void fingerprint(BLEAdvertisedDevice *advertisedDevice);
     void fingerprintServiceAdvertisements(BLEAdvertisedDevice *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
     void fingerprintServiceData(BLEAdvertisedDevice *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
     void fingerprintManufactureData(BLEAdvertisedDevice *advertisedDevice, bool haveTxPower, int8_t txPower);
+    void fingerprintTeltonikaEye(BLEAdvertisedDevice *advertisedDevice);
 #endif
 };
 
