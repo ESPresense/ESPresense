@@ -171,6 +171,23 @@
                 <input id="portal-timeout" type="number" name="portal_timeout" bind:value={$mainSettings.values.portal_timeout} placeholder={String($mainSettings.defaults.portal_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
             </div>
 
+            <div class="space-y-1">
+                <label for="disable-ap-mode" class="flex items-center space-x-2">
+                    <input
+                        id="disable-ap-mode"
+                        type="checkbox"
+                        name="disable_ap_mode"
+                        value="1"
+                        bind:checked={$mainSettings.values.disable_ap_mode}
+                        class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span>Disable WiFi AP fallback</span>
+                </label>
+                <p class="text-xs text-gray-600 dark:text-gray-400">
+                    If enabled and WiFi credentials are lost, recovery requires reflashing.
+                </p>
+            </div>
+
             <div>
                 <label for="ethernet-type" class="block text-sm font-medium">Ethernet Type</label>
                 <select id="ethernet-type" name="eth" bind:value={$mainSettings.values.eth} class="mt-1 block w-full rounded-md">

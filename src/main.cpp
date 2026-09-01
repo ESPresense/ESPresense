@@ -170,6 +170,11 @@ void setupNetwork() {
     HeadlessWiFiSettings.pstring("wifi-password", "", "WiFi Password");
     auto wifiTimeout = HeadlessWiFiSettings.integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * HeadlessWiFiSettings.integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
+    disableApMode = HeadlessWiFiSettings.checkbox(
+        "disable_ap_mode",
+        false,
+        "Disable WiFi AP fallback (reflash required if WiFi creds are lost)"
+    );
     if (MultiNetwork.supportsEthernet()) {
         std::vector<String> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)"};
         ethernetType = HeadlessWiFiSettings.dropdown("eth", ethernetTypes, 0, "Ethernet Type");
@@ -245,8 +250,15 @@ void setupNetwork() {
     HeadlessWiFiSettings.onHttpSetup = HttpWebServer::Init;
     HeadlessWiFiSettings.hostname = "espresense-" + kebabify(room);
 
-    if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str()))
+    if (!MultiNetwork.connect(ethernetType, 20, wifiTimeout, HeadlessWiFiSettings.hostname.c_str(), !disableApMode))
         ESP.restart();
+
+    // Hard-disable AP if requested. This is mainly for security/spectrum hygiene.
+    // Note: if AP mode is disabled and WiFi credentials are lost, recovery requires reflashing.
+    if (disableApMode) {
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_STA);
+    }
 
     GUI::Connected(true, false);
 
@@ -445,8 +457,13 @@ void reconnect(TimerHandle_t xTimer) {
     if (!MultiNetwork.isOnline()) {
         Log.printf("%u Reconnecting to Network...\r\n", xPortGetCoreID());
 
-        if (!MultiNetwork.connect(ethernetType, 2, 40, HeadlessWiFiSettings.hostname.c_str()))
+        if (!MultiNetwork.connect(ethernetType, 2, 40, HeadlessWiFiSettings.hostname.c_str(), !disableApMode))
             ESP.restart();
+
+        if (disableApMode) {
+            WiFi.softAPdisconnect(true);
+            WiFi.mode(WIFI_STA);
+        }
     }
 
     Log.printf("%u Reconnecting to MQTT...\r\n", xPortGetCoreID());

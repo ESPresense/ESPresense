@@ -9,7 +9,7 @@ public:
   IPAddress dnsIP() const;
   const char *getHostname() const;
   bool isOnline() const;
-  bool connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostName);
+  bool connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostName, bool apEnabled = true);
 
 private:
   bool initEthernet(int ethernetType);

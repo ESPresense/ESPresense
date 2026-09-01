@@ -136,7 +136,7 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
 #endif
 }
 
-bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostname) {
+bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostname, bool apEnabled) {
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_USE_ETHERNET)
   if (ethernetType > kNoEthernet) {
     Log.print(F("Connecting to Ethernet"));
@@ -165,7 +165,7 @@ bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, i
   (void)ethernet_wait_seconds;
 #endif
 
-  return HeadlessWiFiSettings.connect(true, wifi_wait_seconds);
+  return HeadlessWiFiSettings.connect(apEnabled, wifi_wait_seconds);
 }
 
 MultiNetworkManager MultiNetwork;

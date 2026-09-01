@@ -41,13 +41,13 @@ bool MultiNetworkManager::initEthernet(int ethernetType) {
   return false;
 }
 
-bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostname) {
+bool MultiNetworkManager::connect(int ethernetType, int ethernet_wait_seconds, int wifi_wait_seconds, const char *hostname, bool apEnabled) {
   (void)ethernetType;
   (void)ethernet_wait_seconds;
   if (hostname && hostname[0] != '\0') {
     Network.setHostname(hostname);
   }
-  return HeadlessWiFiSettings.connect(true, wifi_wait_seconds);
+  return HeadlessWiFiSettings.connect(apEnabled, wifi_wait_seconds);
 }
 
 MultiNetworkManager MultiNetwork;
