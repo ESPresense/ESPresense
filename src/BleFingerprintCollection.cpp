@@ -443,6 +443,9 @@ bool Command(String &command, String &pay) {
     } else if (command == "max_divisor") {
         maxDivisor = pay.isEmpty() ? DEFAULT_MAX_DIVISOR : pay.toInt();
         spurt("/max_divisor", String(maxDivisor));
+    } else if (command == "max_fingerprints") {
+        maxFingerprints = pay.isEmpty() ? DEFAULT_MAX_FINGERPRINTS : pay.toInt();
+        spurt("/max_fingerprints", String(maxFingerprints));
     } else if (command == "forget_ms") {
         forgetMs = pay.isEmpty() ? DEFAULT_FORGET_MS : pay.toInt();
         spurt("/forget_ms", String(forgetMs));
@@ -493,6 +496,7 @@ void CleanupOldFingerprints() {
         else
             removeSlot(i);
     }
+
     if (!any) {
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {

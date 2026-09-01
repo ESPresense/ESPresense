@@ -114,6 +114,10 @@ test.describe('Settings Page', () => {
 		const forgetMs = page.locator('input[name="forget_ms"]');
 		await expect(forgetMs).toHaveValue('180000');
 
+		// Check max fingerprints
+		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
+		await expect(maxFingerprints).toHaveValue('256');
+
 		// Check query value
 		const query = page.locator('input[name="query"]');
 		await expect(query).toHaveValue('flora: mi:');
@@ -152,6 +156,11 @@ test.describe('Settings Page', () => {
 		const countEnter = page.locator('input[name="count_enter"]');
 		await expect(countEnter).toHaveAttribute('min', '0');
 		await expect(countEnter).toHaveAttribute('max', '100');
+
+		// Test max_fingerprints min/max
+		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
+		await expect(maxFingerprints).toHaveAttribute('min', '16');
+		await expect(maxFingerprints).toHaveAttribute('max', '2048');
 
 		// Test requery_ms min/max
 		const requeryMs = page.locator('input[name="requery_ms"]');
@@ -327,6 +336,7 @@ test.describe('Settings Page', () => {
 		await expect(page.locator('input[name="known_macs"]')).toBeVisible();
 		await expect(page.locator('input[name="known_irks"]')).toBeVisible();
 		await expect(page.locator('input[name="forget_ms"]')).toBeVisible();
+		await expect(page.locator('input[name="max_fingerprints"]')).toBeVisible();
 	});
 
 	test('should display all Querying section fields', async ({ page }) => {
@@ -360,6 +370,7 @@ test.describe('Settings Page', () => {
 
 		// Number inputs should have explicit type="number"
 		await expect(page.locator('input[name="forget_ms"]')).toHaveAttribute('type', 'number');
+		await expect(page.locator('input[name="max_fingerprints"]')).toHaveAttribute('type', 'number');
 		await expect(page.locator('input[name="count_enter"]')).toHaveAttribute('type', 'number');
 		await expect(page.locator('input[name="count_exit"]')).toHaveAttribute('type', 'number');
 	});
@@ -374,6 +385,7 @@ test.describe('Settings Page', () => {
 
 		// Integer inputs should have step="1"
 		await expect(page.locator('input[name="forget_ms"]')).toHaveAttribute('step', '1');
+		await expect(page.locator('input[name="max_fingerprints"]')).toHaveAttribute('step', '1');
 		await expect(page.locator('input[name="requery_ms"]')).toHaveAttribute('step', '1');
 	});
 
@@ -384,6 +396,9 @@ test.describe('Settings Page', () => {
 		// Check placeholders show defaults
 		const forgetMs = page.locator('input[name="forget_ms"]');
 		await expect(forgetMs).toHaveAttribute('placeholder', '180000');
+
+		const maxFingerprints = page.locator('input[name="max_fingerprints"]');
+		await expect(maxFingerprints).toHaveAttribute('placeholder', '256');
 
 		const requeryMs = page.locator('input[name="requery_ms"]');
 		await expect(requeryMs).toHaveAttribute('placeholder', '300');
