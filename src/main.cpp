@@ -6,6 +6,10 @@
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName)
 {
+    // The counter, not just the log line: fragmentation onset is the thing #2309 needs to
+    // see, and until now seeing it meant scraping serial off a device that was already
+    // failing. /json/tele and MQTT telemetry both carry this.
+    allocFails.fetch_add(1, std::memory_order_relaxed);
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
 }
 
@@ -141,7 +145,10 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
 
-    if (pub(teleTopic.c_str(), 0, false, doc)) return true;
+    if (pub(teleTopic.c_str(), 0, false, doc)) {
+        telePubs.fetch_add(1, std::memory_order_relaxed);
+        return true;
+    }
 
     teleFails++;
     log_e("Error after 10 tries sending telemetry (%d times since boot)", teleFails);
