@@ -62,6 +62,9 @@ bool BleFingerprint::shouldHide(const String &s) {
  * overrides (calibrated RSSI, alias, and name), and recalculates derived flags and timing used for reporting
  * and querying (ignore, countable, allowQuery, hidden, isNode, qryDelayMillis, nextReportMs, etc.).
  *
+ * Same-idType updates are accepted for positive identity types when the concrete id string changes (e.g. iBeacon UUID-on-motion),
+ * while still rejecting lower-priority idTypes, negative ignored-type reassignments, and no-op same-id reassignments.
+ *
  * @param newId The identifier to assign (e.g., "mac:...", "name:...", "node:...").
  * @param newIdType Numeric type code for the identifier; negative values mark the fingerprint as ignored.
  * @param newName Optional human-readable name to assign if not overridden by device config.
@@ -69,7 +72,7 @@ bool BleFingerprint::shouldHide(const String &s) {
  */
 bool BleFingerprint::setId(const String &newId, short newIdType, const String &newName) {
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
-    if (idType > 0 && newIdType <= idType) return false;
+    if (idType > 0 && (newIdType < idType || (newIdType == idType && newId == id))) return false;
     // Log.printf("setId: %s %d %s OLD idType: %d\r\n", newId.c_str(), newIdType, newName.c_str(), idType);
 
     ignore = newIdType < 0;
