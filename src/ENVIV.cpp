@@ -68,7 +68,7 @@ namespace ENVIV
         }
     }
 
-    void ConnectToWifi()
+    void ConnectToWifi(bool updating)
     {
 #if SOC_I2C_NUM > 1
         ENVIV_I2c_Bus = HeadlessWiFiSettings.integer("ENVIV_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "ENVIV I2C Bus");
