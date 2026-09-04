@@ -97,7 +97,7 @@ void Setup() {
  * address is read using the key "SCD4x_I2c" and defaults to an empty string
  * when not configured.
  */
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
     SCD4x_I2c_Bus = HeadlessWiFiSettings.integer("SCD4x_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
     SCD4x_I2c = HeadlessWiFiSettings.string("SCD4x_I2c", "", "I2C address (0x62 for SCD40/SCD41/SCD43)");
 }

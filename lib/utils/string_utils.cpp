@@ -143,17 +143,27 @@ bool prefixExists(const String &prefixes, const String &s)
     unsigned int start = 0;
     unsigned int space;
 
+    // Normalize the target string to lowercase for case-insensitive comparison
+    String sLower = s;
+    sLower.toLowerCase();
+
     while ((space = prefixes.indexOf(" ", start)) != -1)
     {
         if (space > start)
         {
             auto sub = prefixes.substring(start, space);
-            if (s.indexOf(sub) == 0) return true;
+            sub.toLowerCase();
+            if (sLower.indexOf(sub) == 0) return true;
         }
         start = space + 1;
     }
     auto sub = prefixes.substring(start);
-    return !sub.isEmpty() && s.indexOf(sub) == 0;
+    if (!sub.isEmpty())
+    {
+        sub.toLowerCase();
+        return sLower.indexOf(sub) == 0;
+    }
+    return false;
 }
 
 bool spurt(const String &fn, const String &content)

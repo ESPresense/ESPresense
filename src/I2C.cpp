@@ -13,7 +13,7 @@
 namespace I2C {
 bool I2CDebug = false;
 
-void ConnectToWifi() {
+void ConnectToWifi(bool updating) {
 
     I2C_Bus_1_SDA = HeadlessWiFiSettings.integer("I2C_Bus_1_SDA", -1, 48, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
     I2C_Bus_1_SCL = HeadlessWiFiSettings.integer("I2C_Bus_1_SCL", -1, 48, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");

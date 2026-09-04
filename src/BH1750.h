@@ -8,7 +8,7 @@ class AsyncMqttClient;
 namespace BH1750
 {
     void Setup();
-    void ConnectToWifi();
+    void ConnectToWifi(bool updating);
     void SerialReport();
     void Loop();
     bool SendDiscovery();

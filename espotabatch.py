@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-import subprocess
+import asyncio
+import os
 import time
 
 #this list contains array of esp32 clients,
@@ -13,10 +14,16 @@ esps = [
 esp_respond_sender_port = '3232'
 sender_to_esp_port = '3232'
 
-cmd = 'pio run -e m5atom -e macchina-a0'
-p = subprocess.call(cmd, shell=True)
+async def main():
+    proc = await asyncio.create_subprocess_exec('pio', 'run', '-e', 'm5atom', '-e', 'macchina-a0')
+    await proc.wait()
 
-for esp in esps:
-    cmd = 'python3 ~/.platformio/packages/framework-arduinoespressif32/tools/espota.py -i '+esp[0]+' -p '+sender_to_esp_port+' -P '+esp_respond_sender_port+' -f .pio/build/'+esp[1]+'/firmware.bin'
-    print (cmd)
-    p = subprocess.call(cmd, shell=True)
+    for esp in esps:
+        espota = os.path.expanduser('~/.platformio/packages/framework-arduinoespressif32/tools/espota.py')
+        args = ['python3', espota, '-i', esp[0], '-p', sender_to_esp_port, '-P', esp_respond_sender_port,
+                '-f', '.pio/build/' + esp[1] + '/firmware.bin']
+        print(' '.join(args))
+        proc = await asyncio.create_subprocess_exec(*args)
+        await proc.wait()
+
+asyncio.run(main())
