@@ -54,6 +54,18 @@ String getVersionMarker() {
  * calls will not trigger additional update actions.
  */
 void checkForUpdates() {
+    // A WiFiClientSecure TLS handshake to GitHub transiently needs ~80KB (mbedTLS's 16KB in/out
+    // record buffers + the HTTPS response), measured on an S3 (free 91KB -> minfree 12KB per check).
+    // On a memory-tight node (many fingerprints) that spike drives free heap to near-zero — the
+    // "failed to allocate 2312 bytes" storm and dropped telemetry the reporter sees with auto_update
+    // on (#2309). It is NOT a leak (heap fully recovers between checks); it's a periodic spike a
+    // loaded node can't absorb. Defer until there's headroom rather than risk OOM — retries next
+    // interval, and a node with room (e.g. right after boot) still updates.
+    uint32_t freeHeap = ESP.getFreeHeap();
+    if (freeHeap < UPDATE_MIN_FREE_HEAP) {
+        log_w("Deferring update check: %u free < %u needed for the TLS handshake", freeHeap, (unsigned)UPDATE_MIN_FREE_HEAP);
+        return;
+    }
     auto versionMarker = getVersionMarker();
     if (versionMarker.length() > 0) {
         static bool foundNewVersion = false;
