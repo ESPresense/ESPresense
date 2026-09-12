@@ -1,6 +1,7 @@
 #include "BleFingerprintCollection.h"
 
 #include "defaults.h"
+#include "globals.h"
 #include "mqtt.h"
 #include "Logger.h"
 #include <Arduino.h>
@@ -33,6 +34,10 @@ void removeSlot(size_t index, bool notify = true) {
     slot.fingerprint = nullptr;
     if (activeFingerprints > 0)
         --activeFingerprints;
+    // The single choke point every destruction passes through, by eviction or by
+    // CleanupOldFingerprints(). Pairs with the fpNew bump in getFingerprintInternal(), so
+    // fpNew - fpDel tracks activeFingerprints.
+    fpDel.fetch_add(1, std::memory_order_relaxed);
 
     if (notify && onDel)
         dying.push_back(doomed);
@@ -535,6 +540,11 @@ FingerprintLease getFingerprintInternal(BLEAdvertisedDevice *advertisedDevice) {
         log_e("Failed to allocate fingerprint");
         return {};
     }
+    // Counted here rather than at the onAdd dispatch in Seen(): onAdd only fires when
+    // BleFingerprint::seen() returns true, which it skips for ignored and hidden devices,
+    // and GUI::Added() filters on getIgnore() again. Those devices are still allocated, so
+    // an onAdd-based count would miss exactly the allocations #2309 is trying to attribute.
+    fpNew.fetch_add(1, std::memory_order_relaxed);
 
     if (auto *found = findById(created->getId())) {
         created->setInitial(*found);

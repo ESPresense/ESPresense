@@ -12,6 +12,9 @@ bool pub(const char *topic, uint8_t qos, bool retain, const char *payload, size_
     {
         if (mqttClient.publish(topic, qos, retain, payload, length, dup, message_id))
             return true;
+        // Counted per failed iteration, not per call: #2309 needs the retry rate, and a
+        // publish that succeeds first time contributes nothing to it.
+        mqttRetries.fetch_add(1, std::memory_order_relaxed);
         delay(25);
     }
     return false;
