@@ -23,7 +23,6 @@
 #include "Switch.h"
 #include "Button.h"
 #include "MultiNetwork.h"
-#include "SerialImprov.h"
 #include "Logger.h"
 #include "Updater.h"
 #include "defaults.h"
