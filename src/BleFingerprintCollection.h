@@ -55,6 +55,16 @@ size_t Size(bool cleanup = true);
 bool FindDeviceConfig(const String &id, DeviceConfig &config);
 bool FindDeviceConfigByAlias(const String &alias, DeviceConfig &config);
 
+// Tiered memory (ColdTier pre-filter) observability
+uint32_t getTierDropCount();
+uint32_t getTierColdCount();
+uint32_t getTierHotCount();
+uint32_t getTierPromoteCount();
+size_t getColdTierCapacity();
+size_t getColdTierCount();
+bool isColdTierUsingPsram();
+bool isTieredMemoryEnabled();
+
 extern TCallbackBool onSeen;
 extern TCallbackFingerprint onAdd;
 extern TCallbackFingerprint onDel;
