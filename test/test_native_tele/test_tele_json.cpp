@@ -8,7 +8,7 @@
 
 #include <unity.h>
 
-#include "../../src/TeleJson.h"
+#include "../../main/TeleJson.h"
 
 namespace {
 
