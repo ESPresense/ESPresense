@@ -2,6 +2,14 @@
 #define ADAPTIVE_PERCENTILE_RSSI_H
 
 #include <cstdint>
+#include <cmath>
+
+// d = 10^((refRSSI - rssi) / (10 * pathLoss)), as expf so it stays in single precision.
+// pow(10, ...) promoted to double and pulled in newlib's 4.5KB __ieee754_pow on every
+// advertisement; the C3/C6 have no FPU, so that ran soft-float on the NimBLE host task.
+inline float rssiToDistance(float refRSSI, float rssi, float pathLoss) {
+    return expf((refRSSI - rssi) * (2.302585093f / (10.0f * pathLoss)));
+}
 
 class AdaptivePercentileRSSI {
 public:
