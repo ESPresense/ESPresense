@@ -115,7 +115,10 @@ void task(void* arg) {
         pkt[n] = 0;
         unsigned cmd, hostPort, size;
         char md5hex[40];
-        if (sscanf(pkt, "%u %u %u %39s", &cmd, &hostPort, &size, md5hex) != 4 || strlen(md5hex) != 32) continue;
+        // siscanf, not sscanf: identical parsing, but the integer-only variant. Plain sscanf links
+        // newlib's float-capable __ssvfscanf_r (8KB, plus 128-bit long-double helpers) for a
+        // handshake line that has no floats in it.
+        if (siscanf(pkt, "%u %u %u %39s", &cmd, &hostPort, &size, md5hex) != 4 || strlen(md5hex) != 32) continue;
         if (cmd != 0) {  // 0 = flash; 100 = filesystem, which we do not carry
             sendto(udp, "ERR: only flash", 15, 0, (sockaddr*)&from, fromLen);
             continue;
