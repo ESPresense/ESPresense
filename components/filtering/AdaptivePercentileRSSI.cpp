@@ -309,9 +309,7 @@ float AdaptivePercentileRSSI::getDistanceVariance(float refRSSI, float pathLossE
         // Include only readings within the time window
         if (age <= timeWindowMs || age > 0xFFFFFFFF - timeWindowMs) {
             // Convert RSSI to distance
-            float rssi = readings[idx].rssi;
-            float exponent = (refRSSI - rssi) / (10.0f * pathLossExponent);
-            float distance = pow(10.0f, exponent); // d = 10^((P0 - RSSI) / (10 * n))
+            float distance = rssiToDistance(refRSSI, readings[idx].rssi, pathLossExponent);
 
             sumDistance += distance;
             sumDistanceSquared += distance * distance;
