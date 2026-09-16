@@ -13,7 +13,7 @@ cc -c test/unity_stubs.c -o "$OUT/stubs.o"
 rc=0
 for t in test/test_native_*/*.cpp; do
   name=$(basename "$(dirname "$t")")
-  g++ -std=gnu++17 -Wall -Wextra -I"$UNITY" -I"$JSON" -Imain "$t" "$OUT/unity.o" "$OUT/stubs.o" -o "$OUT/$name" || { rc=1; continue; }
+  g++ -std=gnu++17 -Wall -Wextra -I"$UNITY" -I"$JSON" -Imain -I"$(dirname "$t")" "$t" "$OUT/unity.o" "$OUT/stubs.o" -o "$OUT/$name" || { rc=1; continue; }
   "$OUT/$name" || rc=1
 done
 exit $rc
