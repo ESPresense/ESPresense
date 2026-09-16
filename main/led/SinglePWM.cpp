@@ -60,7 +60,10 @@ void SinglePWM::update() {
 void SinglePWM::setDuty(uint32_t x) {
     if (!inited) init();
     if (!inited) return;
-    uint32_t duty = x >= 255 ? 4096 : (x <= 0 ? 0 : (uint32_t)round(4096.0 * pow(10.0, 0.0055 * (x - 255.0))));
+    // Gamma ramp 4096 * 10^(0.0055 * (x - 255)), as expf so it stays single precision:
+    // LEDs::Seen() toggles the status LED twice per advertisement, and the double-precision
+    // pow() this replaced ran on the NimBLE host task each time (see PR #2504).
+    uint32_t duty = x >= 255 ? 4096 : (x <= 0 ? 0 : (uint32_t)(4096.0f * expf(0.0055f * 2.302585093f * ((float)x - 255.0f)) + 0.5f));
     if (inverted) duty = 4096 - duty;
     ledc_set_duty(PWM_MODE, (ledc_channel_t)LED::getIndex(), duty);
     ledc_update_duty(PWM_MODE, (ledc_channel_t)LED::getIndex());
