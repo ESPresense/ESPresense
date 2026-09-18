@@ -68,7 +68,7 @@ bool BleFingerprint::shouldHide(const std::string &s) {
 bool BleFingerprint::setId(const std::string &newId, short newIdType, const std::string &newName) {
     FieldLock lock;  // recursive: the alias path re-enters
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
-    if (idType > 0 && newIdType <= idType) return false;
+    if (idType > 0 && (newIdType < idType || (newIdType == idType && newId == id))) return false;
 
     ignore = newIdType < 0;
     idType = newIdType;
@@ -115,7 +115,7 @@ bool BleFingerprint::setId(const std::string &newId, short newIdType, const std:
 
     if (id != newId) {
         bool newHidden = shouldHide(newId);
-        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.empty() && prefixExists(BleFingerprintCollection::countIds, newId);
+        countable = !ignore && !newHidden && !BleFingerprintCollection::countIds.empty() && prefixExists(BleFingerprintCollection::countIds, newId);
         hidden = newHidden;
         added = false;
         auto timeSlot = calculateTimeSlot();
