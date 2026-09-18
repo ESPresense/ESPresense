@@ -19,6 +19,19 @@
 
 SemaphoreHandle_t BleFingerprint::fieldMutex = nullptr;
 
+// min(10^attempts, 60000) by repeated multiply: pow(10, n) here was enough to drag newlib's
+// 4.5KB double-precision pow() into the image. Stops multiplying at the cap, so it can't overflow.
+// Takes unsigned to match qryAttempts: as an int parameter, a count past INT_MAX converted
+// negative, the loop never ran, and the backoff collapsed to 1ms instead of saturating.
+static constexpr unsigned queryBackoffMs(unsigned attempts) {
+    unsigned ms = 1;
+    for (unsigned i = 0; i < attempts && ms < 60000; i++) ms *= 10;
+    return ms < 60000 ? ms : 60000;
+}
+static_assert(queryBackoffMs(0) == 1 && queryBackoffMs(1) == 10 && queryBackoffMs(3) == 1000, "backoff is 10^attempts");
+static_assert(queryBackoffMs(5) == 60000 && queryBackoffMs(99) == 60000, "backoff saturates at 60s");
+static_assert(queryBackoffMs(0x80000000u) == 60000 && queryBackoffMs(0xFFFFFFFFu) == 60000, "saturates past INT_MAX");
+
 void BleFingerprint::InitLocks() {
     if (!fieldMutex) fieldMutex = xSemaphoreCreateRecursiveMutex();
 }
@@ -533,7 +546,7 @@ bool BleFingerprint::query() {
         qryDelayMillis = BleFingerprintCollection::requeryMs;
     } else {
         qryAttempts++;
-        qryDelayMillis = std::min(int(pow(10, qryAttempts)), 60000);
+        qryDelayMillis = queryBackoffMs(qryAttempts);
         Log.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
