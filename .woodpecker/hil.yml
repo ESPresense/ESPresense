@@ -33,6 +33,20 @@ variables:
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
+      # ble-flood is a bench service on the HIL host (docker --restart unless-stopped), not a step:
+      # a pipeline step either has to end (and cannot know when the soaks are done) or is detached
+      # (and cannot fail the build). The soak checks its heartbeat before and after instead, so a
+      # soak with no BLE load goes red rather than reading exactly like one with all of it.
+      # No braces: Woodpecker substitutes braced references in the YAML before the container sees it.
+      flood_alive() {
+        hb_age=$(( $(date +%s) - $(stat -c %Y /lock/ble-flood.alive 2>/dev/null || echo 0) ))
+        if [ "$hb_age" -gt 90 ]; then
+          echo "ble-flood heartbeat is $${hb_age}s old: the bench flood is not running, so this soak has no BLE load" >&2
+          exit 1
+        fi
+        echo "ble-flood alive (heartbeat $${hb_age}s old)"
+      }
+
       # Opt up to the full soak with a soak/* branch or [soak] in the message. On a
       # pull_request that message is the PR title, not the head commit subject.
       #
@@ -52,53 +66,16 @@ variables:
 
       ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
       python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+      flood_alive
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
       set -o pipefail
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
-      # The flood is a detached step, so a flood that died mid-run cannot fail this pipeline on its
-      # own: a soak with no BLE load would read exactly like a soak with all of it. Assert at the
-      # end that the load this run depended on was still being refreshed when it finished.
-      # No braces: Woodpecker substitutes ${...} in the YAML before the container sees it.
-      hb_age=$(( $(date +%s) - $(stat -c %Y /lock/ble-flood.alive 2>/dev/null || echo 0) ))
-      if [ "$hb_age" -gt 120 ]; then
-        echo "ble-flood heartbeat is $${hb_age}s old at the end of the soak: the flood was not running, so this soak has no BLE load" >&2
-        exit 1
-      fi
-      echo "ble-flood alive at end of soak (heartbeat $${hb_age}s old)"
+      flood_alive
     '
 
 steps:
-  - name: ble-flood
-    image: ghcr.io/espresense/ble-loadgen:1
-    pull: true
-    detach: true
-    privileged: true
-    network_mode: host
-    depends_on: []
-    volumes:
-      # The heartbeat a non-detached step can read. A detached step cannot fail the pipeline, so
-      # without it the flood can die at startup and the soak still reports green.
-      - /var/lock/woodpecker:/hb
-    environment:
-      BLE_FLOOD_HEARTBEAT: /hb/ble-flood.alive
-
-  - name: ble-flood-guard
-    image: ghcr.io/espresense/ble-loadgen:1
-    pull: true
-    depends_on: []
-    volumes:
-      - /var/lock/woodpecker:/lock
-    commands:
-      - |
-        # ble-flood is detached, so its own failure cannot fail this pipeline: it can die in its
-        # first second and the soak still reports green, having loaded the node with nothing. That
-        # is worse than a red build, because it looks like evidence. This step is not detached, so
-        # its exit status is the pipeline's. It waits for the heartbeat (a flood that never
-        # advertised) and then keeps checking it (a flood that started and then wedged).
-        python3 /app/ble_flood.py --check-heartbeat /lock/ble-flood.alive --wait 120 --stale 90 --watch 180
-
   - name: test-esp32
     image: espressif/idf:v5.4.4
     pull: true
