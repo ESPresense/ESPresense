@@ -26,10 +26,10 @@
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/svelte": "^5.3.1",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.1",
     "chalk": "^6.0.0",
     "change-case": "^5.4.4",
-    "jsdom": "^30.0.1",
+    "jsdom": "^30.1.0",
     "mime": "^4.1.0",
     "nodemon": "^3.1.14",
     "postcss": "^8.5.28",
@@ -38,6 +38,6 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }
