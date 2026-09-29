@@ -1,14 +1,22 @@
 # -coexist variants (ESPA-196 FW-1): CSI+BLE coexistence measurement.
-# CSI needs the RX callback API compiled in; console UART baud is bumped from
-# 115200 to 921600 (matched by the HIL --baud flag for these envs) because a
-# 100 Hz sweep point streams base64 §B CSI frames fast enough to exceed
-# 115200's ~11.5 KB/s ceiling - the console is the only channel this test
-# firmware has back to the harness, there is no MQTT broker guaranteed on the
-# bench host.
 # Renamed between IDF releases (older snapshots use CONFIG_ESP32_WIFI_CSI_ENABLED);
 # confirmed CONFIG_ESP_WIFI_CSI_ENABLED is the real v5.4.4 name against the actual
 # esp_wifi.h source, not the possibly-stale Arduino-bundled copy this was first
 # checked against. An unknown key here would have silently no-op'd (not failed the
 # build) and left CSI capture permanently off - worth getting right the first time.
 CONFIG_ESP_WIFI_CSI_ENABLED=y
-CONFIG_ESP_CONSOLE_UART_BAUDRATE=921600
+
+# DIAGNOSTIC ROUND (ESPA-196): deliberately NOT bumping console baud to 921600 here
+# for now. Two smoke-test runs (pipelines 1359, 1362) both flashed clean on all 4
+# boards but then timed out waiting for Improv Serial to respond - while the same
+# heartbeat's unrelated pipeline 1361 (production firmware, stock 115200 baud)
+# completed Improv + a full 3-minute monitor cleanly. Baud is the one variable that
+# differs between working (production) and failing (coexist) builds at the point
+# Improv runs, so this isolates it: standard 115200 first, to find out whether it's
+# actually the cause before reintroducing a workaround for the real constraint (a
+# 100 Hz sweep point needs more than 115200's ~11.5 KB/s to stream base64 §B CSI
+# frames without the console becoming the bottleneck - a soak-run-only problem, not
+# a smoke-test blocker). If 115200 clears Improv, next step is finding a higher baud
+# this bench's USB-serial hardware actually handles reliably, or moving the raw CSI
+# stream off the console entirely instead of just cranking the baud further.
+

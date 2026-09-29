@@ -24,9 +24,10 @@ variables:
   # still queues (flock, not fails) behind any concurrent CI activity on the SAME
   # physical device from an unrelated PR/push/cron using the real production
   # pipeline - it does not get a separate lock namespace just because the firmware
-  # variant name changed. Console baud is 921600 here (sdkconfig.coexist), so both
-  # the Improv provisioning step and the monitor need --baud to match, or they open
-  # the port at 115200 and read garbage.
+  # variant name changed. Console baud is stock 115200 here (sdkconfig.coexist) -
+  # deliberately not bumped for now, to isolate whether an earlier baud change was
+  # why Improv Serial timed out on pipelines 1359/1362 (see sdkconfig.coexist for
+  # the full diagnostic note).
   - &hil_run |
     . $IDF_PATH/export.sh
     git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
@@ -61,14 +62,14 @@ variables:
       echo "HIL $FIRMWARE_ENV: $${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
 
       ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
-      python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --baud 921600 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+      python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
       # ESPA-196: also grep the COEXIST_A/COEXIST_B records forward - they are the actual
       # measurement output, and hil_monitor's own crash-heuristic verdict is not the point
       # of this run (kept anyway: a real crash/reboot mid-sweep is itself useful signal).
       set -o pipefail
-      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --baud 921600 --duration $DURATION_SECS \
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
     '
 
