@@ -1,5 +1,6 @@
 #define VAR_DECLS
 #include "main.h"
+#include "CoexistTest.h"
 
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName) {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
@@ -443,7 +444,11 @@ void onAdvert(const Ble::Advert &advert) {
 }
 
 void scanTask(void *parameter) {
+#ifdef COEXIST_TEST
+    Ble::Init("ESPresense", CoexistTest::WrapAdvertCallback(onAdvert));
+#else
     Ble::Init("ESPresense", onAdvert);
+#endif
     Ble::DeleteAllBonds();
     Enrollment::Setup();
 
@@ -522,6 +527,9 @@ void setup() {
     DS18B20::Setup();
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
+#ifdef COEXIST_TEST
+    CoexistTest::Begin();
+#endif
     reportSetup();
     Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(freeHeap()));
     Log.println();
