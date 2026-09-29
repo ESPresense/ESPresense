@@ -68,7 +68,11 @@ variables:
       # ESPA-196: also grep the COEXIST_A/COEXIST_B records forward - they are the actual
       # measurement output, and hil_monitor's own crash-heuristic verdict is not the point
       # of this run (kept anyway: a real crash/reboot mid-sweep is itself useful signal).
-      set -o pipefail
+      # NOT using `set -o pipefail` here (pipeline 1363 hit "set: Illegal option -o
+      # pipefail" - this step's shell doesn't accept it, whatever the reason). That
+      # option only matters if hil_monitor's own exit code needs to survive the `| grep`
+      # - it doesn't for this run, since the pass/fail signal I actually care about is
+      # the COEXIST_A/COEXIST_B stream itself, not hil_monitor's crash heuristic.
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
     '
