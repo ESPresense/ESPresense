@@ -299,9 +299,18 @@ Ble::AdvertCallback WrapAdvertCallback(Ble::AdvertCallback real) {
 }
 
 void Begin() {
-    g_csiQueue = xQueueCreate(8, sizeof(QueuedFrame));
-    xTaskCreatePinnedToCore(csiEmitterTask, "coexistEmit", 4096, nullptr, 1, nullptr, kCoexistCore);
-    xTaskCreatePinnedToCore(sweepTask, "coexistSweep", 4096, nullptr, 1, nullptr, kCoexistCore);
+    // ESPA-196: esp32c3's smoke test showed free_heap at ~8.9KB right after boot
+    // (vs ~43KB on esp32) and an OOM reboot ~94s in - c3 is already RAM-tight in
+    // production (see sdkconfig.defaults.esp32c3's own "200 fingerprints on C3"
+    // comment), and CSI enable reserves its own buffers on top of that. 3072
+    // matches this repo's own proven-safe size for scanTask (SCAN_TASK_STACK_SIZE,
+    // defaults.h) - a real precedent, not a guess - down from this file's original
+    // 4096. Queue depth 4 (was 8) halves the worst-case in-flight buffer backlog
+    // under backpressure. Neither is a fix for CSI's own buffer cost, only for the
+    // fixed overhead this test harness adds on top of it.
+    g_csiQueue = xQueueCreate(4, sizeof(QueuedFrame));
+    xTaskCreatePinnedToCore(csiEmitterTask, "coexistEmit", 3072, nullptr, 1, nullptr, kCoexistCore);
+    xTaskCreatePinnedToCore(sweepTask, "coexistSweep", 3072, nullptr, 1, nullptr, kCoexistCore);
 }
 
 }  // namespace CoexistTest
