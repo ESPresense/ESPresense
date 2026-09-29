@@ -60,6 +60,11 @@ variables:
     '
 
 steps:
+  # Detached steps are never gated and Woodpecker never captures their stdout, so a bind
+  # failure here has been invisible: the step shows "success" for merely starting the
+  # container, whether ble_flood.py went on to claim hci0 or die on EBUSY (ESPA-217). The
+  # heartbeat + log go on a shared volume so the non-detached guard step below can both
+  # verify the flood is live and surface its own diagnostic text in the captured CI log.
   - name: ble-flood
     image: ghcr.io/espresense/ble-loadgen:1
     pull: true
@@ -67,6 +72,31 @@ steps:
     privileged: true
     network_mode: host
     depends_on: []
+    volumes:
+      - flood_state:/flood
+    environment:
+      BLE_FLOOD_HEARTBEAT: /flood/ble-flood.alive
+    commands:
+      - python3 /app/ble_flood.py --index 0 --rate 40 2>&1 | tee /flood/ble-flood.log
+
+  # Non-detached, so its exit code counts: fails the pipeline (without blocking the
+  # test-esp32* steps, which have no depends_on) if the flood never came up live. On
+  # failure it prints ble_flood.py's own diagnosis (bluetoothd, a leaked prior flood,
+  # missing CAP_NET_ADMIN, ...) into this step's log — the first time that text has
+  # been visible anywhere but the bench's own terminal.
+  - name: ble-flood-guard
+    image: ghcr.io/espresense/ble-loadgen:1
+    pull: true
+    depends_on: [ble-flood]
+    volumes:
+      - flood_state:/flood
+    commands:
+      - |
+        python3 /app/ble_flood.py --check-heartbeat /flood/ble-flood.alive --wait 60 --stale 60 --watch 15 || {
+          echo "=== ble-flood.log (from the detached flood container) ==="
+          cat /flood/ble-flood.log 2>/dev/null || echo "(no log file — flood container never started, or the shared volume mount failed)"
+          exit 1
+        }
 
   - name: test-esp32
     image: espressif/idf:v5.4.4
