@@ -7,9 +7,12 @@
 //
 // Design: ESPA-172 execution-package comment (39175b73dd6f...), field-format
 // finalized 2026-06-09 (comment e8a1539f-8269...). Sweeps a self-ping-driven CSI
-// capture rate through {0,10,20,30,50,100} Hz while the existing always-on BLE
+// capture rate through {-1,0,10,20,30,50,100} Hz while the existing always-on BLE
 // passive scan runs completely unmodified, and emits two serial record types a
-// companion parser can grep out of the HIL log:
+// companion parser can grep out of the HIL log. rate=-1 (added ESPA-218) is a true
+// CSI-fully-disabled control bucket - comparing it against rate=0 (CSI on, no
+// self-ping) isolates whether CSI extraction itself costs BLE duty, independent of
+// the self-ping traffic ESPA-196's sweep varies from rate=10 up:
 //
 //   COEXIST_A board=<id> rate=<hz> dur_s=<n> ble_adverts_seen=<n> ping_sent=<n>
 //             ping_recv=<n> csi_captured=<n> csi_dropped=<n> free_heap=<n>
