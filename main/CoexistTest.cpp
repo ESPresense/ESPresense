@@ -40,7 +40,16 @@
 namespace CoexistTest {
 namespace {
 
-constexpr int kRatesHz[] = {0, 10, 20, 30, 50, 100};
+// ESPA-218: -1 is a true CSI-fully-disabled control bucket, added alongside the
+// original ESPA-196 sweep. R=0 was already CSI-enabled-but-unpinged (no self-ping
+// traffic, since the ping session is only started for rateHz>0) - it was never a
+// clean "CSI off" baseline, so it couldn't tell whether the 18-52% BLE duty loss
+// measured at R=10 in ESPA-196 comes from the self-ping traffic itself or from CSI
+// extraction/callback overhead. Comparing -1 vs 0 isolates CSI-extraction-alone
+// cost; comparing 0 vs 10+ isolates self-ping-traffic cost. Same-run A/B/C, so it
+// doesn't need a precision controlled BLE reference (ESPA-217) - ambient BLE
+// conditions are shared across all three buckets within one dwell cycle.
+constexpr int kRatesHz[] = {-1, 0, 10, 20, 30, 50, 100};
 constexpr int kDwellSecs = COEXIST_DWELL_SECS;
 
 // This bench only has one physical unit per chip family, and (per DT, ESPA-196
@@ -233,7 +242,8 @@ void sweepTask(void *) {
 #endif
     esp_wifi_set_csi_rx_cb(&onCsi, nullptr);
     esp_wifi_set_csi_config(&csiCfg);
-    esp_wifi_set_csi(true);
+    // Enable/disable is now toggled per-bucket inside the loop below (ESPA-218's
+    // rate=-1 control bucket needs it off; every other bucket needs it on).
 
     // Loop the whole sweep for as long as the HIL run keeps power on: a short PR
     // smoke test gets one (partial) pass, a soak run gets dozens - more repeated
@@ -247,6 +257,11 @@ void sweepTask(void *) {
             g_pingSent.store(0, std::memory_order_relaxed);
             g_pingRecv.store(0, std::memory_order_relaxed);
             g_sweepRunning.store(true, std::memory_order_relaxed);
+
+            // rate=-1 is the CSI-off control bucket (see kRatesHz comment) - every
+            // other bucket (including rate=0) keeps CSI capture enabled exactly as
+            // ESPA-196 originally had it.
+            esp_wifi_set_csi(rateHz != -1);
 
             esp_ping_handle_t pingHdl = nullptr;
             ip_addr_t target;
