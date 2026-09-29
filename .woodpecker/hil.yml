@@ -66,13 +66,14 @@ variables:
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
       # ESPA-196: also grep the COEXIST_A/COEXIST_B records forward - they are the actual
-      # measurement output, and hil_monitor's own crash-heuristic verdict is not the point
+      # measurement output, and the hil_monitor crash-heuristic verdict is not the point
       # of this run (kept anyway: a real crash/reboot mid-sweep is itself useful signal).
-      # NOT using `set -o pipefail` here (pipeline 1363 hit "set: Illegal option -o
-      # pipefail" - this step's shell doesn't accept it, whatever the reason). That
-      # option only matters if hil_monitor's own exit code needs to survive the `| grep`
-      # - it doesn't for this run, since the pass/fail signal I actually care about is
-      # the COEXIST_A/COEXIST_B stream itself, not hil_monitor's crash heuristic.
+      # No apostrophes in this note either, same reason as above: NOT using set -o
+      # pipefail here (pipeline 1363 hit an Illegal option error on it in this shell,
+      # cause not pinned down). That option only matters if the hil_monitor exit code
+      # needs to survive the pipe into grep, which does not matter for this run, since
+      # the pass or fail signal that actually matters is the COEXIST_A/COEXIST_B stream
+      # itself, not the hil_monitor crash heuristic.
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
     '
