@@ -6,6 +6,12 @@ if(FW_ENV MATCHES "-verbose$")
   list(APPEND FW_DEFS LOG_LEVEL_DEBUG)
 endif()
 
+# ESPA-196 (FW-1): CSI+BLE coexistence measurement variants. New files only, guarded
+# entirely behind this define - never set for any of the 4 production envs.
+if(FW_ENV MATCHES "-coexist$")
+  list(APPEND FW_DEFS COEXIST_TEST)
+endif()
+
 if(FW_ENV MATCHES "^esp32c3")
   list(APPEND FW_DEFS ESP32C3)
 elseif(FW_ENV MATCHES "^esp32c6")

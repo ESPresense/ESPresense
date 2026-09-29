@@ -17,6 +17,16 @@ variables:
   # One command block for all four devices. Everything device-specific comes from the
   # step's own DEVICE / FIRMWARE_ENV, including the lock file name, so the soak policy
   # below lives in exactly one place instead of four copies drifting apart.
+  #
+  # ESPA-196 (FW-1) branch note: this fork builds the `*-coexist` firmware variant
+  # instead of the production one. LOCK_KEY stays pinned to the base chip name
+  # (esp32/esp32c3/esp32c6/esp32s3) rather than following FIRMWARE_ENV, so this run
+  # still queues (flock, not fails) behind any concurrent CI activity on the SAME
+  # physical device from an unrelated PR/push/cron using the real production
+  # pipeline - it does not get a separate lock namespace just because the firmware
+  # variant name changed. Console baud is 921600 here (sdkconfig.coexist), so both
+  # the Improv provisioning step and the monitor need --baud to match, or they open
+  # the port at 115200 and read garbage.
   - &hil_run |
     . $IDF_PATH/export.sh
     git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
@@ -30,7 +40,7 @@ variables:
     # the shell genuinely needs braces, as the duration log line below does.
     git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
     # No apostrophes below, comments included: one contraction closes this string.
-    flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
+    flock -w 18000 /lock/$LOCK_KEY.lock bash -c '
       set -e
 
       # Opt up to the full soak with a soak/* branch or [soak] in the message. On a
@@ -51,15 +61,25 @@ variables:
       echo "HIL $FIRMWARE_ENV: $${DURATION_SECS}s (event=$CI_PIPELINE_EVENT branch=$CI_COMMIT_SOURCE_BRANCH)"
 
       ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
-      python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+      python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --baud 921600 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      # ESPA-196: also grep the COEXIST_A/COEXIST_B records forward - they are the actual
+      # measurement output, and hil_monitor's own crash-heuristic verdict is not the point
+      # of this run (kept anyway: a real crash/reboot mid-sweep is itself useful signal).
       set -o pipefail
-      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
+      python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --baud 921600 --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
     '
 
 steps:
+  # ESPA-196: fixed, moderate reference rate instead of the default 40/s heap-stress
+  # flood - this is standing in for the "controlled reference advertiser" the original
+  # design called for. --rate is adverts/sec (address rotates every advert; irrelevant
+  # to this measurement, which only counts raw arrival rate). Best-effort CMD override -
+  # unverified against this exact Woodpecker version, first thing to check in the PR's
+  # CI log; worst case it silently keeps the image's default (--rate 40) and the run is
+  # still informative, just noisier than planned.
   - name: ble-flood
     image: ghcr.io/espresense/ble-loadgen:1
     pull: true
@@ -67,6 +87,7 @@ steps:
     privileged: true
     network_mode: host
     depends_on: []
+    command: ["--index", "0", "--rate", "10"]
 
   - name: test-esp32
     image: espressif/idf:v5.4.4
@@ -79,7 +100,8 @@ steps:
       - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32
-      FIRMWARE_ENV: esp32
+      FIRMWARE_ENV: esp32-coexist
+      LOCK_KEY: esp32
       GITHUB_TOKEN:
         from_secret: github_token
       WIFI_SSID:
@@ -102,7 +124,8 @@ steps:
       - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32c3
-      FIRMWARE_ENV: esp32c3
+      FIRMWARE_ENV: esp32c3-coexist
+      LOCK_KEY: esp32c3
       GITHUB_TOKEN:
         from_secret: github_token
       WIFI_SSID:
@@ -125,7 +148,8 @@ steps:
       - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32c6
-      FIRMWARE_ENV: esp32c6
+      FIRMWARE_ENV: esp32c6-coexist
+      LOCK_KEY: esp32c6
       GITHUB_TOKEN:
         from_secret: github_token
       WIFI_SSID:
@@ -148,7 +172,8 @@ steps:
       - /var/lock/woodpecker:/lock
     environment:
       DEVICE: /dev/esp32s3
-      FIRMWARE_ENV: esp32s3
+      FIRMWARE_ENV: esp32s3-coexist
+      LOCK_KEY: esp32s3
       GITHUB_TOKEN:
         from_secret: github_token
       WIFI_SSID:

@@ -1,0 +1,9 @@
+# -coexist variants (ESPA-196 FW-1): CSI+BLE coexistence measurement.
+# CSI needs the RX callback API compiled in; console UART baud is bumped from
+# 115200 to 921600 (matched by the HIL --baud flag for these envs) because a
+# 100 Hz sweep point streams base64 §B CSI frames fast enough to exceed
+# 115200's ~11.5 KB/s ceiling - the console is the only channel this test
+# firmware has back to the harness, there is no MQTT broker guaranteed on the
+# bench host.
+CONFIG_ESP32_WIFI_CSI_ENABLED=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=921600
