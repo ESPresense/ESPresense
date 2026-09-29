@@ -141,8 +141,19 @@ void onCsi(void *, wifi_csi_info_t *info) {
     off += 8;
     frame[off++] = static_cast<uint8_t>(info->rx_ctrl.rssi);
     frame[off++] = static_cast<uint8_t>(info->rx_ctrl.channel);
+// esp32c6 is WiFi 6 (HE) capable (SOC_WIFI_HE_SUPPORT=1), which routes rx_ctrl through
+// the HE-variant esp_wifi_rxctrl_t (esp_wifi_he_types.h) instead of the plain
+// wifi_pkt_rx_ctrl_t the other three boards use - and that struct does not expose
+// .cwb/.sig_mode at all (confirmed against the actual v5.4.4 header, not assumed).
+// 0xFF sentinel instead of a fabricated 0/1 so this is honestly "not available" rather
+// than silently wrong.
+#if CONFIG_SOC_WIFI_HE_SUPPORT
+    frame[off++] = 0xFF;  // bw: not exposed on HE targets
+    frame[off++] = 0xFF;  // sig_mode: not exposed on HE targets
+#else
     frame[off++] = static_cast<uint8_t>(info->rx_ctrl.cwb);       // 0=HT20, 1=HT40
     frame[off++] = static_cast<uint8_t>(info->rx_ctrl.sig_mode);  // 0=non-HT, 1=HT
+#endif
     uint16_t nSub = csiLen / 2;
     memcpy(&frame[off], &nSub, 2);
     off += 2;
@@ -188,7 +199,13 @@ bool resolveGatewayTarget(ip_addr_t *out) {
     addr4.s_addr = ipInfo.gw.addr;
     memset(out, 0, sizeof(*out));
     inet_addr_to_ip4addr(ip_2_ip4(out), &addr4);
-    out->type = IPADDR_TYPE_V4;
+    // IP_SET_TYPE_VAL, not `out->type = ...` directly: this repo builds with
+    // CONFIG_LWIP_IPV6=n, so LWIP_IPV6=0 and ip_addr_t collapses to a bare
+    // ip4_addr_t with no .type member at all (confirmed against the actual
+    // esp-lwip source, not assumed) - IP_SET_TYPE_VAL is a no-op in that
+    // configuration and the real union-tagging write in a dual-stack build,
+    // so this line is correct either way instead of only in one of them.
+    IP_SET_TYPE_VAL(*out, IPADDR_TYPE_V4);
     return true;
 }
 
@@ -196,12 +213,24 @@ void sweepTask(void *) {
     while (!Network::isOnline()) vTaskDelay(pdMS_TO_TICKS(500));
 
     wifi_csi_config_t csiCfg = {};
+// esp32c6 is WiFi 6 (HE) capable, so wifi_csi_config_t is actually the bitfield
+// wifi_csi_acquire_config_t from esp_wifi_he_types.h - a completely different field
+// set from the other three boards' plain struct (confirmed against the real v5.4.4
+// header). Only touching the field names present in BOTH HE sub-variants
+// (MAC_VERSION_NUM==3 vs not) to stay portable across esp32c6 and any future HE part.
+#if CONFIG_SOC_WIFI_HE_SUPPORT
+    csiCfg.enable = 1;
+    csiCfg.acquire_csi_legacy = 1;
+    csiCfg.acquire_csi_ht20 = 1;
+    csiCfg.acquire_csi_ht40 = 1;
+#else
     csiCfg.lltf_en = true;
     csiCfg.htltf_en = true;
     csiCfg.stbc_htltf2_en = true;
     csiCfg.ltf_merge_en = true;
     csiCfg.channel_filter_en = true;
     csiCfg.manu_scale = false;
+#endif
     esp_wifi_set_csi_rx_cb(&onCsi, nullptr);
     esp_wifi_set_csi_config(&csiCfg);
     esp_wifi_set_csi(true);
