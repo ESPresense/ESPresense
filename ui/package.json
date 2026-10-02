@@ -21,23 +21,23 @@
     "@skeletonlabs/skeleton-svelte": "^5.0.1",
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.70.3",
-    "@sveltejs/vite-plugin-svelte": "^7.3.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@tailwindcss/postcss": "^4.3.1",
     "@tailwindcss/vite": "^4.3.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/svelte": "^5.3.1",
-    "@types/node": "^26.6.1",
+    "@types/node": "^26.6.2",
     "chalk": "^6.0.0",
     "change-case": "^5.4.4",
-    "jsdom": "^30.1.0",
+    "jsdom": "^30.1.1",
     "mime": "^4.1.0",
     "nodemon": "^3.1.14",
     "postcss": "^8.5.28",
-    "svelte": "^5.57.0",
+    "svelte": "^5.57.1",
     "svelte-check": "^4.7.6",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
     "vite": "^8.0.16",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   }
 }
