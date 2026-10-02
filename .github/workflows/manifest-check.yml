@@ -1,0 +1,47 @@
+name: manifest-check
+
+# Catch issue #2225 ("Failed to download manifest") regressions early. Probes
+# the public ESP Web Tools manifest endpoints used by the espresense.com web
+# installer and asserts they return well-formed JSON. Hourly cron schedule
+# matches how fast users would otherwise discover the breakage themselves;
+# pull requests that touch the script run it without the hourly schedule.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/manifest_check/**"
+      - ".github/workflows/manifest-check.yml"
+  pull_request:
+    paths:
+      - "tools/manifest_check/**"
+      - ".github/workflows/manifest-check.yml"
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    name: Schema unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python3 tools/manifest_check/test_check_manifest.py
+
+  probe-manifest:
+    name: Probe public manifest endpoints
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Probe manifest URLs
+        run: python3 tools/manifest_check/check_manifest.py
