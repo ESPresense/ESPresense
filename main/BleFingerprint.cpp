@@ -68,7 +68,7 @@ bool BleFingerprint::shouldHide(const std::string &s) {
 bool BleFingerprint::setId(const std::string &newId, short newIdType, const std::string &newName) {
     FieldLock lock;  // recursive: the alias path re-enters
     if (idType < 0 && newIdType < 0 && newIdType >= idType) return false;
-    if (idType > 0 && newIdType <= idType) return false;
+    if (idType > 0 && (newIdType < idType || (newIdType == idType && newId == id))) return false;
 
     ignore = newIdType < 0;
     idType = newIdType;
@@ -115,16 +115,17 @@ bool BleFingerprint::setId(const std::string &newId, short newIdType, const std:
 
     if (id != newId) {
         bool newHidden = shouldHide(newId);
-        countable = !ignore && !hidden && !BleFingerprintCollection::countIds.empty() && prefixExists(BleFingerprintCollection::countIds, newId);
+        countable = !ignore && !newHidden && !BleFingerprintCollection::countIds.empty() && prefixExists(BleFingerprintCollection::countIds, newId);
         hidden = newHidden;
         added = false;
+        // Assign replacement id before slot hash so the first report uses newId's stagger.
+        id = newId;
         auto timeSlot = calculateTimeSlot();
         uint64_t baseInterval = (uint64_t)BleFingerprintCollection::skipMs;
         uint64_t offset_ms = ((uint64_t)timeSlot * (baseInterval / MAX_TIME_SLOTS));
         uint64_t now_ms = getNowMs();
         uint64_t current_interval_start = baseInterval ? (now_ms / baseInterval) * baseInterval : now_ms;
         nextReportMs = current_interval_start + offset_ms;
-        id = newId;
         isNode = startsWith(newId, "node:");
     }
 
