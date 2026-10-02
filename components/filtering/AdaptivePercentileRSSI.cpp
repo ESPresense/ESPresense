@@ -8,7 +8,7 @@ template <typename T> static inline T constrain(T v, T lo, T hi) { return v < lo
 
 AdaptivePercentileRSSI::AdaptivePercentileRSSI(uint32_t timeWindowMs, uint16_t initialMaxReadings)
     : timeWindowMs(timeWindowMs),
-      maxReadings(initialMaxReadings),
+      maxReadings(constrain(initialMaxReadings, MIN_READINGS, MAX_READINGS)),
       head(0),
       tail(0),
       count(0),
@@ -146,57 +146,16 @@ void AdaptivePercentileRSSI::resizeBuffer(uint16_t newSize) {
     count = newCount;
 }
 
-float AdaptivePercentileRSSI::getPercentileRSSI(float percentile) {
-    if (count == 0) return 0;
-
-    // Create temporary array for sorting
-    float* values = new float[count];
-    uint16_t validCount = 0;
-
-    uint32_t currentTime = millis();
-    uint16_t idx = tail;
-
-    for (uint16_t i = 0; i < count; i++) {
-        uint32_t age = currentTime - readings[idx].timestamp;
-
-        if (age <= timeWindowMs || age > 0xFFFFFFFF - timeWindowMs) {
-            values[validCount++] = readings[idx].rssi;
-        }
-
-        idx = (idx + 1) % maxReadings;
-    }
-
-    if (validCount == 0) {
-        delete[] values;
-        return 0;
-    }
-
-    std::sort(values, values + validCount);
-
-    float index = percentile * (validCount - 1);
-    uint16_t lowerIdx = static_cast<uint16_t>(index);
-    float fraction = index - lowerIdx;
-
-    float result;
-    if (lowerIdx + 1 < validCount) {
-        result = values[lowerIdx] * (1 - fraction) + values[lowerIdx + 1] * fraction;
-    } else {
-        result = values[lowerIdx];
-    }
-
-    delete[] values;
-    return result;
-}
-
-float AdaptivePercentileRSSI::getP75RSSI() {
-    return getPercentileRSSI(0.75f);
-}
 float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
 {
     if (count == 0) return 0.0f;
 
-    // 1) Copy all current readings into a scratch array
-    float* vals = new float[count];
+    // 1) Copy all current readings into a scratch array. This runs on every advertisement, so a
+    // new[]/delete[] here was up to 800 bytes of heap churn per advert (#2309). The constructor
+    // caps maxReadings at MAX_READINGS, so the buffer always fits.
+    // ponytail: one shared buffer, only safe while BleFingerprint::seen() on the NimBLE host task
+    // is the sole caller; give each caller its own buffer if that ever changes.
+    static float vals[MAX_READINGS];
     uint16_t idx = tail;
 
     for (uint16_t i = 0; i < count; ++i) {
@@ -233,8 +192,6 @@ float AdaptivePercentileRSSI::getMedianIQR(float k /* = 1.5f */)
             ++survivors;
         }
     }
-
-    delete[] vals;
 
     return survivors ? (sum / survivors) : med;   // fallback to median if all clipped
 }
