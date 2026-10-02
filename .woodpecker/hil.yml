@@ -33,6 +33,20 @@ variables:
     flock -w 18000 /lock/$FIRMWARE_ENV.lock bash -c '
       set -e
 
+      # ble-flood-guard only watches the floods first seconds, but a soak runs for up to 4h:
+      # pipeline 1337 lost its flood two hours in and still reported green, which is worse than
+      # a red build because it looks like evidence. Assert the heartbeat is fresh around the
+      # measurement window itself.
+      # No braces: Woodpecker substitutes braced references in the YAML before the container sees it.
+      flood_alive() {
+        hb_age=$(( $(date +%s) - $(stat -c %Y /flood/ble-flood.alive 2>/dev/null || echo 0) ))
+        if [ "$hb_age" -gt 90 ]; then
+          echo "ble-flood heartbeat is $${hb_age}s old: the flood is not running, so this soak has no BLE load" >&2
+          exit 1
+        fi
+        echo "ble-flood alive (heartbeat $${hb_age}s old)"
+      }
+
       # Opt up to the full soak with a soak/* branch or [soak] in the message. On a
       # pull_request that message is the PR title, not the head commit subject.
       #
@@ -52,11 +66,13 @@ variables:
 
       ./build.sh $FIRMWARE_ENV -p $DEVICE -b 115200 erase-flash flash
       python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+      flood_alive
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
       set -o pipefail
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
         | grep --line-buffered -vE "^[0-9]+ (New|Del) "
+      flood_alive
     '
 
 steps:
@@ -105,6 +121,7 @@ steps:
     depends_on: []
     volumes:
       - cache_volume:/cache
+      - flood_state:/flood
       - /dev/esp32:/dev/esp32
       - /var/lock/woodpecker:/lock
     environment:
@@ -128,6 +145,7 @@ steps:
     depends_on: []
     volumes:
       - cache_volume:/cache
+      - flood_state:/flood
       - /dev/esp32c3:/dev/esp32c3
       - /var/lock/woodpecker:/lock
     environment:
@@ -151,6 +169,7 @@ steps:
     depends_on: []
     volumes:
       - cache_volume:/cache
+      - flood_state:/flood
       - /dev/esp32c6:/dev/esp32c6
       - /var/lock/woodpecker:/lock
     environment:
@@ -174,6 +193,7 @@ steps:
     depends_on: []
     volumes:
       - cache_volume:/cache
+      - flood_state:/flood
       - /dev/esp32s3:/dev/esp32s3
       - /var/lock/woodpecker:/lock
     environment:
