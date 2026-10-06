@@ -210,6 +210,7 @@ float AdaptivePercentileRSSI::getAverageInterval() {
 }
 
 void AdaptivePercentileRSSI::setTimeWindow(uint32_t newTimeWindowMs) {
+    if (newTimeWindowMs == timeWindowMs) return;
     timeWindowMs = newTimeWindowMs;
     removeExpiredReadings(millis());
     adjustBufferSize(millis());

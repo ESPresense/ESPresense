@@ -61,10 +61,24 @@ static void full_buffer_fits_scratch() {
     TEST_ASSERT_EQUAL_FLOAT(reference(seen), a.getMedianIQR());
 }
 
+static void shrinking_window_drops_old_readings() {
+    AdaptivePercentileRSSI a;
+    for (int i = 0; i < 10; i++) {
+        fake_now_us = i * 1000000LL;  // one reading per second, last at t=9s
+        a.addMeasurement(i < 6 ? -90.0f : -50.0f);
+    }
+    TEST_ASSERT_EQUAL_UINT16(10, a.getReadingCount());
+    a.setTimeWindow(3000);  // keeps t=6..9s
+    TEST_ASSERT_EQUAL_UINT16(4, a.getReadingCount());
+    TEST_ASSERT_EQUAL_FLOAT(-50.0f, a.getMedianIQR());
+    fake_now_us = 0;
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(matches_reference_and_rejects_outliers);
     RUN_TEST(instances_do_not_share_state);
     RUN_TEST(full_buffer_fits_scratch);
+    RUN_TEST(shrinking_window_drops_old_readings);
     return UNITY_END();
 }

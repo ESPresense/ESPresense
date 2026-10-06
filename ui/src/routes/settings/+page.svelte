@@ -200,7 +200,7 @@
                     type="number"
                     step="1"
                     min="100"
-                    max="300000"
+                    max="60000"
                     name="rssi_window_ms"
                     placeholder={$extraSettings.defaults['rssi_window_ms']}
                     bind:value={$extraSettings.values['rssi_window_ms']}/>
