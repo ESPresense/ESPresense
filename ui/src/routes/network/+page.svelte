@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from "svelte";
-    import { mainSettings } from "$lib/stores";
-    import type { MainSettings } from "$lib/types";
+    import { mainSettings } from "#lib/stores.js";
+    import type { MainSettings } from "#lib/types.js";
 
     let s = $state(false);
     let wifiNetworks: Record<string, number> = $state({});

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from "./Icon.svelte";
-  import { page } from "$app/stores";
+  import { page } from '$app/state';
 
   const props = $props();
   const title = props.title as string ?? "Title";
@@ -8,10 +8,12 @@
   const href = props.href as string ?? "/";
   const count = props.count as number ?? 0;
 
-  const isActive = $derived($page.url.pathname === href);
+  const isActive = $derived(page.url.pathname === href);
 </script>
 
-<a {href} data-sveltekit-preload-data
+<a
+  href={href}
+  data-sveltekit-preload-data
   class={`flex items-center p-3 my-2 transition-colors duration-200 rounded-lg
     hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-gray-700 dark:hover:text-white
     ${isActive

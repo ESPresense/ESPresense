@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { themeMode } from '$lib/stores';
+    import { themeMode } from '#lib/stores.js';
 
     const options = [
         {

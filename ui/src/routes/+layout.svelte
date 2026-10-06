@@ -1,13 +1,13 @@
 <script lang="ts">
-    import Sidebar from "$lib/components/Sidebar.svelte";
-    import HamburgerButton from "$lib/components/HamburgerButton.svelte";
-    import { roomName, mobileMenuOpen } from "$lib/stores";
-    import { page } from "$app/stores";
+    import Sidebar from "#lib/components/Sidebar.svelte";
+    import HamburgerButton from "#lib/components/HamburgerButton.svelte";
+    import { roomName, mobileMenuOpen } from "#lib/stores.js";
+    import { page } from "$app/state";
     import { onMount, onDestroy } from "svelte";
     import "../app.css";
 
     // Get the current page name from the URL
-    $: pageName = $page.url.pathname.split("/").pop() || "Home";
+    $: pageName = page.url.pathname.split("/").pop() || "Home";
     $: pageTitle = pageName.charAt(0).toUpperCase() + pageName.slice(1);
 
     // Update title when room name or page changes
@@ -40,7 +40,7 @@
     });
 
     // Close mobile menu on route change
-    $: if ($page) {
+    $: if (page.url) {
         mobileMenuOpen.set(false);
     }
 
@@ -72,11 +72,9 @@
     </nav>
 
     <!-- Main content -->
-    <main class="flex-1 min-w-0 overflow-auto bg-white dark:bg-gray-900">
-        <div class="max-w-7xl mx-auto px-4 py-4 md:mt-0 mt-14">
-            <slot />
-        </div>
-    </main>
+    <main
+        class="flex-1 min-w-0 overflow-auto bg-white dark:bg-gray-900"
+    ><div class="max-w-7xl mx-auto px-4 py-4 md:mt-0 mt-14"><slot></slot></div></main>
 </div>
 
 <style>

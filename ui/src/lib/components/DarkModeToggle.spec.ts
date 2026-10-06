@@ -40,7 +40,7 @@ describe('DarkModeToggle', () => {
   beforeEach(async () => {
     // Reset DOM class and storage before each test
     // vi.resetModules(); // Causes Svelte component to crash
-    const { themeMode } = await import('$lib/stores');
+    const { themeMode } = await import('#lib/stores.js');
     themeMode.set('system');
 
     document.documentElement.classList.remove('dark');
@@ -70,7 +70,7 @@ describe('DarkModeToggle', () => {
 
   it('sets light theme on click from dark', async () => {
     localStorage.setItem(key, 'dark');
-    const { themeMode } = await import('$lib/stores');
+    const { themeMode } = await import('#lib/stores.js');
     themeMode.set('dark');
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
@@ -85,7 +85,7 @@ describe('DarkModeToggle', () => {
     prefersDark = true;
     window.matchMedia = mockMatchMedia();
     localStorage.setItem(key, 'light');
-    const { themeMode } = await import('$lib/stores');
+    const { themeMode } = await import('#lib/stores.js');
     themeMode.set('light');
     const { default: DarkModeToggle } = await import('./DarkModeToggle.svelte');
     render(DarkModeToggle as any);
