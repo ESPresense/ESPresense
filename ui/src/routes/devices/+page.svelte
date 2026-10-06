@@ -1,8 +1,8 @@
 <script lang="ts">
-    import DataTable, { type Column } from "$lib/components/DataTable.svelte";
+    import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
-    import { configs, events, enroll, cancelEnroll } from "$lib/stores";
-    import type { Config, Events } from "$lib/types";
+    import { configs, events, enroll, cancelEnroll } from "#lib/stores.js";
+    import type { Config, Events } from "#lib/types.js";
 
     let name = $state("");
     let id = $state("");

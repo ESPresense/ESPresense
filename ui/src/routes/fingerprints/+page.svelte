@@ -1,7 +1,7 @@
 <script lang="ts">
-    import DataTable, { type Column } from "$lib/components/DataTable.svelte";
-    import { devices } from "$lib/stores";
-    import type { Device } from "$lib/types";
+    import DataTable, { type Column } from "#lib/components/DataTable.svelte";
+    import { devices } from "#lib/stores.js";
+    import type { Device } from "#lib/types.js";
 
     let sortBy = $state("distance");
     let filterSelections = $state<Record<string, any>>({ vis: true });

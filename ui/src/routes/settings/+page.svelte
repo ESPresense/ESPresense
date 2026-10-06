@@ -1,6 +1,6 @@
 <script lang="ts">
-    import { extraSettings } from '$lib/stores.js';
-    import { saveSettingsWithRetry } from '$lib/utils/settings.js';
+    import { extraSettings } from '#lib/stores.js';
+    import { saveSettingsWithRetry } from '#lib/utils/settings.js';
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);

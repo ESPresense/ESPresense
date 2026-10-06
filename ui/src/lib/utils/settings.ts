@@ -1,5 +1,5 @@
 import type { Writable } from 'svelte/store';
-import type { ExtraSettings } from '$lib/types';
+import type { ExtraSettings } from '#lib/types.js';
 
 /**
  * Saves settings to the device with automatic restart and retry logic.

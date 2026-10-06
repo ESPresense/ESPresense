@@ -1,3 +1,5 @@
+import adapter from '@sveltejs/adapter-static';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { cppPlugin } from './plugins/cpp';
@@ -6,7 +8,30 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
     plugins: [
-        sveltekit(),
+        sveltekit({
+            preprocess: vitePreprocess(),
+            adapter: adapter(),
+            prerender: {
+                crawl: false,
+                entries: [
+                    '/',
+                    '/settings',
+                    '/hardware',
+                    '/devices',
+                    '/fingerprints',
+                    '/network'
+                ],
+                handleHttpError: 'warn'
+            },
+            appDir: 'app',
+            // Collapse to one shared JS payload for flash size. SK3's built-in
+            // 'single' replaces the hand-rolled rolldown codeSplitting group,
+            // which broke SK3's 'split' bundle logic ("Could not find the
+            // client runtime chunk").
+            output: { bundleStrategy: 'single' },
+            paths: { base: '' },
+            version: { name: '', pollInterval: 0 }
+        }),
         tailwindcss(),
         strip({
             include: '**/*.(js|ts|svelte)',
@@ -15,22 +40,7 @@ export default defineConfig({
         cppPlugin({ basePath: '', outPrefix: 'ui_' })
     ],
     build: {
-        sourcemap: false,
-        // Prefer one shared JS payload for flash size. SvelteKit still emits tiny
-        // entry/node stubs; this collapses app code into a single chunk group.
-        rolldownOptions: {
-            output: {
-                codeSplitting: {
-                    groups: [
-                        {
-                            name: 'index',
-                            test: (id) => !id.includes('node_modules/.vite'),
-                            includeDependenciesRecursively: true,
-                        }
-                    ]
-                }
-            }
-        }
+        sourcemap: false
     },
     server: {
         proxy: {

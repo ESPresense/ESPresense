@@ -1,9 +1,9 @@
 <script lang="ts">
-    import { base } from "$app/paths";
+    import { resolve } from "$app/paths";
     import SidebarItem from "./SidebarItem.svelte";
     import DarkModeToggle from "./DarkModeToggle.svelte";
     import Icon from "./Icon.svelte";
-    import { firmwareInfo } from "$lib/stores";
+    import { firmwareInfo } from "#lib/stores.js";
 </script>
 
 <div class="h-full w-full flex flex-col">
@@ -14,11 +14,35 @@
         </div>
     </div>
     <nav class="mt-6 px-6 space-y-1 flex-1">
-        <SidebarItem icon="network" title="Network" href="{base}/network" />
-        <SidebarItem icon="contact" title="Settings" href="{base}/settings" />
-        <SidebarItem icon="hardware" title="Hardware" href="{base}/hardware" />
-        <SidebarItem icon="device" title="Devices" href="{base}/devices" />
-        <SidebarItem icon="fingerprint" title="Fingerprints" href="{base}/fingerprints" />
+        <SidebarItem
+            icon="network"
+            title="Network"
+            href={resolve('/network')}
+        />
+
+        <SidebarItem
+            icon="contact"
+            title="Settings"
+            href={resolve('/settings')}
+        />
+
+        <SidebarItem
+            icon="hardware"
+            title="Hardware"
+            href={resolve('/hardware')}
+        />
+
+        <SidebarItem
+            icon="device"
+            title="Devices"
+            href={resolve('/devices')}
+        />
+
+        <SidebarItem
+            icon="fingerprint"
+            title="Fingerprints"
+            href={resolve('/fingerprints')}
+        />
     </nav>
     <div class="px-6 pb-2">
         <DarkModeToggle />
