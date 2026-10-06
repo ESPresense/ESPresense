@@ -227,6 +227,18 @@ esp_err_t postHandler(httpd_req_t* req) {
     std::string body;
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
+    if (name == "main") {
+        bool passwordEnabled = !formValue(body, "ap-password-enabled").empty();
+        std::string password = formValue(body, "ap-password");
+        if (password == MASKED_PASSWORD) {
+            password = slurp("/ap-password");
+        }
+        const bool hasValidApPasswordLength = password.empty() ||
+            (password.size() >= minimumApPasswordLength && password.size() <= maximumApPasswordLength);
+        if ((passwordEnabled && password.empty()) || !hasValidApPasswordLength)
+            return sendText(req, "400 Bad Request", "Configuration AP password must be 8 to 63 bytes");
+    }
+
     bool ok = true;
     for (auto* prm : endpoints[idx].params) {
         prm->set(formValue(body, prm->name));

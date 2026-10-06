@@ -161,6 +161,27 @@
                 <input id="wifi-password" type="password" autocomplete="new-password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
             </div>
 
+            <div class="space-y-2">
+                <label for="ap-password-enabled" class="flex items-center space-x-2">
+                    <input id="ap-password-enabled" type="checkbox" name="ap-password-enabled" value="1" bind:checked={$mainSettings.values["ap-password-enabled"]} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>Protect configuration AP with password</span>
+                </label>
+                <p class="text-sm text-gray-600 dark:text-gray-300">The first setup portal is open. This password protects later configuration portal sessions when enabled. Save and restart to apply.</p>
+                <label for="ap-password" class="block text-sm font-medium">Configuration AP Password</label>
+                <input
+                    id="ap-password"
+                    type="password"
+                    name="ap-password"
+                    bind:value={$mainSettings.values["ap-password"]}
+                    minlength="8"
+                    maxlength="63"
+                    required={$mainSettings.values["ap-password-enabled"]}
+                    placeholder="Enter AP password"
+                    class="mt-1 block w-full rounded-md"
+                />
+                <p class="text-sm text-gray-600 dark:text-gray-300">Use 8–63 characters. The saved password is masked; leave it unchanged to keep the current password.</p>
+            </div>
+
             <div>
                 <label for="wifi-timeout" class="block text-sm font-medium"> Seconds to wait for WiFi before captive portal (-1 = forever) </label>
                 <input id="wifi-timeout" type="number" name="wifi_timeout" bind:value={$mainSettings.values.wifi_timeout} placeholder={String($mainSettings.defaults.wifi_timeout)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
@@ -269,5 +290,3 @@
         </form>
     {/if}
 </div>
-
-

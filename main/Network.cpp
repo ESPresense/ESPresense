@@ -125,6 +125,17 @@ void dnsTask(void* arg) {
     ap.ap.ssid_len = strlen((char*)ap.ap.ssid);
     ap.ap.max_connection = 4;
     ap.ap.authmode = WIFI_AUTH_OPEN;
+    if (Settings::slurp("/ap-password-enabled") == "1") {
+        std::string password = Settings::slurp("/ap-password");
+        const bool hasValidApPasswordLength = password.size() >= Settings::minimumApPasswordLength &&
+            password.size() <= Settings::maximumApPasswordLength;
+        if (hasValidApPasswordLength) {
+            memcpy(ap.ap.password, password.c_str(), password.size());
+            ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+        } else {
+            Log.println("Invalid configuration AP password; starting open access point.");
+        }
+    }
     esp_wifi_set_config(WIFI_IF_AP, &ap);
     esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
     // Hand ourselves out as the DNS server so the phone's captive-portal probe lands on us.
