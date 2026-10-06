@@ -134,6 +134,7 @@ class BleFingerprint {
     bool shouldCount();
     void fingerprintAddress();
     void expire();
+    void setRssiWindowMs(uint32_t ms);
 
    private:
     static SemaphoreHandle_t fieldMutex;

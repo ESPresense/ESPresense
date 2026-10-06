@@ -60,6 +60,11 @@ void BleFingerprint::setInitial(const BleFingerprint &other) {
         adaptivePercentileRSSI.reset();
 }
 
+void BleFingerprint::setRssiWindowMs(uint32_t ms) {
+    if (adaptivePercentileRSSI)
+        adaptivePercentileRSSI->setTimeWindow(ms);
+}
+
 bool BleFingerprint::shouldHide(const std::string &s) {
     if (BleFingerprintCollection::include.length() > 0 && !prefixExists(BleFingerprintCollection::include, s)) return true;
     return (BleFingerprintCollection::exclude.length() > 0 && prefixExists(BleFingerprintCollection::exclude, s));
@@ -422,7 +427,8 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
 
     raw = advertisedDevice->getRSSI();
     if (!adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(
+            new AdaptivePercentileRSSI((uint32_t)BleFingerprintCollection::rssiWindowMs));
     adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
     rssi = adaptivePercentileRSSI->getMedianIQR();
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();

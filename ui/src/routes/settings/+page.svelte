@@ -193,6 +193,19 @@
                     bind:value={$extraSettings.values['skip_ms']}/>
             </label>
         </p>
+        <p>
+            <label>
+                RSSI smoothing window (in milliseconds; lower = faster, noisier):<br />
+                <input
+                    type="number"
+                    step="100"
+                    min="100"
+                    max="300000"
+                    name="rssi_window_ms"
+                    placeholder={$extraSettings.defaults['rssi_window_ms']}
+                    bind:value={$extraSettings.values['rssi_window_ms']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#calibration" target="_blank">Calibration</a>
         </h2>

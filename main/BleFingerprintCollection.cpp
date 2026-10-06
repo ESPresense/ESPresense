@@ -140,6 +140,7 @@ int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
        maxDivisor = DEFAULT_MAX_DIVISOR;
 int forgetMs = DEFAULT_FORGET_MS,
     skipMs = DEFAULT_SKIP_MS,
+    rssiWindowMs = DEFAULT_RSSI_WINDOW_MS,
     countMs = DEFAULT_COUNT_MS,
     requeryMs = DEFAULT_REQUERY_MS,
     maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
@@ -368,6 +369,7 @@ void ConnectToWifi(bool updating) {
     maxDistance = Settings::floating("max_dist", 0, 100, DEFAULT_MAX_DISTANCE, "Maximum distance to report (in meters)");
     skipDistance = Settings::floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     skipMs = Settings::integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
+    rssiWindowMs = Settings::integer("rssi_window_ms", 100, 300000, DEFAULT_RSSI_WINDOW_MS, "RSSI smoothing window (in milliseconds); lower responds faster, noisier");
     maxFingerprints = Settings::integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
 
     rxRefRssi = Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
@@ -405,6 +407,15 @@ bool Command(std::string &command, std::string &pay) {
     if (command == "skip_ms") {
         BleFingerprintCollection::skipMs = pay.empty() ? DEFAULT_SKIP_MS : toInt(pay);
         spurt("/skip_ms", toStr(skipMs));
+    } else if (command == "rssi_window_ms") {
+        rssiWindowMs = pay.empty() ? DEFAULT_RSSI_WINDOW_MS : toInt(pay);
+        if (rssiWindowMs < 100) rssiWindowMs = 100;
+        if (rssiWindowMs > 300000) rssiWindowMs = 300000;
+        spurt("/rssi_window_ms", toStr(rssiWindowMs));
+        size_t cursor = 0;
+        while (auto lease = AcquireNext(cursor, false)) {
+            lease.fingerprint->setRssiWindowMs((uint32_t)rssiWindowMs);
+        }
     } else if (command == "skip_distance") {
         BleFingerprintCollection::skipDistance = pay.empty() ? DEFAULT_SKIP_DISTANCE : toFloat(pay);
         spurt("/skip_dist", toStr(skipDistance));
