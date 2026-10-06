@@ -4,6 +4,7 @@
     import type { MainSettings } from "#lib/types.js";
 
     let s = $state(false);
+    let saveError = $state("");
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
     let isDestroyed = false;
@@ -46,6 +47,7 @@
         try {
             event.preventDefault();
             s = true;
+            saveError = "";
             const form = event.target as HTMLFormElement;
             const formData = new FormData(form);
             const params = new URLSearchParams();
@@ -54,7 +56,10 @@
                     params.append(key, value);
                 }
             }
-            await fetch("/wifi/main", { method: "POST", body: params });
+            const saveResponse = await fetch("/wifi/main", { method: "POST", body: params });
+            if (!saveResponse.ok) {
+                throw new Error((await saveResponse.text()).trim() || "Failed to save settings.");
+            }
 
             try {
                 await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
@@ -82,6 +87,8 @@
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                 }
             }
+        } catch (error) {
+            saveError = error instanceof Error ? error.message : "Failed to save settings.";
         } finally {
             s = false;
         }
@@ -282,6 +289,9 @@
                 </div>
             </div>
 
+            {#if saveError}
+                <p role="alert" class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+            {/if}
             <div class="flex justify-end">
                 <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                     {s ? "Saving..." : "Save"}

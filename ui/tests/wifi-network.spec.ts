@@ -176,6 +176,34 @@ test.describe('WiFi Network Selection', () => {
     expect(values.get('ap-password')).toBe('AccessPoint8');
   });
 
+  for (const [status, message] of [
+    [400, 'Configuration AP password must be 8 to 63 bytes'],
+    [500, 'Error writing to flash filesystem']
+  ] as const) {
+    test(`should show a ${status} save error without restarting`, async ({ page }) => {
+      let restartRequests = 0;
+      await page.route('/wifi/main', async route => {
+        if (route.request().method() === 'POST') {
+          await route.fulfill({ status, body: message });
+        } else {
+          await route.fulfill({ json: mockMainSettings });
+        }
+      });
+      await page.route('/restart', async route => {
+        restartRequests++;
+        await route.fulfill({ status: 200 });
+      });
+
+      await page.getByLabel('Protect configuration AP with password').check();
+      await page.getByLabel('Configuration AP Password').fill('AccessPoint8');
+      await page.getByRole('button', { name: 'Save' }).click();
+
+      await expect(page.getByRole('alert')).toHaveText(message);
+      expect(restartRequests).toBe(0);
+      await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
+    });
+  }
+
   test('should preserve the masked AP password when protection is disabled', async ({ page }) => {
     const storedSettings = structuredClone(mockMainSettings);
     storedSettings.values['ap-password'] = '***###***';
