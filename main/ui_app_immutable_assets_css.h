@@ -5,9 +5,9 @@
 #pragma once
 #include "HttpStatic.h"
 
-// app/immutable/assets/index.DKQns9on.css
-const uint32_t APP_IMMUTABLE_ASSETS_INDEX_DKQNS9ON_CSS_L = 14520;
-const uint8_t APP_IMMUTABLE_ASSETS_INDEX_DKQNS9ON_CSS[] = {
+// app/immutable/assets/bundle.DKQns9on.css
+const uint32_t APP_IMMUTABLE_ASSETS_BUNDLE_DKQNS9ON_CSS_L = 14520;
+const uint8_t APP_IMMUTABLE_ASSETS_BUNDLE_DKQNS9ON_CSS[] = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x7c, 0x94, 0xe7, 0x96, 0x9b, 0x30,
   0x10, 0x85, 0xff, 0xe7, 0x29, 0x94, 0xbe, 0x05, 0xd9, 0xa4, 0x27, 0xda, 0xf4, 0xde, 0xb6, 0xef,
   0x3e, 0x80, 0x80, 0x01, 0x14, 0x0b, 0x0d, 0x67, 0x24, 0xf7, 0xec, 0xbb, 0x47, 0xb8, 0x1d, 0x23,
@@ -918,7 +918,7 @@ const uint8_t APP_IMMUTABLE_ASSETS_INDEX_DKQNS9ON_CSS[] = {
   0xb1, 0x34, 0x2a, 0xd9, 0x10, 0x39, 0x02, 0x00
 };
 
-inline esp_err_t serveAppImmutableAssetsIndexDkQns9onCss(httpd_req_t* req) {
-  return HttpWebServer::serveStatic(req, "text/css", APP_IMMUTABLE_ASSETS_INDEX_DKQNS9ON_CSS, APP_IMMUTABLE_ASSETS_INDEX_DKQNS9ON_CSS_L, true, true);
+inline esp_err_t serveAppImmutableAssetsBundleDkQns9onCss(httpd_req_t* req) {
+  return HttpWebServer::serveStatic(req, "text/css", APP_IMMUTABLE_ASSETS_BUNDLE_DKQNS9ON_CSS, APP_IMMUTABLE_ASSETS_BUNDLE_DKQNS9ON_CSS_L, true, true);
 }
 

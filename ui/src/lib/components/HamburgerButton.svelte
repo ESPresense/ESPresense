@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { mobileMenuOpen } from '$lib/stores';
+    import { mobileMenuOpen } from '#lib/stores.js';
 
     function toggleMenu() {
         mobileMenuOpen.update(value => !value);
