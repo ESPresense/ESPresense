@@ -1,0 +1,80 @@
+name: PR Alpha Comment
+
+on:
+  workflow_run:
+    workflows: ["Build & Release"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  comment-pr-alpha-link:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR number
+        id: pr
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            let prNumber = run.pull_requests?.[0]?.number;
+
+            if (!prNumber) {
+              const { data: pulls } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: run.head_sha,
+              });
+              const openPr = pulls.find((p) => p.state === 'open') || pulls[0];
+              prNumber = openPr?.number;
+            }
+
+            if (!prNumber && run.head_repository?.owner?.login && run.head_branch) {
+              const head = `${run.head_repository.owner.login}:${run.head_branch}`;
+              const { data: pulls } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                head,
+              });
+              prNumber = pulls[0]?.number;
+            }
+
+            if (!prNumber) {
+              core.info(`No PR found for head SHA ${run.head_sha}; skipping.`);
+              return;
+            }
+
+            core.info(`Resolved PR #${prNumber} for head SHA ${run.head_sha}`);
+            core.setOutput('number', String(prNumber));
+
+      - name: Find existing alpha test comment
+        if: steps.pr.outputs.number
+        id: find-comment
+        uses: peter-evans/find-comment@v4
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-author: 'github-actions[bot]'
+          body-includes: 'https://espresense.com/alpha/?pr='
+
+      - name: Create or update alpha test comment
+        if: steps.pr.outputs.number
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          edit-mode: replace
+          body: |
+            ✅ CI build completed.
+
+            Please test this PR build here:
+            https://espresense.com/alpha/?pr=${{ steps.pr.outputs.number }}
+
+            If you spot regressions or improvements, reply here with results.
