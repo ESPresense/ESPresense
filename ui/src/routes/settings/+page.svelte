@@ -198,7 +198,7 @@
                 RSSI smoothing window (in milliseconds; lower = faster, noisier):<br />
                 <input
                     type="number"
-                    step="100"
+                    step="1"
                     min="100"
                     max="300000"
                     name="rssi_window_ms"

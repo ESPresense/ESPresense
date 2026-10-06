@@ -415,6 +415,7 @@ bool Command(std::string &command, std::string &pay) {
         size_t cursor = 0;
         while (auto lease = AcquireNext(cursor, false)) {
             lease.fingerprint->setRssiWindowMs((uint32_t)rssiWindowMs);
+            Release(lease);
         }
     } else if (command == "skip_distance") {
         BleFingerprintCollection::skipDistance = pay.empty() ? DEFAULT_SKIP_DISTANCE : toFloat(pay);
