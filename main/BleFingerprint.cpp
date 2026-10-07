@@ -41,7 +41,6 @@ void BleFingerprint::InitLocks() {
 BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
-    addressType = advertisedDevice->getAddressType();
     raw = advertisedDevice->getRSSI();
     rssi = raw - BleFingerprintCollection::rxAdjRssi;
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
@@ -196,7 +195,7 @@ void BleFingerprint::fingerprintAddress() {
     if (!BleFingerprintCollection::knownMacs.empty() && prefixExists(BleFingerprintCollection::knownMacs, mac))
         setId("known:" + mac, ID_TYPE_KNOWN_MAC);
     else {
-        switch (addressType) {
+        switch (address.type) {
             case BLE_ADDR_PUBLIC:
             case BLE_ADDR_PUBLIC_ID:
                 setId(mac, ID_TYPE_PUBLIC_MAC);
@@ -466,7 +465,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)["batt"] = battery;
     if (temp) (*doc)["temp"] = serialized(toStr(temp));
     if (humidity) (*doc)["rh"] = serialized(toStr(humidity));
-    if (!discoveredIrk.empty()) (*doc)["irk"] = discoveredIrk;
+    if (discoveredIrk) (*doc)["irk"] = *discoveredIrk;
     return true;
 }
 
@@ -504,7 +503,6 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (!fill(doc)) return false;
     auto skipMs = (uint64_t)BleFingerprintCollection::skipMs;
     nextReportMs = now_ms + (skipMs ? (skipMs - (now_ms % skipMs)) % skipMs : 0);
-    lastReportedMs = now_ms;
     lastReported = dist;
     reported = true;
     return true;
@@ -536,14 +534,14 @@ bool BleFingerprint::query() {
             }
 
             // Still connected and no IRK yet: try the Resolving Key characteristic.
-            if (client.isConnected() && discoveredIrk.empty()) {
+            if (client.isConnected() && !discoveredIrk) {
                 std::string irkBytes = client.read(genericAccessService, resolvingKeyChar);
                 if (irkBytes.length() == 16) {
                     {
                         FieldLock lock;
-                        discoveredIrk = hexStr(irkBytes);
+                        discoveredIrk.reset(new std::string(hexStr(irkBytes)));
                     }
-                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
+                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk->c_str());
                 }
             }
         }
