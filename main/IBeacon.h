@@ -8,6 +8,6 @@
 
 inline bool iBeaconUuid(const uint8_t* mfg, size_t len, uint8_t out[16]) {
     if (len != 25 || mfg[0] != 0x4c || mfg[1] != 0x00 || mfg[2] != 0x02 || mfg[3] != 0x15) return false;
-    memcpy(out, mfg + 4, 16);
+    memcpy(out, mfg + 4, 16); /* Flawfinder: ignore */
     return true;
 }

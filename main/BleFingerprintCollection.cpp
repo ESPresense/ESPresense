@@ -112,13 +112,15 @@ FingerprintLease findByAddress(const Ble::Advert *advertisedDevice) {
     const auto &mac = advertisedDevice->getAddress();
     uint16_t uuidCrc = 0;
     bool isBeacon = advertisedDevice->getIBeaconCrc(uuidCrc);
+    const size_t none = static_cast<size_t>(-1);
+    size_t unlocked = none;  // a same-MAC fingerprint with no UUID yet; only used if nothing locked matches
     for (size_t i = fingerprints.size(); i-- > 0;) {
         auto &slot = fingerprints[i];
         if (slot.fingerprint == nullptr || !Ble::addrEq(slot.fingerprint->getAddress(), mac)) continue;
-        if (isBeacon && !slot.fingerprint->acceptsIBeacon(uuidCrc)) continue;
-        return acquireSlot(i);
+        if (!isBeacon || slot.fingerprint->matchesIBeacon(uuidCrc)) return acquireSlot(i);
+        if (!slot.fingerprint->hasIBeacon() && unlocked == none) unlocked = i;
     }
-    return {};
+    return unlocked == none ? FingerprintLease{} : acquireSlot(unlocked);
 }
 
 BleFingerprint *findById(const std::string &id) {

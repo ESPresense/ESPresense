@@ -25,7 +25,7 @@ void test_rejects_wrong_length(void) {
 
 void test_rejects_other_apple_frame(void) {
     uint8_t nearby[25];
-    memcpy(nearby, frame, sizeof frame);
+    memcpy(nearby, frame, sizeof frame); /* Flawfinder: ignore */
     nearby[2] = 0x10;
     uint8_t out[16];
     TEST_ASSERT_FALSE(iBeaconUuid(nearby, sizeof nearby, out));
