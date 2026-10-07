@@ -1,5 +1,7 @@
 #include "BleFingerprint.h"
 
+#include "esp_crc.h"
+
 #include <math.h>
 #include <stdint.h>
 
@@ -362,7 +364,7 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
                 if (setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST) && bcnRssi != 3) {
-                    memcpy(bcnUuid, d + 4, 16);
+                    bcnCrc = esp_crc16_le(0, d + 4, 16);
                     hasBcnUuid = true;
                 }
             } else if (strManufacturerData.length() >= 4 && d[2] == 0x10) {
