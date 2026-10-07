@@ -17,7 +17,6 @@ namespace Settings {
 namespace {
 
 constexpr const char* BASE = "/spiffs";
-constexpr const char* MASKED_PASSWORD = "***###***";
 constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
 enum class Type { Dropdown, String, Password, Int, Float, Bool };
@@ -35,7 +34,7 @@ struct Param {
     void set(const std::string& v) {
         switch (type) {
             case Type::Password:
-                if (v == MASKED_PASSWORD) return;
+                if (v == maskedPassword) return;
                 value = v;
                 break;
             case Type::Bool:
@@ -50,7 +49,7 @@ struct Param {
         if (v.empty()) return "";
         switch (type) {
             case Type::Password:
-                return jsonString(name, MASKED_PASSWORD);
+                return jsonString(name, maskedPassword);
             case Type::Int:
                 return jsonNumeric(name, toStr(toInt(v)));
             case Type::Float:
@@ -106,6 +105,12 @@ int find(const std::string& name) {
     for (size_t i = 0; i < endpoints.size(); i++)
         if (endpoints[i].name == name) return i;
     return -1;
+}
+
+Param* findParam(int idx, const std::string& name) {
+    for (auto* prm : endpoints[idx].params)
+        if (prm->name == name) return prm;
+    return nullptr;
 }
 
 Param* add(Type type, const std::string& name, const std::string& init, const std::string& label) {
@@ -227,15 +232,12 @@ esp_err_t postHandler(httpd_req_t* req) {
     std::string body;
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
-    if (name == "main") {
-        bool passwordEnabled = !formValue(body, "ap-password-enabled").empty();
-        std::string password = formValue(body, "ap-password");
-        if (password == MASKED_PASSWORD) {
-            password = slurp("/ap-password");
-        }
-        const bool hasValidApPasswordLength = password.empty() ||
-            (password.size() >= minimumApPasswordLength && password.size() <= maximumApPasswordLength);
-        if ((passwordEnabled && password.empty()) || !hasValidApPasswordLength)
+    // Validate before storing: a rejected field must not be written. Keyed off the endpoint
+    // actually owning ap-password rather than a hardcoded name, so it holds wherever the
+    // setting is registered.
+    if (findParam(idx, "ap-password") != nullptr) {
+        const bool enabled = !formValue(body, "ap-password-enabled").empty();
+        if (!apPasswordAcceptable(enabled, formValue(body, "ap-password"), exists("/ap-password")))
             return sendText(req, "400 Bad Request", "Configuration AP password must be 8 to 63 bytes");
     }
 

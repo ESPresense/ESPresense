@@ -127,13 +127,19 @@ void dnsTask(void* arg) {
     ap.ap.authmode = WIFI_AUTH_OPEN;
     if (Settings::slurp("/ap-password-enabled") == "1") {
         std::string password = Settings::slurp("/ap-password");
-        const bool hasValidApPasswordLength = password.size() >= Settings::minimumApPasswordLength &&
-            password.size() <= Settings::maximumApPasswordLength;
-        if (hasValidApPasswordLength) {
+        // hasStoredPassword is whether a usable password is actually on flash; an empty
+        // /ap-password file must not be treated as one, or WPA2 would be started with a
+        // zero-length key.
+        if (Settings::apPasswordAcceptable(true, password, !password.empty())) {
+            // ap is zero-initialized, so the copy is NUL-terminated within password[64].
             memcpy(ap.ap.password, password.c_str(), password.size());
             ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
         } else {
-            Log.println("Invalid configuration AP password; starting open access point.");
+            // Stored password is unusable (too short/long). Falling back to open is a real
+            // security downgrade, so say so loudly rather than starting an open AP silently.
+            Log.printf("Stored AP password is %u bytes, not %u-%u; starting an OPEN access point.\r\n",
+                (unsigned)password.size(), (unsigned)Settings::minimumApPasswordLength,
+                (unsigned)Settings::maximumApPasswordLength);
         }
     }
     esp_wifi_set_config(WIFI_IF_AP, &ap);

@@ -2,15 +2,13 @@
 // Persistent settings: one SPIFFS file per key ("/name"), the same layout the Arduino
 // firmware used, so a node OTA'd to this build keeps its configuration.
 // Registration order defines the /wifi, /wifi/extras and /wifi/hardware endpoints the UI reads.
-#include <cstddef>
 #include <string>
 #include <vector>
 
+#include "ApPassword.h"
 #include "esp_http_server.h"
 
 namespace Settings {
-constexpr std::size_t minimumApPasswordLength = 8;
-constexpr std::size_t maximumApPasswordLength = 63;
 
 void begin();  // mount SPIFFS (formats on first use)
 
