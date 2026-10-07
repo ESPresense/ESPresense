@@ -422,7 +422,10 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
 
     raw = advertisedDevice->getRSSI();
     if (!adaptivePercentileRSSI)
-        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(new AdaptivePercentileRSSI());
+        adaptivePercentileRSSI = std::unique_ptr<AdaptivePercentileRSSI>(
+            new AdaptivePercentileRSSI((uint32_t)BleFingerprintCollection::rssiWindowMs));
+    // Applied here, not from the MQTT task: a resize there would free the buffer under this task.
+    adaptivePercentileRSSI->setTimeWindow((uint32_t)BleFingerprintCollection::rssiWindowMs);
     adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
     rssi = adaptivePercentileRSSI->getMedianIQR();
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();

@@ -106,6 +106,9 @@ void AdaptivePercentileRSSI::removeExpiredReadings(uint32_t currentTime) {
 }
 
 void AdaptivePercentileRSSI::adjustBufferSize(uint32_t currentTime) {
+    // No readings means no rate to estimate, and readings[tail] may be uninitialised.
+    if (count == 0) return;
+
     // Calculate the rate of incoming readings (readings per second)
     float elapsedSeconds = (currentTime - readings[tail].timestamp) / 1000.0f;
     if (elapsedSeconds <= 0) return;
@@ -210,9 +213,17 @@ float AdaptivePercentileRSSI::getAverageInterval() {
 }
 
 void AdaptivePercentileRSSI::setTimeWindow(uint32_t newTimeWindowMs) {
+    // Called on every advertisement, so the common case (unchanged window) must be free.
+    if (newTimeWindowMs == timeWindowMs) return;
     timeWindowMs = newTimeWindowMs;
-    removeExpiredReadings(millis());
-    adjustBufferSize(millis());
+
+    // A new window changes both what counts as expired and the ideal buffer size, so re-evaluate
+    // now instead of waiting for the next addMeasurement() rate check. One timestamp for both, and
+    // reset lastRateCheck so that next advert does not immediately resize again.
+    uint32_t now = millis();
+    removeExpiredReadings(now);
+    adjustBufferSize(now);
+    lastRateCheck = now;
 }
 
 float AdaptivePercentileRSSI::getRSSIVariance() {

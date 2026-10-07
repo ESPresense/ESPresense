@@ -13,6 +13,8 @@ inline float rssiToDistance(float refRSSI, float rssi, float pathLoss) {
 
 class AdaptivePercentileRSSI {
 public:
+    // Default matches DEFAULT_RSSI_WINDOW_MS (15000). Prefer passing
+    // BleFingerprintCollection::rssiWindowMs so Settings/UI can override.
     AdaptivePercentileRSSI(uint32_t timeWindowMs = 15000, uint16_t initialMaxReadings = 20);
     ~AdaptivePercentileRSSI();
 

@@ -61,10 +61,48 @@ static void full_buffer_fits_scratch() {
     TEST_ASSERT_EQUAL_FLOAT(reference(seen), a.getMedianIQR());
 }
 
+static void shrinking_window_drops_old_readings() {
+    AdaptivePercentileRSSI a;
+    for (int i = 0; i < 10; i++) {
+        fake_now_us = i * 1000000LL;  // one reading per second, last at t=9s
+        a.addMeasurement(i < 6 ? -90.0f : -50.0f);
+    }
+    TEST_ASSERT_EQUAL_UINT16(10, a.getReadingCount());
+    a.setTimeWindow(3000);  // keeps t=6..9s
+    TEST_ASSERT_EQUAL_UINT16(4, a.getReadingCount());
+    TEST_ASSERT_EQUAL_FLOAT(-50.0f, a.getMedianIQR());
+    fake_now_us = 0;
+}
+
+static void set_window_on_empty_buffer_is_safe() {
+    // seen() applies the window before the first addMeasurement, so an empty buffer must not
+    // trip adjustBufferSize (which reads readings[tail]).
+    AdaptivePercentileRSSI a;
+    fake_now_us = 5LL * 1000000;
+    a.setTimeWindow(2000);
+    TEST_ASSERT_EQUAL_UINT16(0, a.getReadingCount());
+    TEST_ASSERT_EQUAL_FLOAT(0.0f, a.getMedianIQR());
+
+    // And purging everything via a tiny window leaves the buffer usable.
+    for (int i = 0; i < 5; i++) {
+        fake_now_us = (5 + i) * 1000000LL;
+        a.addMeasurement(-70.0f);
+    }
+    fake_now_us = 600LL * 1000000;  // 10 min later, all readings expired
+    a.setTimeWindow(1000);
+    TEST_ASSERT_EQUAL_UINT16(0, a.getReadingCount());
+    fake_now_us = 601LL * 1000000;
+    a.addMeasurement(-40.0f);
+    TEST_ASSERT_EQUAL_FLOAT(-40.0f, a.getMedianIQR());
+    fake_now_us = 0;
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(matches_reference_and_rejects_outliers);
     RUN_TEST(instances_do_not_share_state);
     RUN_TEST(full_buffer_fits_scratch);
+    RUN_TEST(shrinking_window_drops_old_readings);
+    RUN_TEST(set_window_on_empty_buffer_is_safe);
     return UNITY_END();
 }
