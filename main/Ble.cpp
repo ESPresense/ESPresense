@@ -1,5 +1,6 @@
 #include "Ble.h"
 #include "IBeacon.h"
+#include "esp_crc.h"
 
 #include <cstring>
 
@@ -159,11 +160,12 @@ bool Advert::haveManufacturerData() const {
     return r;
 }
 
-bool Advert::getIBeaconUuid(uint8_t out[16]) const {
+bool Advert::getIBeaconCrc(uint16_t& out) const {
     bool r = false;
     each([&](uint8_t t, const uint8_t* d, size_t l) {
         if (t != BLE_HS_ADV_TYPE_MFG_DATA) return false;
-        r = iBeaconUuid(d, l, out);
+        uint8_t uuid[16];
+        if ((r = iBeaconUuid(d, l, uuid))) out = esp_crc16_le(0, uuid, 16);
         return true;
     });
     return r;

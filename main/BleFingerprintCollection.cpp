@@ -110,12 +110,12 @@ FingerprintLease acquireSlot(size_t index) {
 // ponytail: no per-MAC cap; max_fingerprints bounds it. Add one if a beacon cycling many UUIDs shows up.
 FingerprintLease findByAddress(const Ble::Advert *advertisedDevice) {
     const auto &mac = advertisedDevice->getAddress();
-    uint8_t uuid[16];
-    bool isBeacon = advertisedDevice->getIBeaconUuid(uuid);
+    uint16_t uuidCrc = 0;
+    bool isBeacon = advertisedDevice->getIBeaconCrc(uuidCrc);
     for (size_t i = fingerprints.size(); i-- > 0;) {
         auto &slot = fingerprints[i];
         if (slot.fingerprint == nullptr || !Ble::addrEq(slot.fingerprint->getAddress(), mac)) continue;
-        if (isBeacon && !slot.fingerprint->acceptsIBeacon(uuid)) continue;
+        if (isBeacon && !slot.fingerprint->acceptsIBeacon(uuidCrc)) continue;
         return acquireSlot(i);
     }
     return {};
