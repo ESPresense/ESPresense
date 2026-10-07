@@ -17,6 +17,12 @@
 #ifdef USE_ETHERNET
 #include "esp_eth.h"
 #include "esp_eth_mac_esp.h"
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+#include "driver/gpio.h"
+#include "driver/spi_master.h"
+#include "esp_eth_mac_spi.h"
+#include "esp_mac.h"
+#endif
 #endif
 
 namespace Network {
@@ -156,6 +162,7 @@ void dnsTask(void* arg) {
 }
 
 #ifdef USE_ETHERNET
+#if CONFIG_ETH_USE_ESP32_EMAC
 struct EthBoard {
     uint8_t addr;
     int power, mdc, mdio;
@@ -179,8 +186,8 @@ const EthBoard ethBoards[] = {
     {0, -1, 16, 17, 2, false},  // WESP32 Rev7+ (RTL8201)
 };
 
-bool initEthernet(int type) {
-    if (type <= 0 || type >= (int)(sizeof(ethBoards) / sizeof(ethBoards[0]))) return false;
+esp_eth_handle_t installRmii(int type) {
+    if (type <= 0 || type >= (int)(sizeof(ethBoards) / sizeof(ethBoards[0]))) return nullptr;
     const auto& b = ethBoards[type];
     if (b.power >= 0) {
         pinMode(b.power, OUTPUT);
@@ -202,7 +209,62 @@ bool initEthernet(int type) {
                                     : esp_eth_phy_new_lan87xx(&phy_config);
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t handle = nullptr;
-    if (esp_eth_driver_install(&config, &handle) != ESP_OK) return false;
+    if (esp_eth_driver_install(&config, &handle) != ESP_OK) return nullptr;
+    return handle;
+}
+#endif
+
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+constexpr int kWaveshareS3Eth = 14;  // index in the "eth" dropdown (main.cpp)
+
+// Waveshare ESP32-S3-ETH: W5500 on SPI2 (SCLK 13, MISO 12, MOSI 11, CS 14, INT 10, RST 9).
+esp_eth_handle_t installW5500() {
+    gpio_install_isr_service(0);  // ESP_ERR_INVALID_STATE if already installed; either way it's there
+    spi_bus_config_t bus = {};
+    bus.mosi_io_num = 11;
+    bus.miso_io_num = 12;
+    bus.sclk_io_num = 13;
+    bus.quadwp_io_num = -1;
+    bus.quadhd_io_num = -1;
+    if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO) != ESP_OK) return nullptr;
+    spi_device_interface_config_t dev = {};
+    dev.mode = 0;
+    dev.clock_speed_hz = 20 * 1000 * 1000;
+    dev.spics_io_num = 14;
+    dev.queue_size = 20;
+    eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(SPI2_HOST, &dev);
+    w5500.int_gpio_num = 10;
+    eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
+    eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
+    phy_config.reset_gpio_num = 9;
+    esp_eth_mac_t* mac = esp_eth_mac_new_w5500(&w5500, &mac_config);
+    esp_eth_phy_t* phy = esp_eth_phy_new_w5500(&phy_config);
+    esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
+    esp_eth_handle_t handle = nullptr;
+    if (!mac || !phy || esp_eth_driver_install(&config, &handle) != ESP_OK) {
+        // Undo it all so the next connect() can retry; mac->del removes the SPI device first.
+        if (mac) mac->del(mac);
+        if (phy) phy->del(phy);
+        spi_bus_free(SPI2_HOST);
+        return nullptr;
+    }
+    // The W5500 has no factory MAC; give it the chip's Ethernet MAC.
+    uint8_t ethMac[6];
+    esp_read_mac(ethMac, ESP_MAC_ETH);
+    esp_eth_ioctl(handle, ETH_CMD_S_MAC_ADDR, ethMac);
+    return handle;
+}
+#endif
+
+bool initEthernet(int type) {
+    esp_eth_handle_t handle = nullptr;
+#if CONFIG_ETH_USE_ESP32_EMAC
+    handle = installRmii(type);
+#endif
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+    if (type == kWaveshareS3Eth) handle = installW5500();
+#endif
+    if (!handle) return false;
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
     ethNetif = esp_netif_new(&cfg);
     esp_netif_set_hostname(ethNetif, hostName.c_str());
