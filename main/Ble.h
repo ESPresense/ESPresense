@@ -34,6 +34,8 @@ class Advert {
     std::string getServiceData(size_t i) const;
     bool haveManufacturerData() const;
     std::string getManufacturerData() const;
+    // iBeacon frame present: copies the 16-byte proximity UUID (no allocation).
+    bool getIBeaconUuid(uint8_t out[16]) const;
 
    private:
     // Walk the AD structures; fn(type, data, len) returns true to stop.

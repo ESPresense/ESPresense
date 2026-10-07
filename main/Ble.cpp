@@ -1,4 +1,5 @@
 #include "Ble.h"
+#include "IBeacon.h"
 
 #include <cstring>
 
@@ -155,6 +156,16 @@ std::string Advert::getServiceData(size_t idx) const {
 bool Advert::haveManufacturerData() const {
     bool r = false;
     each([&](uint8_t t, const uint8_t*, size_t) { return r = (t == BLE_HS_ADV_TYPE_MFG_DATA); });
+    return r;
+}
+
+bool Advert::getIBeaconUuid(uint8_t out[16]) const {
+    bool r = false;
+    each([&](uint8_t t, const uint8_t* d, size_t l) {
+        if (t != BLE_HS_ADV_TYPE_MFG_DATA) return false;
+        r = iBeaconUuid(d, l, out);
+        return true;
+    });
     return r;
 }
 

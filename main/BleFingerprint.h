@@ -3,6 +3,7 @@
 #include <ArduinoJson.h>
 #include <sys/time.h>
 
+#include <cstring>
 #include <memory>
 #include <string>
 
@@ -107,6 +108,9 @@ class BleFingerprint {
     void set1mRssi(int8_t rssi) { calRssi = rssi; }
 
     const ble_addr_t &getAddress() const { return address; }
+    // A fingerprint locked to an iBeacon only accepts adverts carrying that UUID, so a beacon that
+    // swaps UUID on motion (BC04P trigger slot, #2492) becomes a second fingerprint on the same MAC.
+    bool acceptsIBeacon(const uint8_t uuid[16]) const { return !hasBcnUuid || memcmp(bcnUuid, uuid, 16) == 0; }
 
     const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
@@ -156,6 +160,8 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF, addressType = 0xFF;
+    uint8_t bcnUuid[16];
+    bool hasBcnUuid = false;
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
