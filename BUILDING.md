@@ -18,9 +18,6 @@ variant name is passed to `idf.py`.
 
 ## Flashing and monitoring
 
-Native-USB chips (C3/C6/S3) enumerate as `/dev/cu.usbmodem*`; external USB-UART bridges
-(CP210x/CH34x) as `/dev/cu.usbserial*` or `/dev/ttyUSB*`.
-
 ```sh
 ./build.sh esp32c6 -p /dev/cu.usbmodem3101 flash monitor   # native USB-Serial/JTAG
 ./build.sh esp32 -p /dev/cu.usbserial-0001 flash monitor   # external USB-UART
