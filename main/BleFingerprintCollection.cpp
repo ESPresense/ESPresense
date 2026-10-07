@@ -370,6 +370,8 @@ void ConnectToWifi(bool updating) {
     skipDistance = Settings::floating("skip_dist", 0, 10, DEFAULT_SKIP_DISTANCE, "Report early if beacon has moved more than this distance (in meters)");
     skipMs = Settings::integer("skip_ms", 0, 3000000, DEFAULT_SKIP_MS, "Skip reporting if message age is less that this (in milliseconds)");
     rssiWindowMs = Settings::integer("rssi_window_ms", 100, 60000, DEFAULT_RSSI_WINDOW_MS, "RSSI smoothing window (in milliseconds); lower responds faster, noisier");
+    if (rssiWindowMs < 100) rssiWindowMs = 100;      // min/max above only bound the UI; a hand-edited
+    if (rssiWindowMs > 60000) rssiWindowMs = 60000;  // NVS value would otherwise be applied verbatim
     maxFingerprints = Settings::integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
 
     rxRefRssi = Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
