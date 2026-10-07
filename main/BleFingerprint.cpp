@@ -361,7 +361,10 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
             if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
-                setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
+                if (setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST) && bcnRssi != 3) {
+                    memcpy(bcnUuid, d + 4, 16);
+                    hasBcnUuid = true;
+                }
             } else if (strManufacturerData.length() >= 4 && d[2] == 0x10) {
                 std::string pid = Sprintf("apple:%02x%02x:%u", d[2], d[3], (unsigned)strManufacturerData.length());
                 if (haveTxPower) pid += toStr(-txPower);

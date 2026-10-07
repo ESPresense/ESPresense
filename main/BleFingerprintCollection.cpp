@@ -104,11 +104,19 @@ FingerprintLease acquireSlot(size_t index) {
     return {slot.fingerprint, index};
 }
 
-FingerprintLease findByAddress(const ble_addr_t &mac) {
+// One fingerprint per MAC, except that an iBeacon advert only matches a fingerprint whose locked
+// UUID agrees (or that has not locked one yet). A different UUID from the same MAC gets its own
+// fingerprint, so the id lock in setId never has to move.
+// ponytail: no per-MAC cap; max_fingerprints bounds it. Add one if a beacon cycling many UUIDs shows up.
+FingerprintLease findByAddress(const Ble::Advert *advertisedDevice) {
+    const auto &mac = advertisedDevice->getAddress();
+    uint8_t uuid[16];
+    bool isBeacon = advertisedDevice->getIBeaconUuid(uuid);
     for (size_t i = fingerprints.size(); i-- > 0;) {
         auto &slot = fingerprints[i];
-        if (slot.fingerprint != nullptr && Ble::addrEq(slot.fingerprint->getAddress(), mac))
-            return acquireSlot(i);
+        if (slot.fingerprint == nullptr || !Ble::addrEq(slot.fingerprint->getAddress(), mac)) continue;
+        if (isBeacon && !slot.fingerprint->acceptsIBeacon(uuid)) continue;
+        return acquireSlot(i);
     }
     return {};
 }
@@ -525,7 +533,7 @@ void CleanupOldFingerprints() {
  * @return FingerprintLease Lease for the existing or newly created fingerprint stored in the collection.
  */
 FingerprintLease getFingerprintInternal(const Ble::Advert *advertisedDevice) {
-    if (auto existing = findByAddress(advertisedDevice->getAddress()))
+    if (auto existing = findByAddress(advertisedDevice))
         return existing;
 
     CleanupOldFingerprints();
