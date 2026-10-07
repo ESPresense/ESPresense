@@ -74,7 +74,6 @@ async function compressAsset(
 ): Promise<CompressedOutput> {
   const compressed = await zopfliCompress(input, {
     blocksplitting: true,
-    blocksplittinglast: false,
     blocksplittingmax: 15,
     verbose: false
   });
