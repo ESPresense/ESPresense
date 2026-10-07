@@ -4,7 +4,6 @@
     import type { MainSettings } from "#lib/types.js";
 
     let s = $state(false);
-    let saveError = $state("");
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
     let isDestroyed = false;
@@ -47,7 +46,6 @@
         try {
             event.preventDefault();
             s = true;
-            saveError = "";
             const form = event.target as HTMLFormElement;
             const formData = new FormData(form);
             const params = new URLSearchParams();
@@ -56,10 +54,7 @@
                     params.append(key, value);
                 }
             }
-            const saveResponse = await fetch("/wifi/main", { method: "POST", body: params });
-            if (!saveResponse.ok) {
-                throw new Error((await saveResponse.text()).trim() || "Failed to save settings.");
-            }
+            await fetch("/wifi/main", { method: "POST", body: params });
 
             try {
                 await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
@@ -87,8 +82,6 @@
                     await new Promise((resolve) => setTimeout(resolve, 1000));
                 }
             }
-        } catch (error) {
-            saveError = error instanceof Error ? error.message : "Failed to save settings.";
         } finally {
             s = false;
         }
@@ -168,25 +161,10 @@
                 <input id="wifi-password" type="password" autocomplete="new-password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
             </div>
 
-            <div class="space-y-2">
-                <label for="ap-password-enabled" class="flex items-center space-x-2">
-                    <input id="ap-password-enabled" type="checkbox" name="ap-password-enabled" value="1" bind:checked={$mainSettings.values["ap-password-enabled"]} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Protect configuration AP with password</span>
-                </label>
-                <p class="text-sm text-gray-600 dark:text-gray-300">The first setup portal is open. This password protects later configuration portal sessions when enabled. Save and restart to apply.</p>
+            <div>
                 <label for="ap-password" class="block text-sm font-medium">Configuration AP Password</label>
-                <input
-                    id="ap-password"
-                    type="password"
-                    name="ap-password"
-                    bind:value={$mainSettings.values["ap-password"]}
-                    minlength="8"
-                    maxlength="63"
-                    required={$mainSettings.values["ap-password-enabled"]}
-                    placeholder="Enter AP password"
-                    class="mt-1 block w-full rounded-md"
-                />
-                <p class="text-sm text-gray-600 dark:text-gray-300">Use 8–63 characters. The saved password is masked; leave it unchanged to keep the current password.</p>
+                <input id="ap-password" type="password" autocomplete="new-password" name="ap-password" bind:value={$mainSettings.values["ap-password"]} minlength="8" maxlength="63" placeholder="Leave empty for an open AP" class="mt-1 block w-full rounded-md" />
+                <p class="text-sm text-gray-600 dark:text-gray-300">8–63 characters protects the configuration portal with WPA2; empty leaves it open. Applies on next restart.</p>
             </div>
 
             <div>
@@ -289,9 +267,6 @@
                 </div>
             </div>
 
-            {#if saveError}
-                <p role="alert" class="text-sm text-red-600 dark:text-red-400">{saveError}</p>
-            {/if}
             <div class="flex justify-end">
                 <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                     {s ? "Saving..." : "Save"}

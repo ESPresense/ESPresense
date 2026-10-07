@@ -163,7 +163,6 @@ void setupNetwork() {
     Settings::string("wifi-ssid", "", "WiFi SSID");
     Settings::pstring("wifi-password", "", "WiFi Password");
     Settings::pstring("ap-password", "", "Configuration AP Password");
-    Settings::checkbox("ap-password-enabled", false, "Protect configuration AP with password");
     auto wifiTimeout = Settings::integer("wifi_timeout", DEFAULT_WIFI_TIMEOUT, "Seconds to wait for WiFi before captive portal (-1 = forever)");
     auto portalTimeout = 1000UL * Settings::integer("portal_timeout", DEFAULT_PORTAL_TIMEOUT, "Seconds to wait in captive portal before rebooting");
     // Registered on every chip so the UI's dropdown always has its options and "None" default;

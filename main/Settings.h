@@ -5,11 +5,9 @@
 #include <string>
 #include <vector>
 
-#include "ApPassword.h"
 #include "esp_http_server.h"
 
 namespace Settings {
-
 void begin();  // mount SPIFFS (formats on first use)
 
 std::string string(const std::string& name, const std::string& init = "", const std::string& label = "");

@@ -13,8 +13,6 @@ const mockMainSettings = {
     room: 'ESPresense',
     'wifi-ssid': '',
     'wifi-password': '',
-    'ap-password': '',
-    'ap-password-enabled': false,
     wifi_timeout: 30,
     portal_timeout: 180,
     mqtt_host: 'mqtt.local',
@@ -25,8 +23,6 @@ const mockMainSettings = {
     room: 'Living Room',
     'wifi-ssid': '',
     'wifi-password': '',
-    'ap-password': '',
-    'ap-password-enabled': false,
     wifi_timeout: 30,
     portal_timeout: 180,
     eth: 0,
@@ -64,10 +60,6 @@ test.describe('WiFi Network Selection', () => {
     // Mock room name endpoint
     await page.route('/json', async route => {
       await route.fulfill({ json: { room: 'Living Room' } });
-    });
-
-    await page.route('/restart', async route => {
-      await route.abort('failed');
     });
 
     await page.goto('/network');
@@ -112,125 +104,6 @@ test.describe('WiFi Network Selection', () => {
     
     // Check that SSID input is populated
     await expect(ssidInput).toHaveValue('HomeNetwork');
-  });
-
-  test('should require an AP password only when protection is enabled', async ({ page }) => {
-    const enabled = page.getByLabel('Protect configuration AP with password');
-    const password = page.getByLabel('Configuration AP Password');
-
-    await expect(enabled).not.toBeChecked();
-    await expect(password).not.toHaveAttribute('required', '');
-    await expect(password).toHaveAttribute('minlength', '8');
-    await expect(password).toHaveAttribute('maxlength', '63');
-    await password.fill('short');
-    expect(await password.evaluate(input => (input as HTMLInputElement).checkValidity())).toBe(false);
-    await password.fill('');
-    expect(await password.evaluate(input => (input as HTMLInputElement).checkValidity())).toBe(true);
-
-    await enabled.check();
-    await expect(password).toHaveAttribute('required', '');
-    await expect(password).toHaveAttribute('minlength', '8');
-    await expect(password).toHaveAttribute('maxlength', '63');
-    await password.fill('short');
-    expect(await password.evaluate(input => (input as HTMLInputElement).checkValidity())).toBe(false);
-
-    await enabled.uncheck();
-    expect(await password.evaluate(input => (input as HTMLInputElement).checkValidity())).toBe(false);
-  });
-
-  test('should block saving a short AP password when protection is disabled', async ({ page }) => {
-    let submitted = false;
-    await page.route('/wifi/main', async route => {
-      if (route.request().method() === 'POST') {
-        submitted = true;
-        await route.fulfill({ json: { success: true } });
-      } else {
-        await route.fulfill({ json: mockMainSettings });
-      }
-    });
-
-    await page.getByLabel('Configuration AP Password').fill('short');
-    await page.getByRole('button', { name: 'Save' }).click();
-
-    expect(submitted).toBe(false);
-  });
-
-  test('should save the AP password when protection is enabled', async ({ page }) => {
-    let submitted = '';
-    await page.route('/wifi/main', async route => {
-      if (route.request().method() === 'POST') {
-        submitted = route.request().postData() ?? '';
-        await route.fulfill({ json: { success: true } });
-      } else {
-        await route.fulfill({ json: mockMainSettings });
-      }
-    });
-
-    await page.getByLabel('Protect configuration AP with password').check();
-    await page.getByLabel('Configuration AP Password').fill('AccessPoint8');
-    await page.getByRole('button', { name: 'Save' }).click();
-
-    await expect.poll(() => submitted).not.toBe('');
-    const values = new URLSearchParams(submitted);
-    expect(values.get('ap-password-enabled')).toBe('1');
-    expect(values.get('ap-password')).toBe('AccessPoint8');
-  });
-
-  for (const [status, message] of [
-    [400, 'Configuration AP password must be 8 to 63 bytes'],
-    [500, 'Error writing to flash filesystem']
-  ] as const) {
-    test(`should show a ${status} save error without restarting`, async ({ page }) => {
-      let restartRequests = 0;
-      await page.route('/wifi/main', async route => {
-        if (route.request().method() === 'POST') {
-          await route.fulfill({ status, body: message });
-        } else {
-          await route.fulfill({ json: mockMainSettings });
-        }
-      });
-      await page.route('/restart', async route => {
-        restartRequests++;
-        await route.fulfill({ status: 200 });
-      });
-
-      await page.getByLabel('Protect configuration AP with password').check();
-      await page.getByLabel('Configuration AP Password').fill('AccessPoint8');
-      await page.getByRole('button', { name: 'Save' }).click();
-
-      await expect(page.getByRole('alert')).toHaveText(message);
-      expect(restartRequests).toBe(0);
-      await expect(page.getByRole('button', { name: 'Save' })).toBeEnabled();
-    });
-  }
-
-  test('should preserve the masked AP password when protection is disabled', async ({ page }) => {
-    const storedSettings = structuredClone(mockMainSettings);
-    storedSettings.values['ap-password'] = '***###***';
-    storedSettings.values['ap-password-enabled'] = true;
-    let submitted = '';
-
-    await page.route('/wifi/main', async route => {
-      if (route.request().method() === 'POST') {
-        submitted = route.request().postData() ?? '';
-        await route.fulfill({ json: { success: true } });
-      } else {
-        await route.fulfill({ json: storedSettings });
-      }
-    });
-
-    await page.reload();
-    const password = page.getByLabel('Configuration AP Password');
-    await expect(password).toHaveAttribute('type', 'password');
-    await expect(password).toHaveValue('***###***');
-
-    await page.getByLabel('Protect configuration AP with password').uncheck();
-    await page.getByRole('button', { name: 'Save' }).click();
-
-    await expect.poll(() => submitted).not.toBe('');
-    const values = new URLSearchParams(submitted);
-    expect(values.get('ap-password')).toBe('***###***');
-    expect(values.has('ap-password-enabled')).toBe(false);
   });
 
   test('should handle clicking different networks', async ({ page }) => {
