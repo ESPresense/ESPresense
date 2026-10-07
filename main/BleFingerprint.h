@@ -145,9 +145,9 @@ class BleFingerprint {
     bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, isBatteryQuerying = false, hasBcnUuid = false;
     uint16_t bcnCrc = 0;  // CRC-16 of the locked iBeacon UUID; sits in the padding after the flags
     uint64_t nextReportMs = 0;
-    uint64_t lastReportedMs = 0;
     ble_addr_t address;
-    std::string id, name, discoveredIrk;
+    std::string id, name;
+    std::unique_ptr<std::string> discoveredIrk;  // only the rare device that exposes its IRK pays for it
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
@@ -158,7 +158,7 @@ class BleFingerprint {
     uint32_t batteryQueryInterval = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
-    uint8_t battery = 0xFF, addressType = 0xFF;
+    uint8_t battery = 0xFF;
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
