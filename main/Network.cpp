@@ -241,7 +241,13 @@ esp_eth_handle_t installW5500() {
     esp_eth_phy_t* phy = esp_eth_phy_new_w5500(&phy_config);
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t handle = nullptr;
-    if (esp_eth_driver_install(&config, &handle) != ESP_OK) return nullptr;
+    if (!mac || !phy || esp_eth_driver_install(&config, &handle) != ESP_OK) {
+        // Undo it all so the next connect() can retry; mac->del removes the SPI device first.
+        if (mac) mac->del(mac);
+        if (phy) phy->del(phy);
+        spi_bus_free(SPI2_HOST);
+        return nullptr;
+    }
     // The W5500 has no factory MAC; give it the chip's Ethernet MAC.
     uint8_t ethMac[6];
     esp_read_mac(ethMac, ESP_MAC_ETH);
