@@ -46,3 +46,25 @@ npm run build     # requires Node 22+, regenerates main/ui_*.h
 `main/ui_*.h` are generated from `ui/` and committed, so a UI change must include the
 regenerated headers. `ui-build.yml` normally opens a separate "Update UI build outputs" PR, but
 it skips `dependabot/*` branches, so a Dependabot UI bump has to run `npm run build` itself.
+
+## Releases
+
+Release notes are drafted automatically by `release-drafter.yml` on every push to `main`, using
+the PR labels from `.github/pr-labeler.yml` (branch prefixes `feature/*`/`feat/*`, `fix/*`,
+`bugfix/*`, `bug/*`, `enhancement/*` map to labels). Version bumps come from PR labels:
+`major`/`minor`/`patch`, defaulting to patch. Only label a PR if its branch prefix didn't
+already set one.
+
+Publishing is a tag push. `build.yml` builds all 15 variants, enforces the 1920 KB size gate,
+and, on a `v*` tag, attaches every `<env>.bin` to the GitHub release via
+`softprops/action-gh-release`. `FW_VERSION`/`FW_BRANCH` are baked into the firmware (see
+`envs.cmake`): on a tag, `FW_VERSION` is the tag itself; on `main`/PRs it's the short SHA.
+
+The draft release is marked `prerelease: true` with a `b` prerelease identifier, so a stable
+release means editing the draft before publishing. Publishing a release (not the tag) triggers
+`dispatch.yml`, which fires a `new-release` repository dispatch at `ESPresense/ESPresense.com`
+to rebuild the docs site.
+
+To cut a release: merge to `main`, let the drafter update the draft, edit the version/notes if
+needed, then publish. `espresense.com/alpha/?pr=<n>` serves the PR build for testing before
+merge.
