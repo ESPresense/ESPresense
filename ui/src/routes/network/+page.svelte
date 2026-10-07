@@ -158,7 +158,7 @@
 
             <div>
                 <label for="wifi-password" class="block text-sm font-medium">WiFi Password</label>
-                <input id="wifi-password" type="password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
+                <input id="wifi-password" type="password" autocomplete="new-password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
@@ -207,12 +207,12 @@
             <div>
                 <label for="mqtt-user" class="block text-sm font-medium">Username</label>
                 <!-- Using a password input as in the legacy page -->
-                <input id="mqtt-user" type="password" name="mqtt_user" bind:value={$mainSettings.values.mqtt_user} class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-user" type="password" autocomplete="off" name="mqtt_user" bind:value={$mainSettings.values.mqtt_user} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div>
                 <label for="mqtt-pass" class="block text-sm font-medium">Password</label>
-                <input id="mqtt-pass" type="password" name="mqtt_pass" bind:value={$mainSettings.values.mqtt_pass} class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-pass" type="password" autocomplete="new-password" name="mqtt_pass" bind:value={$mainSettings.values.mqtt_pass} class="mt-1 block w-full rounded-md" />
             </div>
 
             <div class="space-y-4">
