@@ -125,6 +125,14 @@ void dnsTask(void* arg) {
     ap.ap.ssid_len = strlen((char*)ap.ap.ssid);
     ap.ap.max_connection = 4;
     ap.ap.authmode = WIFI_AUTH_OPEN;
+    // WPA2-PSK needs an 8-63 byte key; empty (unset) or any other length leaves the portal open.
+    std::string apPassword = Settings::slurp("/ap-password");
+    if (apPassword.size() >= 8 && apPassword.size() <= 63) {
+        apPassword.copy((char*)ap.ap.password, sizeof(ap.ap.password) - 1);  // ap is zeroed, so NUL-terminated
+        ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    } else if (!apPassword.empty()) {
+        Log.printf("AP password is %u bytes, not 8-63; starting an OPEN access point.\r\n", (unsigned)apPassword.size());
+    }
     esp_wifi_set_config(WIFI_IF_AP, &ap);
     esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
     // Hand ourselves out as the DNS server so the phone's captive-portal probe lands on us.

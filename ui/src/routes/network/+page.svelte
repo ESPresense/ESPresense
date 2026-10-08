@@ -87,6 +87,13 @@
         }
     }
 
+    // WPA2-PSK keys are 8-63 bytes (not characters), so minlength/maxlength can't express it.
+    function validateApPassword(event: Event) {
+        const input = event.currentTarget as HTMLInputElement;
+        const bytes = new TextEncoder().encode(input.value).length;
+        input.setCustomValidity(bytes === 0 || (bytes >= 8 && bytes <= 63) ? "" : "Leave empty for an open AP, or use 8–63 bytes.");
+    }
+
     // Make sure your store's data keys match the names below.
     const mainSettingsData = $derived($mainSettings as MainSettings);
 </script>
@@ -159,6 +166,12 @@
             <div>
                 <label for="wifi-password" class="block text-sm font-medium">WiFi Password</label>
                 <input id="wifi-password" type="password" autocomplete="new-password" name="wifi-password" bind:value={$mainSettings.values["wifi-password"]} placeholder="Enter WiFi Password" class="mt-1 block w-full rounded-md" />
+            </div>
+
+            <div>
+                <label for="ap-password" class="block text-sm font-medium">Configuration AP Password</label>
+                <input id="ap-password" type="password" autocomplete="new-password" name="ap-password" bind:value={$mainSettings.values["ap-password"]} oninput={validateApPassword} placeholder="Leave empty for an open AP" class="mt-1 block w-full rounded-md" />
+                <p class="text-sm text-gray-600 dark:text-gray-300">8–63 characters protects the configuration portal with WPA2; empty leaves it open. Applies on next restart.</p>
             </div>
 
             <div>
@@ -269,5 +282,3 @@
         </form>
     {/if}
 </div>
-
-
