@@ -128,7 +128,7 @@ void dnsTask(void* arg) {
     // WPA2-PSK needs an 8-63 byte key; empty (unset) or any other length leaves the portal open.
     std::string apPassword = Settings::slurp("/ap-password");
     if (apPassword.size() >= 8 && apPassword.size() <= 63) {
-        memcpy(ap.ap.password, apPassword.c_str(), apPassword.size());  // ap is zeroed, so NUL-terminated
+        strncpy((char*)ap.ap.password, apPassword.c_str(), sizeof(ap.ap.password) - 1);
         ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
     } else if (!apPassword.empty()) {
         Log.printf("AP password is %u bytes, not 8-63; starting an OPEN access point.\r\n", (unsigned)apPassword.size());
