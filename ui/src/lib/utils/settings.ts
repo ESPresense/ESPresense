@@ -46,9 +46,22 @@ export async function saveSettingsWithRetry(
 		// The device is restarting and drops the connection
 	}
 
-	// Reload settings with retry logic
-	// The device takes a few seconds to restart, so we retry up to 5 times
-	let retries = 5;
+	await reloadSettingsWithRetry(endpoint, settingsStore);
+}
+
+/**
+ * Reloads settings into a store while the device restarts, retrying once a second.
+ *
+ * @param endpoint - The settings endpoint to GET (e.g. "/wifi/hardware")
+ * @param settingsStore - The Svelte store to update with the reloaded settings
+ * @param retries - Attempts before giving up; the device takes a few seconds to come back
+ * @throws Error if settings fail to reload after all retry attempts
+ */
+export async function reloadSettingsWithRetry(
+	endpoint: string,
+	settingsStore: Writable<ExtraSettings | null>,
+	retries = 5
+): Promise<void> {
 	while (retries > 0) {
 		try {
 			const response = await fetch(endpoint);

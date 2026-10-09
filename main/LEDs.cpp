@@ -53,18 +53,21 @@ void ConnectToWifi(bool updating) {
     led_1_cnt = Settings::integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
     led_1_cntrl = (ControlType)Settings::dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
     std::string const led_1_state = Settings::string("led_1_state", "", "LED State");
+    Settings::markState();
 
     led_2_type = Settings::dropdown("led_2_type", ledTypes, 0, "LED Type");
     led_2_pin = Settings::integer("led_2_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_2_cnt = Settings::integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_2_cntrl = (ControlType)Settings::dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
     std::string const led_2_state = Settings::string("led_2_state", "", "LED State");
+    Settings::markState();
 
     led_3_type = Settings::dropdown("led_3_type", ledTypes, 0, "LED Type");
     led_3_pin = Settings::integer("led_3_pin", -1, 48, -1, "Pin (-1 to disable)");
     led_3_cnt = Settings::integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)Settings::dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
     std::string const led_3_state = Settings::string("led_3_state", "", "LED State");
+    Settings::markState();
 
     // Some boards (M5Stack NanoC6) only power their addressable LED while a GPIO is held high.
     led_pwr_pin = Settings::integer("led_pwr_pin", -1, 48, -1, "LED power pin (-1 to disable)");

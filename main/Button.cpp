@@ -49,12 +49,12 @@ void Setup() {
 void ConnectToWifi(bool updating) {
     std::vector<std::string> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     button_1Type = Settings::dropdown("button_1_type", pinTypes, 0, "Button One pin type");
-    button_1Pin = Settings::integer("button_1_pin", -1, "Button One pin (-1 for disable)");
+    button_1Pin = Settings::integer("button_1_pin", -1, 48, -1, "Button One pin (-1 for disable)");
     button_1Timeout = Settings::floating("button_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button One timeout (in seconds)");
     button_1Detected = button_1Type & 0x01 ? LOW : HIGH;
 
     button_2Type = Settings::dropdown("button_2_type", pinTypes, 0, "Button Two pin type");
-    button_2Pin = Settings::integer("button_2_pin", -1, "Button Two pin (-1 for disable)");
+    button_2Pin = Settings::integer("button_2_pin", -1, 48, -1, "Button Two pin (-1 for disable)");
     button_2Timeout = Settings::floating("button_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Button Two timeout (in seconds)");
     button_2Detected = button_2Type & 0x01 ? LOW : HIGH;
 }

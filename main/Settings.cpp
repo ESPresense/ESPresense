@@ -20,13 +20,21 @@ constexpr const char* BASE = "/spiffs";
 constexpr const char* MASKED_PASSWORD = "***###***";
 constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
-enum class Type { Dropdown, String, Password, Int, Float, Bool };
+using Type = SettingType;
 
 struct Param {
     Type type;
     std::string name, label, value, init;
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
+    bool state = false;  // runtime state stored alongside settings (markState)
+    SettingSpec spec_;   // filled by spec()
+
+    const SettingSpec* spec() {
+        spec_ = {type, min, max, options.size()};
+        return &spec_;
+    }
+    std::string effective() const { return value.empty() ? init : value; }
 
     std::string filename() const { return "/" + name; }
     void fill() { value = slurp(filename()); }
@@ -59,6 +67,39 @@ struct Param {
                 return jsonNumeric(name, toInt(v) ? "true" : "false");
             default:
                 return jsonString(name, v);
+        }
+    }
+    // Typed JSON value; strtod keeps "0.10" as 0.1 rather than float-widening it to 0.100000001.
+    void put(JsonVariant dst, const std::string& v) const {
+        switch (type) {
+            case Type::Int:
+            case Type::Dropdown:
+                dst.set(toInt(v));
+                break;
+            case Type::Float:
+                dst.set(strtod(v.c_str(), nullptr));
+                break;
+            case Type::Bool:
+                dst.set(toInt(v) != 0);
+                break;
+            case Type::Password:
+                dst.set(MASKED_PASSWORD);
+                break;
+            default:
+                dst.set(v);
+        }
+    }
+    // Equal once parsed: "0.50" and "0.5", or "05" and "5", are not a change.
+    bool same(const std::string& a, const std::string& b) const {
+        switch (type) {
+            case Type::Float:
+                return strtod(a.c_str(), nullptr) == strtod(b.c_str(), nullptr);
+            case Type::Int:
+            case Type::Dropdown:
+            case Type::Bool:
+                return toInt(a) == toInt(b);
+            default:
+                return a == b;
         }
     }
     std::string jsonValue() const { return json(value); }
@@ -121,6 +162,14 @@ Param* add(Type type, const std::string& name, const std::string& init, const st
 }
 
 Param* last() { return endpoints[current].params.back(); }
+
+Param* findParam(const std::string& endpoint, const std::string& key) {
+    int idx = find(endpoint);
+    if (idx < 0) return nullptr;
+    for (auto* p : endpoints[idx].params)
+        if (p->name == key) return p;
+    return nullptr;
+}
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -333,6 +382,41 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
 
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
+void markState() { last()->state = true; }
+
+const SettingSpec* spec(const std::string& endpoint, const std::string& key) {
+    Param* p = findParam(endpoint, key);
+    return p && !p->state ? p->spec() : nullptr;
+}
+
+void serialize(const std::string& endpoint, JsonObject out) {
+    int idx = find(endpoint);
+    if (idx < 0) return;
+    for (auto* p : endpoints[idx].params) {
+        if (p->state || p->type == Type::Password) continue;
+        p->put(out[p->name.c_str()], p->effective());  // names live forever: stored by pointer
+    }
+}
+
+bool apply(const std::string& endpoint, const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff) {
+    bool ok = true;
+    for (auto& c : changes) {
+        Param* p = findParam(endpoint, c.key);
+        if (!p || p->state) continue;
+        if (p->type == Type::Password && c.value == MASKED_PASSWORD) continue;
+        std::string from = p->effective();
+        if (p->same(from, c.value)) continue;
+        JsonObject d = diff.createNestedObject();
+        d["key"] = p->name.c_str();
+        d["label"] = p->label.c_str();
+        p->put(d["from"], from);
+        p->put(d["to"], c.value);
+        if (dryRun) continue;
+        p->value = c.value;  // not set(): its form semantics make any present checkbox "on"
+        if (!p->store()) ok = false;
+    }
+    return ok;
+}
 
 void registerHttp(httpd_handle_t server) {
     httpd_uri_t get = {};

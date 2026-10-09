@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "ArduinoJson.h"
+#include "SettingsTemplate.h"
 #include "esp_http_server.h"
 
 namespace Settings {
@@ -21,6 +23,19 @@ bool checkbox(const std::string& name, bool init = false, const std::string& lab
 
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
+void markState();                           // last setting is runtime state, not configuration:
+                                            // left out of export and template import
+
+// Typed lookup for a configuration setting on an endpoint; nullptr if unknown or state.
+const SettingSpec* spec(const std::string& endpoint, const std::string& key);
+// Current value of each configuration setting on the endpoint, typed (numbers, bools, strings).
+// Passwords are never written. This is the template export; #2493's full backup can reuse it.
+void serialize(const std::string& endpoint, JsonObject out);
+// Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which
+// resets every key missing from the body. Values must already be validated (parseTemplate).
+// Appends {key, label, from, to} for each value that differs; dryRun stops there. False on a
+// flash write error.
+bool apply(const std::string& endpoint, const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff);
 
 // Raw file access. spurt("") removes the file.
 std::string slurp(const std::string& fn);
