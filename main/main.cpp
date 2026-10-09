@@ -41,6 +41,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && Motion::SendOnline()
             && Switch::SendOnline()
             && Button::SendOnline()
+            && Relay::SendOnline()
             && GUI::SendOnline()
         ) {
             online = true;
@@ -64,6 +65,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && Motion::SendDiscovery()
             && Switch::SendDiscovery()
             && Button::SendDiscovery()
+            && Relay::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
             && CAN::SendDiscovery()
@@ -196,6 +198,7 @@ void setupNetwork() {
     Motion::ConnectToWifi(updating);
     Switch::ConnectToWifi(updating);
     Button::ConnectToWifi(updating);
+    Relay::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -256,6 +259,7 @@ void setupNetwork() {
     Motion::SerialReport();
     Switch::SerialReport();
     Button::SerialReport();
+    Relay::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
     DHT::SerialReport();
@@ -332,6 +336,8 @@ void onMqttMessage(const char *topic, const char *payload) {
             changed = true;
         else if (Button::Command(command, pay))
             changed = true;
+        else if (Relay::Command(command, pay))
+            ;
         if (changed) online = false;
     } else {
     skip:
@@ -505,6 +511,7 @@ void setup() {
     Motion::Setup();
     Switch::Setup();
     Button::Setup();
+    Relay::Setup();
     Battery::Setup();
     CAN::Setup();
     NTP::Setup();
@@ -575,6 +582,7 @@ void loop() {
     Motion::Loop();
     Switch::Loop();
     Button::Loop();
+    Relay::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();

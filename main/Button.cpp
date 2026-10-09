@@ -139,6 +139,10 @@ bool Command(std::string& command, std::string& pay) {
     return true;
 }
 
+int8_t Value(int index) {
+    return index == 1 ? lastbutton_1Value : index == 2 ? lastbutton_2Value : -1;
+}
+
 bool SendOnline() {
     if (online) return true;
     if (!pub((roomsTopic + "/button_1_timeout").c_str(), 0, true, toStr(button_1Timeout).c_str())) return false;

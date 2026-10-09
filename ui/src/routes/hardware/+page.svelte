@@ -205,6 +205,101 @@
             </label>
         </p>
         <h2>
+            <a href="https://espresense.com/configuration/settings#relays" target="_blank">Relays</a>
+        </h2>
+        <h4>Relay 1:</h4>
+        <p>
+            <label>
+                Relay Type:<br />
+                <select name="relay_1_type" bind:value={$hardwareSettings.values['relay_1_type']}>
+                    <option disabled selected hidden>Relay</option>
+                    <option value="0">Relay</option>
+                    <option value="1">Relay Inverted</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
+                Pin (-1 to disable):<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    name="relay_1_pin"
+                    placeholder={$hardwareSettings.defaults['relay_1_pin']}
+                    bind:value={$hardwareSettings.values['relay_1_pin']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                Power-on state:<br />
+                <select name="relay_1_state" bind:value={$hardwareSettings.values['relay_1_state']}>
+                    <option disabled selected hidden>Off</option>
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                    <option value="2">Restore last</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
+                Toggle with button:<br />
+                <select name="relay_1_button" bind:value={$hardwareSettings.values['relay_1_button']}>
+                    <option disabled selected hidden>None</option>
+                    <option value="0">None</option>
+                    <option value="1">Button One</option>
+                    <option value="2">Button Two</option>
+                </select>
+            </label>
+        </p>
+        <h4>Relay 2:</h4>
+        <p>
+            <label>
+                Relay Type:<br />
+                <select name="relay_2_type" bind:value={$hardwareSettings.values['relay_2_type']}>
+                    <option disabled selected hidden>Relay</option>
+                    <option value="0">Relay</option>
+                    <option value="1">Relay Inverted</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
+                Pin (-1 to disable):<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    name="relay_2_pin"
+                    placeholder={$hardwareSettings.defaults['relay_2_pin']}
+                    bind:value={$hardwareSettings.values['relay_2_pin']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                Power-on state:<br />
+                <select name="relay_2_state" bind:value={$hardwareSettings.values['relay_2_state']}>
+                    <option disabled selected hidden>Off</option>
+                    <option value="0">Off</option>
+                    <option value="1">On</option>
+                    <option value="2">Restore last</option>
+                </select>
+            </label>
+        </p>
+        <p>
+            <label>
+                Toggle with button:<br />
+                <select name="relay_2_button" bind:value={$hardwareSettings.values['relay_2_button']}>
+                    <option disabled selected hidden>None</option>
+                    <option value="0">None</option>
+                    <option value="1">Button One</option>
+                    <option value="2">Button Two</option>
+                </select>
+            </label>
+        </p>
+        <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
         <h4>PIR:</h4>

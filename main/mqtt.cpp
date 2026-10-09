@@ -243,7 +243,7 @@ bool sendSwitchDiscovery(const std::string& name, const std::string& entityCateg
     doc["avty_t"] = "~/status";
     doc["stat_t"] = "~/" + slug;
     doc["cmd_t"] = "~/" + slug + "/set";
-    doc["entity_category"] = entityCategory;
+    if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     const std::string discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, doc);
 }

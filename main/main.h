@@ -17,6 +17,7 @@
 #include "Motion.h"
 #include "NTP.h"
 #include "Network.h"
+#include "Relay.h"
 #include "SerialImprov.h"
 #include "Settings.h"
 #include "Switch.h"
