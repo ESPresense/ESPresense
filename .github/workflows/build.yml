@@ -44,7 +44,7 @@ jobs:
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: ${{ env.IDF_VERSION }}
-        command: FW_VERSION="${{ env.FW_VERSION }}" FW_BRANCH="${{ env.FW_BRANCH }}" ./build.sh ${{ matrix.env }}
+        command: FW_VERSION="${{ env.FW_VERSION }}" FW_BRANCH="${{ env.FW_BRANCH }}" ./build.sh ${{ matrix.env }} && ./tools/merge-factory.sh ${{ matrix.env }}
 
     - name: Check firmware size fits in OTA partition
       run: |
@@ -58,13 +58,22 @@ jobs:
         fi
 
     - name: Rename artifact
-      run: cp build/${{ matrix.env }}/espresense.bin ${{ matrix.env }}.bin
+      run: |
+        cp build/${{ matrix.env }}/espresense.bin ${{ matrix.env }}.bin
+        cp build/${{ matrix.env }}/espresense.factory.bin ${{ matrix.env }}.factory.bin
 
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.env }}.bin
         path: ${{ matrix.env }}.bin
+
+    # Full image (bootloader + partition table + app) for one-step serial flashing and full-image OTA installers.
+    - name: Upload factory artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.env }}.factory.bin
+        path: ${{ matrix.env }}.factory.bin
 
   native-tests:
     runs-on: ubuntu-latest
