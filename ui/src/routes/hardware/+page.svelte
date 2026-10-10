@@ -5,7 +5,7 @@
 
     const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
     const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
-    const relayTypes = ['Relay', 'Relay Inverted'];
+    const relayTypes = ['Output', 'Output Inverted'];
     const powerOnStates = ['Off', 'On', 'Restore last'];
     const relayButtons = ['None', 'Button 1', 'Button 2', 'Button 3', 'Button 4'];
     const pinTypes = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];

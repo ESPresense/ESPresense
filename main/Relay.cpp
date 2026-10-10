@@ -53,7 +53,7 @@ void Setup() {
  * The level is written before the pin becomes an output, so there is no glitch to the wrong state.
  */
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> relayTypes = {"Relay", "Relay Inverted"};
+    std::vector<std::string> relayTypes = {"Output", "Output Inverted"};
     std::vector<std::string> powerOnStates = {"Off", "On", "Restore last"};
     std::vector<std::string> buttons = {"None", "Button 1", "Button 2", "Button 3", "Button 4"};
 

@@ -43,9 +43,9 @@
 <p>
     <label>
         Number of {plural}:<br />
-        <select name={countKey} value={String(count)} onchange={setCount}>
+        <select name={countKey} onchange={setCount}>
             {#each choices as n (n)}
-                <option value={String(n)}>{n}</option>
+                <option value={String(n)} selected={n === count}>{n}</option>
             {/each}
         </select>
     </label>
