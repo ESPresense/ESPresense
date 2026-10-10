@@ -72,7 +72,7 @@
 
 <section id="board-template" class="space-y-4">
     <h2>
-        <a href="https://espresense.com/configuration/settings#board-templates" target="_blank">Board Template</a>
+        <a href="https://espresense.com/configuration/hardware#board-templates" target="_blank">Board Template</a>
     </h2>
     <p class="text-sm text-gray-600 dark:text-gray-300">
         Paste a board template to set this board's pins in one step. Only the settings in the template change;
@@ -84,7 +84,7 @@
             name="template"
             rows="6"
             spellcheck="false"
-            placeholder={'{"name": "...", "chip": "esp32", "settings": {"led_1_pin": 2}}'}
+            placeholder={'{"name": "...", "chip": "ESP32", "hardware": {"led_1_pin": 2}}'}
             class="block w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 font-mono text-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-900 dark:text-white"
             bind:value={text}></textarea>
     </label>

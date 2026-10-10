@@ -144,7 +144,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
 #ifdef VERSION
     root["version"] = VERSION;
 #endif
-    Settings::serialize(TEMPLATE_ENDPOINT, root.createNestedObject("settings"));
+    Settings::serialize(TEMPLATE_ENDPOINT, root.createNestedObject(TEMPLATE_ENDPOINT));
     if (doc.overflowed()) return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
     return sendJsonDoc(req, doc);
 }
@@ -173,7 +173,7 @@ esp_err_t postTemplate(httpd_req_t* req) {
         if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
         std::string err;
         auto lookup = [](const char* key) { return Settings::spec(TEMPLATE_ENDPOINT, key); };
-        if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, lookup, changes, err))
+        if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_ENDPOINT, lookup, changes, err))
             return sendTemplateError(req, "400 Bad Request", err);
         name = doc["name"] | "";
     }

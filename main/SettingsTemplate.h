@@ -1,12 +1,17 @@
 #pragma once
 // Board templates (#2529): a shareable JSON document holding the hardware settings of a board.
 //
-//   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "settings": {"led_1_pin": 6, ...}}
+//   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "hardware": {"led_1_pin": 6, ...}}
+//
+// The settings sit under the name of the endpoint they belong to, so a full backup (#2493) can
+// carry "main", "extras" and "hardware" sections in the same shape. chip may be written either as
+// the IDF target ("esp32c3") or the way the docs site shows it ("ESP32-C3").
 //
 // Parsing and validation only: no flash, no HTTP, so it runs in the host tests. Settings.cpp owns
 // the registry (which keys exist, their types and ranges) and applies the result; a template only
 // touches the keys it names. Whatever is registered on the target endpoint is accepted, so new
 // hardware settings work in templates without changes here.
+#include <cctype>
 #include <climits>
 #include <cstdio>
 #include <cstring>
@@ -89,11 +94,19 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
     return false;
 }
 
+// "ESP32-C3" -> "esp32c3": lowercase, alphanumerics only.
+inline std::string normalizeChip(const char* chip) {
+    std::string out;
+    for (const char* c = chip; *c; c++)
+        if (isalnum((unsigned char)*c)) out += (char)tolower((unsigned char)*c);
+    return out;
+}
+
 // Validates a whole template before anything is written: every key must be known to lookup
 // (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, or
-// nothing is applied. chip is the running firmware's IDF target.
+// nothing is applied. chip is the running firmware's IDF target, section the endpoint name.
 template <class Lookup>
-bool parseTemplate(JsonObjectConst root, const char* chip, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
+bool parseTemplate(JsonObjectConst root, const char* chip, const char* section, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
     out.clear();
     if (root.isNull()) {
         err = "template must be a JSON object";
@@ -104,17 +117,17 @@ bool parseTemplate(JsonObjectConst root, const char* chip, Lookup lookup, std::v
         err = "missing \"chip\"";
         return false;
     }
-    if (strcmp(c.as<const char*>(), chip) != 0) {
+    if (normalizeChip(c.as<const char*>()) != normalizeChip(chip)) {
         err = std::string("template is for ") + c.as<const char*>() + ", this node is " + chip;
         return false;
     }
-    JsonObjectConst settings = root["settings"];
+    JsonObjectConst settings = root[section];
     if (settings.isNull()) {
-        err = "missing \"settings\" object";
+        err = std::string("missing \"") + section + "\" object";
         return false;
     }
     if (settings.size() == 0) {
-        err = "\"settings\" is empty";
+        err = std::string("\"") + section + "\" is empty";
         return false;
     }
     for (JsonPairConst kv : settings) {
