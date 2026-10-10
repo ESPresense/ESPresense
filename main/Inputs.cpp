@@ -16,7 +16,7 @@ struct Input {
     int index = 0;
     std::string name;
     Role role = Role::Motion;
-    int8_t pin = -1, pull = 0;
+    int8_t pin = -1, type = 0;
     bool inverted = false;
     float timeout = 0;
     int8_t last = -1;
@@ -33,11 +33,12 @@ std::string key(int n, const char* field) { return Sprintf("input_%d_%s", n, fie
 
 void ConnectToWifi(bool updating) {
     std::vector<std::string> roles = {"Motion", "Switch", "Button"};
-    std::vector<std::string> pulls = {"Pull-up", "Pull-down", "None"};
+    // Odd types are inverted: active LOW.
+    std::vector<std::string> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     int count = Settings::integer("input_count", 0, MAX, 0, "Number of inputs");
     if (count < 0) count = 0;
     if (count > MAX) count = MAX;
-    Settings::group("input", MAX, {"name", "role", "pin", "inv", "pull", "timeout"});
+    Settings::group("input", MAX, {"name", "role", "pin", "type", "timeout"});
     inputs.clear();
     for (int n = 1; n <= count; n++) {
         Input in;
@@ -45,8 +46,8 @@ void ConnectToWifi(bool updating) {
         in.name = Settings::string(key(n, "name"), Sprintf("Input %d", n), "Name");
         in.role = (Role)Settings::dropdown(key(n, "role"), roles, 0, "Role");
         in.pin = Settings::integer(key(n, "pin"), -1, 48, -1, "Pin (-1 to disable)");
-        in.inverted = Settings::integer(key(n, "inv"), 0, 1, 0, "Inverted") == 1;
-        in.pull = Settings::dropdown(key(n, "pull"), pulls, 0, "Pull");
+        in.type = Settings::dropdown(key(n, "type"), pinTypes, 0, "Pin type");
+        in.inverted = in.type & 1;
         in.timeout = Settings::floating(key(n, "timeout"), 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Timeout (in seconds)");
         if (in.name.empty()) in.name = Sprintf("Input %d", n);
         inputs.push_back(in);
@@ -56,7 +57,7 @@ void ConnectToWifi(bool updating) {
 void Setup() {
     static const PinMode modes[] = {INPUT_PULLUP, INPUT_PULLDOWN, INPUT};
     for (auto& in : inputs)
-        if (in.pin >= 0 && in.pull >= 0 && in.pull < 3) pinMode(in.pin, modes[in.pull]);
+        if (in.pin >= 0 && in.type >= 0 && in.type < 6) pinMode(in.pin, modes[in.type / 2]);
 }
 
 void SerialReport() {

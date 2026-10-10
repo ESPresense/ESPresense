@@ -145,8 +145,7 @@
 
 #if defined M5STICK
 
-#define DEFAULT_LED1_TYPE 0
-#define DEFAULT_LED1_INV 1
+#define DEFAULT_LED1_TYPE 1
 #define DEFAULT_LED1_PIN 10
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
@@ -158,7 +157,7 @@
 
 #elif defined M5ATOM
 
-#define DEFAULT_LED1_TYPE 1
+#define DEFAULT_LED1_TYPE 2
 #define DEFAULT_LED1_PIN 27
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 25
@@ -170,7 +169,7 @@
 
 #elif defined MACCHINA_A0
 
-#define DEFAULT_LED1_TYPE 1
+#define DEFAULT_LED1_TYPE 2
 #define DEFAULT_LED1_PIN 2
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
@@ -186,10 +185,6 @@
 
 #define MAX_BRIGHTNESS 100
 
-#endif
-
-#ifndef DEFAULT_LED1_INV
-#define DEFAULT_LED1_INV 0
 #endif
 
 // Build-time knobs that used to be platformio.ini build flags.

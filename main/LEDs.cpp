@@ -26,14 +26,14 @@ std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 unsigned long lastSave = 0;
 
-LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, bool inverted, int cnt, const std::string& stateStr) {
+LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, const std::string& stateStr) {
     LED* led;
     if (pin == -1) {
         led = new LED(index, Control_Type_None);
-    } else if (type >= 1) {
-        led = new Addressable(index, cntrl, type - 1, pin, cnt);
+    } else if (type >= 2) {
+        led = new Addressable(index, cntrl, type - 2, pin, cnt);
     } else {
-        led = new SinglePWM(index, cntrl, inverted, pin);
+        led = new SinglePWM(index, cntrl, type == 1, pin);
     }
     led->setStateString(stateStr);
     return led;
@@ -45,14 +45,14 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, bool inverted, 
  * LED 1 takes the board's DEFAULT_LED1_* values; the rest default to disabled.
  */
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> ledTypes = {"PWM", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
+    std::vector<std::string> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
     std::vector<std::string> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
 
     int count = Settings::integer("led_count", 0, MAX_LEDS, 3, "Number of LEDs");
     if (count < 0) count = 0;
     if (count > MAX_LEDS) count = MAX_LEDS;
     // led_<n>_state is the saved colour, not a form field, so it stays out of the group.
-    Settings::group("led", MAX_LEDS, {"type", "pin", "inv", "cnt", "cntrl"});
+    Settings::group("led", MAX_LEDS, {"type", "pin", "cnt", "cntrl"});
 
     // Some boards (M5Stack NanoC6) only power their addressable LED while a GPIO is held high.
     led_pwr_pin = Settings::integer("led_pwr_pin", -1, 48, -1, "LED power pin (-1 to disable)");
@@ -65,12 +65,11 @@ void ConnectToWifi(bool updating) {
         bool first = n == 1;
         int type = Settings::dropdown(Sprintf("led_%d_type", n), ledTypes, first ? DEFAULT_LED1_TYPE : 0, "LED Type");
         int pin = Settings::integer(Sprintf("led_%d_pin", n), -1, 48, first ? DEFAULT_LED1_PIN : -1, "Pin (-1 to disable)");
-        bool inv = Settings::integer(Sprintf("led_%d_inv", n), 0, 1, first ? DEFAULT_LED1_INV : 0, "Inverted (PWM only)") == 1;
         int cnt = Settings::integer(Sprintf("led_%d_cnt", n), -1, 39, first ? DEFAULT_LED1_CNT : 1, "Count (only applies to Addressable LEDs)");
         auto cntrl = (ControlType)Settings::dropdown(Sprintf("led_%d_cntrl", n), ledControlTypes, first ? DEFAULT_LED1_CNTRL : 0, "LED Control");
         std::string const state = Settings::string(Sprintf("led_%d_state", n), "", "LED State");
         Settings::markState();
-        leds.push_back(newLed(n, cntrl, type, pin, inv, cnt, state));
+        leds.push_back(newLed(n, cntrl, type, pin, cnt, state));
     }
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });

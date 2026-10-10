@@ -53,6 +53,7 @@ void Setup() {
  * The level is written before the pin becomes an output, so there is no glitch to the wrong state.
  */
 void ConnectToWifi(bool updating) {
+    std::vector<std::string> pinTypes = {"Output", "Output Inverted"};
     std::vector<std::string> powerOnStates = {"Off", "On", "Restore last"};
     std::vector<std::string> toggles = {"None"};
     for (int n = 1; n <= Inputs::MAX; n++) toggles.push_back(Sprintf("Input %d", n));
@@ -60,14 +61,14 @@ void ConnectToWifi(bool updating) {
     count = Settings::integer("output_count", 0, MAX, 0, "Number of outputs");
     if (count < 0) count = 0;
     if (count > MAX) count = MAX;
-    Settings::group("output", MAX, {"name", "pin", "inv", "state", "input"});
+    Settings::group("output", MAX, {"name", "pin", "type", "state", "input"});
 
     for (int i = 0; i < MAX; i++) outputs[i].index = i + 1;
     for (int n = 1; n <= count; n++) {
         auto& o = outputs[n - 1];
         o.name = Settings::string(Sprintf("output_%d_name", n), Sprintf("Output %d", n), "Name");
         o.pin = Settings::integer(Sprintf("output_%d_pin", n), -1, 48, -1, "Pin (-1 to disable)");
-        o.inverted = Settings::integer(Sprintf("output_%d_inv", n), 0, 1, 0, "Inverted") == 1;
+        o.inverted = Settings::dropdown(Sprintf("output_%d_type", n), pinTypes, 0, "Pin type") == 1;
         o.powerOn = (OutputPowerOn)Settings::dropdown(Sprintf("output_%d_state", n), powerOnStates, 0, "Power-on state");
         o.input = Settings::dropdown(Sprintf("output_%d_input", n), toggles, 0, "Linked input");
         if (o.name.empty()) o.name = Sprintf("Output %d", n);

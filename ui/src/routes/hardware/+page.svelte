@@ -3,11 +3,12 @@
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
     import RepeatGroup from '#lib/components/RepeatGroup.svelte';
 
-    const ledTypes = ['PWM', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
+    const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
     const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
     const powerOnStates = ['Off', 'On', 'Restore last'];
     const inputRoles = ['Motion', 'Switch', 'Button'];
-    const pulls = ['Pull-up', 'Pull-down', 'None'];
+    const inputPinTypes = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];
+    const outputPinTypes = ['Output', 'Output Inverted'];
     const MAX_INPUTS = 8;
 
     // "Linked input" choices, labelled with each input's name (index = input number, 0 = none).
@@ -79,43 +80,35 @@
     </p>
 {/snippet}
 
-<!-- Pin picker: <base>_pin plus <base>_inv. The checkbox has no name; a hidden field always posts
-     0/1 so unchecking reaches the firmware even for slots above a group's count. -->
-{#snippet pin(base: string, label: string)}
+<!-- Pin picker: <base>_pin with its <typeKey> dropdown (wiring and polarity) on the right. -->
+{#snippet pin(base: string, typeKey: string, types: string[])}
     {@const pinKey = `${base}_pin`}
-    {@const invKey = `${base}_inv`}
-    {@const inverted = String($hardwareSettings!.values[invKey] ?? $hardwareSettings!.defaults[invKey] ?? '0') === '1'}
-    {@const disabled = Number($hardwareSettings!.values[pinKey] ?? $hardwareSettings!.defaults[pinKey] ?? -1) < 0}
     <p>
         <label>
-            {label} (-1 to disable):<br />
-            <span class="flex items-center gap-4">
+            Pin (-1 to disable) and type:<br />
+            <span class="flex items-center gap-2">
                 <input
                     type="number"
                     step="1"
                     min="-1"
                     max="48"
+                    class="w-24"
                     name={pinKey}
                     placeholder={$hardwareSettings!.defaults[pinKey]}
                     bind:value={$hardwareSettings!.values[pinKey]}/>
-                <span class="flex items-center gap-1 whitespace-nowrap" class:opacity-50={disabled}>
-                    <input
-                        type="checkbox"
-                        aria-label="{label} inverted"
-                        checked={inverted}
-                        {disabled}
-                        onchange={(e) => hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, [invKey]: (e.currentTarget as HTMLInputElement).checked ? '1' : '0' } } : s))}/>
-                    Inverted
-                </span>
+                <select name={typeKey} aria-label="Pin type" bind:value={$hardwareSettings!.values[typeKey]}>
+                    <option disabled selected hidden>{types[0]}</option>
+                    {#each types as option, i (i)}
+                        <option value={String(i)}>{option}</option>
+                    {/each}
+                </select>
             </span>
-            <input type="hidden" name={invKey} value={inverted ? '1' : '0'}/>
         </label>
     </p>
 {/snippet}
 
 {#snippet led(n: number)}
-    {@render dropdown(`led_${n}_type`, 'LED Type', ledTypes)}
-    {@render pin(`led_${n}`, 'Pin')}
+    {@render pin(`led_${n}`, `led_${n}_type`, ledTypes)}
     {@render number(`led_${n}_cnt`, 'Count (only applies to Addressable LEDs)', { step: '1', min: '-1', max: '39' })}
     {@render dropdown(`led_${n}_cntrl`, 'LED Control', ledControls)}
 {/snippet}
@@ -123,14 +116,13 @@
 {#snippet input(n: number)}
     {@render text(`input_${n}_name`, 'Name', `Input ${n}`)}
     {@render dropdown(`input_${n}_role`, 'Role', inputRoles)}
-    {@render pin(`input_${n}`, 'Pin')}
-    {@render dropdown(`input_${n}_pull`, 'Pull', pulls)}
+    {@render pin(`input_${n}`, `input_${n}_type`, inputPinTypes)}
     {@render number(`input_${n}_timeout`, 'Timeout (in seconds)', { step: '0.01', min: '0', max: '300' })}
 {/snippet}
 
 {#snippet output(n: number)}
     {@render text(`output_${n}_name`, 'Name', `Output ${n}`)}
-    {@render pin(`output_${n}`, 'Pin')}
+    {@render pin(`output_${n}`, `output_${n}_type`, outputPinTypes)}
     {@render dropdown(`output_${n}_state`, 'Power-on state', powerOnStates)}
     {@render dropdown(`output_${n}_input`, 'Linked input (a Button toggles it, a Switch or Motion input drives it)', linkedInputs)}
 {/snippet}

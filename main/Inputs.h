@@ -2,8 +2,8 @@
 #include <cstdint>
 #include <string>
 
-// GPIO inputs (PIR, radar, switches, buttons): input_count, then input_<n>_name/role/pin/inv/
-// pull/timeout for n = 1..count on the hardware endpoint. Each publishes ON/OFF to
+// GPIO inputs (PIR, radar, switches, buttons): input_count, then input_<n>_name/role/pin/type/
+// timeout for n = 1..count on the hardware endpoint. Each publishes ON/OFF to
 // <room>/input_<n>, held ON for its timeout after the last detection, and appears in Home
 // Assistant as a binary_sensor (device class motion for the Motion role).
 namespace Inputs {
