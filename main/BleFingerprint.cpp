@@ -226,7 +226,7 @@ void BleFingerprint::fingerprintServiceAdvertisements(const Ble::Advert *adverti
     for (size_t i = 0; i < serviceAdvCount; i++) {
         auto uuid = advertisedDevice->getServiceUUID(i);
 #ifdef VERBOSE
-        Log.printf("Verbose | %s | %-58s%.1fdBm AD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, Ble::uuidStr(uuid).c_str());
+        Log.printf("Verbose | %s | %-58s%.1fdBm AD: %s\n", getMac().c_str(), getId().c_str(), rssi, Ble::uuidStr(uuid).c_str());
 #endif
         if (Ble::uuidEq(uuid, tileUUID)) {
             asRssi = BleFingerprintCollection::rxRefRssi + TILE_TX;
@@ -286,7 +286,7 @@ void BleFingerprint::fingerprintServiceData(const Ble::Advert *advertisedDevice,
         auto uuid = advertisedDevice->getServiceDataUUID(i);
         std::string strServiceData = advertisedDevice->getServiceData(i);
 #ifdef VERBOSE
-        Log.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\r\n", getMac().c_str(), getId().c_str(), rssi, Ble::uuidStr(uuid).c_str(), hexStr(strServiceData).c_str());
+        Log.printf("Verbose | %s | %-58s%.1fdBm SD: %s/%s\n", getMac().c_str(), getId().c_str(), rssi, Ble::uuidStr(uuid).c_str(), hexStr(strServiceData).c_str());
 #endif
         if (Ble::uuidEq(uuid, exposureUUID)) {  // found COVID-19 exposure tracker
             bcnRssi = BleFingerprintCollection::rxRefRssi + EXPOSURE_TX;
@@ -350,7 +350,7 @@ static std::string beaconUuid(const uint8_t *d) {
 void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDevice, bool haveTxPower, int8_t txPower) {
     std::string strManufacturerData = advertisedDevice->getManufacturerData();
 #ifdef VERBOSE
-    Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\r\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
+    Log.printf("Verbose | %s | %-58s%.1fdBm MD: %s\n", getMac().c_str(), getId().c_str(), rssi, hexStr(strManufacturerData).c_str());
 #endif
     if (strManufacturerData.length() >= 2) {
         const auto *d = (const uint8_t *)strManufacturerData.data();
@@ -518,7 +518,7 @@ bool BleFingerprint::query() {
 
     bool success = false;
 
-    Log.printf("%u Query  | %s | %-58s%.1fdBm %lums\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
+    Log.printf("%u Query  | %s | %-58s%.1fdBm %lums\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, now - lastSeenMillis);
 
     {
         Ble::Client client;
@@ -538,7 +538,7 @@ bool BleFingerprint::query() {
                         FieldLock lock;
                         discoveredIrk = hexStr(irkBytes);
                     }
-                    Log.printf("%u IRK    | %s | discovered IRK: %s\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
+                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
                 }
             }
         }
@@ -550,7 +550,7 @@ bool BleFingerprint::query() {
     } else {
         qryAttempts++;
         qryDelayMillis = queryBackoffMs(qryAttempts);
-        Log.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
+        Log.printf("%u QryErr | %s | %-58s%.1fdBm Try %d, retry after %dms\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi, qryAttempts, qryDelayMillis);
     }
     isQuerying = false;
     return true;
@@ -569,7 +569,7 @@ bool BleFingerprint::queryBatteryIfDue() {
 bool BleFingerprint::queryBattery() {
     isBatteryQuerying = true;
     bool success = false;
-    Log.printf("%u Battery| %s | %-58s%.1fdBm\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
+    Log.printf("%u Battery| %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
     {
         Ble::Client client;
         if (client.connect(address, 5000)) {
@@ -585,7 +585,7 @@ bool BleFingerprint::queryBattery() {
     if (success) {
         lastBatteryQueryMillis = millis();
     } else {
-        Log.printf("%u BatteryErr | %s | %-58s%.1fdBm\r\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
+        Log.printf("%u BatteryErr | %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
     }
     isBatteryQuerying = false;
     return success;

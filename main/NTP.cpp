@@ -36,7 +36,7 @@ void Loop(void) {
     // Time synced - log it and set flag
     struct tm timeinfo;
     gmtime_r(&now, &timeinfo);
-    Log.printf("NTP synced, current time: %s\r\n", asctime(&timeinfo));
+    Log.printf("NTP synced, current time: %s\n", asctime(&timeinfo));
     ntpSynced = true;
 }
 }  // namespace NTP

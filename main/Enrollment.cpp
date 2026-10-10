@@ -30,7 +30,7 @@ static void onConnect(uint16_t connHandle, const ble_addr_t& peer) {
 
 static void onDisconnect(uint16_t connHandle, int reason) {
     if (enrolling) {
-        Log.printf("Client disconnected, conn: %u reason: %d\r\n", connHandle, reason);
+        Log.printf("Client disconnected, conn: %u reason: %d\n", connHandle, reason);
         Ble::Server::AdvertiseConnectable();
     }
 }
@@ -59,10 +59,10 @@ bool Loop() {
     if (enrolling != lastEnrolling) {
         if (enrolling) {
             Ble::Server::AdvertiseConnectable();
-            Log.printf("%u Advert | HRM\r\n", (unsigned)xPortGetCoreID());
+            Log.printf("%u Advert | HRM\n", (unsigned)xPortGetCoreID());
         } else {
             Ble::Server::AdvertiseRaw(beaconAdv, beaconAdvLen);
-            Log.printf("%u Advert | iBeacon\r\n", (unsigned)xPortGetCoreID());
+            Log.printf("%u Advert | iBeacon\n", (unsigned)xPortGetCoreID());
         }
         lastEnrolling = enrolling;
         HttpWebServer::SendState();

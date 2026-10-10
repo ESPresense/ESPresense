@@ -240,7 +240,7 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println(std::string("Version:      ") + VERSION);
 #endif
-    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\r\n", Network::bssid().c_str(), Network::channel(), Network::rssi());
+    Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\n", Network::bssid().c_str(), Network::channel(), Network::rssi());
     Log.print("IP address:   ");
     Log.println(Network::localIP());
     Log.print("DNS address:  ");
@@ -249,8 +249,8 @@ void setupNetwork() {
     Log.println(Network::hostname());
     Log.print("Room:         ");
     Log.println(room);
-    Log.printf("Mqtt server:  %s:%d\r\n", mqttHost.c_str(), mqttPort);
-    Log.printf("Max Distance: %.2f\r\n", BleFingerprintCollection::maxDistance);
+    Log.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
+    Log.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Motion::SerialReport();
     Switch::SerialReport();
@@ -302,13 +302,13 @@ void onMqttMessage(const char *topic, const char *payload) {
         auto idPos = top.rfind('/', configPos - 1);
         if (idPos == std::string::npos) goto skip;
         auto id = top.substr(idPos + 1, configPos - idPos - 1);
-        Log.printf("%u Config | %s to %s\r\n", (unsigned)xPortGetCoreID(), id.c_str(), pay.c_str());
+        Log.printf("%u Config | %s to %s\n", (unsigned)xPortGetCoreID(), id.c_str(), pay.c_str());
         BleFingerprintCollection::Config(id, pay);
     } else if (setPos != std::string::npos && setPos > 1) {
         auto commandPos = top.rfind('/', setPos - 1);
         if (commandPos == std::string::npos) goto skip;
         auto command = top.substr(commandPos + 1, setPos - commandPos - 1);
-        Log.printf("%u Set    | %s to %s\r\n", (unsigned)xPortGetCoreID(), command.c_str(), pay.c_str());
+        Log.printf("%u Set    | %s to %s\n", (unsigned)xPortGetCoreID(), command.c_str(), pay.c_str());
 
         bool changed = false;
         if (command == "restart" || command == "reboot")
@@ -334,7 +334,7 @@ void onMqttMessage(const char *topic, const char *payload) {
         if (changed) online = false;
     } else {
     skip:
-        Log.printf("%u Unknown| %s to %s\r\n", (unsigned)xPortGetCoreID(), topic, payload);
+        Log.printf("%u Unknown| %s to %s\n", (unsigned)xPortGetCoreID(), topic, payload);
     }
 }
 
@@ -345,17 +345,17 @@ void reconnect(TimerHandle_t) {
         reconnectTries = 0;
         return;
     }
-    Log.printf("%u Reconnect timer\r\n", (unsigned)xPortGetCoreID());
+    Log.printf("%u Reconnect timer\n", (unsigned)xPortGetCoreID());
     if (reconnectTries++ > 50) {
         Log.println("Too many reconnect attempts; Restarting");
         esp_restart();
     }
     if (!Network::isOnline()) {
-        Log.printf("%u Reconnecting to Network...\r\n", (unsigned)xPortGetCoreID());
+        Log.printf("%u Reconnecting to Network...\n", (unsigned)xPortGetCoreID());
         if (!Network::connect(ethernetType, 2, 40, Network::hostname(), false))
             esp_restart();
     }
-    Log.printf("%u Reconnecting to MQTT...\r\n", (unsigned)xPortGetCoreID());
+    Log.printf("%u Reconnecting to MQTT...\n", (unsigned)xPortGetCoreID());
     Mqtt::reconnect();
 }
 
@@ -485,7 +485,7 @@ void setup() {
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);
 #endif
-    Log.printf("Pre-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(freeHeap()));
+    Log.printf("Pre-Setup Free Mem: %lu\n", static_cast<unsigned long>(freeHeap()));
     heap_caps_register_failed_alloc_callback(heapCapsAllocFailedHook);
 
     SerialImprov::Setup();
@@ -524,7 +524,7 @@ void setup() {
 #endif
     xTaskCreatePinnedToCore(scanTask, "scanTask", SCAN_TASK_STACK_SIZE, nullptr, 1, &scanTaskHandle, CONFIG_BT_NIMBLE_PINNED_TO_CORE);
     reportSetup();
-    Log.printf("Post-Setup Free Mem: %lu\r\n", static_cast<unsigned long>(freeHeap()));
+    Log.printf("Post-Setup Free Mem: %lu\n", static_cast<unsigned long>(freeHeap()));
     Log.println();
 }
 
@@ -549,7 +549,7 @@ void loop() {
         // maxAlloc as well as freeHeap: #2309's node logged "Low memory: ~20000 bytes free"
         // for twenty minutes without the one number that explained the crash — its largest
         // free block was already under the 2312 byte request that kept failing.
-        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\r\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
+        if (freeHeap < 20000) Log.printf("Low memory: %lu bytes free, largest block %lu\n", static_cast<unsigned long>(freeHeap), static_cast<unsigned long>(maxAlloc));
         if (freeHeap > 70000) Updater::Loop();
 
         // ponytail: watchdog, not a leak fix. A heap-starved node limps forever (mqtt and
@@ -559,11 +559,11 @@ void loop() {
         static uint8_t lowHeapPasses = 0;
         switch (heapWatchdogTick(freeHeap, maxAlloc, MQTT_MIN_FREE_MEMORY, MIN_MAX_ALLOC_HEAP, lowHeapPasses)) {
             case HeapTrip::FreeHeap:
-                Log.printf("Out of memory for 60s (%lu bytes free), restarting\r\n", static_cast<unsigned long>(freeHeap));
+                Log.printf("Out of memory for 60s (%lu bytes free), restarting\n", static_cast<unsigned long>(freeHeap));
                 esp_restart();
                 break;
             case HeapTrip::MaxAlloc:
-                Log.printf("Heap too fragmented for 60s (largest block %lu, %lu bytes free), restarting\r\n", static_cast<unsigned long>(maxAlloc), static_cast<unsigned long>(freeHeap));
+                Log.printf("Heap too fragmented for 60s (largest block %lu, %lu bytes free), restarting\n", static_cast<unsigned long>(maxAlloc), static_cast<unsigned long>(freeHeap));
                 esp_restart();
                 break;
             case HeapTrip::None:

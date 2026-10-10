@@ -75,7 +75,7 @@ void Loop() {
  */
 void Added(BleFingerprint *f) {
     if (f->getIgnore()) return;
-    Log.printf("%u New %s  | %s | %-58s%.1fdBm\r\n", xPortGetCoreID(), f->getAllowQuery() ? "Q" : " ", f->getMac().c_str(), f->getId().c_str(), f->getRssi());
+    Log.printf("%u New %s  | %s | %-58s%.1fdBm\n", xPortGetCoreID(), f->getAllowQuery() ? "Q" : " ", f->getMac().c_str(), f->getId().c_str(), f->getRssi());
 }
 
 /**
@@ -89,7 +89,7 @@ void Added(BleFingerprint *f) {
  */
 void Removed(BleFingerprint *f) {
     if (f->getIgnore() || !f->getAdded()) return;
-    Log.printf("\u001b[38;5;236m%u Del    | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi());
+    Log.printf("\u001b[38;5;236m%u Del    | %s | %-58s%.1fdBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi());
 }
 
 /**
@@ -101,8 +101,8 @@ void Removed(BleFingerprint *f) {
  * @param f Pointer to the BleFingerprint that closed (provides MAC, ID, and raw RSSI).
  */
 void Close(BleFingerprint *f) {
-    Log.printf("\u001b[32m%u Close  | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
-    Display::Status("C:%s\r\n", f->getId().c_str());
+    Log.printf("\u001b[32m%u Close  | %s | %-58s%.1fdBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
+    Display::Status("C:%s\n", f->getId().c_str());
 }
 
 /**
@@ -113,8 +113,8 @@ void Close(BleFingerprint *f) {
  * @param f Pointer to the BleFingerprint representing the device that left.
  */
 void Left(BleFingerprint *f) {
-    Log.printf("\u001b[33m%u Left   | %s | %-58s%.1fdBm\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
-    Display::Status("L:%s\r\n", f->getId().c_str());
+    Log.printf("\u001b[33m%u Left   | %s | %-58s%.1fdBm\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRawRssi());
+    Display::Status("L:%s\n", f->getId().c_str());
 }
 /**
  * @brief Logs motion sensor states and forwards them to the LEDs subsystem.
@@ -123,7 +123,7 @@ void Left(BleFingerprint *f) {
  * @param radar True if the radar sensor currently detects motion.
  */
 void Motion(bool pir, bool radar) {
-    Log.printf("%u Motion | Pir: %s Radar: %s\r\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
+    Log.printf("%u Motion | Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
     LEDs::Motion(pir, radar);
 }
 
@@ -136,7 +136,7 @@ void Motion(bool pir, bool radar) {
  * @param switch_2 `true` if the second switch is active/on, `false` otherwise.
  */
 void Switch(bool switch_1, bool switch_2) {
-    Log.printf("%u Switch | Switch One: %s Switch Two: %s\r\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
+    Log.printf("%u Switch | Switch One: %s Switch Two: %s\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
 }
 
 /**
@@ -146,7 +146,7 @@ void Switch(bool switch_1, bool switch_2) {
  * @param button_2 State of the second button (`true` if pressed, `false` otherwise).
  */
 void Button(bool button_1, bool button_2) {
-    Log.printf("%u Button | Button One: %s Button Two: %s\r\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+    Log.printf("%u Button | Button One: %s Button Two: %s\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
 }
 
 /**
@@ -170,18 +170,18 @@ void Seen(bool inprogress) {
 void Update(unsigned int percent) {
     LEDs::Update(percent);
     if (percent == UPDATE_STARTED) {
-        Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "started");
-        Display::Status("Update:%s\r\n", "started");
+        Log.printf("%u Update | %s\n", xPortGetCoreID(), "started");
+        Display::Status("Update:%s\n", "started");
     } else if (percent == UPDATE_COMPLETE) {
-        Log.printf("%u Update | %s\r\n", xPortGetCoreID(), "finished");
-        Display::Status("Update:%s\r\n", "finished");
+        Log.printf("%u Update | %s\n", xPortGetCoreID(), "finished");
+        Display::Status("Update:%s\n", "finished");
     } else {
-        Log.printf("%u Update | %d%%\r\n", xPortGetCoreID(), percent);
+        Log.printf("%u Update | %d%%\n", xPortGetCoreID(), percent);
     }
 }
 
 void Connected(bool wifi, bool mqtt) {
-    Display::Status("Wifi:%s Mqtt:%s\r\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
+    Display::Status("Wifi:%s Mqtt:%s\n", (wifi ? "yes" : "no"), (mqtt ? "yes" : "no"));
 }
 
 /**
@@ -195,9 +195,9 @@ void Connected(bool wifi, bool mqtt) {
  */
 void Counting(BleFingerprint *f, bool add) {
     if (add)
-        Log.printf("\u001b[36m%u C# +1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Log.printf("\u001b[36m%u C# +1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
     else
-        Log.printf("\u001b[35m%u C# -1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\r\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
+        Log.printf("\u001b[35m%u C# -1  | %s | %-58s%.1fdBm (%.2fm) %lums\u001b[0m\n", xPortGetCoreID(), f->getMac().c_str(), f->getId().c_str(), f->getRssi(), f->getDistance(), f->getMsSinceLastSeen());
 }
 
 /**

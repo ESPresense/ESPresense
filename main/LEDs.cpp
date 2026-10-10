@@ -117,7 +117,7 @@ void Save() {
     for (auto& led : leds)
         if (led->getControlType() == Control_Type_MQTT && led->getDirty()) {
             led->setDirty(false);
-            Log.printf("Saving %s: %s\r\n", led->getStateFilename().c_str(), led->getStateString().c_str());
+            Log.printf("Saving %s: %s\n", led->getStateFilename().c_str(), led->getStateString().c_str());
             spurt(led->getStateFilename(), led->getStateString());
         }
 }
@@ -216,7 +216,7 @@ bool Command(std::string& command, std::string& pay) {
     DynamicJsonDocument root(pay.length() + 100);
     auto err = deserializeJson(root, pay);
     if (err) {
-        Log.printf("LEDs::Command: deserializeJson: %s\r\n", err.c_str());
+        Log.printf("LEDs::Command: deserializeJson: %s\n", err.c_str());
         return true;
     }
     bool sendNewState = false;

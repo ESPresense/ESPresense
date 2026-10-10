@@ -289,7 +289,7 @@ bool sendConfig(const std::string& id, const std::string& alias, const std::stri
     DeviceConfig existing;
     if (BleFingerprintCollection::FindDeviceConfigByAlias(alias, existing) && existing.id != id)
         deleteConfig(existing.id);
-    Log.printf("%u Alias  | %s to %s\r\n", (unsigned)xPortGetCoreID(), id.c_str(), alias.c_str());
+    Log.printf("%u Alias  | %s to %s\n", (unsigned)xPortGetCoreID(), id.c_str(), alias.c_str());
     DynamicJsonDocument json(256);
     json["id"] = alias;
     json["name"] = name;
@@ -299,7 +299,7 @@ bool sendConfig(const std::string& id, const std::string& alias, const std::stri
 }
 
 bool deleteConfig(const std::string& id) {
-    Log.printf("%u Delete | %s\r\n", (unsigned)xPortGetCoreID(), id.c_str());
+    Log.printf("%u Delete | %s\n", (unsigned)xPortGetCoreID(), id.c_str());
     const std::string settingsTopic = CHANNEL + std::string("/settings/") + id + "/config";
     return pub(settingsTopic.c_str(), 0, true, "");
 }
