@@ -3,12 +3,21 @@
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
     import RepeatGroup from '#lib/components/RepeatGroup.svelte';
 
-    const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
+    const ledTypes = ['PWM', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
     const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
-    const relayTypes = ['Output', 'Output Inverted'];
     const powerOnStates = ['Off', 'On', 'Restore last'];
-    const relayButtons = ['None', 'Button 1', 'Button 2', 'Button 3', 'Button 4'];
-    const pinTypes = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];
+    const inputRoles = ['Motion', 'Switch', 'Button'];
+    const pulls = ['Pull-up', 'Pull-down', 'None'];
+    const MAX_INPUTS = 8;
+
+    // "Linked input" choices, labelled with each input's name (index = input number, 0 = none).
+    const linkedInputs = $derived([
+        'None',
+        ...Array.from({ length: MAX_INPUTS }, (_, i) => {
+            const name = $hardwareSettings?.values[`input_${i + 1}_name`];
+            return name ? `${i + 1}: ${name}` : `Input ${i + 1}`;
+        })
+    ]);
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);
@@ -61,32 +70,69 @@
     </p>
 {/snippet}
 
+{#snippet text(name: string, label: string, placeholder: string)}
+    <p>
+        <label>
+            {label}:<br />
+            <input type="text" {name} {placeholder} bind:value={$hardwareSettings!.values[name]}/>
+        </label>
+    </p>
+{/snippet}
+
+<!-- Pin picker: <base>_pin plus <base>_inv. The checkbox has no name; a hidden field always posts
+     0/1 so unchecking reaches the firmware even for slots above a group's count. -->
+{#snippet pin(base: string, label: string)}
+    {@const pinKey = `${base}_pin`}
+    {@const invKey = `${base}_inv`}
+    {@const inverted = String($hardwareSettings!.values[invKey] ?? $hardwareSettings!.defaults[invKey] ?? '0') === '1'}
+    {@const disabled = Number($hardwareSettings!.values[pinKey] ?? $hardwareSettings!.defaults[pinKey] ?? -1) < 0}
+    <p>
+        <label>
+            {label} (-1 to disable):<br />
+            <span class="flex items-center gap-4">
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    name={pinKey}
+                    placeholder={$hardwareSettings!.defaults[pinKey]}
+                    bind:value={$hardwareSettings!.values[pinKey]}/>
+                <span class="flex items-center gap-1 whitespace-nowrap" class:opacity-50={disabled}>
+                    <input
+                        type="checkbox"
+                        aria-label="{label} inverted"
+                        checked={inverted}
+                        {disabled}
+                        onchange={(e) => hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, [invKey]: (e.currentTarget as HTMLInputElement).checked ? '1' : '0' } } : s))}/>
+                    Inverted
+                </span>
+            </span>
+            <input type="hidden" name={invKey} value={inverted ? '1' : '0'}/>
+        </label>
+    </p>
+{/snippet}
+
 {#snippet led(n: number)}
     {@render dropdown(`led_${n}_type`, 'LED Type', ledTypes)}
-    {@render number(`led_${n}_pin`, 'Pin (-1 to disable)', { step: '1', min: '-1', max: '48' })}
+    {@render pin(`led_${n}`, 'Pin')}
     {@render number(`led_${n}_cnt`, 'Count (only applies to Addressable LEDs)', { step: '1', min: '-1', max: '39' })}
     {@render dropdown(`led_${n}_cntrl`, 'LED Control', ledControls)}
 {/snippet}
 
-{#snippet relay(n: number)}
-    {@render dropdown(`relay_${n}_type`, 'Relay pin type', relayTypes)}
-    {@render number(`relay_${n}_pin`, 'Pin (-1 to disable)', { step: '1', min: '-1', max: '48' })}
-    {@render dropdown(`relay_${n}_state`, 'Power-on state', powerOnStates)}
-    {@render dropdown(`relay_${n}_button`, 'Toggle with button', relayButtons)}
+{#snippet input(n: number)}
+    {@render text(`input_${n}_name`, 'Name', `Input ${n}`)}
+    {@render dropdown(`input_${n}_role`, 'Role', inputRoles)}
+    {@render pin(`input_${n}`, 'Pin')}
+    {@render dropdown(`input_${n}_pull`, 'Pull', pulls)}
+    {@render number(`input_${n}_timeout`, 'Timeout (in seconds)', { step: '0.01', min: '0', max: '300' })}
 {/snippet}
 
-{#snippet gpioInput(prefix: string, label: string, n: number)}
-    {@render dropdown(`${prefix}_${n}_type`, `${label} ${n} pin type`, pinTypes)}
-    {@render number(`${prefix}_${n}_pin`, `${label} ${n} pin (-1 for disable)`, { step: '1' })}
-    {@render number(`${prefix}_${n}_timeout`, `${label} ${n} timeout (in seconds)`, { step: '0.01', min: '0', max: '300' })}
-{/snippet}
-
-{#snippet switchItem(n: number)}
-    {@render gpioInput('switch', 'Switch', n)}
-{/snippet}
-
-{#snippet buttonItem(n: number)}
-    {@render gpioInput('button', 'Button', n)}
+{#snippet output(n: number)}
+    {@render text(`output_${n}_name`, 'Name', `Output ${n}`)}
+    {@render pin(`output_${n}`, 'Pin')}
+    {@render dropdown(`output_${n}_state`, 'Power-on state', powerOnStates)}
+    {@render dropdown(`output_${n}_input`, 'Linked input (a Button toggles it, a Switch or Motion input drives it)', linkedInputs)}
 {/snippet}
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
@@ -111,92 +157,16 @@
             </label>
         </p>
         <h2>
-            <a href="https://espresense.com/configuration/settings#relays" target="_blank">Relays</a>
+            <a href="https://espresense.com/configuration/settings#inputs" target="_blank">Inputs</a>
         </h2>
-        <RepeatGroup settings={hardwareSettings} prefix="relay" title="Relay" plural="relays" max={4} defaultCount={0} item={relay} />
+        <RepeatGroup settings={hardwareSettings} prefix="input" title="Input" plural="inputs" max={MAX_INPUTS} defaultCount={0} item={input} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#outputs" target="_blank">Outputs</a>
+        </h2>
+        <RepeatGroup settings={hardwareSettings} prefix="output" title="Output" plural="outputs" max={4} defaultCount={0} item={output} />
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
-        <h4>PIR:</h4>
-        <p>
-            <label>
-                PIR motion pin type:<br />
-                <select name="pir_type" bind:value={$hardwareSettings.values['pir_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                PIR motion pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="pir_pin"
-                    placeholder={$hardwareSettings.defaults['pir_pin']}
-                    bind:value={$hardwareSettings.values['pir_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                PIR motion timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="pir_timeout"
-                    placeholder={$hardwareSettings.defaults['pir_timeout']}
-                    bind:value={$hardwareSettings.values['pir_timeout']}/>
-            </label>
-        </p>
-        <h4>Radar:</h4>
-        <p>
-            <label>
-                Radar motion pin type:<br />
-                <select name="radar_type" bind:value={$hardwareSettings.values['radar_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Radar motion pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="radar_pin"
-                    placeholder={$hardwareSettings.defaults['radar_pin']}
-                    bind:value={$hardwareSettings.values['radar_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Radar motion timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="radar_timeout"
-                    placeholder={$hardwareSettings.defaults['radar_timeout']}
-                    bind:value={$hardwareSettings.values['radar_timeout']}/>
-            </label>
-        </p>
-        <RepeatGroup settings={hardwareSettings} prefix="switch" title="Switch" plural="switches" max={4} defaultCount={2} item={switchItem} />
-        <RepeatGroup settings={hardwareSettings} prefix="button" title="Button" plural="buttons" max={4} defaultCount={2} item={buttonItem} />
         <h4>DHT:</h4>
         <p>
             <label>

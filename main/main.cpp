@@ -38,10 +38,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str())
             && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
             && Updater::SendOnline()
-            && Motion::SendOnline()
-            && Switch::SendOnline()
-            && Button::SendOnline()
-            && Relay::SendOnline()
+            && Inputs::SendOnline()
+            && Outputs::SendOnline()
             && GUI::SendOnline()
         ) {
             online = true;
@@ -62,10 +60,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
-            && Motion::SendDiscovery()
-            && Switch::SendDiscovery()
-            && Button::SendDiscovery()
-            && Relay::SendDiscovery()
+            && Inputs::SendDiscovery()
+            && Outputs::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
             && CAN::SendDiscovery()
@@ -195,10 +191,8 @@ void setupNetwork() {
     Settings::markEndpoint("hardware");
     GUI::ConnectToWifi(updating);
 
-    Motion::ConnectToWifi(updating);
-    Switch::ConnectToWifi(updating);
-    Button::ConnectToWifi(updating);
-    Relay::ConnectToWifi(updating);
+    Inputs::ConnectToWifi(updating);
+    Outputs::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -256,10 +250,8 @@ void setupNetwork() {
     Log.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Log.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
-    Motion::SerialReport();
-    Switch::SerialReport();
-    Button::SerialReport();
-    Relay::SerialReport();
+    Inputs::SerialReport();
+    Outputs::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
     DHT::SerialReport();
@@ -324,19 +316,15 @@ void onMqttMessage(const char *topic, const char *payload) {
             spurt("/room", pay.empty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))
             ;
-        else if (Motion::Command(command, pay))
-            ;
         else if (BleFingerprintCollection::Command(command, pay))
             changed = true;
         else if (Enrollment::Command(command, pay))
             changed = true;
         else if (Updater::Command(command, pay))
             changed = true;
-        else if (Switch::Command(command, pay))
+        else if (Inputs::Command(command, pay))
             changed = true;
-        else if (Button::Command(command, pay))
-            changed = true;
-        else if (Relay::Command(command, pay))
+        else if (Outputs::Command(command, pay))
             ;
         if (changed) online = false;
     } else {
@@ -508,10 +496,8 @@ void setup() {
     Log.enableTcp(6053);
     Updater::Setup();
     GUI::Setup(false);
-    Motion::Setup();
-    Switch::Setup();
-    Button::Setup();
-    Relay::Setup();
+    Inputs::Setup();
+    Outputs::Setup();
     Battery::Setup();
     CAN::Setup();
     NTP::Setup();
@@ -544,7 +530,7 @@ void setup() {
  * logs a low-memory warning when free memory is less than 20,000 bytes, and runs the updater
  * loop when free memory exceeds 70,000 bytes.
  *
- * Subsystems invoked each iteration include GUI, Motion, Switch, Button, HTTP server,
+ * Subsystems invoked each iteration include GUI, Inputs, Outputs, HTTP server,
  * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
  */
 void loop() {
@@ -579,10 +565,8 @@ void loop() {
         }
     }
     GUI::Loop();
-    Motion::Loop();
-    Switch::Loop();
-    Button::Loop();
-    Relay::Loop();
+    Inputs::Loop();
+    Outputs::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();

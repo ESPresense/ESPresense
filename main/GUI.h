@@ -19,10 +19,9 @@ void Removed(BleFingerprint *f);
 void Close(BleFingerprint *f);
 void Left(BleFingerprint *f);
 void Counting(BleFingerprint *f, bool added);
-void Motion(bool pir, bool radar);
+void Input(int index, const std::string& name, bool on);
+void Motion(bool motion);
 // Bit n-1 of `mask` is set while input n (of `count`) is on.
-void Switch(uint32_t mask, int count);
-void Button(uint32_t mask, int count);
 void Seen(bool inprogress);
 void Update(unsigned int percent);
 void Connected(bool wifi, bool mqtt);

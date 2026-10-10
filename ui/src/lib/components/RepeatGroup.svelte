@@ -11,11 +11,11 @@
      */
     interface Props {
         settings: Writable<ExtraSettings | null>;
-        /** Setting key prefix, e.g. "relay" for relay_count and relay_<n>_* */
+        /** Setting key prefix, e.g. "output" for output_count and output_<n>_* */
         prefix: string;
-        /** Singular heading, e.g. "Relay" -> "Relay 1:" */
+        /** Singular heading, e.g. "Output" -> "Output 1:" */
         title: string;
-        /** Used in the count label, e.g. "relays" -> "Number of relays" */
+        /** Used in the count label, e.g. "outputs" -> "Number of outputs" */
         plural: string;
         max: number;
         /** Count when the firmware reports none (must match the firmware's default) */

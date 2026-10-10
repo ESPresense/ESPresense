@@ -15,23 +15,13 @@ const mockHardwareSettings = {
 		led_3_pin: '-1',
 		led_3_cnt: '1',
 		led_3_cntrl: '0',
-		pir_type: '0',
-		pir_pin: '-1',
-		pir_timeout: '5',
-		radar_type: '0',
-		radar_pin: '-1',
-		radar_timeout: '5',
-		switch_1_type: '0',
-		switch_1_pin: '-1',
-		switch_1_timeout: '0',
-		switch_2_type: '0',
-		switch_2_pin: '-1',
-		switch_2_timeout: '0',
-		button_1_type: '0',
-		button_1_pin: '-1',
-		button_1_timeout: '0',
-		button_2_pin: '-1',
-		button_2_timeout: '0',
+		input_count: '1',
+		input_1_name: 'Hallway PIR',
+		input_1_role: '0',
+		input_1_pin: '-1',
+		input_1_inv: '0',
+		input_1_pull: '0',
+		input_1_timeout: '5',
 		dht11_pin: '-1',
 		dht22_pin: '-1',
 		dhtTemp_offset: '0',
@@ -70,8 +60,8 @@ const mockHardwareSettings = {
 		led_1_cnt: '1',
 		led_1_cntrl: '1',
 		led_2_pin: '-1',
-		pir_pin: '-1',
-		pir_timeout: '5',
+		input_1_pin: '-1',
+		input_1_timeout: '0.5',
 		I2C_Bus_1_SDA: '21',
 		I2C_Bus_1_SCL: '22'
 	}
@@ -118,9 +108,9 @@ test.describe('Hardware Settings Page', () => {
 		await expect(page.locator('text=LED 2:')).toBeVisible();
 		await expect(page.locator('text=LED 3:')).toBeVisible();
 
-		// Check GPIO Sensors section exists
-		await expect(page.locator('text=PIR:')).toBeVisible();
-		await expect(page.locator('text=Radar:')).toBeVisible();
+		// Check Inputs and Outputs sections exist
+		await expect(page.locator('h4', { hasText: 'Input 1:' })).toBeVisible();
+		await expect(page.locator('select[name="output_count"]')).toBeVisible();
 
 		// Check I2C Settings section exists
 		await expect(page.locator('text=I2C Settings')).toBeVisible();
@@ -156,13 +146,13 @@ test.describe('Hardware Settings Page', () => {
 
 		// Change LED type dropdown
 		const led1Type = page.locator('select[name="led_1_type"]');
-		await led1Type.selectOption('2'); // Addressable GRB
-		await expect(led1Type).toHaveValue('2');
+		await led1Type.selectOption('1'); // Addressable GRB
+		await expect(led1Type).toHaveValue('1');
 
-		// Change PIR pin
-		const pirPin = page.locator('input[name="pir_pin"]');
-		await pirPin.fill('15');
-		await expect(pirPin).toHaveValue('15');
+		// Change input 1 pin
+		const inputPin = page.locator('input[name="input_1_pin"]');
+		await inputPin.fill('15');
+		await expect(inputPin).toHaveValue('15');
 	});
 
 	test('should submit form and trigger restart with retries', async ({ page }) => {
@@ -418,11 +408,10 @@ test.describe('Hardware Settings Page', () => {
 		// Test all LED type options
 		const expectedOptions = [
 			{ value: '0', label: 'PWM' },
-			{ value: '1', label: 'PWM Inverted' },
-			{ value: '2', label: 'Addressable GRB' },
-			{ value: '3', label: 'Addressable GRBW' },
-			{ value: '4', label: 'Addressable RGB' },
-			{ value: '5', label: 'Addressable RGBW' }
+			{ value: '1', label: 'Addressable GRB' },
+			{ value: '2', label: 'Addressable GRBW' },
+			{ value: '3', label: 'Addressable RGB' },
+			{ value: '4', label: 'Addressable RGBW' }
 		];
 
 		for (const option of expectedOptions) {
@@ -431,26 +420,45 @@ test.describe('Hardware Settings Page', () => {
 		}
 	});
 
-	test('should handle all GPIO pin type options', async ({ page }) => {
+	test('should handle input role and pull options', async ({ page }) => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		const pirType = page.locator('select[name="pir_type"]');
-
-		// Test all GPIO type options
-		const expectedOptions = [
-			{ value: '0', label: 'Pullup' },
-			{ value: '1', label: 'Pullup Inverted' },
-			{ value: '2', label: 'Pulldown' },
-			{ value: '3', label: 'Pulldown Inverted' },
-			{ value: '4', label: 'Floating' },
-			{ value: '5', label: 'Floating Inverted' }
-		];
-
-		for (const option of expectedOptions) {
-			await pirType.selectOption(option.value);
-			await expect(pirType).toHaveValue(option.value);
+		const role = page.locator('select[name="input_1_role"]');
+		for (const v of ['0', '1', '2']) {
+			await role.selectOption(v);
+			await expect(role).toHaveValue(v);
 		}
+		const pull = page.locator('select[name="input_1_pull"]');
+		for (const v of ['0', '1', '2']) {
+			await pull.selectOption(v);
+			await expect(pull).toHaveValue(v);
+		}
+	});
+
+	test('pin picker posts the invert flag, and greys it out with no pin', async ({ page }) => {
+		let posted = '';
+		await page.route('**/wifi/hardware', async (route) => {
+			if (route.request().method() === 'GET') {
+				await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockHardwareSettings) });
+			} else {
+				posted = route.request().postData() ?? '';
+				await route.fulfill({ status: 200 });
+			}
+		});
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		const inv = page.getByRole('checkbox', { name: 'Pin inverted' }).nth(3); // LEDs 1-3, then input 1
+		await expect(inv).toBeDisabled();
+		await page.locator('input[name="input_1_pin"]').fill('4');
+		await expect(inv).toBeEnabled();
+		await inv.check();
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('input_1_pin=4');
+		const params = new URLSearchParams(posted);
+		expect(params.get('input_1_inv')).toBe('1');
+		expect(params.get('led_1_inv')).toBe('0');
 	});
 });
 
@@ -481,12 +489,10 @@ test.describe('Hardware counted groups', () => {
 
 		await expect(page.locator('select[name="led_count"]')).toHaveValue('3');
 		await expect(page.locator('h4', { hasText: 'LED 3:' })).toBeVisible();
-		await expect(page.locator('select[name="relay_count"]')).toHaveValue('0');
-		await expect(page.locator('input[name="relay_1_pin"]')).toHaveCount(0);
-		await expect(page.locator('select[name="switch_count"]')).toHaveValue('2');
-		await expect(page.locator('input[name="switch_2_pin"]')).toBeVisible();
-		await expect(page.locator('select[name="button_count"]')).toHaveValue('2');
-		await expect(page.locator('input[name="button_2_pin"]')).toBeVisible();
+		await expect(page.locator('select[name="output_count"]')).toHaveValue('0');
+		await expect(page.locator('input[name="output_1_pin"]')).toHaveCount(0);
+		await expect(page.locator('select[name="input_count"]')).toHaveValue('1');
+		await expect(page.locator('input[name="input_1_pin"]')).toBeVisible();
 	});
 
 	test('raising a count adds slots that save in the same POST', async ({ page }) => {
@@ -495,36 +501,41 @@ test.describe('Hardware counted groups', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await page.locator('select[name="relay_count"]').selectOption('4');
-		await expect(page.locator('h4', { hasText: 'Relay 4:' })).toBeVisible();
-		await page.locator('input[name="relay_4_pin"]').fill('5');
-		await page.locator('select[name="relay_4_state"]').selectOption('2');
-		await page.locator('select[name="relay_4_button"]').selectOption('3');
+		await page.locator('select[name="output_count"]').selectOption('4');
+		await expect(page.locator('h4', { hasText: 'Output 4:' })).toBeVisible();
+		await page.locator('input[name="output_4_name"]').fill('Plug');
+		await page.locator('input[name="output_4_pin"]').fill('5');
+		await page.locator('select[name="output_4_state"]').selectOption('2');
+		const link = page.locator('select[name="output_4_input"]');
+		await expect(link.locator('option', { hasText: '1: Hallway PIR' })).toHaveCount(1);
+		await link.selectOption('1');
 
 		await page.locator('button[type="submit"]').click();
-		await expect.poll(() => posted).toContain('relay_4_pin=5');
+		await expect.poll(() => posted).toContain('output_4_pin=5');
 		const params = new URLSearchParams(posted);
-		expect(params.get('relay_count')).toBe('4');
-		expect(params.get('relay_4_state')).toBe('2');
-		expect(params.get('relay_4_button')).toBe('3');
+		expect(params.get('output_count')).toBe('4');
+		expect(params.get('output_4_name')).toBe('Plug');
+		expect(params.get('output_4_state')).toBe('2');
+		expect(params.get('output_4_input')).toBe('1');
+		expect(params.get('output_4_inv')).toBe('0');
 	});
 
 	test('lowering a count hides slots and leaves them out of the POST', async ({ page }) => {
 		let posted = '';
-		await mockSettings(page, { led_count: 3, button_count: 4, button_4_pin: '9' }, (body) => (posted = body));
+		await mockSettings(page, { led_count: 3, input_count: 4, input_4_pin: '9' }, (body) => (posted = body));
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await expect(page.locator('input[name="button_4_pin"]')).toHaveValue('9');
+		await expect(page.locator('input[name="input_4_pin"]')).toHaveValue('9');
 		await page.locator('select[name="led_count"]').selectOption('1');
 		await expect(page.locator('h4', { hasText: 'LED 2:' })).toHaveCount(0);
-		await page.locator('select[name="button_count"]').selectOption('2');
-		await expect(page.locator('input[name="button_4_pin"]')).toHaveCount(0);
+		await page.locator('select[name="input_count"]').selectOption('2');
+		await expect(page.locator('input[name="input_4_pin"]')).toHaveCount(0);
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('led_count=1');
 		expect(posted).not.toContain('led_2_pin');
-		expect(posted).not.toContain('button_4_pin');
+		expect(posted).not.toContain('input_4_pin');
 	});
 });
 

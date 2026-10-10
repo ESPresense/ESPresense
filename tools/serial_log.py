@@ -13,13 +13,18 @@ while True:
     except serial.SerialException:
         if time.time() > end: sys.exit(f"could not open {port}")
         time.sleep(0.2)
+# ponytail: reopen after 3s of silence; after a reset macOS can leave us on a dead handle.
+last = time.time()
 while time.time() < end:
     try:
         data = s.read(4096)
-    except serial.SerialException:  # port vanished mid-read (reset), reopen
-        s.close(); time.sleep(0.2)
+        if not data and time.time() - last > 3:
+            raise serial.SerialException("silent")
+    except serial.SerialException:  # port vanished or went quiet (reset), reopen
+        s.close(); time.sleep(0.2); last = time.time()
         try: s = serial.Serial(port, 115200, timeout=0.5)
         except serial.SerialException: pass
         continue
     if data:
+        last = time.time()
         sys.stdout.write(data.decode(errors="replace")); sys.stdout.flush()

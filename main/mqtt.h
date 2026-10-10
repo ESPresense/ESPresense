@@ -26,11 +26,15 @@ bool sendTeleBinarySensorDiscovery(const std::string& name, const std::string& e
 bool sendTeleSensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& temp, const std::string& devClass = DEVICE_CLASS_NONE, const std::string& units = "");
 
 bool sendBinarySensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& devClass = DEVICE_CLASS_NONE);
+// slug is the state topic (~/<slug>) and unique id suffix; name is only the display name.
+bool sendBinarySensorDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory, const std::string& devClass);
 bool sendSensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& devClass = DEVICE_CLASS_NONE, const std::string& units = "", bool frcUpdate = false);
 
 bool sendButtonDiscovery(const std::string& name, const std::string& entityCategory);
 bool sendSwitchDiscovery(const std::string& name, const std::string& entityCategory);
+bool sendSwitchDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory);
 bool sendNumberDiscovery(const std::string& name, const std::string& entityCategory);
+bool sendNumberDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory);
 bool sendLightDiscovery(const std::string& name, const std::string& entityCategory, bool rgb, bool rgbw);
 
 bool sendDeleteDiscovery(const std::string& domain, const std::string& name);

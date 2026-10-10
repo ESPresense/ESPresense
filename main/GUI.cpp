@@ -117,41 +117,23 @@ void Left(BleFingerprint *f) {
     Display::Status("L:%s\n", f->getId().c_str());
 }
 /**
- * @brief Logs motion sensor states and forwards them to the LEDs subsystem.
+ * @brief Log an input's debounced state change.
  *
- * @param pir True if the PIR sensor currently detects motion.
- * @param radar True if the radar sensor currently detects motion.
+ * @param index 1-based input number.
+ * @param name The input's configured name.
+ * @param on True while the input is active (including its hold timeout).
  */
-void Motion(bool pir, bool radar) {
-    Log.printf("%u Motion | Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
-    LEDs::Motion(pir, radar);
-}
-
-static void logInputs(const char* label, uint32_t mask, int count) {
-    std::string states;
-    for (int i = 0; i < count; i++)
-        states += Sprintf(" %d: %s", i + 1, (mask >> i) & 1 ? "yes" : "no");
-    Log.printf("%u %-6s |%s\n", xPortGetCoreID(), label, states.c_str());
+void Input(int index, const std::string& name, bool on) {
+    Log.printf("%u Input  | %d %s: %s\n", xPortGetCoreID(), index, name.c_str(), on ? "on" : "off");
 }
 
 /**
- * @brief Log the current states of the physical switches.
+ * @brief Forward the combined state of the Motion-role inputs to the LEDs.
  *
- * @param mask Bit n-1 set while switch n is active.
- * @param count Number of configured switches.
+ * @param motion True while any Motion-role input is active.
  */
-void Switch(uint32_t mask, int count) {
-    logInputs("Switch", mask, count);
-}
-
-/**
- * @brief Log the current states of the physical buttons.
- *
- * @param mask Bit n-1 set while button n is pressed.
- * @param count Number of configured buttons.
- */
-void Button(uint32_t mask, int count) {
-    logInputs("Button", mask, count);
+void Motion(bool motion) {
+    LEDs::Motion(motion);
 }
 
 /**

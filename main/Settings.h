@@ -22,7 +22,7 @@ float floating(const std::string& name, long min, long max, float init = 0, cons
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
 
 // A repeated block of settings named <prefix>_<n>_<field>, n = 1..max, on the current endpoint
-// (e.g. relay_1_pin .. relay_4_button). Register only the slots in use (n <= <prefix>_count)
+// (e.g. output_1_pin .. output_4_input). Register only the slots in use (n <= <prefix>_count)
 // the normal way; the rest cost no heap but still round-trip: GET reports their saved values and
 // POST stores whatever the form sends for them, so raising a count in the UI and filling in the
 // new slot is one save, and lowering it keeps the hidden slots' values.

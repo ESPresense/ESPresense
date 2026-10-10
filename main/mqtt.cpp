@@ -207,7 +207,10 @@ bool sendSensorDiscovery(const std::string& name, const std::string& entityCateg
 }
 
 bool sendBinarySensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& devClass) {
-    auto slug = slugify(name);
+    return sendBinarySensorDiscovery(slugify(name), name, entityCategory, devClass);
+}
+
+bool sendBinarySensorDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory, const std::string& devClass) {
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = name;
@@ -235,7 +238,10 @@ bool sendButtonDiscovery(const std::string& name, const std::string& entityCateg
 }
 
 bool sendSwitchDiscovery(const std::string& name, const std::string& entityCategory) {
-    auto slug = slugify(name);
+    return sendSwitchDiscovery(slugify(name), name, entityCategory);
+}
+
+bool sendSwitchDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory) {
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = name;
@@ -249,7 +255,10 @@ bool sendSwitchDiscovery(const std::string& name, const std::string& entityCateg
 }
 
 bool sendNumberDiscovery(const std::string& name, const std::string& entityCategory) {
-    auto slug = slugify(name);
+    return sendNumberDiscovery(slugify(name), name, entityCategory);
+}
+
+bool sendNumberDiscovery(const std::string& slug, const std::string& name, const std::string& entityCategory) {
     commonDiscovery();
     doc["~"] = roomsTopic;
     doc["name"] = name;
