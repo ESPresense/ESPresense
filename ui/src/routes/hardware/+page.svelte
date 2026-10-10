@@ -491,6 +491,35 @@
             </label>
         </p>
         <h2>
+            <a href="https://espresense.com/configuration/hardware#battery" target="_blank">Battery</a>
+        </h2>
+        <p>
+            <label>
+                Battery voltage pin (-1 to disable, ADC1 pins only):<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    name="batt_pin"
+                    placeholder={$hardwareSettings.defaults['batt_pin']}
+                    bind:value={$hardwareSettings.values['batt_pin']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                Battery voltage divider (multiplier):<br />
+                <input
+                    type="number"
+                    step="0.01"
+                    min="1"
+                    max="10"
+                    name="batt_mult"
+                    placeholder={$hardwareSettings.defaults['batt_mult']}
+                    bind:value={$hardwareSettings.values['batt_mult']}/>
+            </label>
+        </p>
+        <h2>
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
         <h4>Bus 1:</h4>

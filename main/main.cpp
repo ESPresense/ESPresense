@@ -196,6 +196,7 @@ void setupNetwork() {
     Motion::ConnectToWifi(updating);
     Switch::ConnectToWifi(updating);
     Button::ConnectToWifi(updating);
+    Battery::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
