@@ -19,17 +19,16 @@ extern bool online;
 namespace Relay {
 
 struct Output {
-    int index;
+    int index = 0;
     int pin = -1;
     bool inverted = false;
     RelayPowerOn powerOn = RelayPowerOn::Off;
-    int button = 0;                // 0 none, 1/2 Button One/Two toggles this relay
+    int button = 0;                // 0 none, n: Button n toggles this relay
     std::atomic<bool> state{false};  // written by the MQTT task (Command) and the main loop (button)
     int8_t published = -1;         // last state sent to MQTT; main task only
     int8_t saved = -1;             // last state written to /relay_N_last; main task only
     int8_t lastButton = -1;
 
-    explicit Output(int i) : index(i) {}
     std::string id() const { return Sprintf("relay_%d", index); }
     std::string name() const { return Sprintf("Relay %d", index); }
     std::string lastFilename() const { return Sprintf("/relay_%d_last", index); }
@@ -40,7 +39,8 @@ struct Output {
     }
 };
 
-Output relays[] = {Output(1), Output(2)};
+Output relays[MAX_RELAYS];
+int count = 0;
 
 void Setup() {
 }
@@ -55,10 +55,16 @@ void Setup() {
 void ConnectToWifi(bool updating) {
     std::vector<std::string> relayTypes = {"Relay", "Relay Inverted"};
     std::vector<std::string> powerOnStates = {"Off", "On", "Restore last"};
-    std::vector<std::string> buttons = {"None", "Button One", "Button Two"};
+    std::vector<std::string> buttons = {"None", "Button 1", "Button 2", "Button 3", "Button 4"};
 
-    for (auto& r : relays) {
-        auto n = r.index;
+    count = Settings::integer("relay_count", 0, MAX_RELAYS, 0, "Number of relays");
+    if (count < 0) count = 0;
+    if (count > MAX_RELAYS) count = MAX_RELAYS;
+    Settings::group("relay", MAX_RELAYS, {"type", "pin", "state", "button"});
+
+    for (int i = 0; i < MAX_RELAYS; i++) relays[i].index = i + 1;
+    for (int n = 1; n <= count; n++) {
+        auto& r = relays[n - 1];
         r.inverted = Settings::dropdown(Sprintf("relay_%d_type", n), relayTypes, 0, "Relay Type") == 1;
         r.pin = Settings::integer(Sprintf("relay_%d_pin", n), -1, 48, -1, "Pin (-1 to disable)");
         r.powerOn = (RelayPowerOn)Settings::dropdown(Sprintf("relay_%d_state", n), powerOnStates, 0, "Power-on state");
@@ -73,12 +79,13 @@ void ConnectToWifi(bool updating) {
 }
 
 void SerialReport() {
-    for (auto& r : relays) {
+    for (int i = 0; i < count; i++) {
+        auto& r = relays[i];
         Log.printf("Relay %d:      ", r.index);
         if (r.pin < 0)
             Log.println("disabled");
         else
-            Log.printf("pin %d%s, %s\r\n", r.pin, r.inverted ? " inverted" : "", r.state ? "on" : "off");
+            Log.printf("pin %d%s, %s\n", r.pin, r.inverted ? " inverted" : "", r.state ? "on" : "off");
     }
 }
 
@@ -103,13 +110,15 @@ void Loop() {
         bool on = r.state;
         if (r.powerOn == RelayPowerOn::Restore && r.saved != (int8_t)on) {
             r.saved = on;
-            Log.printf("Saving %s: %d\r\n", r.lastFilename().c_str(), on);
+            Log.printf("Saving %s: %d\n", r.lastFilename().c_str(), on);
             spurt(r.lastFilename(), on ? "1" : "0");
         }
         if (r.published != (int8_t)on && online) publish(r);
     }
 }
 
+// Slots above relay_count, or without a pin, delete their entity so a relay that was removed
+// doesn't linger in Home Assistant.
 bool SendDiscovery() {
     for (auto& r : relays)
         if (!(r.pin >= 0 ? sendSwitchDiscovery(r.name(), EC_NONE) : sendDeleteDiscovery("switch", r.name())))
@@ -131,7 +140,7 @@ bool Command(std::string& command, std::string& pay) {
         if (relayParsePayload(pay, r.state, on))
             r.set(on);
         else
-            Log.printf("Relay %d: unknown payload \"%s\"\r\n", r.index, pay.c_str());
+            Log.printf("Relay %d: unknown payload \"%s\"\n", r.index, pay.c_str());
         return true;
     }
     return false;

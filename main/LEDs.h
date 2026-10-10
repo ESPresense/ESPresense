@@ -5,6 +5,8 @@
 #define MQTT_STATE_OFF_PAYLOAD  "OFF"
 
 namespace LEDs {
+constexpr int MAX_LEDS = 4;
+
 void Setup();
 void ConnectToWifi(bool updating);
 void SerialReport();

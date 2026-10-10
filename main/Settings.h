@@ -21,6 +21,13 @@ float floating(const std::string& name, float init = 0, const std::string& label
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
 
+// A repeated block of settings named <prefix>_<n>_<field>, n = 1..max, on the current endpoint
+// (e.g. relay_1_pin .. relay_4_button). Register only the slots in use (n <= <prefix>_count)
+// the normal way; the rest cost no heap but still round-trip: GET reports their saved values and
+// POST stores whatever the form sends for them, so raising a count in the UI and filling in the
+// new slot is one save, and lowering it keeps the hidden slots' values.
+void group(const std::string& prefix, int max, const std::vector<std::string>& fields);
+
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
 void markState();                           // last setting is runtime state, not configuration:

@@ -454,6 +454,80 @@ test.describe('Hardware Settings Page', () => {
 	});
 });
 
+test.describe('Hardware counted groups', () => {
+	async function mockSettings(page: Page, values: Record<string, unknown>, onPost?: (body: string) => void) {
+		await page.route('**/wifi/hardware', async (route) => {
+			if (route.request().method() === 'GET') {
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ ...mockHardwareSettings, values: { ...mockHardwareSettings.values, ...values } })
+				});
+			} else {
+				onPost?.(route.request().postData() ?? '');
+				await route.fulfill({ status: 200 });
+			}
+		});
+		await page.route('**/restart', (route) => route.abort('failed'));
+		await page.route('**/json', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ room: 'test-room' }) })
+		);
+	}
+
+	test('uses firmware defaults when no count is reported', async ({ page }) => {
+		await mockSettings(page, {});
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.locator('select[name="led_count"]')).toHaveValue('3');
+		await expect(page.locator('h4', { hasText: 'LED 3:' })).toBeVisible();
+		await expect(page.locator('select[name="relay_count"]')).toHaveValue('0');
+		await expect(page.locator('input[name="relay_1_pin"]')).toHaveCount(0);
+		await expect(page.locator('select[name="switch_count"]')).toHaveValue('2');
+		await expect(page.locator('input[name="switch_2_pin"]')).toBeVisible();
+		await expect(page.locator('select[name="button_count"]')).toHaveValue('2');
+		await expect(page.locator('input[name="button_2_pin"]')).toBeVisible();
+	});
+
+	test('raising a count adds slots that save in the same POST', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, {}, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await page.locator('select[name="relay_count"]').selectOption('4');
+		await expect(page.locator('h4', { hasText: 'Relay 4:' })).toBeVisible();
+		await page.locator('input[name="relay_4_pin"]').fill('5');
+		await page.locator('select[name="relay_4_state"]').selectOption('2');
+		await page.locator('select[name="relay_4_button"]').selectOption('3');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('relay_4_pin=5');
+		const params = new URLSearchParams(posted);
+		expect(params.get('relay_count')).toBe('4');
+		expect(params.get('relay_4_state')).toBe('2');
+		expect(params.get('relay_4_button')).toBe('3');
+	});
+
+	test('lowering a count hides slots and leaves them out of the POST', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { led_count: 3, button_count: 4, button_4_pin: '9' }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.locator('input[name="button_4_pin"]')).toHaveValue('9');
+		await page.locator('select[name="led_count"]').selectOption('1');
+		await expect(page.locator('h4', { hasText: 'LED 2:' })).toHaveCount(0);
+		await page.locator('select[name="button_count"]').selectOption('2');
+		await expect(page.locator('input[name="button_4_pin"]')).toHaveCount(0);
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('led_count=1');
+		expect(posted).not.toContain('led_2_pin');
+		expect(posted).not.toContain('button_4_pin');
+	});
+});
+
 test.describe('Hardware Page Integration', () => {
 	test('should be accessible from navigation', async ({ page }) => {
 		// Mock required endpoints

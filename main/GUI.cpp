@@ -127,26 +127,31 @@ void Motion(bool pir, bool radar) {
     LEDs::Motion(pir, radar);
 }
 
-/**
- * @brief Log the current states of two physical switches.
- *
- * Logs which core is running and whether each switch is active.
- *
- * @param switch_1 `true` if the first switch is active/on, `false` otherwise.
- * @param switch_2 `true` if the second switch is active/on, `false` otherwise.
- */
-void Switch(bool switch_1, bool switch_2) {
-    Log.printf("%u Switch | Switch One: %s Switch Two: %s\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
+static void logInputs(const char* label, uint32_t mask, int count) {
+    std::string states;
+    for (int i = 0; i < count; i++)
+        states += Sprintf(" %d: %s", i + 1, (mask >> i) & 1 ? "yes" : "no");
+    Log.printf("%u %-6s |%s\n", xPortGetCoreID(), label, states.c_str());
 }
 
 /**
- * @brief Logs the current states of two physical buttons.
+ * @brief Log the current states of the physical switches.
  *
- * @param button_1 State of the first button (`true` if pressed, `false` otherwise).
- * @param button_2 State of the second button (`true` if pressed, `false` otherwise).
+ * @param mask Bit n-1 set while switch n is active.
+ * @param count Number of configured switches.
  */
-void Button(bool button_1, bool button_2) {
-    Log.printf("%u Button | Button One: %s Button Two: %s\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+void Switch(uint32_t mask, int count) {
+    logInputs("Switch", mask, count);
+}
+
+/**
+ * @brief Log the current states of the physical buttons.
+ *
+ * @param mask Bit n-1 set while button n is pressed.
+ * @param count Number of configured buttons.
+ */
+void Button(uint32_t mask, int count) {
+    logInputs("Button", mask, count);
 }
 
 /**

@@ -2,6 +2,8 @@
 #include <string>
 
 namespace Relay {
+constexpr int MAX_RELAYS = 4;
+
 void Setup();
 void ConnectToWifi(bool updating);
 void SerialReport();

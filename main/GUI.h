@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 
 #include "BleFingerprint.h"
@@ -19,8 +20,9 @@ void Close(BleFingerprint *f);
 void Left(BleFingerprint *f);
 void Counting(BleFingerprint *f, bool added);
 void Motion(bool pir, bool radar);
-void Switch(bool switchone, bool switchtwo);
-void Button(bool switchone, bool switchtwo);
+// Bit n-1 of `mask` is set while input n (of `count`) is on.
+void Switch(uint32_t mask, int count);
+void Button(uint32_t mask, int count);
 void Seen(bool inprogress);
 void Update(unsigned int percent);
 void Connected(bool wifi, bool mqtt);

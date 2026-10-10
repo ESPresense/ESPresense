@@ -131,23 +131,31 @@ struct Param {
     static std::string jsonNumeric(const std::string& n, const std::string& v) { return "\"" + encode(n) + "\":" + v; }
 };
 
+// A repeated block <prefix>_<n>_<field>; see Settings::group().
+struct Group {
+    std::string prefix;
+    int max;
+    std::vector<std::string> fields;
+};
+
 struct Endpoint {
     std::string name;
     std::vector<Param*> params;
+    std::vector<Group> groups;
 };
 std::vector<Endpoint> endpoints;
 size_t current = 0;
 
 size_t findOrCreate(const std::string& name) {
-    if (endpoints.empty()) endpoints.push_back({"main", {}});
+    if (endpoints.empty()) endpoints.push_back({"main", {}, {}});
     for (size_t i = 0; i < endpoints.size(); i++)
         if (endpoints[i].name == name) return i;
-    endpoints.push_back({name, {}});
+    endpoints.push_back({name, {}, {}});
     return endpoints.size() - 1;
 }
 
 int find(const std::string& name) {
-    if (endpoints.empty()) endpoints.push_back({"main", {}});
+    if (endpoints.empty()) endpoints.push_back({"main", {}, {}});
     for (size_t i = 0; i < endpoints.size(); i++)
         if (endpoints[i].name == name) return i;
     return -1;
@@ -176,6 +184,24 @@ Param* findParam(const std::string& key) {
 
 // Settings a template may carry: no runtime state, no secrets.
 bool templatable(const Param* p) { return p && !p->state && p->type != Type::Password; }
+
+bool registered(const Endpoint& e, const std::string& name) {
+    for (auto* prm : e.params)
+        if (prm->name == name) return true;
+    return false;
+}
+
+// Calls fn(key) for every <prefix>_<n>_<field> of e's groups that isn't a registered setting,
+// i.e. the slots above the group's current count.
+template <typename F>
+void forEachUnregistered(const Endpoint& e, F fn) {
+    for (auto& g : e.groups)
+        for (int n = 1; n <= g.max; n++)
+            for (auto& f : g.fields) {
+                std::string key = g.prefix + "_" + toStr(n) + "_" + f;
+                if (!registered(e, key)) fn(key);
+            }
+}
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -243,6 +269,13 @@ esp_err_t getHandler(httpd_req_t* req) {
         out += s;
         comma = true;
     }
+    forEachUnregistered(endpoints[idx], [&](const std::string& key) {
+        auto v = slurp("/" + key);
+        if (v.empty()) return;
+        if (comma) out += ",";
+        out += Param::jsonString(key, v);
+        comma = true;
+    });
     out += "},\"defaults\":{";
     comma = false;
     for (auto* prm : endpoints[idx].params) {
@@ -256,20 +289,23 @@ esp_err_t getHandler(httpd_req_t* req) {
     return sendJson(req, out);
 }
 
-// Form-encoded body -> value for key, decoded. Empty string when absent.
-std::string formValue(const std::string& body, const std::string& key) {
+// Form-encoded body -> value for key, decoded. False (and `out` empty) when absent.
+bool formValue(const std::string& body, const std::string& key, std::string& out) {
+    out.clear();
     size_t pos = 0;
     while (pos <= body.size()) {
         size_t amp = body.find('&', pos);
         std::string pair = body.substr(pos, amp == std::string::npos ? std::string::npos : amp - pos);
         size_t eq = pair.find('=');
         std::string k = pair.substr(0, eq);
-        if (HttpWebServer::urlDecode(k.c_str(), k.size()) == key)
-            return eq == std::string::npos ? "" : HttpWebServer::urlDecode(pair.c_str() + eq + 1, pair.size() - eq - 1);
+        if (HttpWebServer::urlDecode(k.c_str(), k.size()) == key) {
+            if (eq != std::string::npos) out = HttpWebServer::urlDecode(pair.c_str() + eq + 1, pair.size() - eq - 1);
+            return true;
+        }
         if (amp == std::string::npos) break;
         pos = amp + 1;
     }
-    return "";
+    return false;
 }
 
 esp_err_t postHandler(httpd_req_t* req) {
@@ -283,10 +319,17 @@ esp_err_t postHandler(httpd_req_t* req) {
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
     bool ok = true;
+    std::string v;
     for (auto* prm : endpoints[idx].params) {
-        prm->set(formValue(body, prm->name));
+        formValue(body, prm->name, v);
+        prm->set(v);
         if (!prm->store()) ok = false;
     }
+    // Slots above a group's count: store what the form sent (a count just raised in the UI) and
+    // leave the rest alone (a count lowered keeps the hidden slots for later).
+    forEachUnregistered(endpoints[idx], [&](const std::string& key) {
+        if (formValue(body, key, v) && !spurt("/" + key, v)) ok = false;
+    });
     if (!ok) {
         Log.println("Error writing to flash filesystem");
         return sendText(req, "500 Internal Server Error", "Error writing to flash filesystem");
@@ -384,6 +427,11 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
     auto* p = add(Type::Bool, name, toStr((int)init), label);
     if (p->value.empty()) p->value = p->init;
     return toInt(p->value) != 0;
+}
+
+void group(const std::string& prefix, int max, const std::vector<std::string>& fields) {
+    findOrCreate("main");
+    endpoints[current].groups.push_back({prefix, max, fields});
 }
 
 void markExtra() { current = findOrCreate("extras"); }

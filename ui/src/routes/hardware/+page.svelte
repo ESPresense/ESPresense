@@ -1,6 +1,14 @@
 <script lang="ts">
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
+    import RepeatGroup from '#lib/components/RepeatGroup.svelte';
+
+    const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
+    const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
+    const relayTypes = ['Relay', 'Relay Inverted'];
+    const powerOnStates = ['Off', 'On', 'Restore last'];
+    const relayButtons = ['None', 'Button 1', 'Button 2', 'Button 3', 'Button 4'];
+    const pinTypes = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);
@@ -25,171 +33,69 @@
     }
 </script>
 
+{#snippet dropdown(name: string, label: string, options: string[])}
+    <p>
+        <label>
+            {label}:<br />
+            <select {name} bind:value={$hardwareSettings!.values[name]}>
+                <option disabled selected hidden>{options[0]}</option>
+                {#each options as option, i (i)}
+                    <option value={String(i)}>{option}</option>
+                {/each}
+            </select>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet number(name: string, label: string, attrs: { step: string; min?: string; max?: string })}
+    <p>
+        <label>
+            {label}:<br />
+            <input
+                type="number"
+                {...attrs}
+                {name}
+                placeholder={$hardwareSettings!.defaults[name]}
+                bind:value={$hardwareSettings!.values[name]}/>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet led(n: number)}
+    {@render dropdown(`led_${n}_type`, 'LED Type', ledTypes)}
+    {@render number(`led_${n}_pin`, 'Pin (-1 to disable)', { step: '1', min: '-1', max: '48' })}
+    {@render number(`led_${n}_cnt`, 'Count (only applies to Addressable LEDs)', { step: '1', min: '-1', max: '39' })}
+    {@render dropdown(`led_${n}_cntrl`, 'LED Control', ledControls)}
+{/snippet}
+
+{#snippet relay(n: number)}
+    {@render dropdown(`relay_${n}_type`, 'Relay Type', relayTypes)}
+    {@render number(`relay_${n}_pin`, 'Pin (-1 to disable)', { step: '1', min: '-1', max: '48' })}
+    {@render dropdown(`relay_${n}_state`, 'Power-on state', powerOnStates)}
+    {@render dropdown(`relay_${n}_button`, 'Toggle with button', relayButtons)}
+{/snippet}
+
+{#snippet gpioInput(prefix: string, label: string, n: number)}
+    {@render dropdown(`${prefix}_${n}_type`, `${label} ${n} pin type`, pinTypes)}
+    {@render number(`${prefix}_${n}_pin`, `${label} ${n} pin (-1 for disable)`, { step: '1' })}
+    {@render number(`${prefix}_${n}_timeout`, `${label} ${n} timeout (in seconds)`, { step: '0.01', min: '0', max: '300' })}
+{/snippet}
+
+{#snippet switchItem(n: number)}
+    {@render gpioInput('switch', 'Switch', n)}
+{/snippet}
+
+{#snippet buttonItem(n: number)}
+    {@render gpioInput('button', 'Button', n)}
+{/snippet}
+
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if $hardwareSettings?.values != null}
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
         <h2>
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
         </h2>
-        <h4>LED 1:</h4>
-        <p>
-            <label>
-                LED Type:<br />
-                <select name="led_1_type" bind:value={$hardwareSettings.values['led_1_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_1_pin"
-                    placeholder={$hardwareSettings.defaults['led_1_pin']}
-                    bind:value={$hardwareSettings.values['led_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_1_cnt"
-                    placeholder={$hardwareSettings.defaults['led_1_cnt']}
-                    bind:value={$hardwareSettings.values['led_1_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_1_cntrl" bind:value={$hardwareSettings.values['led_1_cntrl']}>
-                    <option disabled selected hidden>Status</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
-        <h4>LED 2:</h4>
-        <p>
-            <label>
-                LED Type:<br />
-                <select name="led_2_type" bind:value={$hardwareSettings.values['led_2_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_2_pin"
-                    placeholder={$hardwareSettings.defaults['led_2_pin']}
-                    bind:value={$hardwareSettings.values['led_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_2_cnt"
-                    placeholder={$hardwareSettings.defaults['led_2_cnt']}
-                    bind:value={$hardwareSettings.values['led_2_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_2_cntrl" bind:value={$hardwareSettings.values['led_2_cntrl']}>
-                    <option disabled selected hidden>MQTT</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
-        <h4>LED 3:</h4>
-        <p>
-            <label>
-                LED Type:<br />
-                <select name="led_3_type" bind:value={$hardwareSettings.values['led_3_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_3_pin"
-                    placeholder={$hardwareSettings.defaults['led_3_pin']}
-                    bind:value={$hardwareSettings.values['led_3_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_3_cnt"
-                    placeholder={$hardwareSettings.defaults['led_3_cnt']}
-                    bind:value={$hardwareSettings.values['led_3_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_3_cntrl" bind:value={$hardwareSettings.values['led_3_cntrl']}>
-                    <option disabled selected hidden>MQTT</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
+        <RepeatGroup settings={hardwareSettings} prefix="led" title="LED" plural="LEDs" max={4} defaultCount={3} item={led} />
         <h4>LED power:</h4>
         <p>
             <label>
@@ -207,98 +113,7 @@
         <h2>
             <a href="https://espresense.com/configuration/settings#relays" target="_blank">Relays</a>
         </h2>
-        <h4>Relay 1:</h4>
-        <p>
-            <label>
-                Relay Type:<br />
-                <select name="relay_1_type" bind:value={$hardwareSettings.values['relay_1_type']}>
-                    <option disabled selected hidden>Relay</option>
-                    <option value="0">Relay</option>
-                    <option value="1">Relay Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="relay_1_pin"
-                    placeholder={$hardwareSettings.defaults['relay_1_pin']}
-                    bind:value={$hardwareSettings.values['relay_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Power-on state:<br />
-                <select name="relay_1_state" bind:value={$hardwareSettings.values['relay_1_state']}>
-                    <option disabled selected hidden>Off</option>
-                    <option value="0">Off</option>
-                    <option value="1">On</option>
-                    <option value="2">Restore last</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Toggle with button:<br />
-                <select name="relay_1_button" bind:value={$hardwareSettings.values['relay_1_button']}>
-                    <option disabled selected hidden>None</option>
-                    <option value="0">None</option>
-                    <option value="1">Button One</option>
-                    <option value="2">Button Two</option>
-                </select>
-            </label>
-        </p>
-        <h4>Relay 2:</h4>
-        <p>
-            <label>
-                Relay Type:<br />
-                <select name="relay_2_type" bind:value={$hardwareSettings.values['relay_2_type']}>
-                    <option disabled selected hidden>Relay</option>
-                    <option value="0">Relay</option>
-                    <option value="1">Relay Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="relay_2_pin"
-                    placeholder={$hardwareSettings.defaults['relay_2_pin']}
-                    bind:value={$hardwareSettings.values['relay_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Power-on state:<br />
-                <select name="relay_2_state" bind:value={$hardwareSettings.values['relay_2_state']}>
-                    <option disabled selected hidden>Off</option>
-                    <option value="0">Off</option>
-                    <option value="1">On</option>
-                    <option value="2">Restore last</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Toggle with button:<br />
-                <select name="relay_2_button" bind:value={$hardwareSettings.values['relay_2_button']}>
-                    <option disabled selected hidden>None</option>
-                    <option value="0">None</option>
-                    <option value="1">Button One</option>
-                    <option value="2">Button Two</option>
-                </select>
-            </label>
-        </p>
+        <RepeatGroup settings={hardwareSettings} prefix="relay" title="Relay" plural="relays" max={4} defaultCount={0} item={relay} />
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
@@ -380,162 +195,8 @@
                     bind:value={$hardwareSettings.values['radar_timeout']}/>
             </label>
         </p>
-        <h4>Switch One:</h4>
-        <p>
-            <label>
-                Switch One pin type:<br />
-                <select name="switch_1_type" bind:value={$hardwareSettings.values['switch_1_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch One pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="switch_1_pin"
-                    placeholder={$hardwareSettings.defaults['switch_1_pin']}
-                    bind:value={$hardwareSettings.values['switch_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch One timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="switch_1_timeout"
-                    placeholder={$hardwareSettings.defaults['switch_1_timeout']}
-                    bind:value={$hardwareSettings.values['switch_1_timeout']}/>
-            </label>
-        </p>
-        <h4>Switch Two:</h4>
-        <p>
-            <label>
-                Switch Two pin type:<br />
-                <select name="switch_2_type" bind:value={$hardwareSettings.values['switch_2_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch Two pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="switch_2_pin"
-                    placeholder={$hardwareSettings.defaults['switch_2_pin']}
-                    bind:value={$hardwareSettings.values['switch_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch Two timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="switch_2_timeout"
-                    placeholder={$hardwareSettings.defaults['switch_2_timeout']}
-                    bind:value={$hardwareSettings.values['switch_2_timeout']}/>
-            </label>
-        </p>
-        <h4>Button One:</h4>
-        <p>
-            <label>
-                Button One pin type:<br />
-                <select name="button_1_type" bind:value={$hardwareSettings.values['button_1_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button One pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="button_1_pin"
-                    placeholder={$hardwareSettings.defaults['button_1_pin']}
-                    bind:value={$hardwareSettings.values['button_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button One timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="button_1_timeout"
-                    placeholder={$hardwareSettings.defaults['button_1_timeout']}
-                    bind:value={$hardwareSettings.values['button_1_timeout']}/>
-            </label>
-        </p>
-        <h4>Button Two:</h4>
-        <p>
-            <label>
-                Button Two pin type:<br />
-                <select name="button_2_type" bind:value={$hardwareSettings.values['button_2_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button Two pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="button_2_pin"
-                    placeholder={$hardwareSettings.defaults['button_2_pin']}
-                    bind:value={$hardwareSettings.values['button_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button Two timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="button_2_timeout"
-                    placeholder={$hardwareSettings.defaults['button_2_timeout']}
-                    bind:value={$hardwareSettings.values['button_2_timeout']}/>
-            </label>
-        </p>
+        <RepeatGroup settings={hardwareSettings} prefix="switch" title="Switch" plural="switches" max={4} defaultCount={2} item={switchItem} />
+        <RepeatGroup settings={hardwareSettings} prefix="button" title="Button" plural="buttons" max={4} defaultCount={2} item={buttonItem} />
         <h4>DHT:</h4>
         <p>
             <label>
