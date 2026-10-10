@@ -195,6 +195,7 @@ void setupNetwork() {
     Inputs::ConnectToWifi(updating);
     Outputs::ConnectToWifi(updating);
     PowerMonitor::ConnectToWifi(updating);
+    Battery::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
