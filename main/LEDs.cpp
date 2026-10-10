@@ -26,6 +26,7 @@ int led_1_type = DEFAULT_LED1_TYPE, led_2_type, led_3_type;
 int led_1_pin = DEFAULT_LED1_PIN, led_2_pin, led_3_pin;
 int led_1_cnt = DEFAULT_LED1_CNT, led_2_cnt, led_3_cnt;
 ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
+int led_pwr_pin = -1;
 std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 unsigned long lastSave = 0;
@@ -64,6 +65,13 @@ void ConnectToWifi(bool updating) {
     led_3_cnt = Settings::integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
     led_3_cntrl = (ControlType)Settings::dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
     std::string const led_3_state = Settings::string("led_3_state", "", "LED State");
+
+    // Some boards (M5Stack NanoC6) only power their addressable LED while a GPIO is held high.
+    led_pwr_pin = Settings::integer("led_pwr_pin", -1, 48, -1, "LED power pin (-1 to disable)");
+    if (led_pwr_pin >= 0) {
+        pinMode(led_pwr_pin, OUTPUT);
+        digitalWrite(led_pwr_pin, HIGH);
+    }
 
     leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_state));
     leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_state));
