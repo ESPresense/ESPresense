@@ -508,10 +508,11 @@ test.describe('Hardware lists', () => {
 		await page.getByLabel('CF1 pin (V / A)').fill('7');
 		await page.getByLabel('SEL pin').fill('10');
 		await page.getByLabel("Voltage divider (as in ESPHome's hlw8012)").fill('1517');
+		await page.getByLabel('SEL polarity').selectOption('1');
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('power=');
-		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'bl0937', cf: 6, cf1: 7, sel: 10, voltage_divider: 1517 });
+		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'bl0937', cf: 6, cf1: 7, sel: 10, voltage_divider: 1517, sel_inverted: true });
 	});
 
 	test('an LED can mirror an output', async ({ page }) => {

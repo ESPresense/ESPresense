@@ -210,6 +210,15 @@
                         </label>
                     </p>
                 {/each}
+                <p>
+                    <label>
+                        SEL polarity:<br />
+                        <select onchange={(e) => setPower('sel_inverted', e.currentTarget.value === '1')}>
+                            <option value="0" selected={!power.sel_inverted}>Normal</option>
+                            <option value="1" selected={!!power.sel_inverted}>Inverted</option>
+                        </select>
+                    </label>
+                </p>
             </div>
             <div class="flex flex-wrap gap-4">
                 <p>

@@ -29,6 +29,7 @@ const char* const ENERGY_FILE = "/power_energy";
 
 bool enabled = false;
 bool bl0937 = true;
+bool selInverted = false;
 int cfPin = -1, cf1Pin = -1, selPin = -1;
 float powerMult = 0, currentMult = 0, voltageMult = 0;  // per Hz (ESPHome's hlw8012 formulas)
 
@@ -38,9 +39,10 @@ unsigned long windowStart = 0, lastSave = 0;
 float power = 0, voltage = 0, current = 0;
 double energyWs = 0, savedWs = 0;
 
-// SEL picks what CF1 measures; the BL0937 has it the other way round from the HLW8012.
+// SEL picks what CF1 measures: high for current, as in ESPHome's hlw8012; sel_inverted is
+// ESPHome's "inverted: true" on sel_pin (common on BL0937 plugs).
 void applySel() {
-    if (selPin >= 0) digitalWrite(selPin, currentMode != bl0937 ? HIGH : LOW);
+    if (selPin >= 0) digitalWrite(selPin, currentMode != selInverted ? HIGH : LOW);
 }
 
 void attach(int pin, gpio_isr_t isr) {
@@ -68,6 +70,7 @@ void ConnectToWifi(bool updating) {
     cfPin = cfg["cf"] | -1;
     cf1Pin = cfg["cf1"] | -1;
     selPin = cfg["sel"] | -1;
+    selInverted = cfg["sel_inverted"] | false;
     float divider = cfg["voltage_divider"] | 2351.0f;
     float resistor = cfg["current_resistor"] | 0.001f;
     if ((model != "bl0937" && model != "hlw8012") || cfPin < 0 || resistor <= 0) return;
