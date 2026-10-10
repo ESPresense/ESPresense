@@ -76,12 +76,14 @@ void test_chip_mismatch_rejected(void) {
     TEST_ASSERT_EQUAL_STRING("template is for esp32, this node is esp32c3", r.err.c_str());
 }
 
-void test_docs_site_chip_spelling_accepted(void) {
-    // The docs site shows chips as "ESP32-C3".
+void test_chip_is_exact_lowercase_name(void) {
+    // "esp32c3" only: no display spellings, no firmware flavors.
     Result r = parse(R"({"chip":"ESP32-C3","settings":{"led_1_pin":6}})");
-    TEST_ASSERT_TRUE_MESSAGE(r.ok, r.err.c_str());
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("write \"chip\" as \"esp32c3\", not \"ESP32-C3\"", r.err.c_str());
     TEST_ASSERT_FALSE(parse(R"({"chip":"ESP32-C6","settings":{"led_1_pin":6}})").ok);
-    TEST_ASSERT_FALSE(parse(R"({"chip":"ESP32","settings":{"led_1_pin":6}})").ok);
+    TEST_ASSERT_FALSE(parse(R"({"chip":"esp32c3-cdc","settings":{"led_1_pin":6}})").ok);
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":6}})", "esp32").ok);
 }
 
 void test_settings_must_be_under_settings_key(void) {
@@ -159,7 +161,7 @@ int main(int, char**) {
     RUN_TEST(test_types_are_stored_canonically);
     RUN_TEST(test_integer_accepted_for_float_and_bool);
     RUN_TEST(test_chip_mismatch_rejected);
-    RUN_TEST(test_docs_site_chip_spelling_accepted);
+    RUN_TEST(test_chip_is_exact_lowercase_name);
     RUN_TEST(test_settings_must_be_under_settings_key);
     RUN_TEST(test_missing_chip_rejected);
     RUN_TEST(test_missing_or_empty_settings_rejected);

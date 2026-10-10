@@ -4,8 +4,8 @@
 //   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "settings": {"led_1_pin": 6, ...}}
 //
 // Setting names are unique across endpoints, so a full backup (#2493) can use the same flat
-// "settings" object; a template is limited to one endpoint's keys. chip may be written either as
-// the IDF target ("esp32c3") or the way the docs site shows it ("ESP32-C3").
+// "settings" object; a template is limited to one endpoint's keys. chip is the lowercase
+// chip name ("esp32", "esp32c3", "esp32c6", "esp32s3") and must match the node exactly.
 //
 // Parsing and validation only: no flash, no HTTP, so it runs in the host tests. Settings.cpp owns
 // the registry (which keys exist, their types and ranges) and applies the result; a template only
@@ -94,19 +94,12 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
     return false;
 }
 
-// "ESP32-C3" -> "esp32c3": lowercase, alphanumerics only.
-inline std::string normalizeChip(const char* chip) {
-    std::string out;
-    for (const char* c = chip; *c; c++)
-        if (isalnum((unsigned char)*c)) out += (char)tolower((unsigned char)*c);
-    return out;
-}
 
 // Validates a whole template before anything is written: every key must be known to lookup
 // (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, or
-// nothing is applied. chip is the running firmware's IDF target, section the key holding the settings.
+// nothing is applied. target is the running firmware's IDF target, section the key holding the settings.
 template <class Lookup>
-bool parseTemplate(JsonObjectConst root, const char* chip, const char* section, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
+bool parseTemplate(JsonObjectConst root, const char* target, const char* section, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
     out.clear();
     if (root.isNull()) {
         err = "template must be a JSON object";
@@ -117,8 +110,15 @@ bool parseTemplate(JsonObjectConst root, const char* chip, const char* section, 
         err = "missing \"chip\"";
         return false;
     }
-    if (normalizeChip(c.as<const char*>()) != normalizeChip(chip)) {
-        err = std::string("template is for ") + c.as<const char*>() + ", this node is " + chip;
+    std::string chip = c.as<const char*>();
+    if (chip != target) {
+        std::string squashed;  // "ESP32-C6" -> "esp32c6", to tell a misspelling from a wrong chip
+        for (unsigned char ch : chip)
+            if (isalnum(ch)) squashed += (char)tolower(ch);
+        if (squashed == target)
+            err = std::string("write \"chip\" as \"") + target + "\", not \"" + chip + "\"";
+        else
+            err = "template is for " + chip + ", this node is " + target;
         return false;
     }
     JsonObjectConst settings = root[section];
