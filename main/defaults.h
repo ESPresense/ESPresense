@@ -18,7 +18,6 @@
 #define UPDATE_STARTED -255
 #define UPDATE_COMPLETE 255
 
-#define JSON_BUFFER_SIZE (12 * 1024)
 
 #define BLE_SCAN_INTERVAL 0x80
 #define BLE_SCAN_WINDOW 0x80
@@ -70,9 +69,12 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3) || defined(ESP32C3)
-// C3: 200 left the Arduino build 18KB from the floor under a 40/s BLE flood; 150 keeps ~40KB.
+#if defined(ESP32S3)
 #define DEFAULT_MAX_FINGERPRINTS 150
+#elif defined(ESP32C3)
+// C3: one core, WiFi + BLE; at 150 a busy room (kitchen plug) sat at ~25 KB free with an 8 KB
+// largest block. 100 leaves room for the web UI and OTA.
+#define DEFAULT_MAX_FINGERPRINTS 100
 #elif defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
