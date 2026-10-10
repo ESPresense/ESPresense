@@ -2,22 +2,27 @@
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
     import RepeatGroup from '#lib/components/RepeatGroup.svelte';
+    import JsonList from '#lib/components/JsonList.svelte';
 
     const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
     const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
-    const powerOnStates = ['Off', 'On', 'Restore last'];
-    const inputRoles = ['Motion', 'Switch', 'Button'];
-    const inputPinTypes = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];
-    const outputPinTypes = ['Output', 'Output Inverted'];
-    const MAX_INPUTS = 8;
+    // [stored value, label] for the inputs/outputs JSON lists.
+    const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
+    const inputPinTypes = [
+        ['pullup', 'Pullup'], ['pullup_inverted', 'Pullup Inverted'],
+        ['pulldown', 'Pulldown'], ['pulldown_inverted', 'Pulldown Inverted'],
+        ['floating', 'Floating'], ['floating_inverted', 'Floating Inverted']
+    ];
+    const outputPinTypes = [['output', 'Output'], ['output_inverted', 'Output Inverted'], ['high', 'Always High'], ['low', 'Always Low']];
+    const powerOnStates = [['off', 'Off'], ['on', 'On'], ['restore', 'Restore last']];
 
-    // "Linked input" choices, labelled with each input's name (index = input number, 0 = none).
+    // "Linked input" choices, labelled with each input's name (value = 1-based input number, 0 = none).
     const linkedInputs = $derived([
-        'None',
-        ...Array.from({ length: MAX_INPUTS }, (_, i) => {
-            const name = $hardwareSettings?.values[`input_${i + 1}_name`];
-            return name ? `${i + 1}: ${name}` : `Input ${i + 1}`;
-        })
+        ['0', 'None'],
+        ...((($hardwareSettings?.values['inputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+            String(i + 1),
+            `${i + 1}: ${it.name || `Input ${i + 1}`}`
+        ]))
     ]);
 
     /** Tracks whether the form is currently being saved */
@@ -71,15 +76,6 @@
     </p>
 {/snippet}
 
-{#snippet text(name: string, label: string, placeholder: string)}
-    <p>
-        <label>
-            {label}:<br />
-            <input type="text" {name} {placeholder} bind:value={$hardwareSettings!.values[name]}/>
-        </label>
-    </p>
-{/snippet}
-
 <!-- Pin picker: <base>_pin with its <typeKey> dropdown (wiring and polarity) on the right. -->
 {#snippet pin(base: string, typeKey: string, types: string[])}
     {@const pinKey = `${base}_pin`}
@@ -113,18 +109,72 @@
     {@render dropdown(`led_${n}_cntrl`, 'LED Control', ledControls)}
 {/snippet}
 
-{#snippet input(n: number)}
-    {@render text(`input_${n}_name`, 'Name', `Input ${n}`)}
-    {@render dropdown(`input_${n}_role`, 'Role', inputRoles)}
-    {@render pin(`input_${n}`, `input_${n}_type`, inputPinTypes)}
-    {@render number(`input_${n}_timeout`, 'Timeout (in seconds)', { step: '0.01', min: '0', max: '300' })}
+<!-- Fields of one inputs/outputs list item. They have no form name: JsonList posts the list. -->
+{#snippet field(label: string, value: unknown, set: (v: string) => void, placeholder = '')}
+    <p>
+        <label>
+            {label}:<br />
+            <input type="text" value={value ?? ''} {placeholder} oninput={(e) => set(e.currentTarget.value)}/>
+        </label>
+    </p>
 {/snippet}
 
-{#snippet output(n: number)}
-    {@render text(`output_${n}_name`, 'Name', `Output ${n}`)}
-    {@render pin(`output_${n}`, `output_${n}_type`, outputPinTypes)}
-    {@render dropdown(`output_${n}_state`, 'Power-on state', powerOnStates)}
-    {@render dropdown(`output_${n}_input`, 'Linked input (a Button toggles it, a Switch or Motion input drives it)', linkedInputs)}
+{#snippet choose(label: string, value: unknown, options: string[][], set: (v: string) => void)}
+    <p>
+        <label>
+            {label}:<br />
+            <select value={String(value ?? options[0][0])} onchange={(e) => set(e.currentTarget.value)}>
+                {#each options as [v, text] (v)}
+                    <option value={v} selected={String(value ?? options[0][0]) === v}>{text}</option>
+                {/each}
+            </select>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet itemPin(it: Record<string, unknown>, set: (field: string, value: unknown) => void, types: string[][])}
+    <p>
+        <label>
+            Pin (-1 to disable) and type:<br />
+            <span class="flex items-center gap-2">
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    class="w-24"
+                    value={it.pin ?? -1}
+                    oninput={(e) => set('pin', e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                <select aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
+                    {#each types as [v, text] (v)}
+                        <option value={v} selected={(it.type ?? types[0][0]) === v}>{text}</option>
+                    {/each}
+                </select>
+            </span>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet input(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render field('Name', it.name, (v) => set('name', v), `Input ${i + 1}`)}
+    {@render choose('Role', it.role, inputRoles, (v) => set('role', v))}
+    {@render itemPin(it, set, inputPinTypes)}
+    <p>
+        <label>
+            Timeout (in seconds):<br />
+            <input type="number" step="0.01" min="0" max="300" value={it.timeout ?? 0.5}
+                oninput={(e) => set('timeout', Number(e.currentTarget.value))}/>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet output(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render field('Name', it.name, (v) => set('name', v), `Output ${i + 1}`)}
+    {@render itemPin(it, set, outputPinTypes)}
+    {#if it.type !== 'high' && it.type !== 'low'}
+        {@render choose('Power-on state', it.power_on, powerOnStates, (v) => set('power_on', v))}
+        {@render choose('Linked input (a Button toggles it, a Switch or Motion input drives it)', String(it.input ?? 0), linkedInputs, (v) => set('input', Number(v)))}
+    {/if}
 {/snippet}
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
@@ -134,28 +184,14 @@
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
         </h2>
         <RepeatGroup settings={hardwareSettings} prefix="led" title="LED" plural="LEDs" max={4} defaultCount={3} item={led} />
-        <h4>LED power:</h4>
-        <p>
-            <label>
-                LED power pin (-1 to disable), held high so the LEDs get power:<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_pwr_pin"
-                    placeholder={$hardwareSettings.defaults['led_pwr_pin']}
-                    bind:value={$hardwareSettings.values['led_pwr_pin']}/>
-            </label>
-        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#inputs" target="_blank">Inputs</a>
         </h2>
-        <RepeatGroup settings={hardwareSettings} prefix="input" title="Input" plural="inputs" max={MAX_INPUTS} defaultCount={0} item={input} />
+        <JsonList settings={hardwareSettings} key="inputs" title="Input" max={8} blank={() => ({ name: '', role: 'motion', pin: -1, type: 'pullup', timeout: 0.5 })} item={input} />
         <h2>
             <a href="https://espresense.com/configuration/settings#outputs" target="_blank">Outputs</a>
         </h2>
-        <RepeatGroup settings={hardwareSettings} prefix="output" title="Output" plural="outputs" max={4} defaultCount={0} item={output} />
+        <JsonList settings={hardwareSettings} key="outputs" title="Output" max={8} blank={() => ({ name: '', pin: -1, type: 'output', power_on: 'off', input: 0 })} item={output} />
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>

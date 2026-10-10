@@ -20,9 +20,11 @@ long integer(const std::string& name, long min, long max, long init = 0, const s
 float floating(const std::string& name, float init = 0, const std::string& label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
+// JSON text (a list of objects, e.g. inputs/outputs); the UI and templates see real JSON.
+std::string json(const std::string& name, const std::string& init = "[]", const std::string& label = "");
 
 // A repeated block of settings named <prefix>_<n>_<field>, n = 1..max, on the current endpoint
-// (e.g. output_1_pin .. output_4_input). Register only the slots in use (n <= <prefix>_count)
+// (e.g. led_1_pin .. led_4_cntrl). Register only the slots in use (n <= <prefix>_count)
 // the normal way; the rest cost no heap but still round-trip: GET reports their saved values and
 // POST stores whatever the form sends for them, so raising a count in the UI and filling in the
 // new slot is one save, and lowering it keeps the hidden slots' values.

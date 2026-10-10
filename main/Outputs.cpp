@@ -14,8 +14,13 @@
 // Defined in main.cpp: set once status=online (and the retained states) have gone out.
 extern bool online;
 
-// Plain on/off outputs (relays, smart plug / Shelly outlets), published to Home Assistant as
-// switches: state on <room>/output_N, commands (ON/OFF/TOGGLE) on <room>/output_N/set.
+// Plain on/off outputs (relays, smart plug / Shelly outlets): the "outputs" setting on the
+// hardware endpoint, a JSON list such as
+//   [{"name": "Relay", "pin": 5, "type": "output", "power_on": "restore", "input": 1}]
+// type: output | output_inverted (Home Assistant switch: state on <room>/output_N, commands
+// ON/OFF/TOGGLE on <room>/output_N/set), or high | low: a fixed level set at boot with no MQTT,
+// for enable pins (LED power, transceiver standby). power_on: off | on | restore.
+// input: 1-based input number; a button input toggles the output, any other input drives it.
 namespace Outputs {
 
 struct Output {
@@ -23,6 +28,7 @@ struct Output {
     int pin = -1;
     std::string name;
     bool inverted = false;
+    bool fixed = false;            // high/low: driven once at boot, not on MQTT
     OutputPowerOn powerOn = OutputPowerOn::Off;
     int input = 0;                 // 0 none, n: input n drives this output (Button toggles, others follow)
     std::atomic<bool> state{false};  // written by the MQTT task (Command) and the main loop (button)
@@ -53,30 +59,35 @@ void Setup() {
  * The level is written before the pin becomes an output, so there is no glitch to the wrong state.
  */
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> pinTypes = {"Output", "Output Inverted"};
-    std::vector<std::string> powerOnStates = {"Off", "On", "Restore last"};
-    std::vector<std::string> toggles = {"None"};
-    for (int n = 1; n <= Inputs::MAX; n++) toggles.push_back(Sprintf("Input %d", n));
-
-    count = Settings::integer("output_count", 0, MAX, 0, "Number of outputs");
-    if (count < 0) count = 0;
-    if (count > MAX) count = MAX;
-    Settings::group("output", MAX, {"name", "pin", "type", "state", "input"});
-
-    for (int i = 0; i < MAX; i++) outputs[i].index = i + 1;
-    for (int n = 1; n <= count; n++) {
-        auto& o = outputs[n - 1];
-        o.name = Settings::string(Sprintf("output_%d_name", n), Sprintf("Output %d", n), "Name");
-        o.pin = Settings::integer(Sprintf("output_%d_pin", n), -1, 48, -1, "Pin (-1 to disable)");
-        o.inverted = Settings::dropdown(Sprintf("output_%d_type", n), pinTypes, 0, "Pin type") == 1;
-        o.powerOn = (OutputPowerOn)Settings::dropdown(Sprintf("output_%d_state", n), powerOnStates, 0, "Power-on state");
-        o.input = Settings::dropdown(Sprintf("output_%d_input", n), toggles, 0, "Linked input");
-        if (o.name.empty()) o.name = Sprintf("Output %d", n);
+    std::string text = Settings::json("outputs", "[]", "Outputs");
+    DynamicJsonDocument list(text.size() * 2 + 256);
+    count = 0;
+    if (deserializeJson(list, text)) {
+        Log.println("Outputs: invalid JSON, ignored");
+        return;
+    }
+    for (JsonObject j : list.as<JsonArray>()) {
+        if (count >= MAX) break;
+        auto& o = outputs[count++];
+        o.index = count;
+        o.name = j["name"] | "";
+        if (o.name.empty()) o.name = Sprintf("Output %d", o.index);
+        o.pin = j["pin"] | -1;
+        std::string type = j["type"] | "output";
+        o.inverted = type == "output_inverted";
+        o.fixed = type == "high" || type == "low";
+        std::string powerOn = j["power_on"] | "off";
+        o.powerOn = powerOn == "on" ? OutputPowerOn::On : powerOn == "restore" ? OutputPowerOn::Restore : OutputPowerOn::Off;
+        o.input = o.fixed ? 0 : (j["input"] | 0);
         if (o.pin < 0) continue;
 
-        std::string last = Settings::slurp(o.lastFilename());
-        o.saved = last.empty() ? -1 : (last == "1");
-        o.set(outputPowerOnState(o.powerOn, last));
+        if (o.fixed) {
+            o.set(type == "high");
+        } else {
+            std::string last = Settings::slurp(o.lastFilename());
+            o.saved = last.empty() ? -1 : (last == "1");
+            o.set(outputPowerOnState(o.powerOn, last));
+        }
         pinMode(o.pin, OUTPUT);
     }
 }
@@ -88,9 +99,12 @@ void SerialReport() {
         if (r.pin < 0)
             Log.println("disabled");
         else
-            Log.printf("pin %d%s, %s\n", r.pin, r.inverted ? " inverted" : "", r.state ? "on" : "off");
+            Log.printf("%s, pin %d%s, %s%s\n", r.name.c_str(), r.pin, r.inverted ? " inverted" : "", r.state ? "on" : "off", r.fixed ? " (fixed)" : "");
     }
 }
+
+// Shown in Home Assistant and driven over MQTT: has a pin and isn't a fixed high/low.
+static bool live(const Output& r) { return r.pin >= 0 && !r.fixed; }
 
 static bool publish(Output& r) {
     bool on = r.state;
@@ -100,8 +114,9 @@ static bool publish(Output& r) {
 }
 
 void Loop() {
-    for (auto& r : outputs) {
-        if (r.pin < 0) continue;
+    for (int i = 0; i < count; i++) {
+        auto& r = outputs[i];
+        if (!live(r)) continue;
 
         if (r.input > 0) {
             auto b = Inputs::Value(r.input);
@@ -109,7 +124,7 @@ void Loop() {
                 // Toggle on the press edge only; -1 -> HIGH at boot is a held button, not a press.
                 if (b == HIGH && r.lastInput == LOW) r.set(!r.state);
             } else if (b >= 0 && r.lastInput >= 0 && b != r.lastInput) {  // not the first read: keep the power-on state
-                r.set(b == HIGH);  // Switch / Motion: follow the input on each change
+                r.set(b == HIGH);  // switch / motion: follow the input on each change
             }
             r.lastInput = b;
         }
@@ -124,25 +139,29 @@ void Loop() {
     }
 }
 
-// Slots above output_count, or without a pin, delete their entity so an output that was removed
-// doesn't linger in Home Assistant.
+// Outputs past the end of the list, without a pin, or fixed delete their entity so they don't
+// linger in Home Assistant.
 bool SendDiscovery() {
-    for (auto& r : outputs)
-        if (!(r.pin >= 0 ? sendSwitchDiscovery(r.id(), r.name, EC_NONE) : sendDeleteDiscovery("switch", r.id())))
-            return false;
+    for (int n = 1; n <= MAX; n++) {
+        auto id = Sprintf("output_%d", n);
+        bool ok = n <= count && live(outputs[n - 1]) ? sendSwitchDiscovery(id, outputs[n - 1].name, EC_NONE)
+                                                     : sendDeleteDiscovery("switch", id);
+        if (!ok) return false;
+    }
     return true;
 }
 
 bool SendOnline() {
-    for (auto& r : outputs)
-        if (r.pin >= 0 && !publish(r)) return false;
+    for (int i = 0; i < count; i++)
+        if (live(outputs[i]) && !publish(outputs[i])) return false;
     return true;
 }
 
 bool Command(std::string& command, std::string& pay) {
-    for (auto& r : outputs) {
+    for (int i = 0; i < count; i++) {
+        auto& r = outputs[i];
         if (command != r.id()) continue;
-        if (r.pin < 0) return true;
+        if (!live(r)) return true;
         bool on;
         if (outputParsePayload(pay, r.state, on))
             r.set(on);

@@ -11,11 +11,11 @@
      */
     interface Props {
         settings: Writable<ExtraSettings | null>;
-        /** Setting key prefix, e.g. "output" for output_count and output_<n>_* */
+        /** Setting key prefix, e.g. "led" for led_count and led_<n>_* */
         prefix: string;
-        /** Singular heading, e.g. "Output" -> "Output 1:" */
+        /** Singular heading, e.g. "LED" -> "LED 1:" */
         title: string;
-        /** Used in the count label, e.g. "outputs" -> "Number of outputs" */
+        /** Used in the count label, e.g. "LEDs" -> "Number of LEDs" */
         plural: string;
         max: number;
         /** Count when the firmware reports none (must match the firmware's default) */

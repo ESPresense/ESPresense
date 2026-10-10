@@ -322,8 +322,6 @@ void onMqttMessage(const char *topic, const char *payload) {
             changed = true;
         else if (Updater::Command(command, pay))
             changed = true;
-        else if (Inputs::Command(command, pay))
-            changed = true;
         else if (Outputs::Command(command, pay))
             ;
         if (changed) online = false;

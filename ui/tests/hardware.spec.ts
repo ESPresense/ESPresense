@@ -15,12 +15,8 @@ const mockHardwareSettings = {
 		led_3_pin: '-1',
 		led_3_cnt: '1',
 		led_3_cntrl: '0',
-		input_count: '1',
-		input_1_name: 'Hallway PIR',
-		input_1_role: '0',
-		input_1_pin: '-1',
-		input_1_type: '0',
-		input_1_timeout: '5',
+		inputs: [{ name: 'Hallway PIR', role: 'motion', pin: -1, type: 'pullup', timeout: 5 }],
+		outputs: [],
 		dht11_pin: '-1',
 		dht22_pin: '-1',
 		dhtTemp_offset: '0',
@@ -59,8 +55,8 @@ const mockHardwareSettings = {
 		led_1_cnt: '1',
 		led_1_cntrl: '1',
 		led_2_pin: '-1',
-		input_1_pin: '-1',
-		input_1_timeout: '0.5',
+		inputs: [],
+		outputs: [],
 		I2C_Bus_1_SDA: '21',
 		I2C_Bus_1_SCL: '22'
 	}
@@ -109,7 +105,7 @@ test.describe('Hardware Settings Page', () => {
 
 		// Check Inputs and Outputs sections exist
 		await expect(page.locator('h4', { hasText: 'Input 1:' })).toBeVisible();
-		await expect(page.locator('select[name="output_count"]')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Add output' })).toBeVisible();
 
 		// Check I2C Settings section exists
 		await expect(page.locator('text=I2C Settings')).toBeVisible();
@@ -149,7 +145,7 @@ test.describe('Hardware Settings Page', () => {
 		await expect(led1Type).toHaveValue('2');
 
 		// Change input 1 pin
-		const inputPin = page.locator('input[name="input_1_pin"]');
+		const inputPin = page.getByLabel('Pin (-1 to disable) and type').nth(3); // LEDs 1-3, then input 1
 		await inputPin.fill('15');
 		await expect(inputPin).toHaveValue('15');
 	});
@@ -424,16 +420,12 @@ test.describe('Hardware Settings Page', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		const role = page.locator('select[name="input_1_role"]');
-		for (const v of ['0', '1', '2']) {
-			await role.selectOption(v);
-			await expect(role).toHaveValue(v);
-		}
-		const type = page.locator('select[name="input_1_type"]');
-		const labels = ['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted'];
-		await expect(type.locator('option:not([hidden])')).toHaveText(labels);
-		await type.selectOption('3');
-		await expect(type).toHaveValue('3');
+		const role = page.getByLabel('Role');
+		await expect(role.locator('option')).toHaveText(['Motion', 'Switch', 'Button']);
+		await role.selectOption('button');
+		await expect(role).toHaveValue('button');
+		const type = page.getByRole('combobox', { name: 'Pin type' }).nth(3);
+		await expect(type.locator('option')).toHaveText(['Pullup', 'Pullup Inverted', 'Pulldown', 'Pulldown Inverted', 'Floating', 'Floating Inverted']);
 	});
 
 	test('pin picker puts the pin type next to the pin', async ({ page }) => {
@@ -442,7 +434,6 @@ test.describe('Hardware Settings Page', () => {
 
 		const row = page.locator('input[name="led_1_pin"]').locator('..');
 		await expect(row.locator('select[name="led_1_type"]')).toBeVisible();
-		await expect(page.locator('input[name="input_1_pin"]').locator('..').locator('select[name="input_1_type"]')).toBeVisible();
 	});
 });
 
@@ -473,54 +464,62 @@ test.describe('Hardware counted groups', () => {
 
 		await expect(page.locator('select[name="led_count"]')).toHaveValue('3');
 		await expect(page.locator('h4', { hasText: 'LED 3:' })).toBeVisible();
-		await expect(page.locator('select[name="output_count"]')).toHaveValue('0');
-		await expect(page.locator('input[name="output_1_pin"]')).toHaveCount(0);
-		await expect(page.locator('select[name="input_count"]')).toHaveValue('1');
-		await expect(page.locator('input[name="input_1_pin"]')).toBeVisible();
+		await expect(page.locator('h4', { hasText: 'Input 1:' })).toBeVisible();
+		await expect(page.locator('h4', { hasText: 'Output 1:' })).toHaveCount(0);
 	});
 
-	test('raising a count adds slots that save in the same POST', async ({ page }) => {
+	test('outputs are added and posted as one JSON list', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, {}, (body) => (posted = body));
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await page.locator('select[name="output_count"]').selectOption('4');
-		await expect(page.locator('h4', { hasText: 'Output 4:' })).toBeVisible();
-		await page.locator('input[name="output_4_name"]').fill('Plug');
-		await page.locator('input[name="output_4_pin"]').fill('5');
-		await page.locator('select[name="output_4_type"]').selectOption('1');
-		await page.locator('select[name="output_4_state"]').selectOption('2');
-		const link = page.locator('select[name="output_4_input"]');
+		await page.getByRole('button', { name: 'Add output' }).click();
+		await page.getByRole('button', { name: 'Add output' }).click();
+		await expect(page.locator('h4', { hasText: 'Output 2:' })).toBeVisible();
+		const out2 = page.locator('h4', { hasText: 'Output 2:' });
+		const fields = out2.locator('xpath=following-sibling::p');
+		await fields.nth(0).locator('input').fill('Plug');
+		await fields.nth(1).locator('input').fill('5');
+		await fields.nth(1).locator('select').selectOption('output_inverted');
+		await fields.nth(2).locator('select').selectOption('restore');
+		const link = fields.nth(3).locator('select');
 		await expect(link.locator('option', { hasText: '1: Hallway PIR' })).toHaveCount(1);
 		await link.selectOption('1');
 
 		await page.locator('button[type="submit"]').click();
-		await expect.poll(() => posted).toContain('output_4_pin=5');
-		const params = new URLSearchParams(posted);
-		expect(params.get('output_count')).toBe('4');
-		expect(params.get('output_4_name')).toBe('Plug');
-		expect(params.get('output_4_state')).toBe('2');
-		expect(params.get('output_4_input')).toBe('1');
-		expect(params.get('output_4_type')).toBe('1');
+		await expect.poll(() => posted).toContain('outputs=');
+		const outputs = JSON.parse(new URLSearchParams(posted).get('outputs')!);
+		expect(outputs).toHaveLength(2);
+		expect(outputs[1]).toEqual({ name: 'Plug', pin: 5, type: 'output_inverted', power_on: 'restore', input: 1 });
 	});
 
-	test('lowering a count hides slots and leaves them out of the POST', async ({ page }) => {
-		let posted = '';
-		await mockSettings(page, { led_count: 3, input_count: 4, input_4_pin: '9' }, (body) => (posted = body));
+	test('fixed outputs hide power-on state and the linked input', async ({ page }) => {
+		await mockSettings(page, { outputs: [{ name: 'LED power', pin: 19, type: 'high' }] });
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await expect(page.locator('input[name="input_4_pin"]')).toHaveValue('9');
+		const fields = page.locator('h4', { hasText: 'Output 1:' }).locator('xpath=following-sibling::p');
+		await expect(fields.nth(1).locator('select')).toHaveValue('high');
+		await expect(page.getByLabel('Power-on state')).toHaveCount(0);
+		await fields.nth(1).locator('select').selectOption('output');
+		await expect(page.getByLabel('Power-on state')).toHaveCount(1);
+	});
+
+	test('removing an item drops it from the POST', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { led_count: 3 }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await page.locator('h4', { hasText: 'Input 1:' }).getByRole('button', { name: 'Remove' }).click();
+		await expect(page.locator('h4', { hasText: 'Input 1:' })).toHaveCount(0);
 		await page.locator('select[name="led_count"]').selectOption('1');
-		await expect(page.locator('h4', { hasText: 'LED 2:' })).toHaveCount(0);
-		await page.locator('select[name="input_count"]').selectOption('2');
-		await expect(page.locator('input[name="input_4_pin"]')).toHaveCount(0);
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('led_count=1');
 		expect(posted).not.toContain('led_2_pin');
-		expect(posted).not.toContain('input_4_pin');
+		expect(new URLSearchParams(posted).get('inputs')).toBe('[]');
 	});
 });
 

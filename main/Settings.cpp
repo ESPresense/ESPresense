@@ -50,6 +50,15 @@ struct Param {
             case Type::Bool:
                 value = v.empty() ? "0" : "1";
                 break;
+            case Type::Json: {
+                // Sent to the UI unquoted, so only a valid array may be stored.
+                DynamicJsonDocument d(v.size() * 2 + 64);
+                if (v.empty() || (!deserializeJson(d, v) && d.is<JsonArray>()))
+                    value = v;
+                else
+                    Log.printf("%s: not a JSON array, kept the old value\n", name.c_str());
+                break;
+            }
             default:
                 value = v;
         }
@@ -66,6 +75,8 @@ struct Param {
                 return jsonNumeric(name, toStr(toFloat(v)));
             case Type::Bool:
                 return jsonNumeric(name, toInt(v) ? "true" : "false");
+            case Type::Json:
+                return jsonNumeric(name, v);  // already JSON text
             default:
                 return jsonString(name, v);
         }
@@ -88,6 +99,9 @@ struct Param {
                 break;
             case Type::Password:
                 dst.set(MASKED_PASSWORD);
+                break;
+            case Type::Json:
+                dst.set(serialized(v));
                 break;
             default:
                 dst.set(v);
@@ -427,6 +441,11 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
     auto* p = add(Type::Bool, name, toStr((int)init), label);
     if (p->value.empty()) p->value = p->init;
     return toInt(p->value) != 0;
+}
+
+std::string json(const std::string& name, const std::string& init, const std::string& label) {
+    auto* p = add(Type::Json, name, init, label);
+    return p->value.empty() ? p->init : p->value;
 }
 
 void group(const std::string& prefix, int max, const std::vector<std::string>& fields) {

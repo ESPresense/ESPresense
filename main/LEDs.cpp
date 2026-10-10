@@ -21,7 +21,6 @@
 
 namespace LEDs {
 
-int led_pwr_pin = -1;
 std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 unsigned long lastSave = 0;
@@ -53,13 +52,6 @@ void ConnectToWifi(bool updating) {
     if (count > MAX_LEDS) count = MAX_LEDS;
     // led_<n>_state is the saved colour, not a form field, so it stays out of the group.
     Settings::group("led", MAX_LEDS, {"type", "pin", "cnt", "cntrl"});
-
-    // Some boards (M5Stack NanoC6) only power their addressable LED while a GPIO is held high.
-    led_pwr_pin = Settings::integer("led_pwr_pin", -1, 48, -1, "LED power pin (-1 to disable)");
-    if (led_pwr_pin >= 0) {
-        pinMode(led_pwr_pin, OUTPUT);
-        digitalWrite(led_pwr_pin, HIGH);
-    }
 
     for (int n = 1; n <= count; n++) {
         bool first = n == 1;

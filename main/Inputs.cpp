@@ -1,5 +1,6 @@
 #include "Inputs.h"
 
+#include <cstring>
 #include <vector>
 
 #include "GUI.h"
@@ -16,40 +17,48 @@ struct Input {
     int index = 0;
     std::string name;
     Role role = Role::Motion;
-    int8_t pin = -1, type = 0;
+    int8_t pin = -1, pull = 0;  // pull: 0 up, 1 down, 2 floating
     bool inverted = false;
     float timeout = 0;
     int8_t last = -1;
     unsigned long lastMillis = 0;
 
     std::string id() const { return Sprintf("input_%d", index); }
-    std::string timeoutId() const { return Sprintf("input_%d_timeout", index); }
 };
 
 std::vector<Input> inputs;
 
-std::string key(int n, const char* field) { return Sprintf("input_%d_%s", n, field); }
+int indexOf(const char* s, std::initializer_list<const char*> options, int fallback) {
+    int i = 0;
+    for (auto* o : options) {
+        if (s && strcmp(s, o) == 0) return i;
+        i++;
+    }
+    return fallback;
+}
 }  // namespace
 
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> roles = {"Motion", "Switch", "Button"};
-    // Odd types are inverted: active LOW.
-    std::vector<std::string> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
-    int count = Settings::integer("input_count", 0, MAX, 0, "Number of inputs");
-    if (count < 0) count = 0;
-    if (count > MAX) count = MAX;
-    Settings::group("input", MAX, {"name", "role", "pin", "type", "timeout"});
+    std::string text = Settings::json("inputs", "[]", "Inputs");
+    DynamicJsonDocument list(text.size() * 2 + 256);
     inputs.clear();
-    for (int n = 1; n <= count; n++) {
+    if (deserializeJson(list, text)) {
+        Log.println("Inputs: invalid JSON, ignored");
+        return;
+    }
+    for (JsonObject o : list.as<JsonArray>()) {
+        if ((int)inputs.size() >= MAX) break;
         Input in;
-        in.index = n;
-        in.name = Settings::string(key(n, "name"), Sprintf("Input %d", n), "Name");
-        in.role = (Role)Settings::dropdown(key(n, "role"), roles, 0, "Role");
-        in.pin = Settings::integer(key(n, "pin"), -1, 48, -1, "Pin (-1 to disable)");
-        in.type = Settings::dropdown(key(n, "type"), pinTypes, 0, "Pin type");
-        in.inverted = in.type & 1;
-        in.timeout = Settings::floating(key(n, "timeout"), 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Timeout (in seconds)");
-        if (in.name.empty()) in.name = Sprintf("Input %d", n);
+        in.index = inputs.size() + 1;
+        in.name = o["name"] | "";
+        if (in.name.empty()) in.name = Sprintf("Input %d", in.index);
+        in.role = (Role)indexOf(o["role"], {"motion", "switch", "button"}, 0);
+        in.pin = o["pin"] | -1;
+        std::string type = o["type"] | "pullup";
+        in.inverted = endsWith(type, "_inverted");
+        if (in.inverted) type.resize(type.size() - 9);
+        in.pull = indexOf(type.c_str(), {"pullup", "pulldown", "floating"}, 0);
+        in.timeout = o["timeout"] | (float)DEFAULT_DEBOUNCE_TIMEOUT;
         inputs.push_back(in);
     }
 }
@@ -57,7 +66,7 @@ void ConnectToWifi(bool updating) {
 void Setup() {
     static const PinMode modes[] = {INPUT_PULLUP, INPUT_PULLDOWN, INPUT};
     for (auto& in : inputs)
-        if (in.pin >= 0 && in.type >= 0 && in.type < 6) pinMode(in.pin, modes[in.type / 2]);
+        if (in.pin >= 0) pinMode(in.pin, modes[in.pull]);
 }
 
 void SerialReport() {
@@ -74,7 +83,6 @@ void Loop() {
     bool motionChanged = false;
     for (auto& in : inputs) {
         if (in.pin < 0) continue;
-        // Active HIGH unless inverted (pull-up wiring to ground reads LOW when closed).
         bool detected = (digitalRead(in.pin) == HIGH) != in.inverted;
         if (detected) in.lastMillis = millis();
         unsigned long since = millis() - in.lastMillis;
@@ -92,52 +100,28 @@ void Loop() {
     GUI::Motion(motion);
 }
 
-// Slots above input_count, or without a pin, delete their entities so a removed input doesn't
-// linger in Home Assistant.
+// Inputs past the end of the list, or without a pin, delete their entity so a removed input
+// doesn't linger in Home Assistant.
 bool SendDiscovery() {
     for (int n = 1; n <= MAX; n++) {
         auto id = Sprintf("input_%d", n);
-        const Input* in = nullptr;
-        for (auto& i : inputs)
-            if (i.index == n && i.pin >= 0) in = &i;
-        if (!in) {
-            if (!sendDeleteDiscovery("binary_sensor", id) || !sendDeleteDiscovery("number", id + "_timeout")) return false;
-            continue;
-        }
-        if (!sendBinarySensorDiscovery(id, in->name, EC_NONE, in->role == Role::Motion ? "motion" : DEVICE_CLASS_NONE)) return false;
-        if (!sendNumberDiscovery(in->timeoutId(), in->name + " Timeout", EC_CONFIG)) return false;
+        const Input* in = n <= (int)inputs.size() && inputs[n - 1].pin >= 0 ? &inputs[n - 1] : nullptr;
+        bool ok = in ? sendBinarySensorDiscovery(id, in->name, EC_NONE, in->role == Role::Motion ? "motion" : DEVICE_CLASS_NONE)
+                     : sendDeleteDiscovery("binary_sensor", id);
+        if (!ok) return false;
     }
     return true;
 }
 
 // On every (re)connect: the first reads usually happen before MQTT is up, so their publish is lost.
 bool SendOnline() {
-    for (auto& in : inputs) {
-        if (in.pin < 0) continue;
-        if (!pub((roomsTopic + "/" + in.timeoutId()).c_str(), 0, true, toStr(in.timeout).c_str())) return false;
-        if (in.last >= 0 && !pub((roomsTopic + "/" + in.id()).c_str(), 0, true, in.last == HIGH ? "ON" : "OFF")) return false;
-    }
+    for (auto& in : inputs)
+        if (in.pin >= 0 && in.last >= 0 && !pub((roomsTopic + "/" + in.id()).c_str(), 0, true, in.last == HIGH ? "ON" : "OFF"))
+            return false;
     return true;
 }
 
-bool Command(std::string& command, std::string& pay) {
-    for (auto& in : inputs)
-        if (command == in.timeoutId()) {
-            in.timeout = toFloat(pay);
-            spurt("/" + command, pay);
-            return true;
-        }
-    return false;
-}
+int8_t Value(int n) { return n >= 1 && n <= (int)inputs.size() ? inputs[n - 1].last : -1; }
 
-int8_t Value(int n) {
-    for (auto& in : inputs)
-        if (in.index == n) return in.last;
-    return -1;
-}
-Role GetRole(int n) {
-    for (auto& in : inputs)
-        if (in.index == n) return in.role;
-    return Role::Motion;
-}
+Role GetRole(int n) { return n >= 1 && n <= (int)inputs.size() ? inputs[n - 1].role : Role::Motion; }
 }  // namespace Inputs

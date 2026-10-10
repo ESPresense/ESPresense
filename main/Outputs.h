@@ -2,7 +2,7 @@
 #include <string>
 
 namespace Outputs {
-constexpr int MAX = 4;
+constexpr int MAX = 8;
 
 void Setup();
 void ConnectToWifi(bool updating);
