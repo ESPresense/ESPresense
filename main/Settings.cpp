@@ -70,7 +70,10 @@ struct Param {
         }
     }
     // Typed JSON value; strtod keeps "0.10" as 0.1 rather than float-widening it to 0.100000001.
-    void put(JsonVariant dst, const std::string& v) const {
+    // Template, not JsonVariant: obj["k"] for a missing key converts to a null variant that
+    // set() silently ignores; the proxy itself adds the member.
+    template <class Dst>
+    void put(Dst dst, const std::string& v) const {
         switch (type) {
             case Type::Int:
             case Type::Dropdown:
