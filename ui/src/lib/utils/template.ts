@@ -2,10 +2,10 @@
  * Board templates (#2529): a JSON document of hardware settings for a specific board.
  *
  * ```json
- * { "name": "Athom Smart Plug V3", "chip": "esp32c3", "hardware": { "led_1_pin": 6 } }
+ * { "name": "Athom Smart Plug V3", "chip": "esp32c3", "settings": { "led_1_pin": 6 } }
  * ```
  *
- * The node validates and applies them (POST /json/template); only the keys in `hardware` change.
+ * The node validates and applies them (POST /json/template); only the keys in `settings` change.
  */
 
 export interface TemplateChange {
@@ -32,7 +32,7 @@ export function normalizeTemplate(text: string): string {
 		throw new Error(`Not valid JSON: ${(error as Error).message}`);
 	}
 	if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-		throw new Error('A template must be a JSON object with "chip" and "hardware"');
+		throw new Error('A template must be a JSON object with "chip" and "settings"');
 	}
 	return JSON.stringify(parsed);
 }

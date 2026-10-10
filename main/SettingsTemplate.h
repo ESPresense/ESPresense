@@ -1,10 +1,10 @@
 #pragma once
 // Board templates (#2529): a shareable JSON document holding the hardware settings of a board.
 //
-//   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "hardware": {"led_1_pin": 6, ...}}
+//   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "settings": {"led_1_pin": 6, ...}}
 //
-// The settings sit under the name of the endpoint they belong to, so a full backup (#2493) can
-// carry "main", "extras" and "hardware" sections in the same shape. chip may be written either as
+// Setting names are unique across endpoints, so a full backup (#2493) can use the same flat
+// "settings" object; a template is limited to one endpoint's keys. chip may be written either as
 // the IDF target ("esp32c3") or the way the docs site shows it ("ESP32-C3").
 //
 // Parsing and validation only: no flash, no HTTP, so it runs in the host tests. Settings.cpp owns
@@ -104,7 +104,7 @@ inline std::string normalizeChip(const char* chip) {
 
 // Validates a whole template before anything is written: every key must be known to lookup
 // (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, or
-// nothing is applied. chip is the running firmware's IDF target, section the endpoint name.
+// nothing is applied. chip is the running firmware's IDF target, section the key holding the settings.
 template <class Lookup>
 bool parseTemplate(JsonObjectConst root, const char* chip, const char* section, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
     out.clear();

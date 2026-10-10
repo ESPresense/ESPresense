@@ -493,7 +493,7 @@ test.describe('Board template import', () => {
 	const plugTemplate = {
 		name: 'Athom Smart Plug V3',
 		chip: 'esp32c3',
-		hardware: { led_1_pin: 6, button_1_pin: 3 }
+		settings: { led_1_pin: 6, button_1_pin: 3 }
 	};
 	const plugChanges = [
 		{ key: 'led_1_pin', label: 'Pin (-1 to disable)', from: 2, to: 6 },
@@ -581,7 +581,7 @@ test.describe('Board template import', () => {
 		await page.getByRole('button', { name: 'Preview' }).click();
 		await expect(page.getByRole('button', { name: 'Apply' })).toBeEnabled();
 
-		await textarea.fill(JSON.stringify({ ...plugTemplate, hardware: { led_1_pin: 7 } }));
+		await textarea.fill(JSON.stringify({ ...plugTemplate, settings: { led_1_pin: 7 } }));
 		await expect(page.getByRole('button', { name: 'Apply' })).toBeDisabled();
 		await expect(page.getByTestId('template-changes')).toBeHidden();
 	});
@@ -598,7 +598,7 @@ test.describe('Board template import', () => {
 	});
 
 	test('exports the node configuration as a template file', async ({ page }) => {
-		const exported = { name: 'Office', chip: 'esp32', hardware: { led_1_pin: 2, I2CDebug: false } };
+		const exported = { name: 'Office', chip: 'esp32', settings: { led_1_pin: 2, I2CDebug: false } };
 		await page.route('**/json/template', async (route) => {
 			await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(exported) });
 		});

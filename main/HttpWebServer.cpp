@@ -131,6 +131,7 @@ esp_err_t serveTele(httpd_req_t* req) {
 // GET exports this node's hardware settings as a template; POST imports one (see SettingsTemplate.h)
 // and restarts if anything changed. POST ?dry validates and returns the changes without saving.
 constexpr const char* TEMPLATE_ENDPOINT = "hardware";
+constexpr const char* TEMPLATE_SECTION = "settings";
 constexpr size_t TEMPLATE_MAX_BODY = 6144;
 
 esp_err_t serveTemplate(httpd_req_t* req) {
@@ -144,7 +145,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
 #ifdef VERSION
     root["version"] = VERSION;
 #endif
-    Settings::serialize(TEMPLATE_ENDPOINT, root.createNestedObject(TEMPLATE_ENDPOINT));
+    Settings::serialize(TEMPLATE_ENDPOINT, root.createNestedObject(TEMPLATE_SECTION));
     if (doc.overflowed()) return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
     return sendJsonDoc(req, doc);
 }
@@ -173,7 +174,7 @@ esp_err_t postTemplate(httpd_req_t* req) {
         if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
         std::string err;
         auto lookup = [](const char* key) { return Settings::spec(TEMPLATE_ENDPOINT, key); };
-        if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_ENDPOINT, lookup, changes, err))
+        if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_SECTION, lookup, changes, err))
             return sendTemplateError(req, "400 Bad Request", err);
         name = doc["name"] | "";
     }
