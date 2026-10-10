@@ -10,6 +10,7 @@
 #include "led/LED.h"
 #include "led/SinglePWM.h"
 #include "mqtt.h"
+#include "Outputs.h"
 #include "Settings.h"
 #include "string_utils.h"
 #include "util.h"
@@ -41,7 +42,8 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, const 
 
 namespace {
 const char* const ledTypes[] = {"pwm", "pwm_inverted", "grb", "grbw", "rgb", "rgbw"};
-const char* const ledControls[] = {"mqtt", "status", "motion", "count"};
+const char* const ledControls[] = {"mqtt", "status", "motion", "count", "output"};
+std::vector<std::pair<LED*, int>> outputLeds;  // control "output": LED, 1-based output number
 
 template <size_t N>
 int indexOf(const char* s, const char* const (&options)[N], int fallback) {
@@ -76,6 +78,7 @@ void ConnectToWifi(bool updating) {
         int pin = o["pin"] | -1;
         int cnt = o["count"] | 1;
         leds.push_back(newLed(n, cntrl, type, pin, cnt, Settings::slurp(Sprintf("/led_%d_state", n))));
+        if (cntrl == Control_Type_Output && pin >= 0) outputLeds.push_back({leds.back(), o["output"] | 1});
     }
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });
@@ -132,6 +135,10 @@ void Save() {
 }
 
 void Loop() {
+    for (auto& [led, n] : outputLeds) {
+        bool on = Outputs::State(n);
+        if (led->getState() != on) led->setState(on);
+    }
     for (auto& led : leds)
         led->service();
     if (millis() - lastSave > 15000) {

@@ -20,7 +20,8 @@ long integer(const std::string& name, long min, long max, long init = 0, const s
 float floating(const std::string& name, float init = 0, const std::string& label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
-// JSON text (a list of objects: leds, inputs, outputs); the UI and templates see real JSON.
+// JSON text (an array like leds/inputs/outputs, or an object like power); the UI and templates
+// see real JSON.
 std::string json(const std::string& name, const std::string& init = "[]", const std::string& label = "");
 
 void markExtra();                           // following settings belong to /wifi/extras

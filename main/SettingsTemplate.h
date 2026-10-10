@@ -82,9 +82,9 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
             out = buf;
             return true;
         }
-        case SettingType::Json:  // a list of objects (inputs, outputs), stored as its JSON text
-            if (!v.is<JsonArrayConst>()) {
-                err = "expected an array";
+        case SettingType::Json:  // a list (leds, inputs, outputs) or object (power), stored as JSON text
+            if (!v.is<JsonArrayConst>() && !v.is<JsonObjectConst>()) {
+                err = "expected an array or object";
                 return false;
             }
             out.clear();

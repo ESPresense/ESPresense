@@ -62,6 +62,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && GUI::SendDiscovery()
             && Inputs::SendDiscovery()
             && Outputs::SendDiscovery()
+            && PowerMonitor::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
             && CAN::SendDiscovery()
@@ -193,6 +194,7 @@ void setupNetwork() {
 
     Inputs::ConnectToWifi(updating);
     Outputs::ConnectToWifi(updating);
+    PowerMonitor::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -496,6 +498,7 @@ void setup() {
     GUI::Setup(false);
     Inputs::Setup();
     Outputs::Setup();
+    PowerMonitor::Setup();
     Battery::Setup();
     CAN::Setup();
     NTP::Setup();
@@ -565,6 +568,7 @@ void loop() {
     GUI::Loop();
     Inputs::Loop();
     Outputs::Loop();
+    PowerMonitor::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();

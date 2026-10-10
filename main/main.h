@@ -17,6 +17,7 @@
 #include "Network.h"
 #include "Inputs.h"
 #include "Outputs.h"
+#include "PowerMonitor.h"
 #include "SerialImprov.h"
 #include "Settings.h"
 #include "Updater.h"

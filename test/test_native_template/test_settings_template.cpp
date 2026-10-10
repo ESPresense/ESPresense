@@ -164,15 +164,18 @@ void test_wrong_types_rejected(void) {
     TEST_ASSERT_FALSE(parse(R"({"chip":"esp32c3","settings":{"AHTX0_I2c":56}})").ok);
 }
 
-void test_json_setting_takes_an_array_as_text(void) {
+void test_json_setting_takes_an_array_or_object_as_text(void) {
     Result r = parse(R"({"chip":"esp32c3","settings":{"outputs":[{"name":"Relay","pin":5,"type":"output"}]}})");
     TEST_ASSERT_TRUE_MESSAGE(r.ok, r.err.c_str());
     TEST_ASSERT_EQUAL_STRING(R"([{"name":"Relay","pin":5,"type":"output"}])", value(r, "outputs").c_str());
     TEST_ASSERT_TRUE(parse(R"({"chip":"esp32c3","settings":{"outputs":[]}})").ok);
     r = parse(R"({"chip":"esp32c3","settings":{"outputs":"[{}]"}})");
     TEST_ASSERT_FALSE(r.ok);
-    TEST_ASSERT_EQUAL_STRING("outputs: expected an array", r.err.c_str());
-    TEST_ASSERT_FALSE(parse(R"({"chip":"esp32c3","settings":{"outputs":{"pin":5}}})").ok);
+    TEST_ASSERT_EQUAL_STRING("outputs: expected an array or object", r.err.c_str());
+    TEST_ASSERT_FALSE(parse(R"({"chip":"esp32c3","settings":{"outputs":5}})").ok);
+    r = parse(R"({"chip":"esp32c3","settings":{"outputs":{"current_resistor":0.001}}})");
+    TEST_ASSERT_TRUE_MESSAGE(r.ok, r.err.c_str());
+    TEST_ASSERT_EQUAL_STRING(R"({"current_resistor":0.001})", value(r, "outputs").c_str());
 }
 
 }  // namespace
@@ -194,6 +197,6 @@ int main(int, char**) {
     RUN_TEST(test_dropdown_index_range_enforced);
     RUN_TEST(test_float_range_enforced);
     RUN_TEST(test_wrong_types_rejected);
-    RUN_TEST(test_json_setting_takes_an_array_as_text);
+    RUN_TEST(test_json_setting_takes_an_array_or_object_as_text);
     return UNITY_END();
 }

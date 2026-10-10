@@ -50,12 +50,12 @@ struct Param {
                 value = v.empty() ? "0" : "1";
                 break;
             case Type::Json: {
-                // Sent to the UI unquoted, so only a valid array may be stored.
+                // Sent to the UI unquoted, so only a valid array or object may be stored.
                 DynamicJsonDocument d(v.size() * 2 + 64);
-                if (v.empty() || (!deserializeJson(d, v) && d.is<JsonArray>()))
+                if (v.empty() || (!deserializeJson(d, v) && (d.is<JsonArray>() || d.is<JsonObject>())))
                     value = v;
                 else
-                    Log.printf("%s: not a JSON array, kept the old value\n", name.c_str());
+                    Log.printf("%s: not a JSON array or object, kept the old value\n", name.c_str());
                 break;
             }
             default:

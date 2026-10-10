@@ -7,7 +7,8 @@
         ['pwm', 'PWM'], ['pwm_inverted', 'PWM Inverted'],
         ['grb', 'Addressable GRB'], ['grbw', 'Addressable GRBW'], ['rgb', 'Addressable RGB'], ['rgbw', 'Addressable RGBW']
     ];
-    const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count']];
+    const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count'], ['output', 'Output']];
+    const powerModels = [['', 'None'], ['bl0937', 'BL0937'], ['hlw8012', 'HLW8012 / CSE7759']];
     // [stored value, label] for the inputs/outputs JSON lists.
     const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
     const inputPinTypes = [
@@ -19,6 +20,20 @@
     const powerOnStates = [['off', 'Off'], ['on', 'On'], ['restore', 'Restore last']];
 
     // "Linked input" choices, labelled with each input's name (value = 1-based input number, 0 = none).
+    // Outputs an LED can mirror (value = 1-based output number).
+    const outputChoices = $derived(
+        (($hardwareSettings?.values['outputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+            String(i + 1),
+            `${i + 1}: ${it.name || `Output ${i + 1}`}`
+        ])
+    );
+
+    // The "power" setting is one JSON object, posted as a hidden field.
+    const power = $derived(($hardwareSettings?.values['power'] ?? $hardwareSettings?.defaults['power'] ?? {}) as Record<string, unknown>);
+    function setPower(field: string, value: unknown): void {
+        hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, power: { ...power, [field]: value } } } : s));
+    }
+
     const linkedInputs = $derived([
         ['0', 'None'],
         ...((($hardwareSettings?.values['inputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
@@ -108,6 +123,9 @@
         </p>
     {/if}
     {@render choose('LED Control', it.control, ledControls, (v) => set('control', v))}
+    {#if it.control === 'output'}
+        {@render choose('Output to show', String(it.output ?? 1), outputChoices.length ? outputChoices : [['1', 'Output 1']], (v) => set('output', Number(v)))}
+    {/if}
 {/snippet}
 
 {#snippet input(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
@@ -147,6 +165,36 @@
             <a href="https://espresense.com/configuration/settings#outputs" target="_blank">Outputs</a>
         </h2>
         <JsonList settings={hardwareSettings} key="outputs" title="Output" max={8} blank={() => ({ name: '', pin: -1, type: 'output', power_on: 'off', input: 0 })} item={output} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#power-monitor" target="_blank">Power monitor</a>
+        </h2>
+        <input type="hidden" name="power" value={JSON.stringify(power)} />
+        {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
+        {#if power.model}
+            {#each [['cf', 'CF pin (power)'], ['cf1', 'CF1 pin (current / voltage)'], ['sel', 'SEL pin']] as [key, label] (key)}
+                <p>
+                    <label>
+                        {label} (-1 to disable):<br />
+                        <input type="number" step="1" min="-1" max="48" value={power[key] ?? -1}
+                            oninput={(e) => setPower(key, e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                    </label>
+                </p>
+            {/each}
+            <p>
+                <label>
+                    Voltage divider (as in ESPHome's hlw8012):<br />
+                    <input type="number" step="any" min="1" value={power.voltage_divider ?? 2351}
+                        oninput={(e) => setPower('voltage_divider', Number(e.currentTarget.value))}/>
+                </label>
+            </p>
+            <p>
+                <label>
+                    Current resistor in ohms (as in ESPHome's hlw8012):<br />
+                    <input type="number" step="any" min="0" value={power.current_resistor ?? 0.001}
+                        oninput={(e) => setPower('current_resistor', Number(e.currentTarget.value))}/>
+                </label>
+            </p>
+        {/if}
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>

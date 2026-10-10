@@ -11,4 +11,6 @@ void Loop();
 bool SendDiscovery();
 bool SendOnline();
 bool Command(std::string& command, std::string& pay);
+// State of output n (1-based); false when out of range.
+bool State(int n);
 }  // namespace Outputs

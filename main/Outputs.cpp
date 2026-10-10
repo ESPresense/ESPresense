@@ -171,4 +171,5 @@ bool Command(std::string& command, std::string& pay) {
     }
     return false;
 }
+bool State(int n) { return n >= 1 && n <= count && outputs[n - 1].state; }
 }  // namespace Outputs

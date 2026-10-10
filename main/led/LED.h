@@ -9,6 +9,7 @@ enum ControlType {
     Control_Type_Status = 1,
     Control_Type_Motion = 2,
     Control_Type_Count = 3,
+    Control_Type_Output = 4,  // mirrors an output (a plug's relay LED)
 };
 
 struct Color {

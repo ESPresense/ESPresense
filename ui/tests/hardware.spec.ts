@@ -375,7 +375,7 @@ test.describe('Hardware Settings Page', () => {
 		await page.waitForSelector('form#hardware');
 
 		const control = item(page, 'LED 1:').nth(1).locator('select');
-		await expect(control.locator('option')).toHaveText(['MQTT', 'Status', 'Motion', 'Count']);
+		await expect(control.locator('option')).toHaveText(['MQTT', 'Status', 'Motion', 'Count', 'Output']);
 		await expect(control).toHaveValue('status');
 		await control.selectOption('count');
 		await expect(control).toHaveValue('count');
@@ -494,6 +494,38 @@ test.describe('Hardware lists', () => {
 		await expect.poll(() => posted).toContain('leds=');
 		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)).toEqual([{ type: 'pwm', pin: 2, control: 'status' }]);
 		expect(new URLSearchParams(posted).get('inputs')).toBe('[]');
+	});
+
+	test('power monitor posts one JSON object', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, {}, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.getByLabel('CF pin (power) (-1 to disable)')).toHaveCount(0);
+		await page.getByLabel('Chip (most relay plugs have one)').selectOption('bl0937');
+		await page.getByLabel('CF pin (power) (-1 to disable)').fill('6');
+		await page.getByLabel('CF1 pin (current / voltage) (-1 to disable)').fill('7');
+		await page.getByLabel('SEL pin (-1 to disable)').fill('10');
+		await page.getByLabel("Voltage divider (as in ESPHome's hlw8012)").fill('1517');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('power=');
+		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'bl0937', cf: 6, cf1: 7, sel: 10, voltage_divider: 1517 });
+	});
+
+	test('an LED can mirror an output', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { outputs: [{ name: 'Relay', pin: 5, type: 'output' }] }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await item(page, 'LED 1:').nth(1).locator('select').selectOption('output');
+		await expect(page.getByLabel('Output to show').locator('option')).toHaveText(['1: Relay']);
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('leds=');
+		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)[0]).toMatchObject({ control: 'output' });
 	});
 });
 

@@ -201,6 +201,9 @@ bool sendSensorDiscovery(const std::string& name, const std::string& entityCateg
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     if (!units.empty()) doc["unit_of_meas"] = units;
     if (!devClass.empty()) doc["dev_cla"] = devClass;
+    // Energy dashboard and long-term statistics need a state class.
+    if (devClass == "energy") doc["stat_cla"] = "total_increasing";
+    else if (devClass == "power" || devClass == "voltage" || devClass == "current") doc["stat_cla"] = "measurement";
     doc["frc_upd"] = frcUpdate;
     const std::string discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
     return pub(discoveryTopic.c_str(), 0, true, doc);
