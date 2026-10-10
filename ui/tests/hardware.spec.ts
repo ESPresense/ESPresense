@@ -502,11 +502,11 @@ test.describe('Hardware lists', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await expect(page.getByLabel('CF pin (power) (-1 to disable)')).toHaveCount(0);
+		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
 		await page.getByLabel('Chip (most relay plugs have one)').selectOption('bl0937');
-		await page.getByLabel('CF pin (power) (-1 to disable)').fill('6');
-		await page.getByLabel('CF1 pin (current / voltage) (-1 to disable)').fill('7');
-		await page.getByLabel('SEL pin (-1 to disable)').fill('10');
+		await page.getByLabel('CF pin (power)').fill('6');
+		await page.getByLabel('CF1 pin (V / A)').fill('7');
+		await page.getByLabel('SEL pin').fill('10');
 		await page.getByLabel("Voltage divider (as in ESPHome's hlw8012)").fill('1517');
 
 		await page.locator('button[type="submit"]').click();

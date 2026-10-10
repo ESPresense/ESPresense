@@ -166,34 +166,58 @@
         </h2>
         <JsonList settings={hardwareSettings} key="outputs" title="Output" max={8} blank={() => ({ name: '', pin: -1, type: 'output', power_on: 'off', input: 0 })} item={output} />
         <h2>
-            <a href="https://espresense.com/configuration/settings#power-monitor" target="_blank">Power monitor</a>
+            <a href="https://espresense.com/configuration/settings#power" target="_blank">Power</a>
         </h2>
+        <h4>Battery:</h4>
+        <div class="flex flex-wrap gap-4">
+            <p>
+                <label>
+                    Voltage pin (-1 to disable, ADC1 only):<br />
+                    <input type="number" step="1" min="-1" max="48" name="batt_pin"
+                        placeholder={$hardwareSettings.defaults['batt_pin']}
+                        bind:value={$hardwareSettings.values['batt_pin']}/>
+                </label>
+            </p>
+            <p>
+                <label>
+                    Divider multiplier:<br />
+                    <input type="number" step="0.01" min="1" max="10" name="batt_mult"
+                        placeholder={$hardwareSettings.defaults['batt_mult']}
+                        bind:value={$hardwareSettings.values['batt_mult']}/>
+                </label>
+            </p>
+        </div>
+        <h4>Energy meter:</h4>
         <input type="hidden" name="power" value={JSON.stringify(power)} />
         {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
         {#if power.model}
-            {#each [['cf', 'CF pin (power)'], ['cf1', 'CF1 pin (current / voltage)'], ['sel', 'SEL pin']] as [key, label] (key)}
+            <div class="flex flex-wrap gap-4">
+                {#each [['cf', 'CF pin (power)'], ['cf1', 'CF1 pin (V / A)'], ['sel', 'SEL pin']] as [key, label] (key)}
+                    <p>
+                        <label>
+                            {label}:<br />
+                            <input type="number" step="1" min="-1" max="48" class="w-24" value={power[key] ?? -1}
+                                oninput={(e) => setPower(key, e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                        </label>
+                    </p>
+                {/each}
+            </div>
+            <div class="flex flex-wrap gap-4">
                 <p>
                     <label>
-                        {label} (-1 to disable):<br />
-                        <input type="number" step="1" min="-1" max="48" value={power[key] ?? -1}
-                            oninput={(e) => setPower(key, e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                        Voltage divider (as in ESPHome's hlw8012):<br />
+                        <input type="number" step="any" min="1" value={power.voltage_divider ?? 2351}
+                            oninput={(e) => setPower('voltage_divider', Number(e.currentTarget.value))}/>
                     </label>
                 </p>
-            {/each}
-            <p>
-                <label>
-                    Voltage divider (as in ESPHome's hlw8012):<br />
-                    <input type="number" step="any" min="1" value={power.voltage_divider ?? 2351}
-                        oninput={(e) => setPower('voltage_divider', Number(e.currentTarget.value))}/>
-                </label>
-            </p>
-            <p>
-                <label>
-                    Current resistor in ohms (as in ESPHome's hlw8012):<br />
-                    <input type="number" step="any" min="0" value={power.current_resistor ?? 0.001}
-                        oninput={(e) => setPower('current_resistor', Number(e.currentTarget.value))}/>
-                </label>
-            </p>
+                <p>
+                    <label>
+                        Current resistor in ohms (as in ESPHome's hlw8012):<br />
+                        <input type="number" step="any" min="0" value={power.current_resistor ?? 0.001}
+                            oninput={(e) => setPower('current_resistor', Number(e.currentTarget.value))}/>
+                    </label>
+                </p>
+            </div>
         {/if}
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
@@ -245,35 +269,6 @@
                     name="dhtHumidity_offset"
                     placeholder={$hardwareSettings.defaults['dhtHumidity_offset']}
                     bind:value={$hardwareSettings.values['dhtHumidity_offset']}/>
-            </label>
-        </p>
-        <h2>
-            <a href="https://espresense.com/configuration/hardware#battery" target="_blank">Battery</a>
-        </h2>
-        <p>
-            <label>
-                Battery voltage pin (-1 to disable, ADC1 pins only):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="batt_pin"
-                    placeholder={$hardwareSettings.defaults['batt_pin']}
-                    bind:value={$hardwareSettings.values['batt_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Battery voltage divider (multiplier):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="1"
-                    max="10"
-                    name="batt_mult"
-                    placeholder={$hardwareSettings.defaults['batt_mult']}
-                    bind:value={$hardwareSettings.values['batt_mult']}/>
             </label>
         </p>
         <h2>
