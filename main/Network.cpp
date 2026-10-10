@@ -185,7 +185,7 @@ const EthBoard ethBoards[] = {
     {0, 5, 23, 18, 0, true},    // QuinLED-ESP32
     {0, 5, 23, 18, 0, true},    // TwilightLord-ESP32
     {1, -1, 23, 18, 0, true},   // ESP32Deux
-    {0, 5, 23, 18, 1, false},   // KIT-VE
+    {1, 5, 23, 18, 1, false},   // KIT-VE (IP101 answers at address 1)
     {0, -1, 23, 18, 0, true},   // LilyGO-T-ETH-POE
     {1, 5, 23, 18, 1, false},   // GL-inet GL-S10 v2.1
     {0, 12, 23, 18, 0, true},   // EST-PoE-32
@@ -207,7 +207,8 @@ esp_eth_handle_t installRmii(int type) {
     emac.smi_gpio.mdc_num = b.mdc;
     emac.smi_gpio.mdio_num = b.mdio;
     emac.clock_config.rmii.clock_mode = b.clkOut ? EMAC_CLK_OUT : EMAC_CLK_EXT_IN;
-    emac.clock_config.rmii.clock_gpio = b.clkOut ? EMAC_APPL_CLK_OUT_GPIO : EMAC_CLK_IN_GPIO;
+    // Arduino's ETH_CLOCK_GPIO17_OUT: the inverted 50MHz clock on GPIO17, not EMAC_APPL_CLK_OUT_GPIO (GPIO0).
+    emac.clock_config.rmii.clock_gpio = b.clkOut ? EMAC_CLK_OUT_180_GPIO : EMAC_CLK_IN_GPIO;
     esp_eth_mac_t* mac = esp_eth_mac_new_esp32(&emac, &mac_config);
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.phy_addr = b.addr;
