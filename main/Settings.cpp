@@ -27,7 +27,6 @@ struct Param {
     std::string name, label, value, init;
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
-    bool state = false;  // runtime state stored alongside settings (markState)
     bool board = false;  // exported in board templates (markBoard)
     SettingSpec spec_;   // filled by spec()
 
@@ -145,31 +144,23 @@ struct Param {
     static std::string jsonNumeric(const std::string& n, const std::string& v) { return "\"" + encode(n) + "\":" + v; }
 };
 
-// A repeated block <prefix>_<n>_<field>; see Settings::group().
-struct Group {
-    std::string prefix;
-    int max;
-    std::vector<std::string> fields;
-};
-
 struct Endpoint {
     std::string name;
     std::vector<Param*> params;
-    std::vector<Group> groups;
 };
 std::vector<Endpoint> endpoints;
 size_t current = 0;
 
 size_t findOrCreate(const std::string& name) {
-    if (endpoints.empty()) endpoints.push_back({"main", {}, {}});
+    if (endpoints.empty()) endpoints.push_back({"main", {}});
     for (size_t i = 0; i < endpoints.size(); i++)
         if (endpoints[i].name == name) return i;
-    endpoints.push_back({name, {}, {}});
+    endpoints.push_back({name, {}});
     return endpoints.size() - 1;
 }
 
 int find(const std::string& name) {
-    if (endpoints.empty()) endpoints.push_back({"main", {}, {}});
+    if (endpoints.empty()) endpoints.push_back({"main", {}});
     for (size_t i = 0; i < endpoints.size(); i++)
         if (endpoints[i].name == name) return i;
     return -1;
@@ -196,26 +187,8 @@ Param* findParam(const std::string& key) {
     return nullptr;
 }
 
-// Settings a template may carry: no runtime state, no secrets.
-bool templatable(const Param* p) { return p && !p->state && p->type != Type::Password; }
-
-bool registered(const Endpoint& e, const std::string& name) {
-    for (auto* prm : e.params)
-        if (prm->name == name) return true;
-    return false;
-}
-
-// Calls fn(key) for every <prefix>_<n>_<field> of e's groups that isn't a registered setting,
-// i.e. the slots above the group's current count.
-template <typename F>
-void forEachUnregistered(const Endpoint& e, F fn) {
-    for (auto& g : e.groups)
-        for (int n = 1; n <= g.max; n++)
-            for (auto& f : g.fields) {
-                std::string key = g.prefix + "_" + toStr(n) + "_" + f;
-                if (!registered(e, key)) fn(key);
-            }
-}
+// Settings a template may carry: no secrets.
+bool templatable(const Param* p) { return p && p->type != Type::Password; }
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -283,13 +256,6 @@ esp_err_t getHandler(httpd_req_t* req) {
         out += s;
         comma = true;
     }
-    forEachUnregistered(endpoints[idx], [&](const std::string& key) {
-        auto v = slurp("/" + key);
-        if (v.empty()) return;
-        if (comma) out += ",";
-        out += Param::jsonString(key, v);
-        comma = true;
-    });
     out += "},\"defaults\":{";
     comma = false;
     for (auto* prm : endpoints[idx].params) {
@@ -339,11 +305,6 @@ esp_err_t postHandler(httpd_req_t* req) {
         prm->set(v);
         if (!prm->store()) ok = false;
     }
-    // Slots above a group's count: store what the form sent (a count just raised in the UI) and
-    // leave the rest alone (a count lowered keeps the hidden slots for later).
-    forEachUnregistered(endpoints[idx], [&](const std::string& key) {
-        if (formValue(body, key, v) && !spurt("/" + key, v)) ok = false;
-    });
     if (!ok) {
         Log.println("Error writing to flash filesystem");
         return sendText(req, "500 Internal Server Error", "Error writing to flash filesystem");
@@ -448,14 +409,8 @@ std::string json(const std::string& name, const std::string& init, const std::st
     return p->value.empty() ? p->init : p->value;
 }
 
-void group(const std::string& prefix, int max, const std::vector<std::string>& fields) {
-    findOrCreate("main");
-    endpoints[current].groups.push_back({prefix, max, fields});
-}
-
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
-void markState() { last()->state = true; }
 void markBoard() { last()->board = true; }
 
 const SettingSpec* spec(const std::string& key) {

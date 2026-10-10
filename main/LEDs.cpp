@@ -1,6 +1,7 @@
 #include "LEDs.h"
 
 #include <algorithm>
+#include <cstring>
 #include <vector>
 
 #include "defaults.h"
@@ -38,30 +39,43 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, const 
     return led;
 }
 
+namespace {
+const char* const ledTypes[] = {"pwm", "pwm_inverted", "grb", "grbw", "rgb", "rgbw"};
+const char* const ledControls[] = {"mqtt", "status", "motion", "count"};
+
+template <size_t N>
+int indexOf(const char* s, const char* const (&options)[N], int fallback) {
+    for (size_t i = 0; i < N; i++)
+        if (s && strcmp(s, options[i]) == 0) return (int)i;
+    return fallback;
+}
+}  // namespace
+
 /**
- * @brief Register led_count and led_<n>_type/pin/cnt/cntrl/state for n = 1..led_count, and build the LEDs.
+ * @brief Read the "leds" setting and build the LEDs.
  *
- * LED 1 takes the board's DEFAULT_LED1_* values; the rest default to disabled.
+ * A JSON list such as [{"type": "grb", "pin": 27, "count": 25, "control": "status"}].
+ * type: pwm | pwm_inverted | grb | grbw | rgb | rgbw (the last four addressable; count only
+ * applies to those). control: mqtt | status | motion | count. LED n (1-based list position) is
+ * led_<n> in MQTT and keeps its colour in /led_<n>_state. The default is the board's LED.
  */
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
-    std::vector<std::string> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
-
-    int count = Settings::integer("led_count", 0, MAX_LEDS, 3, "Number of LEDs");
-    if (count < 0) count = 0;
-    if (count > MAX_LEDS) count = MAX_LEDS;
-    // led_<n>_state is the saved colour, not a form field, so it stays out of the group.
-    Settings::group("led", MAX_LEDS, {"type", "pin", "cnt", "cntrl"});
-
-    for (int n = 1; n <= count; n++) {
-        bool first = n == 1;
-        int type = Settings::dropdown(Sprintf("led_%d_type", n), ledTypes, first ? DEFAULT_LED1_TYPE : 0, "LED Type");
-        int pin = Settings::integer(Sprintf("led_%d_pin", n), -1, 48, first ? DEFAULT_LED1_PIN : -1, "Pin (-1 to disable)");
-        int cnt = Settings::integer(Sprintf("led_%d_cnt", n), -1, 39, first ? DEFAULT_LED1_CNT : 1, "Count (only applies to Addressable LEDs)");
-        auto cntrl = (ControlType)Settings::dropdown(Sprintf("led_%d_cntrl", n), ledControlTypes, first ? DEFAULT_LED1_CNTRL : 0, "LED Control");
-        std::string const state = Settings::string(Sprintf("led_%d_state", n), "", "LED State");
-        Settings::markState();
-        leds.push_back(newLed(n, cntrl, type, pin, cnt, state));
+    std::string def = DEFAULT_LED1_PIN < 0 ? "[]"
+        : Sprintf(R"([{"type":"%s","pin":%d,"count":%d,"control":"%s"}])", ledTypes[DEFAULT_LED1_TYPE], DEFAULT_LED1_PIN, DEFAULT_LED1_CNT, ledControls[DEFAULT_LED1_CNTRL]);
+    std::string text = Settings::json("leds", def, "LEDs");
+    DynamicJsonDocument list(text.size() * 2 + 256);
+    if (deserializeJson(list, text)) {
+        Log.println("LEDs: invalid JSON, ignored");
+        return;
+    }
+    for (JsonObject o : list.as<JsonArray>()) {
+        if ((int)leds.size() >= MAX_LEDS) break;
+        int n = leds.size() + 1;
+        int type = indexOf(o["type"], ledTypes, 0);
+        auto cntrl = (ControlType)indexOf(o["control"], ledControls, 0);
+        int pin = o["pin"] | -1;
+        int cnt = o["count"] | 1;
+        leds.push_back(newLed(n, cntrl, type, pin, cnt, Settings::slurp(Sprintf("/led_%d_state", n))));
     }
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });

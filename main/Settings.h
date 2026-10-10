@@ -20,25 +20,16 @@ long integer(const std::string& name, long min, long max, long init = 0, const s
 float floating(const std::string& name, float init = 0, const std::string& label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
-// JSON text (a list of objects, e.g. inputs/outputs); the UI and templates see real JSON.
+// JSON text (a list of objects: leds, inputs, outputs); the UI and templates see real JSON.
 std::string json(const std::string& name, const std::string& init = "[]", const std::string& label = "");
-
-// A repeated block of settings named <prefix>_<n>_<field>, n = 1..max, on the current endpoint
-// (e.g. led_1_pin .. led_4_cntrl). Register only the slots in use (n <= <prefix>_count)
-// the normal way; the rest cost no heap but still round-trip: GET reports their saved values and
-// POST stores whatever the form sends for them, so raising a count in the UI and filling in the
-// new slot is one save, and lowering it keeps the hidden slots' values.
-void group(const std::string& prefix, int max, const std::vector<std::string>& fields);
 
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
-void markState();                           // last setting is runtime state, not configuration:
-                                            // left out of export and template import
 void markBoard();                           // last setting describes the board (e.g. Ethernet
                                             // type): exported in templates like /wifi/hardware
 
 // Board templates (#2529) may set any configuration setting on any endpoint.
-// Typed lookup by name; nullptr if unknown, runtime state, or a password (never in templates).
+// Typed lookup by name; nullptr if unknown or a password (never in templates).
 const SettingSpec* spec(const std::string& key);
 // The board's settings that differ from their defaults, typed (numbers, bools, strings): every
 // /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays

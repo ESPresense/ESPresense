@@ -1,11 +1,13 @@
 <script lang="ts">
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
-    import RepeatGroup from '#lib/components/RepeatGroup.svelte';
     import JsonList from '#lib/components/JsonList.svelte';
 
-    const ledTypes = ['PWM', 'PWM Inverted', 'Addressable GRB', 'Addressable GRBW', 'Addressable RGB', 'Addressable RGBW'];
-    const ledControls = ['MQTT', 'Status', 'Motion', 'Count'];
+    const ledTypes = [
+        ['pwm', 'PWM'], ['pwm_inverted', 'PWM Inverted'],
+        ['grb', 'Addressable GRB'], ['grbw', 'Addressable GRBW'], ['rgb', 'Addressable RGB'], ['rgbw', 'Addressable RGBW']
+    ];
+    const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count']];
     // [stored value, label] for the inputs/outputs JSON lists.
     const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
     const inputPinTypes = [
@@ -47,67 +49,6 @@
         }
     }
 </script>
-
-{#snippet dropdown(name: string, label: string, options: string[])}
-    <p>
-        <label>
-            {label}:<br />
-            <select {name} bind:value={$hardwareSettings!.values[name]}>
-                <option disabled selected hidden>{options[0]}</option>
-                {#each options as option, i (i)}
-                    <option value={String(i)}>{option}</option>
-                {/each}
-            </select>
-        </label>
-    </p>
-{/snippet}
-
-{#snippet number(name: string, label: string, attrs: { step: string; min?: string; max?: string })}
-    <p>
-        <label>
-            {label}:<br />
-            <input
-                type="number"
-                {...attrs}
-                {name}
-                placeholder={$hardwareSettings!.defaults[name]}
-                bind:value={$hardwareSettings!.values[name]}/>
-        </label>
-    </p>
-{/snippet}
-
-<!-- Pin picker: <base>_pin with its <typeKey> dropdown (wiring and polarity) on the right. -->
-{#snippet pin(base: string, typeKey: string, types: string[])}
-    {@const pinKey = `${base}_pin`}
-    <p>
-        <label>
-            Pin (-1 to disable) and type:<br />
-            <span class="flex items-center gap-2">
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    class="w-24"
-                    name={pinKey}
-                    placeholder={$hardwareSettings!.defaults[pinKey]}
-                    bind:value={$hardwareSettings!.values[pinKey]}/>
-                <select name={typeKey} aria-label="Pin type" bind:value={$hardwareSettings!.values[typeKey]}>
-                    <option disabled selected hidden>{types[0]}</option>
-                    {#each types as option, i (i)}
-                        <option value={String(i)}>{option}</option>
-                    {/each}
-                </select>
-            </span>
-        </label>
-    </p>
-{/snippet}
-
-{#snippet led(n: number)}
-    {@render pin(`led_${n}`, `led_${n}_type`, ledTypes)}
-    {@render number(`led_${n}_cnt`, 'Count (only applies to Addressable LEDs)', { step: '1', min: '-1', max: '39' })}
-    {@render dropdown(`led_${n}_cntrl`, 'LED Control', ledControls)}
-{/snippet}
 
 <!-- Fields of one inputs/outputs list item. They have no form name: JsonList posts the list. -->
 {#snippet field(label: string, value: unknown, set: (v: string) => void, placeholder = '')}
@@ -155,6 +96,20 @@
     </p>
 {/snippet}
 
+{#snippet led(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render itemPin(it, set, ledTypes)}
+    {#if it.type !== 'pwm' && it.type !== 'pwm_inverted' && it.type !== undefined}
+        <p>
+            <label>
+                Count:<br />
+                <input type="number" step="1" min="1" max="1000" value={it.count ?? 1}
+                    oninput={(e) => set('count', Number(e.currentTarget.value))}/>
+            </label>
+        </p>
+    {/if}
+    {@render choose('LED Control', it.control, ledControls, (v) => set('control', v))}
+{/snippet}
+
 {#snippet input(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
     {@render field('Name', it.name, (v) => set('name', v), `Input ${i + 1}`)}
     {@render choose('Role', it.role, inputRoles, (v) => set('role', v))}
@@ -183,7 +138,7 @@
         <h2>
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
         </h2>
-        <RepeatGroup settings={hardwareSettings} prefix="led" title="LED" plural="LEDs" max={4} defaultCount={3} item={led} />
+        <JsonList settings={hardwareSettings} key="leds" title="LED" max={4} blank={() => ({ type: 'pwm', pin: -1, control: 'mqtt' })} item={led} />
         <h2>
             <a href="https://espresense.com/configuration/settings#inputs" target="_blank">Inputs</a>
         </h2>
