@@ -190,6 +190,20 @@
                 </select>
             </label>
         </p>
+        <h4>LED power:</h4>
+        <p>
+            <label>
+                LED power pin (-1 to disable), held high so the LEDs get power:<br />
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    name="led_pwr_pin"
+                    placeholder={$hardwareSettings.defaults['led_pwr_pin']}
+                    bind:value={$hardwareSettings.values['led_pwr_pin']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
