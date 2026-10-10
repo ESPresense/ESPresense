@@ -17,7 +17,7 @@ class Logger {
     void print(unsigned long v) { printf("%lu", v); }
     void print(float v) { printf("%.2f", (double)v); }
     void print(double v) { printf("%.2f", v); }
-    void println() { print("\r\n"); }
+    void println() { print("\n"); }
     template <typename T>
     void println(const T& v) { print(v); println(); }
 

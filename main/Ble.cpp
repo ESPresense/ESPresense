@@ -257,7 +257,7 @@ struct ble_gatt_svc_def svc(const ble_uuid16_t& u, const struct ble_gatt_chr_def
 }
 const struct ble_gatt_svc_def services[] = {svc(uHrm, hrmChrs), svc(uDevInfo, devInfoChrs), {}};
 
-void onReset(int reason) { Log.printf("BLE host reset; reason=%d\r\n", reason); }
+void onReset(int reason) { Log.printf("BLE host reset; reason=%d\n", reason); }
 
 void onSync() {
     ble_hs_util_ensure_addr(0);
@@ -326,14 +326,14 @@ int gapEvent(struct ble_gap_event* ev, void* arg) {
         case BLE_GAP_EVENT_ENC_CHANGE: {
             struct ble_gap_conn_desc desc;
             if (ble_gap_conn_find(ev->enc_change.conn_handle, &desc) == 0)
-                Log.printf("Encrypt connection %s conn: %d!\r\n", desc.sec_state.encrypted ? "success" : "failed", ev->enc_change.conn_handle);
+                Log.printf("Encrypt connection %s conn: %d!\n", desc.sec_state.encrypted ? "success" : "failed", ev->enc_change.conn_handle);
             return 0;
         }
         case BLE_GAP_EVENT_MTU:
-            Log.printf("MTU updated: %u for connection ID: %u\r\n", ev->mtu.value, ev->mtu.conn_handle);
+            Log.printf("MTU updated: %u for connection ID: %u\n", ev->mtu.value, ev->mtu.conn_handle);
             return 0;
         case BLE_GAP_EVENT_SUBSCRIBE:
-            Log.printf("Client ID: %u %s notifications\r\n", ev->subscribe.conn_handle, ev->subscribe.cur_notify ? "subscribed to" : "unsubscribed from");
+            Log.printf("Client ID: %u %s notifications\n", ev->subscribe.conn_handle, ev->subscribe.cur_notify ? "subscribed to" : "unsubscribed from");
             return 0;
         case BLE_GAP_EVENT_REPEAT_PAIRING: {
             // Peer lost its bond: drop ours and let it pair again.

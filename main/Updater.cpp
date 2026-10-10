@@ -62,7 +62,7 @@ void checkForUpdates() {
     auto versionMarker = getVersionMarker();
     if (versionMarker.empty()) return;
     auto url = getFirmwareUrl();
-    Log.printf("Checking for new firmware version at '%s'\r\n", url.c_str());
+    Log.printf("Checking for new firmware version at '%s'\n", url.c_str());
     location.clear();
     esp_http_client_config_t cfg = {};
     cfg.url = url.c_str();
@@ -78,18 +78,18 @@ void checkForUpdates() {
     int code = esp_http_client_get_status_code(http);
     esp_http_client_cleanup(http);
     if (err != ESP_OK) {
-        Log.printf("Error on checking for update (%s)\r\n", esp_err_to_name(err));
+        Log.printf("Error on checking for update (%s)\n", esp_err_to_name(err));
         return;
     }
     if (code > 300 && code < 400) {
         if (location.find(versionMarker) == std::string::npos) {
-            Log.printf("Found new version: %s\r\n", location.c_str());
+            Log.printf("Found new version: %s\n", location.c_str());
             spurt("/update", location);
             Log.println("Rebooting to start update");
             esp_restart();
         }
     } else
-        Log.printf("Error on checking for update (sc=%d)\r\n", code);
+        Log.printf("Error on checking for update (sc=%d)\n", code);
 }
 
 void firmwareUpdate() {
@@ -110,7 +110,7 @@ void firmwareUpdate() {
     esp_https_ota_handle_t handle = nullptr;
     esp_err_t err = esp_https_ota_begin(&ota, &handle);
     if (err != ESP_OK) {
-        Log.printf("Http Update Failed: %s\r\n", esp_err_to_name(err));
+        Log.printf("Http Update Failed: %s\n", esp_err_to_name(err));
         GUI::Update(UPDATE_COMPLETE);
         HttpWebServer::UpdateEnd();
         return;
@@ -134,7 +134,7 @@ void firmwareUpdate() {
         delay(200);
         esp_restart();
     }
-    Log.printf("Firmware update failed to apply (%s / %s)\r\n", esp_err_to_name(err), esp_err_to_name(fin));
+    Log.printf("Firmware update failed to apply (%s / %s)\n", esp_err_to_name(err), esp_err_to_name(fin));
 }
 
 void Setup() {

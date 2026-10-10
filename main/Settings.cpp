@@ -147,7 +147,7 @@ esp_err_t sendText(httpd_req_t* req, const char* status, const char* text) {
 
 esp_err_t getHandler(httpd_req_t* req) {
     std::string p = uriPath(req);
-    Log.printf("GET %s\r\n", p.c_str());
+    Log.printf("GET %s\n", p.c_str());
 
     if (startsWith(p, "/wifi/options/")) {
         std::string name = p.substr(14);
@@ -219,7 +219,7 @@ std::string formValue(const std::string& body, const std::string& key) {
 
 esp_err_t postHandler(httpd_req_t* req) {
     std::string p = uriPath(req);
-    Log.printf("POST %s\r\n", p.c_str());
+    Log.printf("POST %s\n", p.c_str());
     std::string name = p.size() <= 6 ? "main" : p.substr(6);
     int idx = find(name);
     if (idx < 0) return sendText(req, "404 Not Found", "Endpoint not found");
@@ -252,7 +252,7 @@ void begin() {
     conf.max_files = 4;
     conf.format_if_mount_failed = true;
     esp_err_t err = esp_vfs_spiffs_register(&conf);
-    if (err != ESP_OK) Log.printf("SPIFFS mount failed: %s\r\n", esp_err_to_name(err));
+    if (err != ESP_OK) Log.printf("SPIFFS mount failed: %s\n", esp_err_to_name(err));
 }
 
 std::string slurp(const std::string& fn) {

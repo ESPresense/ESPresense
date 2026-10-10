@@ -21,7 +21,7 @@ namespace {
 void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* md5hex) {
     const esp_partition_t* part = esp_ota_get_next_update_partition(nullptr);
     if (!part || size > part->size) {
-        Log.printf("espota: no partition for %u bytes\r\n", (unsigned)size);
+        Log.printf("espota: no partition for %u bytes\n", (unsigned)size);
         return;
     }
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -70,7 +70,7 @@ void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* 
     for (int i = 0; i < 16; i++) snprintf(got + i * 2, 3, "%02x", digest[i]);
 
     if (err == ESP_OK && strcasecmp(got, md5hex) != 0) {
-        Log.printf("espota: md5 mismatch %s != %s\r\n", got, md5hex);
+        Log.printf("espota: md5 mismatch %s != %s\n", got, md5hex);
         err = ESP_ERR_INVALID_CRC;
     }
     if (err == ESP_OK) err = esp_ota_end(ota);
@@ -89,7 +89,7 @@ void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* 
     char msg[64];
     int len = snprintf(msg, sizeof(msg), "ERR: %s", esp_err_to_name(err));
     send(sock, msg, len, 0);
-    Log.printf("espota: %s\r\n", msg);
+    Log.printf("espota: %s\n", msg);
     close(sock);
 }
 
@@ -127,7 +127,7 @@ void task(void* arg) {
         }
         // ponytail: no OTA password, same as the Arduino build (ArduinoOTA.setPassword was never called).
         sendto(udp, "OK", 2, 0, (sockaddr*)&from, fromLen);
-        Log.printf("espota: update from %s (%u bytes)\r\n", inet_ntoa(from.sin_addr), size);
+        Log.printf("espota: update from %s (%u bytes)\n", inet_ntoa(from.sin_addr), size);
         runUpdate(from, hostPort, size, md5hex);
     }
 }

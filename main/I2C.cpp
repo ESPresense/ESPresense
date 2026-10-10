@@ -121,10 +121,10 @@ bool writeReg(int bus, uint8_t addr, uint8_t reg, uint8_t val) {
 
 static int scan(int bus) {
     int n = 0;
-    Log.printf("Scanning I2C for devices on Bus %d...\r\n", bus);
+    Log.printf("Scanning I2C for devices on Bus %d...\n", bus);
     for (uint8_t address = 1; address < 127; address++) {
         if (probe(bus, address)) {
-            Log.printf("I2C device found on bus %d at address 0x%02X\r\n", bus, address);
+            Log.printf("I2C device found on bus %d at address 0x%02X\n", bus, address);
             n++;
         }
     }
@@ -133,9 +133,9 @@ static int scan(int bus) {
 
 void SerialReport() {
     if (I2C_Bus_1_Started)
-        Log.printf("I2C Bus 1:    sda=%d scl=%d\r\n", I2C_Bus_1_SDA, I2C_Bus_1_SCL);
+        Log.printf("I2C Bus 1:    sda=%d scl=%d\n", I2C_Bus_1_SDA, I2C_Bus_1_SCL);
     if (I2C_Bus_2_Started)
-        Log.printf("I2C Bus 2:    sda=%d scl=%d\r\n", I2C_Bus_2_SDA, I2C_Bus_2_SCL);
+        Log.printf("I2C Bus 2:    sda=%d scl=%d\n", I2C_Bus_2_SDA, I2C_Bus_2_SCL);
 
     if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
     if (!I2CDebug) return;
@@ -147,7 +147,7 @@ void SerialReport() {
 #endif
     // ponytail: the new driver only reports ack/nack, so the Wire "Unknown error" branch is gone.
     if (nDevices == 0) {
-        Log.println("No I2C devices found\r\n");
+        Log.println("No I2C devices found\n");
     }
 }
 }  // namespace I2C

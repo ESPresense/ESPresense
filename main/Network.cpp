@@ -131,7 +131,7 @@ void dnsTask(void* arg) {
         apPassword.copy((char*)ap.ap.password, sizeof(ap.ap.password) - 1);  // ap is zeroed, so NUL-terminated
         ap.ap.authmode = WIFI_AUTH_WPA2_PSK;
     } else if (!apPassword.empty()) {
-        Log.printf("AP password is %u bytes, not 8-63; starting an OPEN access point.\r\n", (unsigned)apPassword.size());
+        Log.printf("AP password is %u bytes, not 8-63; starting an OPEN access point.\n", (unsigned)apPassword.size());
     }
     esp_wifi_set_config(WIFI_IF_AP, &ap);
     esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);

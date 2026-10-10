@@ -53,7 +53,7 @@ void Addressable::update() {
         rmt.flags.with_dma = false;
         esp_err_t err = led_strip_new_rmt_device(&cfg, &rmt, &strip);
         if (err != ESP_OK) {
-            Log.printf("LED %d: led_strip init failed: %s\r\n", getIndex(), esp_err_to_name(err));
+            Log.printf("LED %d: led_strip init failed: %s\n", getIndex(), esp_err_to_name(err));
             strip = nullptr;
             return;
         }

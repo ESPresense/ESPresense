@@ -33,7 +33,7 @@ uint8_t LED::getBrightness() {
  * @return bool `true` if the requested brightness differs from the current brightness (and an update was triggered), `false` if the requested value equals the current brightness.
  */
 bool LED::setBrightness(uint8_t p_brightness) {
-    // Log.printf("LED::setBrightness(%d)\r\n", p_brightness);
+    // Log.printf("LED::setBrightness(%d)\n", p_brightness);
     if (p_brightness == brightness) return false;
     if (p_brightness > 0)
         brightness = p_brightness;
@@ -66,7 +66,7 @@ bool LED::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_whi
     if (p_red == color.red && p_green == color.green && p_blue == color.blue && p_white == color.white) {
         return false;
     }
-    // Log.printf("LED::setColor(%d, %d, %d)\r\n", p_red, p_green, p_blue);
+    // Log.printf("LED::setColor(%d, %d, %d)\n", p_red, p_green, p_blue);
     color.red = p_red;
     color.green = p_green;
     color.blue = p_blue;
@@ -83,7 +83,7 @@ bool LED::setColor(uint8_t p_red, uint8_t p_green, uint8_t p_blue, uint8_t p_whi
  * @return true if the color or brightness was changed, false otherwise.
  */
 bool LED::setWhite(uint8_t p_white) {
-    //Log.printf("LED::setWhite(%d)\r\n", p_white);
+    //Log.printf("LED::setWhite(%d)\n", p_white);
     if (!LED::setColor(255, 255, 255) && !LED::setBrightness(p_white)) return false;
     return true;
 }
@@ -108,7 +108,7 @@ uint16_t LED::getColorTemperature(void) {
  * @return true if the color temperature was applied, false otherwise.
  */
 bool LED::setColorTemperature(uint16_t p_colorTemperature) {
-    //Log.printf("LED::setColorTemperature(%d)\r\n", p_colorTemperature);
+    //Log.printf("LED::setColorTemperature(%d)\n", p_colorTemperature);
     dirty = true;
     return false;
 }
@@ -120,7 +120,7 @@ bool LED::setColorTemperature(uint16_t p_colorTemperature) {
  * @return bool `false` indicating the requested effect is not applied.
  */
 bool LED::setEffect(const char *p_effect) {
-    //Log.printf("LED::setEffect(%s)\r\n", p_effect);
+    //Log.printf("LED::setEffect(%s)\n", p_effect);
     dirty = true;
     return false;
 }
@@ -140,7 +140,7 @@ bool LED::getState() {
  */
 bool LED::setState(bool p_state) {
     if (state == p_state) return false;
-    // Log.printf("LED::setState(%s)\r\n", p_state ? "true" : "false");
+    // Log.printf("LED::setState(%s)\n", p_state ? "true" : "false");
     state = p_state;
     dirty = true;
     update();
