@@ -6,6 +6,7 @@
  * ```
  *
  * The node validates and applies them (POST /json/template); only the keys in `settings` change.
+ * Any setting may appear (pins, LEDs, Ethernet type, ...), so templates live on their own page.
  */
 
 export interface TemplateChange {
@@ -61,7 +62,25 @@ export async function postTemplate(text: string, dryRun: boolean): Promise<Templ
 	return { changes: data.changes ?? [], restart: data.restart ?? false };
 }
 
-/** Fetches this node's hardware settings as a template. */
+/**
+ * Waits for the node to come back after applying a template restarted it.
+ * @throws Error if it doesn't answer within about 20 seconds
+ */
+export async function waitForRestart(attempts = 15): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, 2000));
+	for (let i = 0; i < attempts; i++) {
+		try {
+			const response = await fetch('/json/template', { signal: AbortSignal.timeout(2000) });
+			if (response.ok) return;
+		} catch {
+			// still restarting
+		}
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+	}
+	throw new Error('The node did not come back after restarting. Please refresh the page.');
+}
+
+/** Fetches this node's board settings as a template. */
 export async function fetchTemplate(): Promise<Record<string, unknown>> {
 	const response = await fetch('/json/template');
 	if (!response.ok) throw new Error(`Export failed (${response.status})`);

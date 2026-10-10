@@ -169,6 +169,7 @@ void setupNetwork() {
     // the ESP32 acts on the RMII boards (1-13), the ESP32-S3 on the W5500 one (14).
     std::vector<std::string> ethernetTypes = {"None", "WT32-ETH01", "ESP32-POE", "WESP32", "QuinLED-ESP32", "TwilightLord-ESP32", "ESP32Deux", "KIT-VE", "LilyGO-T-ETH-POE", "GL-inet GL-S10 v2.1 Ethernet", "EST-PoE-32", "LilyGO-T-ETH-Lite (RTL8201)", "ESP32-POE_A1", "WESP32 Rev7+ (RTL8201)", "Waveshare ESP32-S3-ETH (W5500)"};
     ethernetType = Settings::dropdown("eth", ethernetTypes, 0, "Ethernet Type");
+    Settings::markBoard();
     if (!Network::supportsEthernet()) ethernetType = 0;
 
     mqttHost = Settings::string("mqtt_host", DEFAULT_MQTT_HOST, "Server");

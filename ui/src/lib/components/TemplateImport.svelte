@@ -1,7 +1,5 @@
 <script lang="ts">
-    import { hardwareSettings } from '#lib/stores.js';
-    import { reloadSettingsWithRetry } from '#lib/utils/settings.js';
-    import { fetchTemplate, formatValue, postTemplate, type TemplateChange } from '#lib/utils/template.js';
+    import { fetchTemplate, formatValue, postTemplate, waitForRestart, type TemplateChange } from '#lib/utils/template.js';
 
     let text = $state<string>('');
     /** Changes from the last successful preview; null until previewed */
@@ -42,8 +40,7 @@
             status = 'Template applied. Restarting...';
             changes = null;
             text = '';
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            await reloadSettingsWithRetry('/wifi/hardware', hardwareSettings, 15);
+            await waitForRestart();
             status = 'Template applied.';
         } catch (e) {
             error = (e as Error).message;
@@ -72,11 +69,16 @@
 
 <section id="board-template" class="space-y-4">
     <h2>
-        <a href="https://espresense.com/configuration/hardware#board-templates" target="_blank">Board Template</a>
+        <a href="https://espresense.com/configuration/templates" target="_blank">Board Template</a>
     </h2>
     <p class="text-sm text-gray-600 dark:text-gray-300">
-        Paste a board template to set this board's pins in one step. Only the settings in the template change;
-        the node restarts after applying.
+        Paste a board template to set up this board in one step. A template can change any setting: pins, LEDs,
+        Ethernet type and more. Only the settings it names change, Preview lists every one before anything is
+        saved, and the node restarts after applying.
+    </p>
+    <p class="text-sm text-gray-600 dark:text-gray-300">
+        Export saves this board's pin, LED, sensor and Ethernet settings that differ from the defaults. Room,
+        WiFi and MQTT settings are never exported, so the file is safe to share; add the board's name before you do.
     </p>
     <label>
         Template JSON:<br />

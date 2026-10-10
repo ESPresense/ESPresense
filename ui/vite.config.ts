@@ -17,6 +17,7 @@ export default defineConfig({
                     '/',
                     '/settings',
                     '/hardware',
+                    '/templates',
                     '/devices',
                     '/fingerprints',
                     '/network'

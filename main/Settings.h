@@ -25,17 +25,21 @@ void markExtra();                           // following settings belong to /wif
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
 void markState();                           // last setting is runtime state, not configuration:
                                             // left out of export and template import
+void markBoard();                           // last setting describes the board (e.g. Ethernet
+                                            // type): exported in templates like /wifi/hardware
 
-// Typed lookup for a configuration setting on an endpoint; nullptr if unknown or state.
-const SettingSpec* spec(const std::string& endpoint, const std::string& key);
-// Each configuration setting on the endpoint that differs from its default, typed (numbers, bools, strings).
-// Passwords are never written. This is the template export; #2493's full backup can reuse it.
-void serialize(const std::string& endpoint, JsonObject out);
+// Board templates (#2529) may set any configuration setting on any endpoint.
+// Typed lookup by name; nullptr if unknown, runtime state, or a password (never in templates).
+const SettingSpec* spec(const std::string& key);
+// The board's settings that differ from their defaults, typed (numbers, bools, strings): every
+// /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays
+// out so exported templates are safe to share. Param::put is the typed writer #2493 can reuse.
+void serializeBoard(JsonObject out);
 // Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which
 // resets every key missing from the body. Values must already be validated (parseTemplate).
-// Appends {key, label, from, to} for each value that differs; dryRun stops there. False on a
-// flash write error.
-bool apply(const std::string& endpoint, const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff);
+// Appends {key, label, from, to} for each value that differs (as far as diff has room) and counts
+// them in changed; dryRun stops there. False on a flash write error.
+bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed);
 
 // Raw file access. spurt("") removes the file.
 std::string slurp(const std::string& fn);

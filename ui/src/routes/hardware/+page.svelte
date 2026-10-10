@@ -1,7 +1,6 @@
 <script lang="ts">
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
-    import TemplateImport from '#lib/components/TemplateImport.svelte';
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);
@@ -28,8 +27,6 @@
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if $hardwareSettings?.values != null}
-    <TemplateImport />
-    <hr class="my-8 border-gray-300 dark:border-gray-600" />
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
         <h2>
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>

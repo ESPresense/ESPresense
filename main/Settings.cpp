@@ -28,6 +28,7 @@ struct Param {
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
     bool state = false;  // runtime state stored alongside settings (markState)
+    bool board = false;  // exported in board templates (markBoard)
     SettingSpec spec_;   // filled by spec()
 
     const SettingSpec* spec() {
@@ -166,13 +167,15 @@ Param* add(Type type, const std::string& name, const std::string& init, const st
 
 Param* last() { return endpoints[current].params.back(); }
 
-Param* findParam(const std::string& endpoint, const std::string& key) {
-    int idx = find(endpoint);
-    if (idx < 0) return nullptr;
-    for (auto* p : endpoints[idx].params)
-        if (p->name == key) return p;
+Param* findParam(const std::string& key) {
+    for (auto& e : endpoints)
+        for (auto* p : e.params)
+            if (p->name == key) return p;
     return nullptr;
 }
+
+// Settings a template may carry: no runtime state, no secrets.
+bool templatable(const Param* p) { return p && !p->state && p->type != Type::Password; }
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -386,30 +389,31 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
 void markState() { last()->state = true; }
+void markBoard() { last()->board = true; }
 
-const SettingSpec* spec(const std::string& endpoint, const std::string& key) {
-    Param* p = findParam(endpoint, key);
-    return p && !p->state ? p->spec() : nullptr;
+const SettingSpec* spec(const std::string& key) {
+    Param* p = findParam(key);
+    return templatable(p) ? p->spec() : nullptr;
 }
 
-void serialize(const std::string& endpoint, JsonObject out) {
-    int idx = find(endpoint);
-    if (idx < 0) return;
-    for (auto* p : endpoints[idx].params) {
-        if (p->state || p->type == Type::Password) continue;
-        if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
-        p->put(out[p->name.c_str()], p->effective());  // names live forever: stored by pointer
-    }
+void serializeBoard(JsonObject out) {
+    for (auto& e : endpoints)
+        for (auto* p : e.params) {
+            if (!templatable(p) || !(p->board || e.name == "hardware")) continue;
+            if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
+            p->put(out[p->name.c_str()], p->effective());   // names live forever: stored by pointer
+        }
 }
 
-bool apply(const std::string& endpoint, const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff) {
+bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed) {
     bool ok = true;
+    changed = 0;
     for (auto& c : changes) {
-        Param* p = findParam(endpoint, c.key);
-        if (!p || p->state) continue;
-        if (p->type == Type::Password && c.value == MASKED_PASSWORD) continue;
+        Param* p = findParam(c.key);
+        if (!templatable(p)) continue;
         std::string from = p->effective();
         if (p->same(from, c.value)) continue;
+        changed++;
         JsonObject d = diff.createNestedObject();
         d["key"] = p->name.c_str();
         d["label"] = p->label.c_str();

@@ -128,9 +128,9 @@ esp_err_t serveTele(httpd_req_t* req) {
 }
 
 // --- board templates (#2529) --------------------------------------------------------------------
-// GET exports this node's hardware settings as a template; POST imports one (see SettingsTemplate.h)
+// GET exports this node's board settings as a template; POST imports one (see SettingsTemplate.h)
 // and restarts if anything changed. POST ?dry validates and returns the changes without saving.
-constexpr const char* TEMPLATE_ENDPOINT = "hardware";
+// A template may set any configuration setting, not just /wifi/hardware (e.g. Ethernet type).
 constexpr const char* TEMPLATE_SECTION = "settings";
 constexpr size_t TEMPLATE_MAX_BODY = 6144;
 
@@ -145,7 +145,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
 #ifdef VERSION
     root["version"] = VERSION;
 #endif
-    Settings::serialize(TEMPLATE_ENDPOINT, root.createNestedObject(TEMPLATE_SECTION));
+    Settings::serializeBoard(root.createNestedObject(TEMPLATE_SECTION));
     if (doc.overflowed()) return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
     return sendJsonDoc(req, doc);
 }
@@ -166,30 +166,36 @@ esp_err_t postTemplate(httpd_req_t* req) {
     std::vector<SettingChange> changes;
     std::string name;
     {
-        // Keys and strings are copied out of body, so body.size() bounds them; 128 slots is ~2x
-        // the hardware endpoint. Scoped so it is freed before the reply is built.
-        DynamicJsonDocument doc(JSON_OBJECT_SIZE(128) + body.size());
+        // Keys and strings are copied out of body, so body.size() bounds them; 160 slots covers
+        // every registered setting. Scoped so it is freed before the reply is built.
+        DynamicJsonDocument doc(JSON_OBJECT_SIZE(160) + body.size());
         if (doc.capacity() == 0) return sendTemplateError(req, "429 Too Many Requests", "low memory");
         DeserializationError e = deserializeJson(doc, body);
         if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
         std::string err;
-        auto lookup = [](const char* key) { return Settings::spec(TEMPLATE_ENDPOINT, key); };
+        auto lookup = [](const char* key) { return Settings::spec(key); };
         if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_SECTION, lookup, changes, err))
             return sendTemplateError(req, "400 Bad Request", err);
         name = doc["name"] | "";
     }
     std::string().swap(body);
 
-    DynamicJsonDocument out(JSON_OBJECT_SIZE(4) + JSON_ARRAY_SIZE(changes.size()) + changes.size() * (JSON_OBJECT_SIZE(4) + 32) + 256);
+    // "to" values are copies of the template's strings; "from" values are bounded the same way in
+    // practice. If a diff still overflows, the count and restart below stay right.
+    size_t strings = 0;
+    for (auto& c : changes) strings += c.value.size() + 1;
+    DynamicJsonDocument out(JSON_OBJECT_SIZE(4) + JSON_ARRAY_SIZE(changes.size()) + changes.size() * (JSON_OBJECT_SIZE(4) + 32) + 2 * strings + 256);
     JsonObject root = out.to<JsonObject>();
+    root["restart"] = false;  // claimed before the diff can use up the document
     JsonArray diff = root.createNestedArray("changes");
-    if (!Settings::apply(TEMPLATE_ENDPOINT, changes, dryRun, diff)) {
+    size_t changed = 0;
+    if (!Settings::apply(changes, dryRun, diff, changed)) {
         Log.println("Template: error writing to flash filesystem");
         return sendTemplateError(req, "500 Internal Server Error", "Error writing to flash filesystem");
     }
-    bool restart = !dryRun && diff.size() > 0;
+    bool restart = !dryRun && changed > 0;
     root["restart"] = restart;
-    Log.printf("Template %s\"%s\": %u change(s)%s\r\n", dryRun ? "preview " : "", name.c_str(), (unsigned)diff.size(), restart ? ", restarting" : "");
+    Log.printf("Template %s\"%s\": %u change(s)%s\r\n", dryRun ? "preview " : "", name.c_str(), (unsigned)changed, restart ? ", restarting" : "");
     esp_err_t rc = sendJsonDoc(req, out);
     if (restart) {
         delay(100);

@@ -1,16 +1,17 @@
 #pragma once
-// Board templates (#2529): a shareable JSON document holding the hardware settings of a board.
+// Board templates (#2529): a shareable JSON document holding the settings that make a board work
+// (pins, LED types, Ethernet type, ...).
 //
 //   {"name": "Athom Smart Plug V3", "chip": "esp32c3", "settings": {"led_1_pin": 6, ...}}
 //
-// Setting names are unique across endpoints, so a full backup (#2493) can use the same flat
-// "settings" object; a template is limited to one endpoint's keys. chip is the lowercase
+// Setting names are unique across endpoints, so "settings" is flat and may name any configuration
+// setting; a full backup (#2493) can use the same shape. chip is the lowercase
 // chip name ("esp32", "esp32c3", "esp32c6", "esp32s3") and must match the node exactly.
 //
 // Parsing and validation only: no flash, no HTTP, so it runs in the host tests. Settings.cpp owns
 // the registry (which keys exist, their types and ranges) and applies the result; a template only
-// touches the keys it names. Whatever is registered on the target endpoint is accepted, so new
-// hardware settings work in templates without changes here.
+// touches the keys it names. Any registered setting is accepted (passwords and runtime state
+// excepted), so new settings work in templates without changes here.
 #include <cctype>
 #include <climits>
 #include <cstdio>

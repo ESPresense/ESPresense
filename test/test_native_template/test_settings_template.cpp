@@ -10,7 +10,7 @@
 
 namespace {
 
-// A slice of the /wifi/hardware registry.
+// A slice of the settings registry: /wifi/hardware plus Ethernet type from /wifi.
 std::map<std::string, SettingSpec> registry() {
     std::map<std::string, SettingSpec> r;
     r["led_1_pin"] = {SettingType::Int, -1, 48, 0};
@@ -18,6 +18,7 @@ std::map<std::string, SettingSpec> registry() {
     r["button_1_timeout"] = {SettingType::Float, 0, 300, 0};
     r["I2CDebug"] = {SettingType::Bool, LONG_MIN, LONG_MAX, 0};
     r["AHTX0_I2c"] = {SettingType::String, LONG_MIN, LONG_MAX, 0};
+    r["eth"] = {SettingType::Dropdown, LONG_MIN, LONG_MAX, 15};
     return r;
 }
 
@@ -70,6 +71,15 @@ void test_integer_accepted_for_float_and_bool(void) {
     TEST_ASSERT_EQUAL_STRING("0", value(r, "I2CDebug").c_str());
 }
 
+void test_ethernet_board_template(void) {
+    // Ethernet boards are set by the network-page "eth" dropdown, not a hardware setting.
+    Result r = parse(R"({"name":"WT32-ETH01","chip":"esp32","settings":{"eth":1,"led_1_pin":-1}})", "esp32");
+    TEST_ASSERT_TRUE_MESSAGE(r.ok, r.err.c_str());
+    TEST_ASSERT_EQUAL_STRING("1", value(r, "eth").c_str());
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32s3","settings":{"eth":14}})", "esp32s3").ok);
+    TEST_ASSERT_FALSE(parse(R"({"chip":"esp32","settings":{"eth":15}})", "esp32").ok);
+}
+
 void test_chip_mismatch_rejected(void) {
     Result r = parse(R"({"chip":"esp32","settings":{"led_1_pin":6}})");
     TEST_ASSERT_FALSE(r.ok);
@@ -112,7 +122,7 @@ void test_not_an_object_rejected(void) {
 }
 
 void test_unknown_key_rejects_everything(void) {
-    // Outside the endpoint (mqtt_pass lives on /wifi) or simply unknown: nothing is applied.
+    // Not importable (a password: the lookup refuses it) or simply unknown: nothing is applied.
     Result r = parse(R"({"chip":"esp32c3","settings":{"led_1_pin":6,"mqtt_pass":"x"}})");
     TEST_ASSERT_FALSE(r.ok);
     TEST_ASSERT_EQUAL_STRING("unknown setting \"mqtt_pass\"", r.err.c_str());
@@ -160,6 +170,7 @@ int main(int, char**) {
     RUN_TEST(test_valid_template_yields_only_its_keys);
     RUN_TEST(test_types_are_stored_canonically);
     RUN_TEST(test_integer_accepted_for_float_and_bool);
+    RUN_TEST(test_ethernet_board_template);
     RUN_TEST(test_chip_mismatch_rejected);
     RUN_TEST(test_chip_is_exact_lowercase_name);
     RUN_TEST(test_settings_must_be_under_settings_key);
