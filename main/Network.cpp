@@ -318,7 +318,7 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         if (ethStarted) {
             Log.print("Connecting to Ethernet");
             if (waitForIp(ethernetWaitSeconds, nullptr, 0)) {
-                Log.println(localIP());
+                Log.println(" connected Ethernet!");
                 return true;
             }
             Log.println(" failed, trying WiFi");
@@ -363,7 +363,7 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         if (portal) Network::portal();
         return false;
     }
-    Log.println(localIP());
+    Log.println(" connected WiFi!");
     return true;
 }
 
