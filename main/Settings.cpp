@@ -20,13 +20,22 @@ constexpr const char* BASE = "/spiffs";
 constexpr const char* MASKED_PASSWORD = "***###***";
 constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
-enum class Type { Dropdown, String, Password, Int, Float, Bool };
+using Type = SettingType;
 
 struct Param {
     Type type;
     std::string name, label, value, init;
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
+    bool state = false;  // runtime state stored alongside settings (markState)
+    bool board = false;  // exported in board templates (markBoard)
+    SettingSpec spec_;   // filled by spec()
+
+    const SettingSpec* spec() {
+        spec_ = {type, min, max, options.size()};
+        return &spec_;
+    }
+    std::string effective() const { return value.empty() ? init : value; }
 
     std::string filename() const { return "/" + name; }
     void fill() { value = slurp(filename()); }
@@ -59,6 +68,42 @@ struct Param {
                 return jsonNumeric(name, toInt(v) ? "true" : "false");
             default:
                 return jsonString(name, v);
+        }
+    }
+    // Typed JSON value; strtod keeps "0.10" as 0.1 rather than float-widening it to 0.100000001.
+    // Template, not JsonVariant: obj["k"] for a missing key converts to a null variant that
+    // set() silently ignores; the proxy itself adds the member.
+    template <class Dst>
+    void put(Dst dst, const std::string& v) const {
+        switch (type) {
+            case Type::Int:
+            case Type::Dropdown:
+                dst.set(toInt(v));
+                break;
+            case Type::Float:
+                dst.set(strtod(v.c_str(), nullptr));
+                break;
+            case Type::Bool:
+                dst.set(toInt(v) != 0);
+                break;
+            case Type::Password:
+                dst.set(MASKED_PASSWORD);
+                break;
+            default:
+                dst.set(v);
+        }
+    }
+    // Equal once parsed: "0.50" and "0.5", or "05" and "5", are not a change.
+    bool same(const std::string& a, const std::string& b) const {
+        switch (type) {
+            case Type::Float:
+                return strtod(a.c_str(), nullptr) == strtod(b.c_str(), nullptr);
+            case Type::Int:
+            case Type::Dropdown:
+            case Type::Bool:
+                return toInt(a) == toInt(b);
+            default:
+                return a == b;
         }
     }
     std::string jsonValue() const { return json(value); }
@@ -121,6 +166,16 @@ Param* add(Type type, const std::string& name, const std::string& init, const st
 }
 
 Param* last() { return endpoints[current].params.back(); }
+
+Param* findParam(const std::string& key) {
+    for (auto& e : endpoints)
+        for (auto* p : e.params)
+            if (p->name == key) return p;
+    return nullptr;
+}
+
+// Settings a template may carry: no runtime state, no secrets.
+bool templatable(const Param* p) { return p && !p->state && p->type != Type::Password; }
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -333,6 +388,43 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
 
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
+void markState() { last()->state = true; }
+void markBoard() { last()->board = true; }
+
+const SettingSpec* spec(const std::string& key) {
+    Param* p = findParam(key);
+    return templatable(p) ? p->spec() : nullptr;
+}
+
+void serializeBoard(JsonObject out) {
+    for (auto& e : endpoints)
+        for (auto* p : e.params) {
+            if (!templatable(p) || !(p->board || e.name == "hardware")) continue;
+            if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
+            p->put(out[p->name.c_str()], p->effective());   // names live forever: stored by pointer
+        }
+}
+
+bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed) {
+    bool ok = true;
+    changed = 0;
+    for (auto& c : changes) {
+        Param* p = findParam(c.key);
+        if (!templatable(p)) continue;
+        std::string from = p->effective();
+        if (p->same(from, c.value)) continue;
+        changed++;
+        JsonObject d = diff.createNestedObject();
+        d["key"] = p->name.c_str();
+        d["label"] = p->label.c_str();
+        p->put(d["from"], from);
+        p->put(d["to"], c.value);
+        if (dryRun) continue;
+        p->value = c.value;  // not set(): its form semantics make any present checkbox "on"
+        if (!p->store()) ok = false;
+    }
+    return ok;
+}
 
 void registerHttp(httpd_handle_t server) {
     httpd_uri_t get = {};

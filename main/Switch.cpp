@@ -49,12 +49,12 @@ void Setup() {
 void ConnectToWifi(bool updating) {
     std::vector<std::string> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     switch_1Type = Settings::dropdown("switch_1_type", pinTypes, 0, "Switch One pin type");
-    switch_1Pin = Settings::integer("switch_1_pin", -1, "Switch One pin (-1 for disable)");
+    switch_1Pin = Settings::integer("switch_1_pin", -1, 48, -1, "Switch One pin (-1 for disable)");
     switch_1Timeout = Settings::floating("switch_1_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch One timeout (in seconds)");
     switch_1Detected = switch_1Type & 0x01 ? LOW : HIGH;
 
     switch_2Type = Settings::dropdown("switch_2_type", pinTypes, 0, "Switch Two pin type");
-    switch_2Pin = Settings::integer("switch_2_pin", -1, "Switch Two pin (-1 for disable)");
+    switch_2Pin = Settings::integer("switch_2_pin", -1, 48, -1, "Switch Two pin (-1 for disable)");
     switch_2Timeout = Settings::floating("switch_2_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Switch Two timeout (in seconds)");
     switch_2Detected = switch_2Type & 0x01 ? LOW : HIGH;
 }

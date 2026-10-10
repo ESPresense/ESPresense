@@ -33,6 +33,12 @@
         />
 
         <SidebarItem
+            icon="template"
+            title="Templates"
+            href={resolve('/templates')}
+        />
+
+        <SidebarItem
             icon="device"
             title="Devices"
             href={resolve('/devices')}

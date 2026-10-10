@@ -48,12 +48,12 @@ void Setup() {
 void ConnectToWifi(bool updating) {
     std::vector<std::string> pinTypes = {"Pullup", "Pullup Inverted", "Pulldown", "Pulldown Inverted", "Floating", "Floating Inverted"};
     pirType = Settings::dropdown("pir_type", pinTypes, 0, "PIR motion pin type");
-    pirPin = Settings::integer("pir_pin", -1, "PIR motion pin (-1 for disable)");
+    pirPin = Settings::integer("pir_pin", -1, 48, -1, "PIR motion pin (-1 for disable)");
     pirTimeout = Settings::floating("pir_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "PIR motion timeout (in seconds)");
     pirDetected = pirType & 0x01 ? LOW : HIGH;
 
     radarType = Settings::dropdown("radar_type", pinTypes, 0, "Radar motion pin type");
-    radarPin = Settings::integer("radar_pin", -1, "Radar motion pin (-1 for disable)");
+    radarPin = Settings::integer("radar_pin", -1, 48, -1, "Radar motion pin (-1 for disable)");
     radarTimeout = Settings::floating("radar_timeout", 0, 300, DEFAULT_DEBOUNCE_TIMEOUT, "Radar motion timeout (in seconds)");
     radarDetected = radarType & 0x01 ? LOW : HIGH;
 }

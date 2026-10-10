@@ -69,6 +69,12 @@
       svg: `<path d="M8 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H8zM7 2h2v4H7zM11 2h2v4h-2zM15 2h2v4h-2zM7 18h2v4H7zM11 18h2v4h-2zM15 18h2v4h-2zM2 7h4v2H2zM2 11h4v2H2zM2 15h4v2H2zM18 7h4v2h-4zM18 11h4v2h-4zM18 15h4v2h-4zM10 10h4v4h-4z" />`
     },
     {
+      name: "template",
+      w: 24,
+      h: 24,
+      svg: `<path d="M5 3h10l4 4v14H5V3zm2 2v14h10V8h-3V5H7zm2 6h6v2H9v-2zm0 4h6v2H9v-2z" />`
+    },
+    {
       name: "logo",
       w: 210,
       h: 210,

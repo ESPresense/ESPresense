@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "ArduinoJson.h"
+#include "SettingsTemplate.h"
 #include "esp_http_server.h"
 
 namespace Settings {
@@ -21,6 +23,23 @@ bool checkbox(const std::string& name, bool init = false, const std::string& lab
 
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
+void markState();                           // last setting is runtime state, not configuration:
+                                            // left out of export and template import
+void markBoard();                           // last setting describes the board (e.g. Ethernet
+                                            // type): exported in templates like /wifi/hardware
+
+// Board templates (#2529) may set any configuration setting on any endpoint.
+// Typed lookup by name; nullptr if unknown, runtime state, or a password (never in templates).
+const SettingSpec* spec(const std::string& key);
+// The board's settings that differ from their defaults, typed (numbers, bools, strings): every
+// /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays
+// out so exported templates are safe to share. Param::put is the typed writer #2493 can reuse.
+void serializeBoard(JsonObject out);
+// Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which
+// resets every key missing from the body. Values must already be validated (parseTemplate).
+// Appends {key, label, from, to} for each value that differs (as far as diff has room) and counts
+// them in changed; dryRun stops there. False on a flash write error.
+bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed);
 
 // Raw file access. spurt("") removes the file.
 std::string slurp(const std::string& fn);
