@@ -65,7 +65,7 @@ void ConnectToWifi(bool updating) {
     for (int i = 0; i < MAX_RELAYS; i++) relays[i].index = i + 1;
     for (int n = 1; n <= count; n++) {
         auto& r = relays[n - 1];
-        r.inverted = Settings::dropdown(Sprintf("relay_%d_type", n), relayTypes, 0, "Relay Type") == 1;
+        r.inverted = Settings::dropdown(Sprintf("relay_%d_type", n), relayTypes, 0, "Relay pin type") == 1;
         r.pin = Settings::integer(Sprintf("relay_%d_pin", n), -1, 48, -1, "Pin (-1 to disable)");
         r.powerOn = (RelayPowerOn)Settings::dropdown(Sprintf("relay_%d_state", n), powerOnStates, 0, "Power-on state");
         r.button = Settings::dropdown(Sprintf("relay_%d_button", n), buttons, 0, "Toggle with button");

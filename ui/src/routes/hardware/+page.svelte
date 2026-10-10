@@ -69,7 +69,7 @@
 {/snippet}
 
 {#snippet relay(n: number)}
-    {@render dropdown(`relay_${n}_type`, 'Relay Type', relayTypes)}
+    {@render dropdown(`relay_${n}_type`, 'Relay pin type', relayTypes)}
     {@render number(`relay_${n}_pin`, 'Pin (-1 to disable)', { step: '1', min: '-1', max: '48' })}
     {@render dropdown(`relay_${n}_state`, 'Power-on state', powerOnStates)}
     {@render dropdown(`relay_${n}_button`, 'Toggle with button', relayButtons)}
