@@ -113,27 +113,13 @@
 #define DEFAULT_I2C_BUS_2_SCL 21
 #define DEFAULT_I2C_BUS 1
 #else
-#ifdef ESP32C3
-#define DEFAULT_I2C_BUS_1_SDA 19
-#define DEFAULT_I2C_BUS_1_SCL 18
+// Off unless configured: any default pin collides with something on some board (RMII Ethernet,
+// plug metering pins, the C3's USB pins, status LEDs).
+#define DEFAULT_I2C_BUS_1_SDA -1
+#define DEFAULT_I2C_BUS_1_SCL -1
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
-#else
-#ifdef ESP32C6
-#define DEFAULT_I2C_BUS_1_SDA 6
-#define DEFAULT_I2C_BUS_1_SCL 7
-#define DEFAULT_I2C_BUS_2_SDA -1
-#define DEFAULT_I2C_BUS_2_SCL -1
-#define DEFAULT_I2C_BUS 1
-#else
-#define DEFAULT_I2C_BUS_1_SDA 21
-#define DEFAULT_I2C_BUS_1_SCL 22
-#define DEFAULT_I2C_BUS_2_SDA -1
-#define DEFAULT_I2C_BUS_2_SCL -1
-#define DEFAULT_I2C_BUS 1
-#endif
-#endif
 #endif
 #endif
 
