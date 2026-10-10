@@ -195,6 +195,7 @@ void setupNetwork() {
     Outputs::ConnectToWifi(updating);
     PowerMonitor::ConnectToWifi(updating);
     Battery::ConnectToWifi(updating);
+    AXP192::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -486,9 +487,6 @@ void setup() {
     SerialImprov::Setup();
     Settings::begin();
     Network::Setup();
-#if M5STICK
-    AXP192::Setup();
-#endif
 
     GUI::Setup(true);
     BleFingerprintCollection::Setup();
@@ -531,7 +529,7 @@ void setup() {
  * loop when free memory exceeds 70,000 bytes.
  *
  * Subsystems invoked each iteration include GUI, Inputs, Outputs, HTTP server,
- * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
+ * SerialImprov, NTP, AXP192 and various sensor modules.
  */
 void loop() {
     reportLoop();
@@ -571,9 +569,7 @@ void loop() {
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();
-#if M5STICK
     AXP192::Loop();
-#endif
 #ifdef SENSORS
     DHT::Loop();
     AHTX0::Loop();

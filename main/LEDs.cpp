@@ -58,7 +58,8 @@ int indexOf(const char* s, const char* const (&options)[N], int fallback) {
  *
  * A JSON list such as [{"type": "grb", "pin": 27, "count": 25, "control": "status"}].
  * type: pwm | pwm_inverted | grb | grbw | rgb | rgbw (the last four addressable; count only
- * applies to those). control: mqtt | status | motion | count. LED n (1-based list position) is
+ * applies to those). control: mqtt | status | motion | count | output (mirrors output "output",
+ * 1-based). max_brightness: 1-255 ceiling, default 100 for addressable, 255 for PWM. LED n (1-based list position) is
  * led_<n> in MQTT and keeps its colour in /led_<n>_state. The default is the board's LED.
  */
 void ConnectToWifi(bool updating) {
@@ -78,6 +79,8 @@ void ConnectToWifi(bool updating) {
         int pin = o["pin"] | -1;
         int cnt = o["count"] | 1;
         leds.push_back(newLed(n, cntrl, type, pin, cnt, Settings::slurp(Sprintf("/led_%d_state", n))));
+        // Addressable strips default to 100/255 so a dense matrix doesn't overheat.
+        leds.back()->setMaxBrightness(o["max_brightness"] | (type >= 2 ? 100 : 255));
         if (cntrl == Control_Type_Output && pin >= 0) outputLeds.push_back({leds.back(), o["output"] | 1});
     }
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });

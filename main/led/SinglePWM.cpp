@@ -54,7 +54,7 @@ void SinglePWM::init() {
 }
 
 void SinglePWM::update() {
-    setDuty(LED::getState() ? LED::getBrightness() : 0);
+    setDuty(LED::getState() ? (uint32_t)LED::getBrightness() * LED::getMaxBrightness() / 255 : 0);
 }
 
 void SinglePWM::setDuty(uint32_t x) {

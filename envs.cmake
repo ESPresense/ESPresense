@@ -16,14 +16,6 @@ else()
   list(APPEND FW_DEFS USE_ETHERNET)
 endif()
 
-if(FW_ENV STREQUAL "m5stickc")
-  list(APPEND FW_DEFS M5STICK TFT_FONT=1)
-elseif(FW_ENV STREQUAL "m5stickc-plus")
-  list(APPEND FW_DEFS M5STICK PLUS TFT_FONT=2)
-elseif(FW_ENV STREQUAL "m5atom")
-  list(APPEND FW_DEFS M5ATOM MATRIX)
-endif()
-
 # VERSION / BRANCH come from CI: -DFW_VERSION=v4.1.0 -DFW_BRANCH=main
 if(FW_VERSION)
   list(APPEND FW_DEFS "VERSION=\"${FW_VERSION}\"")

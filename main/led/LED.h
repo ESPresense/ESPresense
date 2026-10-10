@@ -55,6 +55,10 @@ class LED {
     const std::string getStateString();
     void setStateString(const std::string& encoded);
 
+    // Ceiling for the output, 1-255 (led max_brightness): the brightness range is scaled into it.
+    void setMaxBrightness(uint8_t max) { maxBrightness = max ? max : 1; }
+    uint8_t getMaxBrightness() { return maxBrightness; }
+
     virtual bool hasRgb() { return false; }
     virtual bool hasRgbw() { return false; }
 
@@ -65,4 +69,5 @@ class LED {
     bool state = true;
     uint8_t brightness = 128;
     bool dirty = false;
+    uint8_t maxBrightness = 255;
 };

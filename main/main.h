@@ -31,9 +31,7 @@
 #include "mqtt.h"
 #include "string_utils.h"
 #include "util.h"
-#ifdef M5STICK
 #include "AXP192.h"
-#endif
 #ifdef SENSORS
 #include "AHTX0.h"
 #include "BH1750.h"

@@ -7,14 +7,14 @@ import time
 # and each client contains mDNS name and the path to .bin file
 esps = [
   #mDNS name of ESP   #path to ".bin" file
-    ['192.168.128.64', 'm5atom'],
-    ['192.168.128.84', 'm5atom']
+    ['192.168.128.64', 'esp32'],
+    ['192.168.128.84', 'esp32']
 ]
 esp_respond_sender_port = '3232'
 sender_to_esp_port = '3232'
 
 async def main():
-    proc = await asyncio.create_subprocess_exec('sh', '-c', './build.sh m5atom')
+    proc = await asyncio.create_subprocess_exec('sh', '-c', './build.sh esp32')
     await proc.wait()
 
     for esp in esps:

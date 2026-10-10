@@ -93,10 +93,11 @@ uint8_t Addressable::mapBrightness(uint8_t brightness) {
 
     // For non-zero values, ensure we have at least brightness level 1
     // and map the rest of the range proportionally
-    long const result = 1 + ((long)(brightness - 1) * (MAX_BRIGHTNESS - 1)) / 254;
+    long const max = LED::getMaxBrightness();
+    long const result = 1 + ((long)(brightness - 1) * (max - 1)) / 254;
 
     // Ensure we stay within byte range
-    return (uint8_t)std::min(result, (long)MAX_BRIGHTNESS);
+    return (uint8_t)std::min(result, max);
 }
 
 bool Addressable::hasRgbw() {

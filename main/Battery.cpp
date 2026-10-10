@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "mqtt.h"
 #include "Settings.h"
+#include "AXP192.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_oneshot.h"
@@ -22,9 +23,11 @@ static adc_cali_handle_t cali = nullptr;
 static adc_channel_t channel;
 static int smoothMilliVolts = 0;
 
-static bool enabled() { return adc != nullptr; }
+// An AXP192 (M5StickC) measures the cell itself; otherwise an ADC pin does.
+static bool enabled() { return adc != nullptr || AXP192::Ready(); }
 
 static int readMilliVolts() {
+    if (AXP192::Ready()) return AXP192::BatteryMilliVolts();
     int raw = 0, mv = 0;
     if (adc_oneshot_read(adc, channel, &raw) != ESP_OK) return smoothMilliVolts;
     if (!cali || adc_cali_raw_to_voltage(cali, raw, &mv) != ESP_OK) mv = raw * 3100 / 4095;
@@ -97,15 +100,19 @@ bool SendDiscovery() {
     if (!enabled()) return true;
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
         && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
-        && (leadAcid ? sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
+        && (leadAcid || AXP192::Ready() ? sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
                      : sendDeleteDiscovery("binary_sensor", "Charging"));
 }
 
 void SendTelemetry() {
     if (!enabled()) return;
     auto mv = readMilliVolts();
+    if (mv < 0) return;  // AXP192 with no battery fitted
     doc["mV"] = mv;
-    if (leadAcid) {
+    if (AXP192::Ready()) {
+        doc["batt"] = liIonPercent(mv);
+        doc["charging"] = AXP192::Charging() ? "ON" : "OFF";
+    } else if (leadAcid) {
         doc["batt"] = leadAcidPercent(mv);
         doc["charging"] = mv > 13200 ? "ON" : "OFF";
     } else {

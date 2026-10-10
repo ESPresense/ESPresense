@@ -138,7 +138,7 @@ test.describe('Hardware Settings Page', () => {
 		const led1Type = typeOf(page, 'LED 1:');
 		await led1Type.selectOption('grb');
 		await expect(led1Type).toHaveValue('grb');
-		await expect(item(page, 'LED 1:').nth(1)).toContainText('Count');
+		await expect(item(page, 'LED 1:').filter({ hasText: 'Count:' }).first()).toBeVisible();
 
 		// Change input 1 pin
 		const inputPin = pinOf(page, 'Input 1:');
@@ -374,7 +374,7 @@ test.describe('Hardware Settings Page', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		const control = item(page, 'LED 1:').nth(1).locator('select');
+		const control = item(page, 'LED 1:').filter({ hasText: 'LED Control' }).first().locator('select');
 		await expect(control.locator('option')).toHaveText(['MQTT', 'Status', 'Motion', 'Count', 'Output']);
 		await expect(control).toHaveValue('status');
 		await control.selectOption('count');
@@ -521,12 +521,29 @@ test.describe('Hardware lists', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await item(page, 'LED 1:').nth(1).locator('select').selectOption('output');
+		await item(page, 'LED 1:').filter({ hasText: 'LED Control' }).first().locator('select').selectOption('output');
 		await expect(page.getByLabel('Output to show').locator('option')).toHaveText(['1: Relay']);
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('leds=');
 		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)[0]).toMatchObject({ control: 'output' });
+	});
+
+	test('LED max brightness defaults by type and posts in the list', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, {}, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		const max = item(page, 'LED 1:').filter({ hasText: 'Max brightness' }).first().locator('input');
+		await expect(max).toHaveValue('255');
+		await typeOf(page, 'LED 1:').selectOption('grb');
+		await expect(max).toHaveValue('100');
+		await max.fill('128');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('leds=');
+		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)[0]).toMatchObject({ type: 'grb', max_brightness: 128 });
 	});
 });
 

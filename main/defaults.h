@@ -80,12 +80,6 @@
 #endif
 
 // RX_ADJ_RSSI Defaults
-#ifdef M5STICK
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
-#ifdef M5ATOM
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
 #ifdef ESP32S3
 #define DEFAULT_RX_ADJ_RSSI 20
 #else
@@ -95,33 +89,14 @@
 #define DEFAULT_RX_ADJ_RSSI 0
 #endif
 #endif
-#endif
-#endif
 
-// I2C Defaults
-#ifdef M5STICK
-#define DEFAULT_I2C_BUS_1_SDA 32
-#define DEFAULT_I2C_BUS_1_SCL 33
-#define DEFAULT_I2C_BUS_2_SDA 21
-#define DEFAULT_I2C_BUS_2_SCL 22
-#define DEFAULT_I2C_BUS 1
-#else
-#ifdef M5ATOM
-#define DEFAULT_I2C_BUS_1_SDA 26
-#define DEFAULT_I2C_BUS_1_SCL 32
-#define DEFAULT_I2C_BUS_2_SDA 25
-#define DEFAULT_I2C_BUS_2_SCL 21
-#define DEFAULT_I2C_BUS 1
-#else
-// Off unless configured: any default pin collides with something on some board (RMII Ethernet,
-// plug metering pins, the C3's USB pins, status LEDs).
+// I2C Defaults: off unless configured. Any default pin collides with something on some board
+// (RMII Ethernet, plug metering pins, the C3's USB pins, status LEDs).
 #define DEFAULT_I2C_BUS_1_SDA -1
 #define DEFAULT_I2C_BUS_1_SCL -1
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
-#endif
-#endif
 
 // TSL2561 Defaults
 #define DEFAULT_TSL2561_I2C_GAIN "auto"
@@ -129,40 +104,11 @@
 #define DEFAULT_ARDUINO_OTA false
 #define DEFAULT_AUTO_UPDATE false
 
-#if defined M5STICK
-
-#define DEFAULT_LED1_TYPE 1
-#define DEFAULT_LED1_PIN 10
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 1
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#define MAX_BRIGHTNESS 100
-
-#elif defined M5ATOM
-
-#define DEFAULT_LED1_TYPE 2
-#define DEFAULT_LED1_PIN 27
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 25
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#define MAX_BRIGHTNESS 50 // M5Atom Matrix has a lower max brightness so it doesn't melt
-
-#else  // DevKit / generic
-
+// Status LED for a generic devkit; other boards set theirs with a template.
 #define DEFAULT_LED1_TYPE 0
 #define DEFAULT_LED1_PIN 2
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
-
-#define MAX_BRIGHTNESS 100
-
-#endif
 
 // Build-time knobs that used to be platformio.ini build flags.
 #define SCAN_TASK_STACK_SIZE 3072

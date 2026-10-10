@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        env: [esp32, esp32c3, esp32c3-cdc, esp32c6, esp32c6-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32c6-verbose, esp32s3-verbose, m5stickc, m5stickc-plus, m5atom]
+        env: [esp32, esp32c3, esp32c3-cdc, esp32c6, esp32c6-cdc, esp32s3, esp32s3-cdc, esp32-verbose, esp32c3-verbose, esp32c6-verbose, esp32s3-verbose]
     steps:
     - uses: actions/checkout@v7
 
@@ -74,6 +74,31 @@ jobs:
       with:
         name: ${{ matrix.env }}.factory.bin
         path: ${{ matrix.env }}.factory.bin
+
+    # v5 dropped the M5 flavors (now board templates on the esp32 build). Publishing the esp32
+    # app under their old names lets nodes still on them auto-update onto esp32; after that they
+    # check esp32.bin. Remove once those nodes have moved.
+    - name: Alias retired M5 flavors to esp32
+      if: matrix.env == 'esp32'
+      run: for a in m5stickc m5stickc-plus m5atom; do cp esp32.bin $a.bin; done
+    - name: Upload m5stickc alias
+      if: matrix.env == 'esp32'
+      uses: actions/upload-artifact@v7
+      with:
+        name: m5stickc.bin
+        path: m5stickc.bin
+    - name: Upload m5stickc-plus alias
+      if: matrix.env == 'esp32'
+      uses: actions/upload-artifact@v7
+      with:
+        name: m5stickc-plus.bin
+        path: m5stickc-plus.bin
+    - name: Upload m5atom alias
+      if: matrix.env == 'esp32'
+      uses: actions/upload-artifact@v7
+      with:
+        name: m5atom.bin
+        path: m5atom.bin
 
   native-tests:
     runs-on: ubuntu-latest

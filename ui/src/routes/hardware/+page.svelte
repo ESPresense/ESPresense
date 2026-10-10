@@ -122,6 +122,14 @@
             </label>
         </p>
     {/if}
+    <p>
+        <label>
+            Max brightness (1-255):<br />
+            <input type="number" step="1" min="1" max="255"
+                value={it.max_brightness ?? (it.type === 'pwm' || it.type === 'pwm_inverted' || it.type === undefined ? 255 : 100)}
+                oninput={(e) => set('max_brightness', Number(e.currentTarget.value))}/>
+        </label>
+    </p>
     {@render choose('LED Control', it.control, ledControls, (v) => set('control', v))}
     {#if it.control === 'output'}
         {@render choose('Output to show', String(it.output ?? 1), outputChoices.length ? outputChoices : [['1', 'Output 1']], (v) => set('output', Number(v)))}
@@ -169,6 +177,12 @@
             <a href="https://espresense.com/configuration/settings#power" target="_blank">Power</a>
         </h2>
         <h4>Battery:</h4>
+        <p>
+            <label>
+                <input type="checkbox" name="axp192" bind:checked={$hardwareSettings.values['axp192']}/>
+                <span>AXP192 power chip (M5StickC): reads the battery from it instead of a pin. Needs I2C bus 2 on SDA 21 / SCL 22.</span>
+            </label>
+        </p>
         <div class="flex flex-wrap gap-4">
             <p>
                 <label>
