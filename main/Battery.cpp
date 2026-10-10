@@ -12,30 +12,10 @@
 #include "esp_adc/adc_oneshot.h"
 
 namespace Battery {
-#ifdef MACCHINA_A0
-// GPIO35 = ADC1 channel 7; 12-bit, 12 dB attenuation (what Arduino analogRead defaulted to).
-static adc_oneshot_unit_handle_t adc = nullptr;
-int smoothMilliVolts;
-
-static int analogRead35() {
-    int raw = 0;
-    if (adc) adc_oneshot_read(adc, ADC_CHANNEL_7, &raw);
-    return raw;
-}
-
-int a0_read_batt_mv() {
-    int mv = round(((float)analogRead35() + 35) / 0.215);
-    if (smoothMilliVolts)
-        smoothMilliVolts = round(0.1 * (mv - smoothMilliVolts) + smoothMilliVolts);
-    else
-        smoothMilliVolts = mv;
-    return smoothMilliVolts;
-}
-
-void ConnectToWifi(bool updating) {}
-#else
-// Single Li-ion cell on an ADC1 pin behind a divider (e.g. LILYGO T-Energy-S3: GPIO3, x2).
+// A battery on an ADC1 pin behind a divider: a single Li-ion cell (e.g. LILYGO T-Energy-S3:
+// GPIO3, x2) or a 12 V lead-acid (car) battery.
 static int battPin = -1;
+static bool leadAcid = false;
 static float battMult = 2;
 static adc_oneshot_unit_handle_t adc = nullptr;
 static adc_cali_handle_t cali = nullptr;
@@ -63,27 +43,21 @@ static unsigned int liIonPercent(int mv) {
     return 0;
 }
 
+// 12 V lead-acid: charging above 13.2 V, empty below 11.88 V, a fitted curve in between.
+static unsigned int leadAcidPercent(int mv) {
+    if (mv > 13200) return 100;
+    if (mv < 11883) return 0;
+    double soc = -13275.04 + 2.049731 * mv - 0.00007847975 * mv * mv;
+    return (unsigned int)std::clamp(lround(soc), 0L, 100L);
+}
+
 void ConnectToWifi(bool updating) {
     battPin = Settings::integer("batt_pin", -1, 48, -1, "Battery voltage pin (-1 to disable)");
-    battMult = Settings::floating("batt_mult", 1, 10, 2, "Battery voltage divider (multiplier)");
+    battMult = Settings::floating("batt_mult", 1, 20, 2, "Battery voltage divider (multiplier)");
+    leadAcid = Settings::dropdown("batt_type", {"Li-ion (1 cell)", "12V lead-acid"}, 0, "Battery type") == 1;
 }
-#endif
 
 void Setup() {
-#ifdef MACCHINA_A0
-    adc_oneshot_unit_init_cfg_t unitCfg = {};
-    unitCfg.unit_id = ADC_UNIT_1;
-    unitCfg.ulp_mode = ADC_ULP_MODE_DISABLE;
-    if (adc_oneshot_new_unit(&unitCfg, &adc) != ESP_OK) {
-        log_e("Battery: ADC init failed");
-        adc = nullptr;
-        return;
-    }
-    adc_oneshot_chan_cfg_t chanCfg = {};
-    chanCfg.atten = ADC_ATTEN_DB_12;
-    chanCfg.bitwidth = ADC_BITWIDTH_12;
-    adc_oneshot_config_channel(adc, ADC_CHANNEL_7, &chanCfg);
-#else
     if (battPin < 0) return;
     adc_unit_t unit;
     if (adc_oneshot_io_to_channel(battPin, &unit, &channel) != ESP_OK || unit != ADC_UNIT_1) {
@@ -117,32 +91,25 @@ void Setup() {
     if (adc_cali_create_scheme_line_fitting(&caliCfg, &cali) != ESP_OK) cali = nullptr;
 #endif
     readMilliVolts();
-#endif
 }
 
 bool SendDiscovery() {
-#ifdef MACCHINA_A0
-    return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%") && sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging");
-#else
     if (!enabled()) return true;
-    return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%") && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV");
-#endif
+    return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
+        && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
+        && (leadAcid ? sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
+                     : sendDeleteDiscovery("binary_sensor", "Charging"));
 }
 
 void SendTelemetry() {
-#ifdef MACCHINA_A0
-    auto mv = a0_read_batt_mv();
-    doc["mV"] = mv;
-    bool charging = (mv > 13200);
-    bool dead = (mv < 11883);
-    unsigned int soc = round(-13275.04 + 2.049731 * mv - (0.00007847975 * mv) * mv);
-    doc["batt"] = dead ? 0 : (charging ? (unsigned int)100 : std::max((unsigned int)0, std::min((unsigned int)100, soc)));
-    doc["charging"] = charging ? "ON" : "OFF";
-#else
     if (!enabled()) return;
     auto mv = readMilliVolts();
     doc["mV"] = mv;
-    doc["batt"] = liIonPercent(mv);
-#endif
+    if (leadAcid) {
+        doc["batt"] = leadAcidPercent(mv);
+        doc["charging"] = mv > 13200 ? "ON" : "OFF";
+    } else {
+        doc["batt"] = liIonPercent(mv);
+    }
 }
 }  // namespace Battery

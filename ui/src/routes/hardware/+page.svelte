@@ -181,9 +181,18 @@
             <p>
                 <label>
                     Divider multiplier:<br />
-                    <input type="number" step="0.01" min="1" max="10" name="batt_mult"
+                    <input type="number" step="0.01" min="1" max="20" name="batt_mult"
                         placeholder={$hardwareSettings.defaults['batt_mult']}
                         bind:value={$hardwareSettings.values['batt_mult']}/>
+                </label>
+            </p>
+            <p>
+                <label>
+                    Type:<br />
+                    <select name="batt_type" bind:value={$hardwareSettings.values['batt_type']}>
+                        <option value="0">Li-ion (1 cell)</option>
+                        <option value="1">12V lead-acid</option>
+                    </select>
                 </label>
             </p>
         </div>

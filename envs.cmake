@@ -22,8 +22,6 @@ elseif(FW_ENV STREQUAL "m5stickc-plus")
   list(APPEND FW_DEFS M5STICK PLUS TFT_FONT=2)
 elseif(FW_ENV STREQUAL "m5atom")
   list(APPEND FW_DEFS M5ATOM MATRIX)
-elseif(FW_ENV STREQUAL "macchina-a0")
-  list(APPEND FW_DEFS MACCHINA_A0)
 endif()
 
 # VERSION / BRANCH come from CI: -DFW_VERSION=v4.1.0 -DFW_BRANCH=main

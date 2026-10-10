@@ -167,15 +167,6 @@
 
 #define MAX_BRIGHTNESS 50 // M5Atom Matrix has a lower max brightness so it doesn't melt
 
-#elif defined MACCHINA_A0
-
-#define DEFAULT_LED1_TYPE 2
-#define DEFAULT_LED1_PIN 2
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 1
-
-#define MAX_BRIGHTNESS 20
-
 #else  // DevKit / generic
 
 #define DEFAULT_LED1_TYPE 0

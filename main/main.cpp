@@ -65,7 +65,6 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && PowerMonitor::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
-            && CAN::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
             && AHTX0::SendDiscovery()
@@ -501,7 +500,6 @@ void setup() {
     Outputs::Setup();
     PowerMonitor::Setup();
     Battery::Setup();
-    CAN::Setup();
     NTP::Setup();
 #ifdef SENSORS
     DHT::Setup();
