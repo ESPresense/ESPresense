@@ -28,7 +28,7 @@ void markState();                           // last setting is runtime state, no
 
 // Typed lookup for a configuration setting on an endpoint; nullptr if unknown or state.
 const SettingSpec* spec(const std::string& endpoint, const std::string& key);
-// Current value of each configuration setting on the endpoint, typed (numbers, bools, strings).
+// Each configuration setting on the endpoint that differs from its default, typed (numbers, bools, strings).
 // Passwords are never written. This is the template export; #2493's full backup can reuse it.
 void serialize(const std::string& endpoint, JsonObject out);
 // Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which

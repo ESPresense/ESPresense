@@ -397,6 +397,7 @@ void serialize(const std::string& endpoint, JsonObject out) {
     if (idx < 0) return;
     for (auto* p : endpoints[idx].params) {
         if (p->state || p->type == Type::Password) continue;
+        if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
         p->put(out[p->name.c_str()], p->effective());  // names live forever: stored by pointer
     }
 }
