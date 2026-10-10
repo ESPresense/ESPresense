@@ -137,7 +137,6 @@ esp_err_t serveTemplate(httpd_req_t* req) {
     DynamicJsonDocument doc(4096);
     JsonObject root = doc.to<JsonObject>();
     if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
-    root["name"] = room;
     root["chip"] = CONFIG_IDF_TARGET;
 #ifdef FIRMWARE
     root["firmware"] = FIRMWARE;
