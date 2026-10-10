@@ -247,26 +247,36 @@ esp_err_t getHandler(httpd_req_t* req) {
     int idx = find(name);
     if (idx < 0) return sendText(req, "404 Not Found", "Endpoint not found");
 
-    std::string out = "{\"values\":{";
-    bool comma = false;
-    for (auto* prm : endpoints[idx].params) {
-        auto s = prm->jsonValue();
-        if (s.empty()) continue;
-        if (comma) out += ",";
-        out += s;
-        comma = true;
-    }
-    out += "},\"defaults\":{";
-    comma = false;
-    for (auto* prm : endpoints[idx].params) {
-        auto s = prm->jsonDefault();
-        if (s.empty()) continue;
-        if (comma) out += ",";
-        out += s;
-        comma = true;
-    }
-    out += "}}";
-    return sendJson(req, out);
+    // Streamed in chunks: on a C3 with ~8 KB as the largest free block, building the whole
+    // values+defaults document in one string could fail to allocate and abort.
+    HttpWebServer::commonHeaders(req);
+    httpd_resp_set_type(req, CONTENT_JSON);
+    std::string chunk;
+    bool ok = true;
+    auto put = [&](const std::string& s) {
+        chunk += s;
+        if (chunk.size() >= 512) {
+            ok = ok && httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
+            chunk.clear();
+        }
+    };
+    auto section = [&](bool defaults) {
+        bool comma = false;
+        for (auto* prm : endpoints[idx].params) {
+            auto s = defaults ? prm->jsonDefault() : prm->jsonValue();
+            if (s.empty()) continue;
+            if (comma) put(",");
+            put(s);
+            comma = true;
+        }
+    };
+    put("{\"values\":{");
+    section(false);
+    put("},\"defaults\":{");
+    section(true);
+    put("}}");
+    if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
+    return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
 
 // Form-encoded body -> value for key, decoded. False (and `out` empty) when absent.

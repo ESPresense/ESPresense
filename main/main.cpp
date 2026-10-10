@@ -98,6 +98,12 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc.clear();
     doc["ip"] = localIp;
     doc["uptime"] = esp_timer_get_time() / 1000000;
+    // Why the last boot happened (panic, int_wdt, task_wdt, brownout...), for crashes in the field.
+    static const char* const resetReasons[] = {"unknown", "poweron", "ext", "sw", "panic", "int_wdt", "task_wdt",
+                                               "wdt", "deepsleep", "brownout", "sdio", "usb", "jtag", "efuse",
+                                               "pwr_glitch", "cpu_lockup"};
+    unsigned rr = (unsigned)esp_reset_reason();
+    doc["reset"] = rr < sizeof(resetReasons) / sizeof(resetReasons[0]) ? resetReasons[rr] : "unknown";
 #ifdef FIRMWARE
     doc["firm"] = FIRMWARE;
 #endif
