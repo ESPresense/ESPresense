@@ -21,7 +21,7 @@
 
 #include "ArduinoJson.h"
 
-enum class SettingType { Dropdown, String, Password, Int, Float, Bool };
+enum class SettingType { Dropdown, String, Password, Int, Float, Bool, Json };
 
 struct SettingSpec {
     SettingType type;
@@ -82,6 +82,14 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
             out = buf;
             return true;
         }
+        case SettingType::Json:  // a list (leds, inputs, outputs) or object (power), stored as JSON text
+            if (!v.is<JsonArrayConst>() && !v.is<JsonObjectConst>()) {
+                err = "expected an array or object";
+                return false;
+            }
+            out.clear();
+            serializeJson(v, out);
+            return true;
         case SettingType::String:
         case SettingType::Password:
             if (!v.is<const char*>()) {

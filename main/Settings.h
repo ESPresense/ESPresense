@@ -20,16 +20,17 @@ long integer(const std::string& name, long min, long max, long init = 0, const s
 float floating(const std::string& name, float init = 0, const std::string& label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
+// JSON text (an array like leds/inputs/outputs, or an object like power); the UI and templates
+// see real JSON.
+std::string json(const std::string& name, const std::string& init = "[]", const std::string& label = "");
 
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
-void markState();                           // last setting is runtime state, not configuration:
-                                            // left out of export and template import
 void markBoard();                           // last setting describes the board (e.g. Ethernet
                                             // type): exported in templates like /wifi/hardware
 
 // Board templates (#2529) may set any configuration setting on any endpoint.
-// Typed lookup by name; nullptr if unknown, runtime state, or a password (never in templates).
+// Typed lookup by name; nullptr if unknown or a password (never in templates).
 const SettingSpec* spec(const std::string& key);
 // The board's settings that differ from their defaults, typed (numbers, bools, strings): every
 // /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays

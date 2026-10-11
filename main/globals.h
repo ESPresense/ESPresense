@@ -24,6 +24,7 @@ _DECL std::string room, id, statusTopic, teleTopic, roomsTopic, setTopic, config
 _DECL std::string homeAssistantDiscoveryPrefix;
 _DECL DynamicJsonDocument doc _INIT_N(((768)));
 _DECL std::string localIp;
+_DECL std::string board;  // what this node is (e.g. "SwitchBot Plug Mini"); set by templates
 _DECL bool enrolling;
 _DECL std::string enrolledId;
 _DECL unsigned long enrollingEndMillis;

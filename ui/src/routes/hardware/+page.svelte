@@ -1,6 +1,46 @@
 <script lang="ts">
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
+    import JsonList from '#lib/components/JsonList.svelte';
+
+    const ledTypes = [
+        ['pwm', 'PWM'], ['pwm_inverted', 'PWM Inverted'],
+        ['grb', 'Addressable GRB'], ['grbw', 'Addressable GRBW'], ['rgb', 'Addressable RGB'], ['rgbw', 'Addressable RGBW']
+    ];
+    const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count'], ['output', 'Output']];
+    const powerModels = [['', 'None'], ['bl0937', 'BL0937'], ['hlw8012', 'HLW8012 / CSE7759'], ['cse7766', 'CSE7766 (serial, e.g. Athom)']];
+    // [stored value, label] for the inputs/outputs JSON lists.
+    const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
+    const inputPinTypes = [
+        ['pullup', 'Pullup'], ['pullup_inverted', 'Pullup Inverted'],
+        ['pulldown', 'Pulldown'], ['pulldown_inverted', 'Pulldown Inverted'],
+        ['floating', 'Floating'], ['floating_inverted', 'Floating Inverted']
+    ];
+    const outputPinTypes = [['output', 'Output'], ['output_inverted', 'Output Inverted'], ['high', 'Always High'], ['low', 'Always Low']];
+    const powerOnStates = [['off', 'Off'], ['on', 'On'], ['restore', 'Restore last']];
+
+    // "Linked input" choices, labelled with each input's name (value = 1-based input number, 0 = none).
+    // Outputs an LED can mirror (value = 1-based output number).
+    const outputChoices = $derived(
+        (($hardwareSettings?.values['outputs'] ?? $hardwareSettings?.defaults['outputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+            String(i + 1),
+            `${i + 1}: ${it.name || `Output ${i + 1}`}`
+        ])
+    );
+
+    // The "power" setting is one JSON object, posted as a hidden field.
+    const power = $derived(($hardwareSettings?.values['power'] ?? $hardwareSettings?.defaults['power'] ?? {}) as Record<string, unknown>);
+    function setPower(field: string, value: unknown): void {
+        hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, power: { ...power, [field]: value } } } : s));
+    }
+
+    const linkedInputs = $derived([
+        ['0', 'None'],
+        ...((($hardwareSettings?.values['inputs'] ?? $hardwareSettings?.defaults['inputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+            String(i + 1),
+            `${i + 1}: ${it.name || `Input ${i + 1}`}`
+        ]))
+    ]);
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);
@@ -25,422 +65,209 @@
     }
 </script>
 
+<!-- Fields of one inputs/outputs list item. They have no form name: JsonList posts the list. -->
+{#snippet field(label: string, value: unknown, set: (v: string) => void, placeholder = '')}
+    <p>
+        <label>
+            {label}:<br />
+            <input type="text" value={value ?? ''} {placeholder} oninput={(e) => set(e.currentTarget.value)}/>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet choose(label: string, value: unknown, options: string[][], set: (v: string) => void)}
+    <p>
+        <label>
+            {label}:<br />
+            <select value={String(value ?? options[0][0])} onchange={(e) => set(e.currentTarget.value)}>
+                {#each options as [v, text] (v)}
+                    <option value={v} selected={String(value ?? options[0][0]) === v}>{text}</option>
+                {/each}
+            </select>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet itemPin(it: Record<string, unknown>, set: (field: string, value: unknown) => void, types: string[][])}
+    <p>
+        <label>
+            Pin (-1 to disable) and type:<br />
+            <span class="flex items-center gap-2">
+                <input
+                    type="number"
+                    step="1"
+                    min="-1"
+                    max="48"
+                    class="w-24"
+                    value={it.pin ?? -1}
+                    oninput={(e) => set('pin', e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                <select aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
+                    {#each types as [v, text] (v)}
+                        <option value={v} selected={(it.type ?? types[0][0]) === v}>{text}</option>
+                    {/each}
+                </select>
+            </span>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet led(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render itemPin(it, set, ledTypes)}
+    {#if it.type !== 'pwm' && it.type !== 'pwm_inverted' && it.type !== undefined}
+        <p>
+            <label>
+                Count:<br />
+                <input type="number" step="1" min="1" max="1000" value={it.count ?? 1}
+                    oninput={(e) => set('count', Number(e.currentTarget.value))}/>
+            </label>
+        </p>
+    {/if}
+    <p>
+        <label>
+            Max brightness (1-255):<br />
+            <input type="number" step="1" min="1" max="255"
+                value={it.max_brightness ?? (it.type === 'pwm' || it.type === 'pwm_inverted' || it.type === undefined ? 255 : 100)}
+                oninput={(e) => set('max_brightness', Number(e.currentTarget.value))}/>
+        </label>
+    </p>
+    {@render choose('LED Control', it.control, ledControls, (v) => set('control', v))}
+    {#if it.control === 'output'}
+        {@render choose('Output to show', String(it.output ?? 1), outputChoices.length ? outputChoices : [['1', 'Output 1']], (v) => set('output', Number(v)))}
+    {/if}
+{/snippet}
+
+{#snippet input(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render field('Name', it.name, (v) => set('name', v), `Input ${i + 1}`)}
+    {@render choose('Role', it.role, inputRoles, (v) => set('role', v))}
+    {@render itemPin(it, set, inputPinTypes)}
+    <p>
+        <label>
+            Timeout (in seconds):<br />
+            <input type="number" step="0.01" min="0" max="300" value={it.timeout ?? 0.5}
+                oninput={(e) => set('timeout', Number(e.currentTarget.value))}/>
+        </label>
+    </p>
+{/snippet}
+
+{#snippet output(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
+    {@render field('Name', it.name, (v) => set('name', v), `Output ${i + 1}`)}
+    {@render itemPin(it, set, outputPinTypes)}
+    {#if it.type !== 'high' && it.type !== 'low'}
+        {@render choose('Power-on state', it.power_on, powerOnStates, (v) => set('power_on', v))}
+        {@render choose('Linked input (a Button toggles it, a Switch or Motion input drives it)', String(it.input ?? 0), linkedInputs, (v) => set('input', Number(v)))}
+    {/if}
+{/snippet}
+
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if $hardwareSettings?.values != null}
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
+        <p>
+            <label>
+                Board (what this node is; set when you apply a template):<br />
+                <input type="text" name="board" placeholder="e.g. SwitchBot Plug Mini" bind:value={$hardwareSettings.values['board']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
         </h2>
-        <h4>LED 1:</h4>
+        <JsonList settings={hardwareSettings} key="leds" title="LED" max={4} blank={() => ({ type: 'pwm', pin: -1, control: 'mqtt' })} item={led} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#inputs" target="_blank">Inputs</a>
+        </h2>
+        <JsonList settings={hardwareSettings} key="inputs" title="Input" max={8} blank={() => ({ name: '', role: 'motion', pin: -1, type: 'pullup', timeout: 0.5 })} item={input} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#outputs" target="_blank">Outputs</a>
+        </h2>
+        <JsonList settings={hardwareSettings} key="outputs" title="Output" max={8} blank={() => ({ name: '', pin: -1, type: 'output', power_on: 'off', input: 0 })} item={output} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#power" target="_blank">Power</a>
+        </h2>
+        <h4>Battery:</h4>
         <p>
             <label>
-                LED Type:<br />
-                <select name="led_1_type" bind:value={$hardwareSettings.values['led_1_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
+                <input type="checkbox" name="axp192" bind:checked={$hardwareSettings.values['axp192']}/>
+                <span>AXP192 power chip (M5StickC): reads the battery from it instead of a pin. Needs I2C bus 2 on SDA 21 / SCL 22.</span>
             </label>
         </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_1_pin"
-                    placeholder={$hardwareSettings.defaults['led_1_pin']}
-                    bind:value={$hardwareSettings.values['led_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_1_cnt"
-                    placeholder={$hardwareSettings.defaults['led_1_cnt']}
-                    bind:value={$hardwareSettings.values['led_1_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_1_cntrl" bind:value={$hardwareSettings.values['led_1_cntrl']}>
-                    <option disabled selected hidden>Status</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
-        <h4>LED 2:</h4>
-        <p>
-            <label>
-                LED Type:<br />
-                <select name="led_2_type" bind:value={$hardwareSettings.values['led_2_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_2_pin"
-                    placeholder={$hardwareSettings.defaults['led_2_pin']}
-                    bind:value={$hardwareSettings.values['led_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_2_cnt"
-                    placeholder={$hardwareSettings.defaults['led_2_cnt']}
-                    bind:value={$hardwareSettings.values['led_2_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_2_cntrl" bind:value={$hardwareSettings.values['led_2_cntrl']}>
-                    <option disabled selected hidden>MQTT</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
-        <h4>LED 3:</h4>
-        <p>
-            <label>
-                LED Type:<br />
-                <select name="led_3_type" bind:value={$hardwareSettings.values['led_3_type']}>
-                    <option disabled selected hidden>PWM</option>
-                    <option value="0">PWM</option>
-                    <option value="1">PWM Inverted</option>
-                    <option value="2">Addressable GRB</option>
-                    <option value="3">Addressable GRBW</option>
-                    <option value="4">Addressable RGB</option>
-                    <option value="5">Addressable RGBW</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Pin (-1 to disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_3_pin"
-                    placeholder={$hardwareSettings.defaults['led_3_pin']}
-                    bind:value={$hardwareSettings.values['led_3_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Count (only applies to Addressable LEDs):<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    max="1000"
-                    name="led_3_cnt"
-                    placeholder={$hardwareSettings.defaults['led_3_cnt']}
-                    bind:value={$hardwareSettings.values['led_3_cnt']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                LED Control:<br />
-                <select name="led_3_cntrl" bind:value={$hardwareSettings.values['led_3_cntrl']}>
-                    <option disabled selected hidden>MQTT</option>
-                    <option value="0">MQTT</option>
-                    <option value="1">Status</option>
-                    <option value="2">Motion</option>
-                    <option value="3">Count</option>
-                </select>
-            </label>
-        </p>
-        <h4>LED power:</h4>
-        <p>
-            <label>
-                LED power pin (-1 to disable), held high so the LEDs get power:<br />
-                <input
-                    type="number"
-                    step="1"
-                    min="-1"
-                    max="48"
-                    name="led_pwr_pin"
-                    placeholder={$hardwareSettings.defaults['led_pwr_pin']}
-                    bind:value={$hardwareSettings.values['led_pwr_pin']}/>
-            </label>
-        </p>
+        <div class="flex flex-wrap gap-4">
+            <p>
+                <label>
+                    Voltage pin (-1 to disable, ADC1 only):<br />
+                    <input type="number" step="1" min="-1" max="48" name="batt_pin"
+                        placeholder={$hardwareSettings.defaults['batt_pin']}
+                        bind:value={$hardwareSettings.values['batt_pin']}/>
+                </label>
+            </p>
+            <p>
+                <label>
+                    Divider multiplier:<br />
+                    <input type="number" step="0.01" min="1" max="20" name="batt_mult"
+                        placeholder={$hardwareSettings.defaults['batt_mult']}
+                        bind:value={$hardwareSettings.values['batt_mult']}/>
+                </label>
+            </p>
+            <p>
+                <label>
+                    Type:<br />
+                    <select name="batt_type" bind:value={$hardwareSettings.values['batt_type']}>
+                        <option value="0">Li-ion (1 cell)</option>
+                        <option value="1">12V lead-acid</option>
+                    </select>
+                </label>
+            </p>
+        </div>
+        <h4>Energy meter:</h4>
+        <input type="hidden" name="power" value={JSON.stringify(power)} />
+        {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
+        {#if power.model === 'cse7766'}
+            <p>
+                <label>
+                    RX pin (CSE7766 TX; factory calibrated, no settings needed):<br />
+                    <input type="number" step="1" min="-1" max="48" class="w-24" value={power.rx ?? -1}
+                        oninput={(e) => setPower('rx', e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                </label>
+            </p>
+        {:else if power.model}
+            <div class="flex flex-wrap gap-4">
+                {#each [['cf', 'CF pin (power)'], ['cf1', 'CF1 pin (V / A)'], ['sel', 'SEL pin']] as [key, label] (key)}
+                    <p>
+                        <label>
+                            {label}:<br />
+                            <input type="number" step="1" min="-1" max="48" class="w-24" value={power[key] ?? -1}
+                                oninput={(e) => setPower(key, e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                        </label>
+                    </p>
+                {/each}
+                <p>
+                    <label>
+                        SEL polarity:<br />
+                        <select onchange={(e) => setPower('sel_inverted', e.currentTarget.value === '1')}>
+                            <option value="0" selected={!power.sel_inverted}>Normal</option>
+                            <option value="1" selected={!!power.sel_inverted}>Inverted</option>
+                        </select>
+                    </label>
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-4">
+                <p>
+                    <label>
+                        Voltage divider (as in ESPHome's hlw8012):<br />
+                        <input type="number" step="any" min="1" value={power.voltage_divider ?? 2351}
+                            oninput={(e) => setPower('voltage_divider', Number(e.currentTarget.value))}/>
+                    </label>
+                </p>
+                <p>
+                    <label>
+                        Current resistor in ohms (as in ESPHome's hlw8012):<br />
+                        <input type="number" step="any" min="0" value={power.current_resistor ?? 0.001}
+                            oninput={(e) => setPower('current_resistor', Number(e.currentTarget.value))}/>
+                    </label>
+                </p>
+            </div>
+        {/if}
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
-        <h4>PIR:</h4>
-        <p>
-            <label>
-                PIR motion pin type:<br />
-                <select name="pir_type" bind:value={$hardwareSettings.values['pir_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                PIR motion pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="pir_pin"
-                    placeholder={$hardwareSettings.defaults['pir_pin']}
-                    bind:value={$hardwareSettings.values['pir_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                PIR motion timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="pir_timeout"
-                    placeholder={$hardwareSettings.defaults['pir_timeout']}
-                    bind:value={$hardwareSettings.values['pir_timeout']}/>
-            </label>
-        </p>
-        <h4>Radar:</h4>
-        <p>
-            <label>
-                Radar motion pin type:<br />
-                <select name="radar_type" bind:value={$hardwareSettings.values['radar_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Radar motion pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="radar_pin"
-                    placeholder={$hardwareSettings.defaults['radar_pin']}
-                    bind:value={$hardwareSettings.values['radar_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Radar motion timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="radar_timeout"
-                    placeholder={$hardwareSettings.defaults['radar_timeout']}
-                    bind:value={$hardwareSettings.values['radar_timeout']}/>
-            </label>
-        </p>
-        <h4>Switch One:</h4>
-        <p>
-            <label>
-                Switch One pin type:<br />
-                <select name="switch_1_type" bind:value={$hardwareSettings.values['switch_1_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch One pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="switch_1_pin"
-                    placeholder={$hardwareSettings.defaults['switch_1_pin']}
-                    bind:value={$hardwareSettings.values['switch_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch One timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="switch_1_timeout"
-                    placeholder={$hardwareSettings.defaults['switch_1_timeout']}
-                    bind:value={$hardwareSettings.values['switch_1_timeout']}/>
-            </label>
-        </p>
-        <h4>Switch Two:</h4>
-        <p>
-            <label>
-                Switch Two pin type:<br />
-                <select name="switch_2_type" bind:value={$hardwareSettings.values['switch_2_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch Two pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="switch_2_pin"
-                    placeholder={$hardwareSettings.defaults['switch_2_pin']}
-                    bind:value={$hardwareSettings.values['switch_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Switch Two timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="switch_2_timeout"
-                    placeholder={$hardwareSettings.defaults['switch_2_timeout']}
-                    bind:value={$hardwareSettings.values['switch_2_timeout']}/>
-            </label>
-        </p>
-        <h4>Button One:</h4>
-        <p>
-            <label>
-                Button One pin type:<br />
-                <select name="button_1_type" bind:value={$hardwareSettings.values['button_1_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button One pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="button_1_pin"
-                    placeholder={$hardwareSettings.defaults['button_1_pin']}
-                    bind:value={$hardwareSettings.values['button_1_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button One timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="button_1_timeout"
-                    placeholder={$hardwareSettings.defaults['button_1_timeout']}
-                    bind:value={$hardwareSettings.values['button_1_timeout']}/>
-            </label>
-        </p>
-        <h4>Button Two:</h4>
-        <p>
-            <label>
-                Button Two pin type:<br />
-                <select name="button_2_type" bind:value={$hardwareSettings.values['button_2_type']}>
-                    <option disabled selected hidden>Pullup</option>
-                    <option value="0">Pullup</option>
-                    <option value="1">Pullup Inverted</option>
-                    <option value="2">Pulldown</option>
-                    <option value="3">Pulldown Inverted</option>
-                    <option value="4">Floating</option>
-                    <option value="5">Floating Inverted</option>
-                </select>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button Two pin (-1 for disable):<br />
-                <input
-                    type="number"
-                    step="1"
-                    name="button_2_pin"
-                    placeholder={$hardwareSettings.defaults['button_2_pin']}
-                    bind:value={$hardwareSettings.values['button_2_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                Button Two timeout (in seconds):<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="300"
-                    name="button_2_timeout"
-                    placeholder={$hardwareSettings.defaults['button_2_timeout']}
-                    bind:value={$hardwareSettings.values['button_2_timeout']}/>
-            </label>
-        </p>
         <h4>DHT:</h4>
         <p>
             <label>

@@ -203,7 +203,7 @@ export function cppPlugin(options: CppPluginOptions = {}): Plugin {
   // SvelteKit runs client + SSR Vite builds. Emit headers once when the final
   // client assets and prerendered HTML are both available.
   let generated = false;
-  let generating: Promise<void> | null = null;
+  let cleared = false;
 
   async function collectFinalAssets(): Promise<Asset[] | null> {
     // Prefer adapter-static output when present (exact flash payload).
@@ -372,18 +372,19 @@ ${htmlRoutes.join('\n')}
     name: 'cpp',
     enforce: 'post',
     apply: 'build',
-    // Run after SvelteKit's sequential closeBundle (adapter-static write).
-    closeBundle: {
-      sequential: true,
-      order: 'post',
-      async handler() {
-        if (!generating) {
-          generating = generateHeaders().finally(() => {
-            generating = null;
-          });
-        }
-        await generating;
-      }
+    // Every closeBundle (client and server builds) runs before adapter-static writes buildDir,
+    // so generate once the process is done. Clearing buildDir first means a leftover site from
+    // the previous build is never mistaken for this one.
+    async buildStart() {
+      if (cleared) return;
+      cleared = true;
+      await fs.rm(buildDir, { recursive: true, force: true });
+      process.once('beforeExit', () => {
+        generateHeaders().catch((e) => {
+          console.error(e);
+          process.exitCode = 1;
+        });
+      });
     }
   };
 }

@@ -6,6 +6,9 @@ import { cppPlugin } from './plugins/cpp';
 import strip from '@rollup/plugin-strip';
 import tailwindcss from '@tailwindcss/vite';
 
+// `npm run dev` proxies the API to a live node: ESPRESENSE_DEVICE=192.168.129.120 npm run dev
+const device = process.env.ESPRESENSE_DEVICE ?? '192.168.129.97';
+
 export default defineConfig({
     plugins: [
         sveltekit({
@@ -45,11 +48,11 @@ export default defineConfig({
     },
     server: {
         proxy: {
-            '/json': 'http://192.168.129.97/',
-            '/wifi': 'http://192.168.129.97/',
-            '/restart': 'http://192.168.129.97/',
+            '/json': `http://${device}/`,
+            '/wifi': `http://${device}/`,
+            '/restart': `http://${device}/`,
             '/ws': {
-                target: 'ws://192.168.129.97/',
+                target: `ws://${device}/`,
                 ws: true,
             }
         }

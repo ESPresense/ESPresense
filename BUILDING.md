@@ -12,8 +12,7 @@ git clone -b v5.4.4 --recursive https://github.com/espressif/esp-idf ~/esp/esp-i
 ```
 
 `build.sh <env>` picks the chip target and sdkconfig fragments for a firmware variant
-(`esp32`, `esp32c3`, `esp32c3-cdc`, `esp32c6`, `esp32s3`, `*-verbose`, `m5stickc`, `m5atom`,
-`macchina-a0`, ...); `envs.cmake` maps the variant to compile definitions. Anything after the
+(`esp32`, `esp32c3`, `esp32c3-cdc`, `esp32c6`, `esp32s3`, `*-verbose`, ...); `envs.cmake` maps the variant to compile definitions. Anything after the
 variant name is passed to `idf.py`.
 
 ## Flashing and monitoring
