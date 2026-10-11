@@ -107,6 +107,10 @@ class BleFingerprint {
     void set1mRssi(int8_t rssi) { calRssi = rssi; }
 
     const ble_addr_t &getAddress() const { return address; }
+    // A fingerprint locked to an iBeacon only accepts adverts carrying that UUID, so a beacon that
+    // swaps UUID on motion (BC04P trigger slot, #2492) becomes a second fingerprint on the same MAC.
+    bool hasIBeacon() const { return hasBcnUuid; }
+    bool matchesIBeacon(uint16_t uuidCrc) const { return hasBcnUuid && bcnCrc == uuidCrc; }
 
     const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
@@ -139,11 +143,12 @@ class BleFingerprint {
     static SemaphoreHandle_t fieldMutex;
     bool queryBattery();
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, isBatteryQuerying = false, hasBcnUuid = false;
+    uint16_t bcnCrc = 0;  // CRC-16 of the locked iBeacon UUID; sits in the padding after the flags
     uint64_t nextReportMs = 0;
-    uint64_t lastReportedMs = 0;
     ble_addr_t address;
-    std::string id, name, discoveredIrk;
+    std::string id, name;
+    std::unique_ptr<std::string> discoveredIrk;  // only the rare device that exposes its IRK pays for it
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
     int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
@@ -152,10 +157,9 @@ class BleFingerprint {
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
     uint32_t lastBatteryQueryMillis = 0;
     uint32_t batteryQueryInterval = 0;
-    bool isBatteryQuerying = false;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
-    uint8_t battery = 0xFF, addressType = 0xFF;
+    uint8_t battery = 0xFF;
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 
