@@ -110,7 +110,7 @@ class BleFingerprint {
     // A fingerprint locked to an iBeacon only accepts adverts carrying that UUID, so a beacon that
     // swaps UUID on motion (BC04P trigger slot, #2492) becomes a second fingerprint on the same MAC.
     bool hasIBeacon() const { return hasBcnUuid; }
-    bool matchesIBeacon(uint16_t uuidCrc) const { return hasBcnUuid && bcnCrc == uuidCrc; }
+    uint16_t iBeaconCrc() const { return bcnCrc; }
 
     const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 

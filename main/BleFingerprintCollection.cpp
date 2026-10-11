@@ -1,5 +1,7 @@
 #include "BleFingerprintCollection.h"
 
+#include "IBeacon.h"
+
 #include <algorithm>
 #include <cctype>
 #include <new>
@@ -110,17 +112,14 @@ FingerprintLease acquireSlot(size_t index) {
 // ponytail: no per-MAC cap; max_fingerprints bounds it. Add one if a beacon cycling many UUIDs shows up.
 FingerprintLease findByAddress(const Ble::Advert *advertisedDevice) {
     const auto &mac = advertisedDevice->getAddress();
-    uint16_t uuidCrc = 0;
-    bool isBeacon = advertisedDevice->getIBeaconCrc(uuidCrc);
-    const size_t none = static_cast<size_t>(-1);
-    size_t unlocked = none;  // a same-MAC fingerprint with no UUID yet; only used if nothing locked matches
+    IBeaconPick pick{false, 0};
+    pick.isBeacon = advertisedDevice->getIBeaconCrc(pick.crc);
     for (size_t i = fingerprints.size(); i-- > 0;) {
-        auto &slot = fingerprints[i];
-        if (slot.fingerprint == nullptr || !Ble::addrEq(slot.fingerprint->getAddress(), mac)) continue;
-        if (!isBeacon || slot.fingerprint->matchesIBeacon(uuidCrc)) return acquireSlot(i);
-        if (!slot.fingerprint->hasIBeacon() && unlocked == none) unlocked = i;
+        auto *f = fingerprints[i].fingerprint;
+        if (f == nullptr || !Ble::addrEq(f->getAddress(), mac)) continue;
+        if (pick.consider(i, f->hasIBeacon(), f->iBeaconCrc())) break;
     }
-    return unlocked == none ? FingerprintLease{} : acquireSlot(unlocked);
+    return pick.result() == IBeaconPick::none ? FingerprintLease{} : acquireSlot(pick.result());
 }
 
 BleFingerprint *findById(const std::string &id) {
