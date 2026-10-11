@@ -1,6 +1,15 @@
 #define VAR_DECLS
 #include "main.h"
 
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
+
+// app0 size tells a Tasmota v11 layout (0x1D0000, left by SwitchbOTA) apart from ESPresense's own (0x1E0000)
+static const esp_partition_t *app0Partition() {
+    static const esp_partition_t *app0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, nullptr);
+    return app0;
+}
+
 void heapCapsAllocFailedHook(size_t requestedSize, uint32_t caps, const char *functionName) {
     ESP_EARLY_LOGE("heap", "%s failed to allocate %lu bytes with 0x%lX capabilities", functionName, static_cast<unsigned long>(requestedSize), static_cast<unsigned long>(caps));
 }
@@ -110,6 +119,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     if (!board.empty()) doc["board"] = board;
 #endif
     doc["rssi"] = Network::rssi();
+    if (auto app0 = app0Partition()) doc["app0"] = app0->size;
     Battery::SendTelemetry();
 
 #ifdef VERSION
@@ -250,6 +260,10 @@ void setupNetwork() {
 #ifdef VERSION
     Log.println(std::string("Version:      ") + VERSION);
 #endif
+    const esp_partition_t *app0 = app0Partition();
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    Log.printf("App0:         0x%lx size 0x%lx (running %s)\n", app0 ? static_cast<unsigned long>(app0->address) : 0UL,
+               app0 ? static_cast<unsigned long>(app0->size) : 0UL, running ? running->label : "?");
     Log.printf("WiFi BSSID:   %s (channel=%d rssi=%d)\n", Network::bssid().c_str(), Network::channel(), Network::rssi());
     Log.print("IP address:   ");
     Log.println(Network::localIP());
