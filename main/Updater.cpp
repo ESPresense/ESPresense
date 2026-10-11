@@ -92,10 +92,21 @@ void checkForUpdates() {
         Log.printf("Error on checking for update (sc=%d)\n", code);
 }
 
+// The last HTTP status seen while updating, so a failure can say 404 rather than ESP_FAIL.
+static int updateStatus = 0;
+static esp_err_t updateEvent(esp_http_client_event_t* ev) {
+    if (ev->event_id == HTTP_EVENT_ON_HEADER) updateStatus = esp_http_client_get_status_code(ev->client);
+    return ESP_OK;
+}
+
 // A failed update must not stick: /update would retry on every boot, and a node that attempted
 // one comes up with BLE scanning dead for that boot (seen on C3 and S3). Drop the request and
 // restart clean; the next auto-update check (or a new update command) tries again.
-static void giveUp() {
+// The failure happens in early boot where nobody sees the log, so keep why for SendOnline to publish.
+static void giveUp(const std::string& url, const char* what, esp_err_t err) {
+    char why[64];
+    snprintf(why, sizeof(why), "%s: 0x%x, http %d", what, (unsigned)err, updateStatus);
+    spurt("/update_error", why + std::string(" ") + url);
     Settings::remove("/update");
     Log.println("Update abandoned, restarting");
     delay(200);
@@ -115,6 +126,11 @@ void firmwareUpdate() {
     http.keep_alive_enable = true;
     http.crt_bundle_attach = esp_crt_bundle_attach;
     http.user_agent = userAgent();
+    // GitHub redirects release downloads to a signed URL ~900 bytes long; the 512 byte default
+    // buffers fail the redirect with "HTTP_CLIENT: Out of buffer".
+    http.buffer_size = 2048;
+    http.buffer_size_tx = 2048;
+    http.event_handler = updateEvent;
     esp_https_ota_config_t ota = {};
     ota.http_config = &http;
     esp_https_ota_handle_t handle = nullptr;
@@ -123,7 +139,7 @@ void firmwareUpdate() {
         Log.printf("Http Update Failed: %s\n", esp_err_to_name(err));
         GUI::Update(UPDATE_COMPLETE);
         HttpWebServer::UpdateEnd();
-        giveUp();
+        giveUp(url, "begin", err);
         return;
     }
     int total = esp_https_ota_get_image_size(handle), lastPct = -1;
@@ -140,13 +156,14 @@ void firmwareUpdate() {
     HttpWebServer::UpdateEnd();
     if (ok && fin == ESP_OK) {
         Settings::remove("/update");
+        Settings::remove("/update_error");
         Log.println("Firmware update completed successfully!");
         Log.println("Update complete, rebooting...");
         delay(200);
         esp_restart();
     }
     Log.printf("Firmware update failed to apply (%s / %s)\n", esp_err_to_name(err), esp_err_to_name(fin));
-    giveUp();
+    giveUp(url, "apply", err != ESP_OK ? err : fin);
 }
 
 void Setup() {
@@ -166,7 +183,8 @@ void Loop() {
 bool SendOnline() {
     return pub((roomsTopic + "/arduino_ota").c_str(), 0, true, arduinoOtaEnabled ? "ON" : "OFF") &&
            pub((roomsTopic + "/auto_update").c_str(), 0, true, autoUpdateEnabled ? "ON" : "OFF") &&
-           pub((roomsTopic + "/prerelease").c_str(), 0, true, prerelease ? "ON" : "OFF");
+           pub((roomsTopic + "/prerelease").c_str(), 0, true, prerelease ? "ON" : "OFF") &&
+           pub((roomsTopic + "/update_error").c_str(), 0, true, Settings::slurp("/update_error").c_str());
 }
 
 bool SendDiscovery() {
