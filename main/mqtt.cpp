@@ -101,7 +101,8 @@ void PruneStaleDiscovery() {
         esp_timer_create(&args, &pruneTimer);
     }
     esp_timer_stop(pruneTimer);
-    esp_timer_start_once(pruneTimer, 60ULL * 1000 * 1000);  // retained messages arrive right away
+    // Retained messages arrive right after the SUBACK; any that miss the window go on a later boot.
+    esp_timer_start_once(pruneTimer, 2ULL * 1000 * 1000);
 }
 
 void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,

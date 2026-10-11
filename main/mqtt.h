@@ -14,7 +14,7 @@ void Setup(const std::string& host, uint16_t port, const std::string& user, cons
            const std::string& clientId, const std::string& willTopic);
 bool connected();
 void reconnect();
-// After discovery: listen to this node's retained discovery configs for a minute and delete any
+// After discovery: listen to this node's retained discovery configs for 2 s and delete any
 // it didn't announce this boot (removed inputs/outputs, disabled sensors, pre-v5 entities).
 void PruneStaleDiscovery();
 }  // namespace Mqtt
