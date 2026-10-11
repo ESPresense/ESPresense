@@ -49,15 +49,12 @@ void pruneIfStale(const std::string& topic, int payloadLen) {
     esp_mqtt_client_enqueue(client, topic.c_str(), "", 0, 0, true, true);
 }
 
+int pruneUnsubscribeId = -1;
+
+// Runs on the esp_timer task: only unsubscribe. The cleanup waits for the UNSUBACK on the MQTT
+// task, the same task that reads announcedTopics in pruneIfStale, so the two never race.
 void stopPruning(void*) {
-    if (!ownDiscoveryFilter.empty() && client) esp_mqtt_client_unsubscribe(client, ownDiscoveryFilter.c_str());
-    ownDiscoveryFilter.clear();
-    // Nothing reads the set after the window: discovery runs once per boot (sentDiscovery), the
-    // only subscriber of these topics is this window, and pruning happens only here. Release it
-    // rather than hold a topic per entity for the life of the process. A later discovery pass
-    // re-populates it from scratch.
-    announcedTopics.clear();
-    pruneArmed = false;
+    if (!ownDiscoveryFilter.empty() && client) pruneUnsubscribeId = esp_mqtt_client_unsubscribe(client, ownDiscoveryFilter.c_str());
 }
 
 void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
@@ -80,6 +77,15 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
             // Retained messages follow the SUBACK, so the window starts here, not at the subscribe
             // call (which waits behind the discovery publishes). Late arrivals are still pruned.
             if (ev->msg_id == pruneSubscribeId && pruneTimer) esp_timer_start_once(pruneTimer, 2ULL * 1000 * 1000);
+            break;
+        case MQTT_EVENT_UNSUBSCRIBED:
+            // Nothing reads the set after the window (discovery runs once per boot), so release it
+            // rather than hold a topic per entity for the life of the process.
+            if (ev->msg_id == pruneUnsubscribeId) {
+                announcedTopics.clear();
+                pruneArmed = false;
+                ownDiscoveryFilter.clear();
+            }
             break;
         case MQTT_EVENT_DATA:
             if (ev->current_data_offset == 0) {
