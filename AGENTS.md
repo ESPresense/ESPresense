@@ -28,7 +28,7 @@ env vars (`CI_COMMIT_MESSAGE`, `CI_PIPELINE_EVENT`, ...) are what the steps see.
 accepts `WOODPECKER_SERVER`/`WOODPECKER_TOKEN` as aliases for its own.
 
 `crow pipeline log show` takes a step name and ends in `PASS:`/`FAIL:`. Steps are `clone`,
-`ble-flood`, `test-<target>` (one per device), `ble-flood-guard`; `crow pipeline ps` needs
+`ble-flood`, `test-<target>` (one per device), `ble-flood-stop`; `crow pipeline ps` needs
 `-o json` to show them (its table output is blank). A new push to the same PR kills the running
 pipeline, so a soak result is on the latest number.
 
