@@ -52,6 +52,12 @@ void pruneIfStale(const std::string& topic, int payloadLen) {
 void stopPruning(void*) {
     if (!ownDiscoveryFilter.empty() && client) esp_mqtt_client_unsubscribe(client, ownDiscoveryFilter.c_str());
     ownDiscoveryFilter.clear();
+    // Nothing reads the set after the window: discovery runs once per boot (sentDiscovery), the
+    // only subscriber of these topics is this window, and pruning happens only here. Release it
+    // rather than hold a topic per entity for the life of the process. A later discovery pass
+    // re-populates it from scratch.
+    announcedTopics.clear();
+    pruneArmed = false;
 }
 
 void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
