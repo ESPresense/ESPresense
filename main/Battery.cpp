@@ -96,15 +96,12 @@ void Setup() {
     readMilliVolts();
 }
 
+// Sensors this configuration doesn't have are cleaned up by Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    // Disabled: remove what an earlier configuration may have announced.
-    if (!enabled())
-        return sendDeleteDiscovery("sensor", "Battery") && sendDeleteDiscovery("sensor", "Battery Voltage")
-            && sendDeleteDiscovery("binary_sensor", "Charging");
+    if (!enabled()) return true;
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
         && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
-        && (leadAcid || AXP192::Ready() ? sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging")
-                     : sendDeleteDiscovery("binary_sensor", "Charging"));
+        && (!(leadAcid || AXP192::Ready()) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
 }
 
 void SendTelemetry() {

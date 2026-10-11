@@ -100,16 +100,11 @@ void Loop() {
     GUI::Motion(motion);
 }
 
-// Inputs past the end of the list, or without a pin, delete their entity so a removed input
-// doesn't linger in Home Assistant.
+// Removed inputs are cleaned up by Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    for (int n = 1; n <= MAX; n++) {
-        auto id = Sprintf("input_%d", n);
-        const Input* in = n <= (int)inputs.size() && inputs[n - 1].pin >= 0 ? &inputs[n - 1] : nullptr;
-        bool ok = in ? sendBinarySensorDiscovery(id, in->name, EC_NONE, in->role == Role::Motion ? "motion" : DEVICE_CLASS_NONE)
-                     : sendDeleteDiscovery("binary_sensor", id);
-        if (!ok) return false;
-    }
+    for (auto& in : inputs)
+        if (in.pin >= 0 && !sendBinarySensorDiscovery(in.id(), in.name, EC_NONE, in.role == Role::Motion ? "motion" : DEVICE_CLASS_NONE))
+            return false;
     return true;
 }
 

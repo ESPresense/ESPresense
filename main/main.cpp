@@ -81,6 +81,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 #endif
         ) {
             sentDiscovery = true;
+            Mqtt::PruneStaleDiscovery();
         } else {
             Log.println("Error sending discovery");
         }

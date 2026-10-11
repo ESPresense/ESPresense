@@ -215,14 +215,13 @@ void Loop() {
     }
 }
 
+// Sensors this configuration doesn't have are cleaned up by Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    if (!enabled)
-        return sendDeleteDiscovery("sensor", "Power") && sendDeleteDiscovery("sensor", "Voltage")
-            && sendDeleteDiscovery("sensor", "Current") && sendDeleteDiscovery("sensor", "Energy");
+    if (!enabled) return true;
     bool cf1 = cf1Pin >= 0;
     return sendSensorDiscovery("Power", EC_NONE, "power", "W")
-        && (cf1 ? sendSensorDiscovery("Voltage", EC_NONE, "voltage", "V") : sendDeleteDiscovery("sensor", "Voltage"))
-        && (cf1 ? sendSensorDiscovery("Current", EC_NONE, "current", "A") : sendDeleteDiscovery("sensor", "Current"))
+        && (!cf1 || sendSensorDiscovery("Voltage", EC_NONE, "voltage", "V"))
+        && (!cf1 || sendSensorDiscovery("Current", EC_NONE, "current", "A"))
         && sendSensorDiscovery("Energy", EC_NONE, "energy", "kWh");
 }
 }  // namespace PowerMonitor

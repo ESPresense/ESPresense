@@ -145,15 +145,10 @@ void Loop() {
     }
 }
 
-// Outputs past the end of the list, without a pin, or fixed delete their entity so they don't
-// linger in Home Assistant.
+// Removed or fixed outputs are cleaned up by Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    for (int n = 1; n <= MAX; n++) {
-        auto id = Sprintf("output_%d", n);
-        bool ok = n <= count && live(outputs[n - 1]) ? sendSwitchDiscovery(id, outputs[n - 1].name, EC_NONE)
-                                                     : sendDeleteDiscovery("switch", id);
-        if (!ok) return false;
-    }
+    for (int i = 0; i < count; i++)
+        if (live(outputs[i]) && !sendSwitchDiscovery(outputs[i].id(), outputs[i].name, EC_NONE)) return false;
     return true;
 }
 

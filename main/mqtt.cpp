@@ -1,6 +1,7 @@
 #include "mqtt.h"
 
 #include <memory>
+#include <set>
 
 #include "BleFingerprintCollection.h"
 #include "GUI.h"
@@ -17,11 +18,37 @@ extern bool online;
 extern int reconnectTries;
 extern std::string setTopic, configTopic;
 
+// Discovery topics announced since boot; PruneStaleDiscovery deletes retained configs not in it.
+std::set<std::string> announcedTopics;
+
 namespace Mqtt {
 namespace {
 esp_mqtt_client_handle_t client = nullptr;
 bool isConnected = false;
 std::string topicBuffer, payloadBuffer;
+
+std::string ownDiscoveryFilter;  // <prefix>/+/espresense_<chip>/+/config while pruning
+esp_timer_handle_t pruneTimer = nullptr;
+
+bool isOwnDiscovery(const char* topic, int len) {
+    if (ownDiscoveryFilter.empty()) return false;
+    std::string t(topic, len);
+    auto chip = Sprintf("/espresense_%06x/", (unsigned)CHIPID);
+    return t.compare(0, homeAssistantDiscoveryPrefix.size() + 1, homeAssistantDiscoveryPrefix + "/") == 0 && t.find(chip) != std::string::npos && endsWith(t, "/config");
+}
+
+// A retained config we didn't announce this boot: clear it (empty retained payload). Empty
+// payloads are our own deletes coming back, or already gone.
+void pruneIfStale(const std::string& topic, int payloadLen) {
+    if (payloadLen == 0 || announcedTopics.count(topic)) return;
+    Log.printf("Removing stale discovery %s\n", topic.c_str());
+    esp_mqtt_client_enqueue(client, topic.c_str(), "", 0, 0, true, true);
+}
+
+void stopPruning(void*) {
+    if (!ownDiscoveryFilter.empty() && client) esp_mqtt_client_unsubscribe(client, ownDiscoveryFilter.c_str());
+    ownDiscoveryFilter.clear();
+}
 
 void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
     auto* ev = (esp_mqtt_event_handle_t)data;
@@ -40,6 +67,10 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
             Log.println("Disconnected from MQTT");
             break;
         case MQTT_EVENT_DATA:
+            if (ev->current_data_offset == 0 && isOwnDiscovery(ev->topic, ev->topic_len)) {
+                pruneIfStale(std::string(ev->topic, ev->topic_len), ev->total_data_len);
+                break;
+            }
             // Large messages arrive in chunks; the topic only comes with the first one.
             if (ev->current_data_offset == 0) {
                 topicBuffer.assign(ev->topic, ev->topic_len);
@@ -58,6 +89,20 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
     }
 }
 }  // namespace
+
+void PruneStaleDiscovery() {
+    if (!client || !ownDiscoveryFilter.empty()) return;
+    ownDiscoveryFilter = Sprintf("%s/+/espresense_%06x/+/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID);
+    esp_mqtt_client_subscribe(client, ownDiscoveryFilter.c_str(), 0);
+    if (!pruneTimer) {
+        esp_timer_create_args_t args = {};
+        args.callback = stopPruning;
+        args.name = "discPrune";
+        esp_timer_create(&args, &pruneTimer);
+    }
+    esp_timer_stop(pruneTimer);
+    esp_timer_start_once(pruneTimer, 60ULL * 1000 * 1000);  // retained messages arrive right away
+}
 
 void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
            const std::string& clientId, const std::string& willTopic) {
@@ -125,6 +170,12 @@ static const char* chipModel() {
     }
 }
 
+static bool announce(const std::string& topic) {
+    if (!pub(topic.c_str(), 0, true, doc)) return false;
+    announcedTopics.insert(topic);
+    return true;
+}
+
 void commonDiscovery() {
     doc.clear();
     auto identifiers = doc["dev"].createNestedArray("ids");
@@ -162,7 +213,7 @@ bool sendConnectivityDiscovery() {
     doc["pl_on"] = "online";
     doc["pl_off"] = "offline";
     const std::string discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/connectivity/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID);
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendTeleBinarySensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& temp, const std::string& devClass) {
@@ -177,7 +228,7 @@ bool sendTeleBinarySensorDiscovery(const std::string& name, const std::string& e
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     if (!devClass.empty()) doc["dev_cla"] = devClass;
     const std::string discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendTeleSensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& temp, const std::string& devClass, const std::string& units) {
@@ -193,7 +244,7 @@ bool sendTeleSensorDiscovery(const std::string& name, const std::string& entityC
     if (!units.empty()) doc["unit_of_meas"] = units;
     if (!devClass.empty()) doc["dev_cla"] = devClass;
     const std::string discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendSensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& devClass, const std::string& units, bool frcUpdate) {
@@ -212,7 +263,7 @@ bool sendSensorDiscovery(const std::string& name, const std::string& entityCateg
     else if (devClass == "power" || devClass == "voltage" || devClass == "current") doc["stat_cla"] = "measurement";
     doc["frc_upd"] = frcUpdate;
     const std::string discoveryTopic = Sprintf("%s/sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendBinarySensorDiscovery(const std::string& name, const std::string& entityCategory, const std::string& devClass) {
@@ -229,7 +280,7 @@ bool sendBinarySensorDiscovery(const std::string& slug, const std::string& name,
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     if (!devClass.empty()) doc["dev_cla"] = devClass;
     const std::string discoveryTopic = Sprintf("%s/binary_sensor/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendButtonDiscovery(const std::string& name, const std::string& entityCategory) {
@@ -243,7 +294,7 @@ bool sendButtonDiscovery(const std::string& name, const std::string& entityCateg
     doc["cmd_t"] = "~/" + slug + "/set";
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     const std::string discoveryTopic = Sprintf("%s/button/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendSwitchDiscovery(const std::string& name, const std::string& entityCategory) {
@@ -260,7 +311,7 @@ bool sendSwitchDiscovery(const std::string& slug, const std::string& name, const
     doc["cmd_t"] = "~/" + slug + "/set";
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     const std::string discoveryTopic = Sprintf("%s/switch/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendNumberDiscovery(const std::string& name, const std::string& entityCategory) {
@@ -278,7 +329,7 @@ bool sendNumberDiscovery(const std::string& slug, const std::string& name, const
     doc["step"] = "0.1";
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     const std::string discoveryTopic = Sprintf("%s/number/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendLightDiscovery(const std::string& name, const std::string& entityCategory, bool rgb, bool rgbw) {
@@ -294,7 +345,7 @@ bool sendLightDiscovery(const std::string& name, const std::string& entityCatego
     doc["supported_color_modes"][0] = rgbw ? "rgbw" : rgb ? "rgb" : "brightness";
     if (!entityCategory.empty()) doc["entity_category"] = entityCategory;
     const std::string discoveryTopic = Sprintf("%s/light/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, true, doc);
+    return announce(discoveryTopic);
 }
 
 bool sendDeleteDiscovery(const std::string& domain, const std::string& name) {
@@ -302,6 +353,7 @@ bool sendDeleteDiscovery(const std::string& domain, const std::string& name) {
     const std::string discoveryTopic = Sprintf("%s/%s/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), domain.c_str(), (unsigned)CHIPID, slug.c_str());
     // Retained, so the broker drops the retained config too; otherwise the entity comes back
     // when Home Assistant reconnects.
+    announcedTopics.erase(discoveryTopic);
     return pub(discoveryTopic.c_str(), 0, true, "");
 }
 
