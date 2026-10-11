@@ -3,26 +3,39 @@
 import sys, time
 import serial
 
+
+def open_port(port):
+    # DTR/RTS low before opening: on USB-UART boards (CP210x/CH340) they drive EN/IO0, so a
+    # plain open (or the reopen below) would reset the chip every time.
+    s = serial.Serial()
+    s.port, s.baudrate, s.timeout = port, 115200, 0.5
+    s.dtr = s.rts = False
+    s.open()
+    return s
+
 port, secs = sys.argv[1], float(sys.argv[2]) if len(sys.argv) > 2 else 20
 # ponytail: waits out the USB re-enumeration after reset; native-USB S3/C6 drop the port briefly.
 end = time.time() + secs
 while True:
     try:
-        s = serial.Serial(port, 115200, timeout=0.5)
+        s = open_port(port)
         break
     except serial.SerialException:
         if time.time() > end: sys.exit(f"could not open {port}")
         time.sleep(0.2)
+native = "usbmodem" in port or "ttyACM" in port
 # ponytail: reopen after 3s of silence; after a reset macOS can leave us on a dead handle.
 last = time.time()
 while time.time() < end:
     try:
         data = s.read(4096)
-        if not data and time.time() - last > 3:
+        # Native USB (usbmodem: S3/C3/C6) can leave a dead handle after a reset, so reopen on
+        # silence. USB-UART boards reset on every open, so never reopen those just for silence.
+        if not data and native and time.time() - last > 3:
             raise serial.SerialException("silent")
     except serial.SerialException:  # port vanished or went quiet (reset), reopen
         s.close(); time.sleep(0.2); last = time.time()
-        try: s = serial.Serial(port, 115200, timeout=0.5)
+        try: s = open_port(port)
         except serial.SerialException: pass
         continue
     if data:
