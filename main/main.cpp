@@ -106,6 +106,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["reset"] = rr < sizeof(resetReasons) / sizeof(resetReasons[0]) ? resetReasons[rr] : "unknown";
 #ifdef FIRMWARE
     doc["firm"] = FIRMWARE;
+    if (!board.empty()) doc["board"] = board;
 #endif
     doc["rssi"] = Network::rssi();
     Battery::SendTelemetry();
@@ -195,6 +196,7 @@ void setupNetwork() {
 
     // Settings registered after this belong to /wifi/hardware
     Settings::markEndpoint("hardware");
+    board = Settings::string("board", "", "Board (e.g. SwitchBot Plug Mini); set when a template is applied");
     GUI::ConnectToWifi(updating);
 
     Inputs::ConnectToWifi(updating);

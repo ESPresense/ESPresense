@@ -67,6 +67,7 @@ esp_err_t sendJsonDoc(httpd_req_t* req, JsonVariantConst v) {
 
 void serializeInfo(JsonObject& root) {
     root["room"] = room;
+    if (!board.empty()) root["board"] = board;
 #ifdef VERSION
     root["ver"] = VERSION;
 #endif
@@ -110,6 +111,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
     DynamicJsonDocument doc(4096);
     JsonObject root = doc.to<JsonObject>();
     if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
+    if (!board.empty()) root["name"] = board;
     root["chip"] = CONFIG_IDF_TARGET;
 #ifdef FIRMWARE
     root["firmware"] = FIRMWARE;
@@ -150,6 +152,9 @@ esp_err_t postTemplate(httpd_req_t* req) {
             return sendTemplateError(req, "400 Bad Request", err);
         name = doc["name"] | "";
     }
+    // The template's name says what the board is; keep it unless the template sets board itself.
+    if (!name.empty() && std::none_of(changes.begin(), changes.end(), [](const SettingChange& c) { return c.key == "board"; }))
+        changes.push_back({"board", name});
     std::string().swap(body);
 
     // "to" values are copies of the template's strings; "from" values are bounded the same way in

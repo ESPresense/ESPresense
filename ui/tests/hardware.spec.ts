@@ -530,6 +530,20 @@ test.describe('Hardware lists', () => {
 		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'cse7766', rx: 20 });
 	});
 
+	test('board is a text field that posts with the form', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { board: 'SwitchBot Plug Mini' }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		const board = page.getByLabel('Board (what this node is; set when you apply a template)');
+		await expect(board).toHaveValue('SwitchBot Plug Mini');
+		await board.fill('Athom PG03V3');
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('board=');
+		expect(new URLSearchParams(posted).get('board')).toBe('Athom PG03V3');
+	});
+
 	test('an LED can mirror an output', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, { outputs: [{ name: 'Relay', pin: 5, type: 'output' }] }, (body) => (posted = body));

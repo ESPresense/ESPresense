@@ -142,7 +142,13 @@ void commonDiscovery() {
     doc["dev"]["mf"] = "ESPresense (" FIRMWARE ")";
 #endif
     doc["dev"]["cu"] = "http://" + localIp;
-    doc["dev"]["mdl"] = chipModel();
+    // Model shows what the node is when a template named it; the chip moves to hardware version.
+    if (board.empty()) {
+        doc["dev"]["mdl"] = chipModel();
+    } else {
+        doc["dev"]["mdl"] = board;
+        doc["dev"]["hw"] = chipModel();
+    }
 }
 
 bool sendConnectivityDiscovery() {

@@ -161,6 +161,12 @@
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
     {#if $hardwareSettings?.values != null}
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
+        <p>
+            <label>
+                Board (what this node is; set when you apply a template):<br />
+                <input type="text" name="board" placeholder="e.g. SwitchBot Plug Mini" bind:value={$hardwareSettings.values['board']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#leds" target="_blank">LEDs</a>
         </h2>
