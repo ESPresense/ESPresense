@@ -204,7 +204,7 @@ esp_err_t serveJson(httpd_req_t* req) {
     commonHeaders(req);
     httpd_resp_set_type(req, "application/json");
     ChunkWriter w{req};
-    auto raw = [&](const char* s) { w.write((const uint8_t*)s, strlen(s)); };
+    auto raw = [&](const std::string& s) { w.write((const uint8_t*)s.data(), s.size()); };
 
     // {"room":..,"ver":..,"firm":..  (the info object without its closing brace)
     {
@@ -213,7 +213,7 @@ esp_err_t serveJson(httpd_req_t* req) {
         std::string head;
         serializeJson(item, head);
         head.pop_back();
-        raw(head.c_str());
+        raw(head);
     }
     if (devices) {
         raw(",\"devices\":[");

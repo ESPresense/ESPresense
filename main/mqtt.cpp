@@ -300,7 +300,9 @@ bool sendLightDiscovery(const std::string& name, const std::string& entityCatego
 bool sendDeleteDiscovery(const std::string& domain, const std::string& name) {
     auto slug = slugify(name);
     const std::string discoveryTopic = Sprintf("%s/%s/espresense_%06x/%s/config", homeAssistantDiscoveryPrefix.c_str(), domain.c_str(), (unsigned)CHIPID, slug.c_str());
-    return pub(discoveryTopic.c_str(), 0, false, "");
+    // Retained, so the broker drops the retained config too; otherwise the entity comes back
+    // when Home Assistant reconnects.
+    return pub(discoveryTopic.c_str(), 0, true, "");
 }
 
 bool sendConfig(const std::string& id, const std::string& alias, const std::string& name, int calRssi) {

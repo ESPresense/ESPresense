@@ -544,6 +544,30 @@ test.describe('Hardware lists', () => {
 		expect(new URLSearchParams(posted).get('board')).toBe('Athom PG03V3');
 	});
 
+	test('link and mirror choices fall back to the default lists', async ({ page }) => {
+		await page.route('**/wifi/hardware', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					values: { ...mockHardwareSettings.values, inputs: undefined, outputs: undefined },
+					defaults: {
+						...mockHardwareSettings.defaults,
+						inputs: [{ name: 'Default button', role: 'button', pin: 3, type: 'pullup_inverted' }],
+						outputs: [{ name: 'Default relay', pin: 5, type: 'output', input: 1 }]
+					}
+				})
+			})
+		);
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		const link = item(page, 'Output 1:').filter({ hasText: 'Linked input' }).first().locator('select');
+		await expect(link.locator('option', { hasText: '1: Default button' })).toHaveCount(1);
+		await item(page, 'LED 1:').filter({ hasText: 'LED Control' }).first().locator('select').selectOption('output');
+		await expect(page.getByLabel('Output to show').locator('option')).toHaveText(['1: Default relay']);
+	});
+
 	test('an LED can mirror an output', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, { outputs: [{ name: 'Relay', pin: 5, type: 'output' }] }, (body) => (posted = body));

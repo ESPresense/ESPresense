@@ -22,7 +22,7 @@
     // "Linked input" choices, labelled with each input's name (value = 1-based input number, 0 = none).
     // Outputs an LED can mirror (value = 1-based output number).
     const outputChoices = $derived(
-        (($hardwareSettings?.values['outputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+        (($hardwareSettings?.values['outputs'] ?? $hardwareSettings?.defaults['outputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
             String(i + 1),
             `${i + 1}: ${it.name || `Output ${i + 1}`}`
         ])
@@ -36,7 +36,7 @@
 
     const linkedInputs = $derived([
         ['0', 'None'],
-        ...((($hardwareSettings?.values['inputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
+        ...((($hardwareSettings?.values['inputs'] ?? $hardwareSettings?.defaults['inputs'] ?? []) as Record<string, unknown>[]).map((it, i) => [
             String(i + 1),
             `${i + 1}: ${it.name || `Input ${i + 1}`}`
         ]))
