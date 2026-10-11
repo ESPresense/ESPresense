@@ -1,9 +1,12 @@
 #include "PowerMonitor.h"
 
 #include <atomic>
+#include <cstring>
 #include <string>
 
+#include "CSE7766.h"
 #include "Settings.h"
+#include "driver/uart.h"
 #include "driver/gpio.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -29,6 +32,9 @@ const char* const ENERGY_FILE = "/power_energy";
 
 bool enabled = false;
 bool bl0937 = true;
+bool cse = false;  // CSE7766: serial frames on rxPin instead of pulses
+int rxPin = -1;
+constexpr uart_port_t CSE_UART = UART_NUM_1;
 bool selInverted = false;
 int cfPin = -1, cf1Pin = -1, selPin = -1;
 float powerMult = 0, currentMult = 0, voltageMult = 0;  // per Hz (ESPHome's hlw8012 formulas)
@@ -67,6 +73,15 @@ void ConnectToWifi(bool updating) {
     enabled = false;
     if (deserializeJson(cfg, text) || !cfg.is<JsonObject>()) return;
     std::string model = cfg["model"] | "";
+    cse = model == "cse7766";
+    rxPin = cfg["rx"] | -1;
+    if (cse) {
+        if (rxPin < 0) return;
+        energyWs = savedWs = toFloat(Settings::slurp(ENERGY_FILE)) * 3600000.0;
+        cf1Pin = rxPin;  // reports voltage and current too (see SendDiscovery)
+        enabled = true;
+        return;
+    }
     cfPin = cfg["cf"] | -1;
     cf1Pin = cfg["cf1"] | -1;
     selPin = cfg["sel"] | -1;
@@ -90,8 +105,56 @@ void ConnectToWifi(bool updating) {
     enabled = true;
 }
 
+// CSE7766 frame state: a sliding 24-byte window over the serial stream, and per-window sums.
+uint8_t frameBuf[24];
+size_t frameLen = 0;
+double sumV = 0, sumI = 0, sumP = 0;
+int frames = 0;
+int32_t lastCf = -1;  // chip's 16-bit pulse counter at the previous frame; -1 before the first
+
+void setupCse() {
+    uart_config_t c = {};
+    c.baud_rate = 4800;
+    c.data_bits = UART_DATA_8_BITS;
+    c.parity = UART_PARITY_EVEN;
+    c.stop_bits = UART_STOP_BITS_1;
+    c.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
+    c.source_clk = UART_SCLK_DEFAULT;
+    if (uart_driver_install(CSE_UART, 256, 0, 0, nullptr, 0) != ESP_OK || uart_param_config(CSE_UART, &c) != ESP_OK
+        || uart_set_pin(CSE_UART, UART_PIN_NO_CHANGE, rxPin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK) {
+        Log.println("Power: CSE7766 UART setup failed");
+        enabled = false;
+    }
+}
+
+// Drain the UART; every valid frame adds to this window's sums and to energy.
+void readCse() {
+    uint8_t b;
+    while (uart_read_bytes(CSE_UART, &b, 1, 0) == 1) {
+        if (frameLen == sizeof(frameBuf)) {
+            memmove(frameBuf, frameBuf + 1, sizeof(frameBuf) - 1);
+            frameLen--;
+        }
+        frameBuf[frameLen++] = b;
+        CseReading r;
+        if (frameLen < sizeof(frameBuf) || !cseDecode(frameBuf, r)) continue;
+        frameLen = 0;
+        sumV += r.voltage;
+        sumI += r.current;
+        sumP += r.power;
+        frames++;
+        if (lastCf >= 0) energyWs += (uint16_t)(r.cfPulses - lastCf) * r.joulesPerPulse;
+        lastCf = r.cfPulses;
+    }
+}
+
 void Setup() {
     if (!enabled) return;
+    windowStart = lastSave = millis();
+    if (cse) {
+        setupCse();
+        return;
+    }
     if (selPin >= 0) {
         applySel();
         pinMode(selPin, OUTPUT);
@@ -103,12 +166,24 @@ void Setup() {
 
 void Loop() {
     if (!enabled) return;
+    if (cse) readCse();
     unsigned long now = millis();
     unsigned long dt = now - windowStart;
     if (dt < WINDOW_MS) return;
     windowStart = now;
     double secs = dt / 1000.0;
 
+    if (cse) {
+        if (frames) {
+            voltage = sumV / frames;
+            current = sumI / frames;
+            power = sumP / frames;
+        } else {
+            voltage = current = power = 0;  // no frames: unplugged chip or wrong pin
+        }
+        sumV = sumI = sumP = 0;
+        frames = 0;
+    } else {
     uint32_t cf = cfPulses.exchange(0), cf1 = cf1Pulses.exchange(0);
     power = cf / secs * powerMult;
     energyWs += cf * powerMult;
@@ -122,6 +197,7 @@ void Loop() {
         currentMode = !currentMode;
         windowInMode = 0;
         applySel();
+    }
     }
 
     if (++windows % WINDOWS_PER_PUBLISH == 0 && online) {

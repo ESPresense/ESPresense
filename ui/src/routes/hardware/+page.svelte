@@ -8,7 +8,7 @@
         ['grb', 'Addressable GRB'], ['grbw', 'Addressable GRBW'], ['rgb', 'Addressable RGB'], ['rgbw', 'Addressable RGBW']
     ];
     const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count'], ['output', 'Output']];
-    const powerModels = [['', 'None'], ['bl0937', 'BL0937'], ['hlw8012', 'HLW8012 / CSE7759']];
+    const powerModels = [['', 'None'], ['bl0937', 'BL0937'], ['hlw8012', 'HLW8012 / CSE7759'], ['cse7766', 'CSE7766 (serial, e.g. Athom)']];
     // [stored value, label] for the inputs/outputs JSON lists.
     const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
     const inputPinTypes = [
@@ -213,7 +213,15 @@
         <h4>Energy meter:</h4>
         <input type="hidden" name="power" value={JSON.stringify(power)} />
         {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
-        {#if power.model}
+        {#if power.model === 'cse7766'}
+            <p>
+                <label>
+                    RX pin (CSE7766 TX; factory calibrated, no settings needed):<br />
+                    <input type="number" step="1" min="-1" max="48" class="w-24" value={power.rx ?? -1}
+                        oninput={(e) => setPower('rx', e.currentTarget.value === '' ? -1 : Number(e.currentTarget.value))}/>
+                </label>
+            </p>
+        {:else if power.model}
             <div class="flex flex-wrap gap-4">
                 {#each [['cf', 'CF pin (power)'], ['cf1', 'CF1 pin (V / A)'], ['sel', 'SEL pin']] as [key, label] (key)}
                     <p>

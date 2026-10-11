@@ -515,6 +515,21 @@ test.describe('Hardware lists', () => {
 		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'bl0937', cf: 6, cf1: 7, sel: 10, voltage_divider: 1517, sel_inverted: true });
 	});
 
+	test('CSE7766 only asks for the RX pin', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, {}, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await page.getByLabel('Chip (most relay plugs have one)').selectOption('cse7766');
+		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
+		await page.getByLabel('RX pin (CSE7766 TX; factory calibrated, no settings needed)').fill('20');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('power=');
+		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'cse7766', rx: 20 });
+	});
+
 	test('an LED can mirror an output', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, { outputs: [{ name: 'Relay', pin: 5, type: 'output' }] }, (body) => (posted = body));
