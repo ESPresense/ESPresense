@@ -1,5 +1,6 @@
 #include "Outputs.h"
 
+#include <algorithm>
 #include <atomic>
 #include <vector>
 
@@ -45,7 +46,9 @@ struct Output {
     }
 };
 
-Output outputs[MAX];
+// Sized once per boot to the configured count: Output holds an atomic, so it can't be moved, and
+// a vector built at its final size never moves its elements.
+std::vector<Output> outputs;
 int count = 0;
 
 void Setup() {
@@ -62,12 +65,15 @@ void ConnectToWifi(bool updating) {
     std::string text = Settings::json("outputs", "[]", "Outputs");
     DynamicJsonDocument list(text.size() * 2 + 256);
     count = 0;
+    outputs.clear();
     if (deserializeJson(list, text)) {
         Log.println("Outputs: invalid JSON, ignored");
         return;
     }
-    for (JsonObject j : list.as<JsonArray>()) {
-        if (count >= MAX) break;
+    JsonArray items = list.as<JsonArray>();
+    outputs = std::vector<Output>(std::min<size_t>(items.size(), MAX));
+    for (JsonObject j : items) {
+        if (count >= (int)outputs.size()) break;
         auto& o = outputs[count++];
         o.index = count;
         o.name = j["name"] | "";
