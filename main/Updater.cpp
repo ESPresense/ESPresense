@@ -95,7 +95,8 @@ void checkForUpdates() {
 // The last HTTP status seen while updating, so a failure can say 404 rather than ESP_FAIL.
 static int updateStatus = 0;
 static esp_err_t updateEvent(esp_http_client_event_t* ev) {
-    if (ev->event_id == HTTP_EVENT_ON_HEADER) updateStatus = esp_http_client_get_status_code(ev->client);
+    // status_code is only set after the last ON_HEADER fires; every close (redirect hop, failure) comes after it.
+    if (ev->event_id == HTTP_EVENT_DISCONNECTED) updateStatus = esp_http_client_get_status_code(ev->client);
     return ESP_OK;
 }
 
