@@ -23,16 +23,12 @@ while True:
     except serial.SerialException:
         if time.time() > end: sys.exit(f"could not open {port}")
         time.sleep(0.2)
-native = "usbmodem" in port or "ttyACM" in port
-# ponytail: reopen after 3s of silence; after a reset macOS can leave us on a dead handle.
+# Reopen only when the port goes away (native USB re-enumerates on reset). Never reopen on
+# silence: on both native USB and USB-UART, opening the port resets the chip.
 last = time.time()
 while time.time() < end:
     try:
         data = s.read(4096)
-        # Native USB (usbmodem: S3/C3/C6) can leave a dead handle after a reset, so reopen on
-        # silence. USB-UART boards reset on every open, so never reopen those just for silence.
-        if not data and native and time.time() - last > 3:
-            raise serial.SerialException("silent")
     except serial.SerialException:  # port vanished or went quiet (reset), reopen
         s.close(); time.sleep(0.2); last = time.time()
         try: s = open_port(port)
