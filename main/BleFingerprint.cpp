@@ -1,5 +1,7 @@
 #include "BleFingerprint.h"
 
+#include "esp_crc.h"
+
 #include <math.h>
 #include <stdint.h>
 
@@ -39,7 +41,6 @@ void BleFingerprint::InitLocks() {
 BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
-    addressType = advertisedDevice->getAddressType();
     raw = advertisedDevice->getRSSI();
     rssi = raw - BleFingerprintCollection::rxAdjRssi;
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
@@ -194,7 +195,7 @@ void BleFingerprint::fingerprintAddress() {
     if (!BleFingerprintCollection::knownMacs.empty() && prefixExists(BleFingerprintCollection::knownMacs, mac))
         setId("known:" + mac, ID_TYPE_KNOWN_MAC);
     else {
-        switch (addressType) {
+        switch (address.type) {
             case BLE_ADDR_PUBLIC:
             case BLE_ADDR_PUBLIC_ID:
                 setId(mac, ID_TYPE_PUBLIC_MAC);
@@ -361,7 +362,10 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
             if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
-                setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST);
+                if (setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST) && bcnRssi != 3) {
+                    bcnCrc = esp_crc16_le(0, d + 4, 16);
+                    hasBcnUuid = true;
+                }
             } else if (strManufacturerData.length() >= 4 && d[2] == 0x10) {
                 std::string pid = Sprintf("apple:%02x%02x:%u", d[2], d[3], (unsigned)strManufacturerData.length());
                 if (haveTxPower) pid += toStr(-txPower);
@@ -461,7 +465,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (battery != 0xFF) (*doc)["batt"] = battery;
     if (temp) (*doc)["temp"] = serialized(toStr(temp));
     if (humidity) (*doc)["rh"] = serialized(toStr(humidity));
-    if (!discoveredIrk.empty()) (*doc)["irk"] = discoveredIrk;
+    if (discoveredIrk) (*doc)["irk"] = *discoveredIrk;
     return true;
 }
 
@@ -499,7 +503,6 @@ bool BleFingerprint::report(JsonObject *doc) {
     if (!fill(doc)) return false;
     auto skipMs = (uint64_t)BleFingerprintCollection::skipMs;
     nextReportMs = now_ms + (skipMs ? (skipMs - (now_ms % skipMs)) % skipMs : 0);
-    lastReportedMs = now_ms;
     lastReported = dist;
     reported = true;
     return true;
@@ -531,14 +534,14 @@ bool BleFingerprint::query() {
             }
 
             // Still connected and no IRK yet: try the Resolving Key characteristic.
-            if (client.isConnected() && discoveredIrk.empty()) {
+            if (client.isConnected() && !discoveredIrk) {
                 std::string irkBytes = client.read(genericAccessService, resolvingKeyChar);
                 if (irkBytes.length() == 16) {
                     {
                         FieldLock lock;
-                        discoveredIrk = hexStr(irkBytes);
+                        discoveredIrk.reset(new std::string(hexStr(irkBytes)));
                     }
-                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk.c_str());
+                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk->c_str());
                 }
             }
         }
