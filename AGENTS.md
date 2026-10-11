@@ -2,6 +2,13 @@
 
 * After modifying files under `ui`, execute `npm run build` in that folder to regenerate C++ headers under `main`.
 * Pure ESP-IDF v5.4 project: `. ~/esp/esp-idf/export.sh && ./build.sh <env>` (see BUILDING.md). No Arduino, no PlatformIO.
+* Flash with `tools/flash.sh <env> <port> [seconds]`: it flashes, then captures the serial log
+  (saved to `build/<env>/serial.log`). Always show the user the post-flash log output, and
+  confirm the board booted before calling a flash done. `tools/serial_log.py <port> [seconds]`
+  reads the log alone. The script ends with the board's IP; always give it to the user. If the port is busy, the script prints which process holds it.
+* UI-only changes: skip the flash. `cd ui && ESPRESENSE_DEVICE=<ip> npm run dev` serves the live
+  UI with hot reload and proxies `/json`, `/wifi`, `/restart` and `/ws` to that node. Flash once
+  the UI is done (the firmware embeds the built UI).
 * Host unit tests: `./test/run.sh`.
 * HIL (`.woodpecker/hil.yml`) runs 180s per device on a PR and 4h on main and the nightly
   cron. A memory or stability change needs the long run to prove anything, so ask for one:

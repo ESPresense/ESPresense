@@ -117,36 +117,23 @@ void Left(BleFingerprint *f) {
     Display::Status("L:%s\n", f->getId().c_str());
 }
 /**
- * @brief Logs motion sensor states and forwards them to the LEDs subsystem.
+ * @brief Log an input's debounced state change.
  *
- * @param pir True if the PIR sensor currently detects motion.
- * @param radar True if the radar sensor currently detects motion.
+ * @param index 1-based input number.
+ * @param name The input's configured name.
+ * @param on True while the input is active (including its hold timeout).
  */
-void Motion(bool pir, bool radar) {
-    Log.printf("%u Motion | Pir: %s Radar: %s\n", xPortGetCoreID(), pir ? "yes" : "no", radar ? "yes" : "no");
-    LEDs::Motion(pir, radar);
+void Input(int index, const std::string& name, bool on) {
+    Log.printf("%u Input  | %d %s: %s\n", xPortGetCoreID(), index, name.c_str(), on ? "on" : "off");
 }
 
 /**
- * @brief Log the current states of two physical switches.
+ * @brief Forward the combined state of the Motion-role inputs to the LEDs.
  *
- * Logs which core is running and whether each switch is active.
- *
- * @param switch_1 `true` if the first switch is active/on, `false` otherwise.
- * @param switch_2 `true` if the second switch is active/on, `false` otherwise.
+ * @param motion True while any Motion-role input is active.
  */
-void Switch(bool switch_1, bool switch_2) {
-    Log.printf("%u Switch | Switch One: %s Switch Two: %s\n", xPortGetCoreID(), switch_1 ? "yes" : "no", switch_2 ? "yes" : "no");
-}
-
-/**
- * @brief Logs the current states of two physical buttons.
- *
- * @param button_1 State of the first button (`true` if pressed, `false` otherwise).
- * @param button_2 State of the second button (`true` if pressed, `false` otherwise).
- */
-void Button(bool button_1, bool button_2) {
-    Log.printf("%u Button | Button One: %s Button Two: %s\n", xPortGetCoreID(), button_1 ? "yes" : "no", button_2 ? "yes" : "no");
+void Motion(bool motion) {
+    LEDs::Motion(motion);
 }
 
 /**

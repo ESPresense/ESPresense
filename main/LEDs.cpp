@@ -1,15 +1,16 @@
 #include "LEDs.h"
 
 #include <algorithm>
+#include <cstring>
 #include <vector>
 
-#include "Motion.h"
 #include "defaults.h"
 #include "globals.h"
 #include "led/Addressable.h"
 #include "led/LED.h"
 #include "led/SinglePWM.h"
 #include "mqtt.h"
+#include "Outputs.h"
 #include "Settings.h"
 #include "string_utils.h"
 #include "util.h"
@@ -22,11 +23,6 @@
 
 namespace LEDs {
 
-int led_1_type = DEFAULT_LED1_TYPE, led_2_type, led_3_type;
-int led_1_pin = DEFAULT_LED1_PIN, led_2_pin, led_3_pin;
-int led_1_cnt = DEFAULT_LED1_CNT, led_2_cnt, led_3_cnt;
-ControlType led_1_cntrl = DEFAULT_LED1_CNTRL, led_2_cntrl, led_3_cntrl;
-int led_pwr_pin = -1;
 std::vector<LED*> leds, statusLeds, countLeds, motionLeds;
 bool online;
 unsigned long lastSave = 0;
@@ -44,41 +40,49 @@ LED* newLed(uint8_t index, ControlType cntrl, int type, int pin, int cnt, const 
     return led;
 }
 
+namespace {
+const char* const ledTypes[] = {"pwm", "pwm_inverted", "grb", "grbw", "rgb", "rgbw"};
+const char* const ledControls[] = {"mqtt", "status", "motion", "count", "output"};
+std::vector<std::pair<LED*, int>> outputLeds;  // control "output": LED, 1-based output number
+
+template <size_t N>
+int indexOf(const char* s, const char* const (&options)[N], int fallback) {
+    for (size_t i = 0; i < N; i++)
+        if (s && strcmp(s, options[i]) == 0) return (int)i;
+    return fallback;
+}
+}  // namespace
+
+/**
+ * @brief Read the "leds" setting and build the LEDs.
+ *
+ * A JSON list such as [{"type": "grb", "pin": 27, "count": 25, "control": "status"}].
+ * type: pwm | pwm_inverted | grb | grbw | rgb | rgbw (the last four addressable; count only
+ * applies to those). control: mqtt | status | motion | count | output (mirrors output "output",
+ * 1-based). max_brightness: 1-255 ceiling, default 100 for addressable, 255 for PWM. LED n (1-based list position) is
+ * led_<n> in MQTT and keeps its colour in /led_<n>_state. The default is the board's LED.
+ */
 void ConnectToWifi(bool updating) {
-    std::vector<std::string> ledTypes = {"PWM", "PWM Inverted", "Addressable GRB", "Addressable GRBW", "Addressable RGB", "Addressable RGBW"};
-    std::vector<std::string> ledControlTypes = {"MQTT", "Status", "Motion", "Count"};
-
-    led_1_type = Settings::dropdown("led_1_type", ledTypes, DEFAULT_LED1_TYPE, "LED Type");
-    led_1_pin = Settings::integer("led_1_pin", -1, 48, DEFAULT_LED1_PIN, "Pin (-1 to disable)");
-    led_1_cnt = Settings::integer("led_1_cnt", -1, 39, DEFAULT_LED1_CNT, "Count (only applies to Addressable LEDs)");
-    led_1_cntrl = (ControlType)Settings::dropdown("led_1_cntrl", ledControlTypes, DEFAULT_LED1_CNTRL, "LED Control");
-    std::string const led_1_state = Settings::string("led_1_state", "", "LED State");
-    Settings::markState();
-
-    led_2_type = Settings::dropdown("led_2_type", ledTypes, 0, "LED Type");
-    led_2_pin = Settings::integer("led_2_pin", -1, 48, -1, "Pin (-1 to disable)");
-    led_2_cnt = Settings::integer("led_2_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
-    led_2_cntrl = (ControlType)Settings::dropdown("led_2_cntrl", ledControlTypes, 0, "LED Control");
-    std::string const led_2_state = Settings::string("led_2_state", "", "LED State");
-    Settings::markState();
-
-    led_3_type = Settings::dropdown("led_3_type", ledTypes, 0, "LED Type");
-    led_3_pin = Settings::integer("led_3_pin", -1, 48, -1, "Pin (-1 to disable)");
-    led_3_cnt = Settings::integer("led_3_cnt", -1, 39, 1, "Count (only applies to Addressable LEDs)");
-    led_3_cntrl = (ControlType)Settings::dropdown("led_3_cntrl", ledControlTypes, 0, "LED Control");
-    std::string const led_3_state = Settings::string("led_3_state", "", "LED State");
-    Settings::markState();
-
-    // Some boards (M5Stack NanoC6) only power their addressable LED while a GPIO is held high.
-    led_pwr_pin = Settings::integer("led_pwr_pin", -1, 48, -1, "LED power pin (-1 to disable)");
-    if (led_pwr_pin >= 0) {
-        pinMode(led_pwr_pin, OUTPUT);
-        digitalWrite(led_pwr_pin, HIGH);
+    std::string def = DEFAULT_LED1_PIN < 0 ? "[]"
+        : Sprintf(R"([{"type":"%s","pin":%d,"count":%d,"control":"%s"}])", ledTypes[DEFAULT_LED1_TYPE], DEFAULT_LED1_PIN, DEFAULT_LED1_CNT, ledControls[DEFAULT_LED1_CNTRL]);
+    std::string text = Settings::json("leds", def, "LEDs");
+    DynamicJsonDocument list(text.size() * 2 + 256);
+    if (deserializeJson(list, text)) {
+        Log.println("LEDs: invalid JSON, ignored");
+        return;
     }
-
-    leds.push_back(newLed(1, led_1_cntrl, led_1_type, led_1_pin, led_1_cnt, led_1_state));
-    leds.push_back(newLed(2, led_2_cntrl, led_2_type, led_2_pin, led_2_cnt, led_2_state));
-    leds.push_back(newLed(3, led_3_cntrl, led_3_type, led_3_pin, led_3_cnt, led_3_state));
+    for (JsonObject o : list.as<JsonArray>()) {
+        if ((int)leds.size() >= MAX_LEDS) break;
+        int n = leds.size() + 1;
+        int type = indexOf(o["type"], ledTypes, 0);
+        auto cntrl = (ControlType)indexOf(o["control"], ledControls, 0);
+        int pin = o["pin"] | -1;
+        int cnt = o["count"] | 1;
+        leds.push_back(newLed(n, cntrl, type, pin, cnt, Settings::slurp(Sprintf("/led_%d_state", n))));
+        // Addressable strips default to 100/255 so a dense matrix doesn't overheat.
+        leds.back()->setMaxBrightness(o["max_brightness"] | (type >= 2 ? 100 : 255));
+        if (cntrl == Control_Type_Output && pin >= 0) outputLeds.push_back({leds.back(), o["output"] | 1});
+    }
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(statusLeds), [](LED* a) { return a->getControlType() == Control_Type_Status; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(countLeds), [](LED* a) { return a->getControlType() == Control_Type_Count; });
     std::copy_if(leds.begin(), leds.end(), std::back_inserter(motionLeds), [](LED* a) { return a->getControlType() == Control_Type_Motion; });
@@ -134,6 +138,10 @@ void Save() {
 }
 
 void Loop() {
+    for (auto& [led, n] : outputLeds) {
+        bool on = Outputs::State(n);
+        if (led->getState() != on) led->setState(on);
+    }
     for (auto& led : leds)
         led->service();
     if (millis() - lastSave > 15000) {
@@ -281,8 +289,8 @@ void Count(unsigned int countVal) {
         led->setState(count > 0);
 }
 
-void Motion(bool pir, bool radar) {
+void Motion(bool motion) {
     for (auto& led : motionLeds)
-        led->setState(pir || radar);
+        led->setState(motion);
 }
 }  // namespace LEDs

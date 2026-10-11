@@ -31,7 +31,7 @@ esp_err_t sendJsonStr(httpd_req_t* req, const char* status, const std::string& b
     return httpd_resp_send(req, body.c_str(), body.size());
 }
 
-// Streams the document straight into chunked responses: no second 12KB copy of /json.
+// Buffers 512 bytes at a time into chunked responses.
 struct ChunkWriter {
     httpd_req_t* req;
     char buf[512];
@@ -67,6 +67,7 @@ esp_err_t sendJsonDoc(httpd_req_t* req, JsonVariantConst v) {
 
 void serializeInfo(JsonObject& root) {
     root["room"] = room;
+    if (!board.empty()) root["board"] = board;
 #ifdef VERSION
     root["ver"] = VERSION;
 #endif
@@ -80,34 +81,6 @@ void serializeState(JsonObject& root) {
     node["enrolling"] = enrolling;
     if (!enrolledId.empty()) node["enrolledId"] = enrolledId;
     if (enrolling) node["remain"] = (enrollingEndMillis - millis()) / 1000;
-}
-
-void serializeConfigs(JsonObject& root) {
-    JsonArray configs = root.createNestedArray("configs");
-    for (auto& c : BleFingerprintCollection::deviceConfigs) {
-        JsonObject node = configs.createNestedObject();
-        node["id"] = c.id;
-        node["alias"] = c.alias;
-        node["name"] = c.name;
-        if (c.calRssi > -128) node["rssi@1m"] = c.calRssi;
-    }
-}
-
-void serializeDevices(JsonObject& root, bool showAll) {
-    JsonArray devices = root.createNestedArray("devices");
-    size_t cursor = 0;
-    while (auto lease = BleFingerprintCollection::AcquireNext(cursor)) {
-        auto* fingerprint = lease.fingerprint;
-        bool visible = fingerprint->getVisible();
-        if (showAll || visible) {
-            JsonObject node = devices.createNestedObject();
-            if (fingerprint->fill(&node)) {
-                if (showAll && visible) node["vis"] = true;
-            } else
-                devices.remove(devices.size() - 1);
-        }
-        BleFingerprintCollection::Release(lease);
-    }
 }
 
 std::string uriPath(httpd_req_t* req) {
@@ -138,6 +111,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
     DynamicJsonDocument doc(4096);
     JsonObject root = doc.to<JsonObject>();
     if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
+    if (!board.empty()) root["name"] = board;
     root["chip"] = CONFIG_IDF_TARGET;
 #ifdef FIRMWARE
     root["firmware"] = FIRMWARE;
@@ -178,6 +152,9 @@ esp_err_t postTemplate(httpd_req_t* req) {
             return sendTemplateError(req, "400 Bad Request", err);
         name = doc["name"] | "";
     }
+    // The template's name says what the board is; keep it unless the template sets board itself.
+    if (!name.empty() && std::none_of(changes.begin(), changes.end(), [](const SettingChange& c) { return c.key == "board"; }))
+        changes.push_back({"board", name});
     std::string().swap(body);
 
     // "to" values are copies of the template's strings; "from" values are bounded the same way in
@@ -205,38 +182,80 @@ esp_err_t postTemplate(httpd_req_t* req) {
 }
 
 bool servingJson = false;
+constexpr size_t ITEM_JSON_SIZE = 1024;  // one device or config entry, or the info header
 
 esp_err_t serveJson(httpd_req_t* req) {
     std::string path = uriPath(req);
     if (path == "/json/tele") return serveTele(req);
     if (path == "/json/template") return serveTemplate(req);
     if (servingJson) return sendJsonStr(req, "429 Too Many Requests", "Too Many Requests");
-    // Refuse rather than emit a 200 with a null/truncated body when the 12KB document cannot be
-    // allocated. Largest free block is the binding check under fragmentation.
-    if (maxAllocHeap() < JSON_BUFFER_SIZE + 4096 || freeHeap() < JSON_BUFFER_SIZE * 2)
+    // Streamed one device at a time through a small reused document, so it needs ~1 KB of
+    // contiguous heap rather than one 12 KB document (which a C3 with WiFi + BLE rarely has).
+    if (maxAllocHeap() < ITEM_JSON_SIZE + 1024)
         return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
+    DynamicJsonDocument item(ITEM_JSON_SIZE);
+    if (item.capacity() == 0) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
     servingJson = true;
-    short subJson = 0;
-    if (path.find("devices") != std::string::npos) subJson = 1;
-    if (path.find("configs") != std::string::npos) subJson = 2;
+    bool devices = path.find("devices") != std::string::npos;
+    bool configs = path.find("configs") != std::string::npos;
     std::string dummy;
     bool showAll = queryParam(req, "showAll", dummy);
 
-    esp_err_t rc;
+    commonHeaders(req);
+    httpd_resp_set_type(req, "application/json");
+    ChunkWriter w{req};
+    auto raw = [&](const std::string& s) { w.write((const uint8_t*)s.data(), s.size()); };
+
+    // {"room":..,"ver":..,"firm":..  (the info object without its closing brace)
     {
-        DynamicJsonDocument doc(JSON_BUFFER_SIZE);
-        JsonObject root = doc.to<JsonObject>();
-        if (doc.capacity() == 0 || root.isNull()) {
-            servingJson = false;
-            return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
-        }
-        serializeInfo(root);
-        if (subJson == 1) serializeDevices(root, showAll);
-        if (subJson == 2) serializeConfigs(root);
-        rc = sendJsonDoc(req, doc);
+        JsonObject info = item.to<JsonObject>();
+        serializeInfo(info);
+        std::string head;
+        serializeJson(item, head);
+        head.pop_back();
+        raw(head);
     }
+    if (devices) {
+        raw(",\"devices\":[");
+        bool first = true;
+        size_t cursor = 0;
+        while (auto lease = BleFingerprintCollection::AcquireNext(cursor)) {
+            auto* fingerprint = lease.fingerprint;
+            bool visible = fingerprint->getVisible();
+            bool filled = false;
+            if (showAll || visible) {
+                JsonObject node = item.to<JsonObject>();
+                filled = fingerprint->fill(&node) && !item.overflowed();
+                if (filled && showAll && visible) node["vis"] = true;
+            }
+            BleFingerprintCollection::Release(lease);  // before any network write
+            if (!filled) continue;
+            if (!first) raw(",");
+            first = false;
+            serializeJson(item, w);
+        }
+        raw("]");
+    }
+    if (configs) {
+        raw(",\"configs\":[");
+        bool first = true;
+        for (auto& c : BleFingerprintCollection::deviceConfigs) {
+            JsonObject node = item.to<JsonObject>();
+            node["id"] = c.id;
+            node["alias"] = c.alias;
+            node["name"] = c.name;
+            if (c.calRssi > -128) node["rssi@1m"] = c.calRssi;
+            if (!first) raw(",");
+            first = false;
+            serializeJson(item, w);
+        }
+        raw("]");
+    }
+    raw("}");
+    w.flush();
     servingJson = false;
-    return rc;
+    if (!w.ok) return ESP_FAIL;
+    return httpd_resp_send_chunk(req, nullptr, 0);
 }
 
 esp_err_t postJson(httpd_req_t* req) {

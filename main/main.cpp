@@ -38,9 +38,8 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && pub((roomsTopic + "/known_irks").c_str(), 0, true, BleFingerprintCollection::knownIrks.c_str())
             && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
             && Updater::SendOnline()
-            && Motion::SendOnline()
-            && Switch::SendOnline()
-            && Button::SendOnline()
+            && Inputs::SendOnline()
+            && Outputs::SendOnline()
             && GUI::SendOnline()
         ) {
             online = true;
@@ -61,12 +60,11 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 
             && Updater::SendDiscovery()
             && GUI::SendDiscovery()
-            && Motion::SendDiscovery()
-            && Switch::SendDiscovery()
-            && Button::SendDiscovery()
+            && Inputs::SendDiscovery()
+            && Outputs::SendDiscovery()
+            && PowerMonitor::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
-            && CAN::SendDiscovery()
 #ifdef SENSORS
             && DHT::SendDiscovery()
             && AHTX0::SendDiscovery()
@@ -83,6 +81,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
 #endif
         ) {
             sentDiscovery = true;
+            Mqtt::PruneStaleDiscovery();
         } else {
             Log.println("Error sending discovery");
         }
@@ -100,8 +99,15 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc.clear();
     doc["ip"] = localIp;
     doc["uptime"] = esp_timer_get_time() / 1000000;
+    // Why the last boot happened (panic, int_wdt, task_wdt, brownout...), for crashes in the field.
+    static const char* const resetReasons[] = {"unknown", "poweron", "ext", "sw", "panic", "int_wdt", "task_wdt",
+                                               "wdt", "deepsleep", "brownout", "sdio", "usb", "jtag", "efuse",
+                                               "pwr_glitch", "cpu_lockup"};
+    unsigned rr = (unsigned)esp_reset_reason();
+    doc["reset"] = rr < sizeof(resetReasons) / sizeof(resetReasons[0]) ? resetReasons[rr] : "unknown";
 #ifdef FIRMWARE
     doc["firm"] = FIRMWARE;
+    if (!board.empty()) doc["board"] = board;
 #endif
     doc["rssi"] = Network::rssi();
     Battery::SendTelemetry();
@@ -191,11 +197,14 @@ void setupNetwork() {
 
     // Settings registered after this belong to /wifi/hardware
     Settings::markEndpoint("hardware");
+    board = Settings::string("board", "", "Board (e.g. SwitchBot Plug Mini); set when a template is applied");
     GUI::ConnectToWifi(updating);
 
-    Motion::ConnectToWifi(updating);
-    Switch::ConnectToWifi(updating);
-    Button::ConnectToWifi(updating);
+    Inputs::ConnectToWifi(updating);
+    Outputs::ConnectToWifi(updating);
+    PowerMonitor::ConnectToWifi(updating);
+    Battery::ConnectToWifi(updating);
+    AXP192::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -253,9 +262,8 @@ void setupNetwork() {
     Log.printf("Mqtt server:  %s:%d\n", mqttHost.c_str(), mqttPort);
     Log.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
-    Motion::SerialReport();
-    Switch::SerialReport();
-    Button::SerialReport();
+    Inputs::SerialReport();
+    Outputs::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
     DHT::SerialReport();
@@ -320,18 +328,14 @@ void onMqttMessage(const char *topic, const char *payload) {
             spurt("/room", pay.empty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))
             ;
-        else if (Motion::Command(command, pay))
-            ;
         else if (BleFingerprintCollection::Command(command, pay))
             changed = true;
         else if (Enrollment::Command(command, pay))
             changed = true;
         else if (Updater::Command(command, pay))
             changed = true;
-        else if (Switch::Command(command, pay))
-            changed = true;
-        else if (Button::Command(command, pay))
-            changed = true;
+        else if (Outputs::Command(command, pay))
+            ;
         if (changed) online = false;
     } else {
     skip:
@@ -492,9 +496,6 @@ void setup() {
     SerialImprov::Setup();
     Settings::begin();
     Network::Setup();
-#if M5STICK
-    AXP192::Setup();
-#endif
 
     GUI::Setup(true);
     BleFingerprintCollection::Setup();
@@ -502,11 +503,10 @@ void setup() {
     Log.enableTcp(6053);
     Updater::Setup();
     GUI::Setup(false);
-    Motion::Setup();
-    Switch::Setup();
-    Button::Setup();
+    Inputs::Setup();
+    Outputs::Setup();
+    PowerMonitor::Setup();
     Battery::Setup();
-    CAN::Setup();
     NTP::Setup();
 #ifdef SENSORS
     DHT::Setup();
@@ -537,8 +537,8 @@ void setup() {
  * logs a low-memory warning when free memory is less than 20,000 bytes, and runs the updater
  * loop when free memory exceeds 70,000 bytes.
  *
- * Subsystems invoked each iteration include GUI, Motion, Switch, Button, HTTP server,
- * SerialImprov, NTP, and (conditionally) AXP192 and various sensor modules.
+ * Subsystems invoked each iteration include GUI, Inputs, Outputs, HTTP server,
+ * SerialImprov, NTP, AXP192 and various sensor modules.
  */
 void loop() {
     reportLoop();
@@ -572,15 +572,13 @@ void loop() {
         }
     }
     GUI::Loop();
-    Motion::Loop();
-    Switch::Loop();
-    Button::Loop();
+    Inputs::Loop();
+    Outputs::Loop();
+    PowerMonitor::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();
-#if M5STICK
     AXP192::Loop();
-#endif
 #ifdef SENSORS
     DHT::Loop();
     AHTX0::Loop();

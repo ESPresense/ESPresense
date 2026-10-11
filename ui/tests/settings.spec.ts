@@ -316,9 +316,8 @@ test.describe('Settings Page', () => {
 
 		// Hardware settings should NOT be on this page anymore
 		await expect(page.locator('text=LED 1:')).not.toBeVisible();
-		await expect(page.locator('text=PIR:')).not.toBeVisible();
 		await expect(page.locator('text=I2C Settings')).not.toBeVisible();
-		await expect(page.locator('input[name="led_1_pin"]')).not.toBeVisible();
+		await expect(page.locator('input[name="leds"]')).toHaveCount(0);
 	});
 
 	test('should display all Scanning section fields', async ({ page }) => {

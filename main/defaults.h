@@ -18,7 +18,6 @@
 #define UPDATE_STARTED -255
 #define UPDATE_COMPLETE 255
 
-#define JSON_BUFFER_SIZE (12 * 1024)
 
 #define BLE_SCAN_INTERVAL 0x80
 #define BLE_SCAN_WINDOW 0x80
@@ -70,9 +69,12 @@
 #define DEFAULT_COUNT_EXIT 4.0f
 #define DEFAULT_COUNT_MS 10000
 #define DEFAULT_COUNT_IDS ""
-#if defined(ESP32S3) || defined(ESP32C3)
-// C3: 200 left the Arduino build 18KB from the floor under a 40/s BLE flood; 150 keeps ~40KB.
+#if defined(ESP32S3)
 #define DEFAULT_MAX_FINGERPRINTS 150
+#elif defined(ESP32C3)
+// C3: one core, WiFi + BLE; at 150 a busy room (kitchen plug) sat at ~25 KB free with an 8 KB
+// largest block. 100 leaves room for the web UI and OTA.
+#define DEFAULT_MAX_FINGERPRINTS 100
 #elif defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
 #else
@@ -80,12 +82,6 @@
 #endif
 
 // RX_ADJ_RSSI Defaults
-#ifdef M5STICK
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
-#ifdef M5ATOM
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
 #ifdef ESP32S3
 #define DEFAULT_RX_ADJ_RSSI 20
 #else
@@ -95,47 +91,14 @@
 #define DEFAULT_RX_ADJ_RSSI 0
 #endif
 #endif
-#endif
-#endif
 
-// I2C Defaults
-#ifdef M5STICK
-#define DEFAULT_I2C_BUS_1_SDA 32
-#define DEFAULT_I2C_BUS_1_SCL 33
-#define DEFAULT_I2C_BUS_2_SDA 21
-#define DEFAULT_I2C_BUS_2_SCL 22
-#define DEFAULT_I2C_BUS 1
-#else
-#ifdef M5ATOM
-#define DEFAULT_I2C_BUS_1_SDA 26
-#define DEFAULT_I2C_BUS_1_SCL 32
-#define DEFAULT_I2C_BUS_2_SDA 25
-#define DEFAULT_I2C_BUS_2_SCL 21
-#define DEFAULT_I2C_BUS 1
-#else
-#ifdef ESP32C3
-#define DEFAULT_I2C_BUS_1_SDA 19
-#define DEFAULT_I2C_BUS_1_SCL 18
+// I2C Defaults: off unless configured. Any default pin collides with something on some board
+// (RMII Ethernet, plug metering pins, the C3's USB pins, status LEDs).
+#define DEFAULT_I2C_BUS_1_SDA -1
+#define DEFAULT_I2C_BUS_1_SCL -1
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
 #define DEFAULT_I2C_BUS 1
-#else
-#ifdef ESP32C6
-#define DEFAULT_I2C_BUS_1_SDA 6
-#define DEFAULT_I2C_BUS_1_SCL 7
-#define DEFAULT_I2C_BUS_2_SDA -1
-#define DEFAULT_I2C_BUS_2_SCL -1
-#define DEFAULT_I2C_BUS 1
-#else
-#define DEFAULT_I2C_BUS_1_SDA 21
-#define DEFAULT_I2C_BUS_1_SCL 22
-#define DEFAULT_I2C_BUS_2_SDA -1
-#define DEFAULT_I2C_BUS_2_SCL -1
-#define DEFAULT_I2C_BUS 1
-#endif
-#endif
-#endif
-#endif
 
 // TSL2561 Defaults
 #define DEFAULT_TSL2561_I2C_GAIN "auto"
@@ -143,49 +106,11 @@
 #define DEFAULT_ARDUINO_OTA false
 #define DEFAULT_AUTO_UPDATE false
 
-#if defined M5STICK
-
-#define DEFAULT_LED1_TYPE 1
-#define DEFAULT_LED1_PIN 10
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 1
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#define MAX_BRIGHTNESS 100
-
-#elif defined M5ATOM
-
-#define DEFAULT_LED1_TYPE 2
-#define DEFAULT_LED1_PIN 27
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 25
-
-#define BUTTON 39
-#define BUTTON_PRESSED 0
-
-#define MAX_BRIGHTNESS 50 // M5Atom Matrix has a lower max brightness so it doesn't melt
-
-#elif defined MACCHINA_A0
-
-#define DEFAULT_LED1_TYPE 2
-#define DEFAULT_LED1_PIN 2
-#define DEFAULT_LED1_CNTRL Control_Type_Status
-#define DEFAULT_LED1_CNT 1
-
-#define MAX_BRIGHTNESS 20
-
-#else  // DevKit / generic
-
+// Status LED for a generic devkit; other boards set theirs with a template.
 #define DEFAULT_LED1_TYPE 0
 #define DEFAULT_LED1_PIN 2
 #define DEFAULT_LED1_CNTRL Control_Type_Status
 #define DEFAULT_LED1_CNT 1
-
-#define MAX_BRIGHTNESS 100
-
-#endif
 
 // Build-time knobs that used to be platformio.ini build flags.
 #define SCAN_TASK_STACK_SIZE 3072

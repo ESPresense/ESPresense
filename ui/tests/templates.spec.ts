@@ -6,11 +6,11 @@ test.describe('Board template import', () => {
 	const plugTemplate = {
 		name: 'Athom Smart Plug V3',
 		chip: 'esp32c3',
-		settings: { led_1_pin: 6, button_1_pin: 3 }
+		settings: { led_1_pin: 6, I2C_Bus_1_SDA: 3 }
 	};
 	const plugChanges = [
 		{ key: 'led_1_pin', label: 'Pin (-1 to disable)', from: 2, to: 6 },
-		{ key: 'button_1_pin', label: 'Button One pin (-1 for disable)', from: -1, to: 3 }
+		{ key: 'I2C_Bus_1_SDA', label: 'SDA pin', from: -1, to: 3 }
 	];
 
 	/** Records template POSTs; `reply` decides the response per request. */
@@ -54,7 +54,7 @@ test.describe('Board template import', () => {
 		await expect(table).toBeVisible();
 		await expect(table.locator('tbody tr')).toHaveCount(2);
 		await expect(table).toContainText('led_1_pin');
-		await expect(table).toContainText('button_1_pin');
+		await expect(table).toContainText('I2C_Bus_1_SDA');
 		expect(calls).toEqual([{ dry: true, body: plugTemplate }]);
 
 		await expect(apply).toBeEnabled();

@@ -27,7 +27,6 @@ struct Param {
     std::string name, label, value, init;
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
-    bool state = false;  // runtime state stored alongside settings (markState)
     bool board = false;  // exported in board templates (markBoard)
     SettingSpec spec_;   // filled by spec()
 
@@ -50,6 +49,15 @@ struct Param {
             case Type::Bool:
                 value = v.empty() ? "0" : "1";
                 break;
+            case Type::Json: {
+                // Sent to the UI unquoted, so only a valid array or object may be stored.
+                DynamicJsonDocument d(v.size() * 2 + 64);
+                if (v.empty() || (!deserializeJson(d, v) && (d.is<JsonArray>() || d.is<JsonObject>())))
+                    value = v;
+                else
+                    Log.printf("%s: not a JSON array or object, kept the old value\n", name.c_str());
+                break;
+            }
             default:
                 value = v;
         }
@@ -66,6 +74,8 @@ struct Param {
                 return jsonNumeric(name, toStr(toFloat(v)));
             case Type::Bool:
                 return jsonNumeric(name, toInt(v) ? "true" : "false");
+            case Type::Json:
+                return jsonNumeric(name, v);  // already JSON text
             default:
                 return jsonString(name, v);
         }
@@ -88,6 +98,9 @@ struct Param {
                 break;
             case Type::Password:
                 dst.set(MASKED_PASSWORD);
+                break;
+            case Type::Json:
+                dst.set(serialized(v));
                 break;
             default:
                 dst.set(v);
@@ -174,8 +187,8 @@ Param* findParam(const std::string& key) {
     return nullptr;
 }
 
-// Settings a template may carry: no runtime state, no secrets.
-bool templatable(const Param* p) { return p && !p->state && p->type != Type::Password; }
+// Settings a template may carry: no secrets.
+bool templatable(const Param* p) { return p && p->type != Type::Password; }
 
 std::string path(const std::string& fn) { return std::string(BASE) + fn; }
 
@@ -234,42 +247,55 @@ esp_err_t getHandler(httpd_req_t* req) {
     int idx = find(name);
     if (idx < 0) return sendText(req, "404 Not Found", "Endpoint not found");
 
-    std::string out = "{\"values\":{";
-    bool comma = false;
-    for (auto* prm : endpoints[idx].params) {
-        auto s = prm->jsonValue();
-        if (s.empty()) continue;
-        if (comma) out += ",";
-        out += s;
-        comma = true;
-    }
-    out += "},\"defaults\":{";
-    comma = false;
-    for (auto* prm : endpoints[idx].params) {
-        auto s = prm->jsonDefault();
-        if (s.empty()) continue;
-        if (comma) out += ",";
-        out += s;
-        comma = true;
-    }
-    out += "}}";
-    return sendJson(req, out);
+    // Streamed in chunks: on a C3 with ~8 KB as the largest free block, building the whole
+    // values+defaults document in one string could fail to allocate and abort.
+    HttpWebServer::commonHeaders(req);
+    httpd_resp_set_type(req, CONTENT_JSON);
+    std::string chunk;
+    bool ok = true;
+    auto put = [&](const std::string& s) {
+        chunk += s;
+        if (chunk.size() >= 512) {
+            ok = ok && httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
+            chunk.clear();
+        }
+    };
+    auto section = [&](bool defaults) {
+        bool comma = false;
+        for (auto* prm : endpoints[idx].params) {
+            auto s = defaults ? prm->jsonDefault() : prm->jsonValue();
+            if (s.empty()) continue;
+            if (comma) put(",");
+            put(s);
+            comma = true;
+        }
+    };
+    put("{\"values\":{");
+    section(false);
+    put("},\"defaults\":{");
+    section(true);
+    put("}}");
+    if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
+    return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
 
-// Form-encoded body -> value for key, decoded. Empty string when absent.
-std::string formValue(const std::string& body, const std::string& key) {
+// Form-encoded body -> value for key, decoded. False (and `out` empty) when absent.
+bool formValue(const std::string& body, const std::string& key, std::string& out) {
+    out.clear();
     size_t pos = 0;
     while (pos <= body.size()) {
         size_t amp = body.find('&', pos);
         std::string pair = body.substr(pos, amp == std::string::npos ? std::string::npos : amp - pos);
         size_t eq = pair.find('=');
         std::string k = pair.substr(0, eq);
-        if (HttpWebServer::urlDecode(k.c_str(), k.size()) == key)
-            return eq == std::string::npos ? "" : HttpWebServer::urlDecode(pair.c_str() + eq + 1, pair.size() - eq - 1);
+        if (HttpWebServer::urlDecode(k.c_str(), k.size()) == key) {
+            if (eq != std::string::npos) out = HttpWebServer::urlDecode(pair.c_str() + eq + 1, pair.size() - eq - 1);
+            return true;
+        }
         if (amp == std::string::npos) break;
         pos = amp + 1;
     }
-    return "";
+    return false;
 }
 
 esp_err_t postHandler(httpd_req_t* req) {
@@ -283,8 +309,10 @@ esp_err_t postHandler(httpd_req_t* req) {
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
     bool ok = true;
+    std::string v;
     for (auto* prm : endpoints[idx].params) {
-        prm->set(formValue(body, prm->name));
+        formValue(body, prm->name, v);
+        prm->set(v);
         if (!prm->store()) ok = false;
     }
     if (!ok) {
@@ -386,9 +414,13 @@ bool checkbox(const std::string& name, bool init, const std::string& label) {
     return toInt(p->value) != 0;
 }
 
+std::string json(const std::string& name, const std::string& init, const std::string& label) {
+    auto* p = add(Type::Json, name, init, label);
+    return p->value.empty() ? p->init : p->value;
+}
+
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
-void markState() { last()->state = true; }
 void markBoard() { last()->board = true; }
 
 const SettingSpec* spec(const std::string& key) {
