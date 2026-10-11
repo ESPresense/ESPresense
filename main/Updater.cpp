@@ -92,6 +92,16 @@ void checkForUpdates() {
         Log.printf("Error on checking for update (sc=%d)\n", code);
 }
 
+// A failed update must not stick: /update would retry on every boot, and a node that attempted
+// one comes up with BLE scanning dead for that boot (seen on C3 and S3). Drop the request and
+// restart clean; the next auto-update check (or a new update command) tries again.
+static void giveUp() {
+    Settings::remove("/update");
+    Log.println("Update abandoned, restarting");
+    delay(200);
+    esp_restart();
+}
+
 void firmwareUpdate() {
     std::string url = startsWith(updateUrl, "http") ? updateUrl : getFirmwareUrl();
     autoUpdateAttempts++;
@@ -113,6 +123,7 @@ void firmwareUpdate() {
         Log.printf("Http Update Failed: %s\n", esp_err_to_name(err));
         GUI::Update(UPDATE_COMPLETE);
         HttpWebServer::UpdateEnd();
+        giveUp();
         return;
     }
     int total = esp_https_ota_get_image_size(handle), lastPct = -1;
@@ -135,6 +146,7 @@ void firmwareUpdate() {
         esp_restart();
     }
     Log.printf("Firmware update failed to apply (%s / %s)\n", esp_err_to_name(err), esp_err_to_name(fin));
+    giveUp();
 }
 
 void Setup() {
