@@ -60,43 +60,39 @@ variables:
     '
 
 steps:
-  # Detached steps are never gated and Woodpecker never captures their stdout, so a bind
-  # failure here has been invisible: the step shows "success" for merely starting the
-  # container, whether ble_flood.py went on to claim hci0 or die on EBUSY (ESPA-217). The
-  # heartbeat + log go on a shared volume so the non-detached guard step below can both
-  # verify the flood is live and surface its own diagnostic text in the captured CI log.
+  # An ordinary step, not detached: Crow never reads a detached step's exit code and marks it
+  # skipped at the end, so a flood that died in its first second still looked green (ESPA-217).
+  # As a normal step its own exit code and log are the check. It runs alongside the tests
+  # (depends_on: []) until ble-flood-stop creates /flood/done once they are finished.
+  #
+  # flock gives one flood per dongle across concurrent pipelines (a cron and a push both
+  # started floods at 02:01 and fought over hci0). The kernel drops the lock when the process
+  # dies, even on a cancel's SIGKILL, so nothing is left behind. /flood is a temp volume, made
+  # fresh per pipeline and deleted at the end, so no run can see another's state.
+  # --seconds is a backstop under the 600m repo timeout, in case ble-flood-stop never runs.
   - name: ble-flood
-    image: ghcr.io/espresense/ble-loadgen:1
+    image: ghcr.io/espresense/ble-loadgen:2
     pull: true
-    detach: true
     privileged: true
     network_mode: host
     depends_on: []
     volumes:
-      - flood_state:/flood
-    environment:
-      BLE_FLOOD_HEARTBEAT: /flood/ble-flood.alive
+      - /var/lock/woodpecker:/lock
+    temp_volumes:
+      - flood:/flood
     commands:
-      - python3 /app/ble_flood.py --index 0 --rate 40 2>&1 | tee /flood/ble-flood.log
+      - flock -w 18000 /lock/ble-flood.lock python3 /app/ble_flood.py --index 0 --rate 40 --until /flood/done --seconds 34000
 
-  # Non-detached, so its exit code counts: fails the pipeline (without blocking the
-  # test-esp32* steps, which have no depends_on) if the flood never came up live. On
-  # failure it prints ble_flood.py's own diagnosis (bluetoothd, a leaked prior flood,
-  # missing CAP_NET_ADMIN, ...) into this step's log — the first time that text has
-  # been visible anywhere but the bench's own terminal.
-  - name: ble-flood-guard
-    image: ghcr.io/espresense/ble-loadgen:1
-    pull: true
-    depends_on: [ble-flood]
-    volumes:
-      - flood_state:/flood
+  # Ends the flood once every device test is done, whether they passed or failed.
+  - name: ble-flood-stop
+    image: ghcr.io/espresense/ble-loadgen:2
+    depends_on: [test-esp32, test-esp32c3, test-esp32c6, test-esp32s3]
+    when:
+      - status: [success, failure]
+    temp_volumes:
+      - flood:/flood
     commands:
-      - |
-        python3 /app/ble_flood.py --check-heartbeat /flood/ble-flood.alive --wait 60 --stale 60 --watch 15 || {
-          echo "=== ble-flood.log (from the detached flood container) ==="
-          cat /flood/ble-flood.log 2>/dev/null || echo "(no log file — flood container never started, or the shared volume mount failed)"
-          exit 1
-        }
+      - touch /flood/done
 
   - name: test-esp32
     image: espressif/idf:v5.4.4
