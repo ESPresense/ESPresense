@@ -45,7 +45,7 @@ bool onEth() { return ethNetif && activeNetif == ethNetif; }
 
 bool ethHasIp() {
     esp_netif_ip_info_t info;
-    return ethNetif && esp_netif_get_ip_info(ethNetif, &info) == ESP_OK && info.ip.addr != 0;
+    return ethNetif && (xEventGroupGetBits(events) & ETH_LINK) && esp_netif_get_ip_info(ethNetif, &info) == ESP_OK && info.ip.addr != 0;
 }
 
 // A node must never be dual-homed (WiFi + Ethernet bridge loops on the LAN): once Ethernet has an
@@ -62,7 +62,7 @@ void onWifi(void*, esp_event_base_t base, int32_t id, void* data) {
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
                 staConnecting = false;
-                if (!onEth()) xEventGroupClearBits(events, LINK_UP | GOT_IP);
+                xEventGroupClearBits(events, onEth() ? LINK_UP : LINK_UP | GOT_IP);  // still online via Ethernet
                 break;
         }
     } else if (base == IP_EVENT && (id == IP_EVENT_STA_GOT_IP || id == IP_EVENT_ETH_GOT_IP)) {
@@ -382,7 +382,13 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         if (portal) Network::portal();
         return false;
     }
-    Log.println(onEth() ? " connected Ethernet!" : " connected WiFi!");  // Ethernet may win the race
+    if (onEth()) {  // Ethernet won the race; stop WiFi here too in case the handler ran before esp_wifi_start()
+        wifiStarted = false;
+        esp_wifi_stop();
+        Log.println(" connected Ethernet!");
+        return true;
+    }
+    Log.println(" connected WiFi!");
     return true;
 }
 
