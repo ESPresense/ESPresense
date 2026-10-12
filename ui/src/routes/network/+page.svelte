@@ -15,7 +15,9 @@
             const response = await fetch("/wifi/scan");
             const data = await response.json();
             if (data.networks) {
-                wifiNetworks = data.networks;
+                // Merge, never replace: a network that drops out of one scan keeps its row, so the
+                // list doesn't reorder or resize under the pointer between scans.
+                wifiNetworks = { ...wifiNetworks, ...data.networks };
             } else {
                 console.error("Unexpected response format:", data);
             }
@@ -131,8 +133,8 @@
                             <div class="ios-spinner"></div>
                         {/if}
                     </div>
-                    <ul class="divide-y divide-gray-200 dark:divide-gray-700">
-                        {#each Object.entries(wifiNetworks) as [ssid, rssi]}
+                    <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-72 overflow-y-auto">
+                        {#each Object.entries(wifiNetworks).sort(([a], [b]) => a.localeCompare(b)) as [ssid, rssi] (ssid)}
                             <li>
                                 <button
                                     type="button"
