@@ -36,11 +36,20 @@ esp_netif_t* apNetif = nullptr;
 esp_netif_t* ethNetif = nullptr;
 esp_netif_t* activeNetif = nullptr;
 EventGroupHandle_t events;
-constexpr int GOT_IP = BIT0, LINK_UP = BIT1, WIFI_STARTED = BIT2;
+constexpr int GOT_IP = BIT0, LINK_UP = BIT1, WIFI_STARTED = BIT2, ETH_LINK = BIT3;
 std::string hostName = "esp32";
 bool wifiStarted = false;
 volatile bool staConnecting = false;  // between esp_wifi_connect() and CONNECTED/DISCONNECTED
 
+bool onEth() { return ethNetif && activeNetif == ethNetif; }
+
+bool ethHasIp() {
+    esp_netif_ip_info_t info;
+    return ethNetif && esp_netif_get_ip_info(ethNetif, &info) == ESP_OK && info.ip.addr != 0;
+}
+
+// A node must never be dual-homed (WiFi + Ethernet bridge loops on the LAN): once Ethernet has an
+// address, WiFi goes off, and a WiFi address arriving after that is ignored.
 void onWifi(void*, esp_event_base_t base, int32_t id, void* data) {
     if (base == WIFI_EVENT) {
         switch (id) {
@@ -53,17 +62,22 @@ void onWifi(void*, esp_event_base_t base, int32_t id, void* data) {
                 break;
             case WIFI_EVENT_STA_DISCONNECTED:
                 staConnecting = false;
-                xEventGroupClearBits(events, LINK_UP | GOT_IP);
+                if (!onEth()) xEventGroupClearBits(events, LINK_UP | GOT_IP);
                 break;
         }
     } else if (base == IP_EVENT && (id == IP_EVENT_STA_GOT_IP || id == IP_EVENT_ETH_GOT_IP)) {
-        activeNetif = ((ip_event_got_ip_t*)data)->esp_netif;
+        activeNetif = (id == IP_EVENT_STA_GOT_IP && ethHasIp()) ? ethNetif : ((ip_event_got_ip_t*)data)->esp_netif;
         xEventGroupSetBits(events, GOT_IP);
+        if (onEth() && wifiStarted) {
+            wifiStarted = false;
+            staConnecting = false;
+            esp_wifi_stop();
+        }
     }
 #ifdef USE_ETHERNET
     else if (base == ETH_EVENT) {
-        if (id == ETHERNET_EVENT_CONNECTED) xEventGroupSetBits(events, LINK_UP);
-        if (id == ETHERNET_EVENT_DISCONNECTED) xEventGroupClearBits(events, LINK_UP | GOT_IP);
+        if (id == ETHERNET_EVENT_CONNECTED) xEventGroupSetBits(events, ETH_LINK);
+        if (id == ETHERNET_EVENT_DISCONNECTED) xEventGroupClearBits(events, onEth() ? ETH_LINK | GOT_IP : ETH_LINK);
     }
 #endif
 }
@@ -318,7 +332,11 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         if (!ethStarted) ethStarted = initEthernet(ethernetType);
         if (ethStarted) {
             Log.print("Connecting to Ethernet");
-            if (waitForIp(ethernetWaitSeconds, nullptr, 0)) {
+            // Link up but no address yet is a switch port still in STP listening/learning (~30 s):
+            // keep waiting rather than fall back to WiFi and end up on both.
+            constexpr int kStpWait = 60;
+            if (waitForIp(ethernetWaitSeconds, nullptr, 0) ||
+                ((xEventGroupGetBits(events) & ETH_LINK) && waitForIp(kStpWait, nullptr, 0))) {
                 Log.println(" connected Ethernet!");
                 return true;
             }
@@ -345,8 +363,8 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
     esp_wifi_set_config(WIFI_IF_STA, &sta);
     esp_netif_set_hostname(staNetif, hostName.c_str());
     if (!wifiStarted) {
+        wifiStarted = true;  // before start, so an Ethernet address arriving now can stop it
         esp_wifi_start();
-        wifiStarted = true;
         xEventGroupWaitBits(events, WIFI_STARTED, pdFALSE, pdTRUE, pdMS_TO_TICKS(2000));
     }
     staConnecting = esp_wifi_connect() == ESP_OK;
@@ -364,7 +382,7 @@ bool connect(int ethernetType, int ethernetWaitSeconds, int wifiWaitSeconds, con
         if (portal) Network::portal();
         return false;
     }
-    Log.println(" connected WiFi!");
+    Log.println(onEth() ? " connected Ethernet!" : " connected WiFi!");  // Ethernet may win the race
     return true;
 }
 
