@@ -188,6 +188,8 @@ void setupNetwork() {
     Settings::markBoard();
     if (!Network::supportsEthernet()) ethernetType = 0;
 
+    NTP::ConnectToWifi();
+
     mqttHost = Settings::string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
     mqttPort = Settings::integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
     mqttUser = Settings::pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");

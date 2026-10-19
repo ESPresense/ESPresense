@@ -207,6 +207,12 @@
                 </select>
             </div>
 
+            <div>
+                <label for="ntp-host" class="block text-sm font-medium">NTP Host (optional)</label>
+                <input id="ntp-host" type="text" name="ntp_host" bind:value={$mainSettings.values.ntp_host} placeholder="Hostname or IP address" class="mt-1 block w-full rounded-md" />
+                <p class="text-sm text-gray-600 dark:text-gray-300">Leave empty to use pool.ntp.org and time.nist.gov.</p>
+            </div>
+
             <!-- MQTT Configuration -->
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>

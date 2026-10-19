@@ -71,6 +71,7 @@ export interface MainSettings {
         "wifi-password": string;
         "ap-password": string;
         eth: string;
+        ntp_host: string;
         mqtt_host: string;
         mqtt_port: number;
         mqtt_user: string;
@@ -92,6 +93,7 @@ export interface MainSettings {
         wifi_timeout: number;
         portal_timeout: number;
         eth: string;
+        ntp_host: string;
         mqtt_host: string;
         mqtt_port: number;
         discovery: boolean;

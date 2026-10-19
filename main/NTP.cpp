@@ -3,14 +3,25 @@
 #include <ctime>
 
 #include "Logger.h"
+#include "Settings.h"
 #include "esp_netif_sntp.h"
 
 namespace NTP {
 bool ntpSynced = false;
+static std::string host;
+
+void ConnectToWifi() {
+    host = Settings::string("ntp_host", "", "NTP Host (optional)");
+}
 
 void Setup(void) {
     // UTC; non-blocking start, Loop() notices when the clock has been set.
     esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG_MULTIPLE(2, ESP_SNTP_SERVER_LIST("pool.ntp.org", "time.nist.gov"));
+    if (!host.empty()) {
+        config.num_of_servers = 1;
+        config.servers[0] = host.c_str();
+        config.servers[1] = nullptr;
+    }
     config.start = true;
     config.wait_for_sync = false;
     esp_netif_sntp_init(&config);
