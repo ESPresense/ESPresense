@@ -12,8 +12,7 @@ export default defineConfig({
     include: ['src/**/*.spec.{ts,js}'],
     css: true,
     pool: 'threads',
-    // Vitest 4 replaced poolOptions.threads.singleThread with these two.
-    maxWorkers: 1,
+    // No spec relies on a fresh module graph; sharing one is faster.
     isolate: false,
   },
 });
