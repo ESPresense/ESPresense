@@ -56,9 +56,10 @@ struct PinRules {
 
 // Why `pin` can't serve `use` on this chip, or "" when it can. Negative means disabled: fine.
 inline std::string pinProblem(long pin, PinUse use, const PinRules& r) {
-    if (pin < 0 || use == PinUse::None) return "";
+    if (pin == -1 || use == PinUse::None) return "";
     std::string gpio = "GPIO " + std::to_string(pin);
-    if (pin > 63 || !((r.exists >> pin) & 1)) return gpio + " doesn't exist on this chip";
+    // Below -1 too: drivers keep pins in int8_t, so -250 would wrap to a real GPIO (6).
+    if (pin < 0 || pin > 63 || !((r.exists >> pin) & 1)) return gpio + " doesn't exist on this chip";
     if ((r.reserved >> pin) & 1) return gpio + " is used by the flash or PSRAM";
     if (use == PinUse::Output && !((r.output >> pin) & 1)) return gpio + " is input-only";
     return "";
@@ -70,7 +71,9 @@ inline std::string pinProblem(long pin, PinUse use, const PinRules& r) {
 inline std::string checkPins(const std::string& key, const SettingSpec& s, const std::string& value, const PinRules& r, bool& setsPin) {
     if (s.pin != PinUse::None) {
         if (value.empty()) return "";
-        long pin = strtol(value.c_str(), nullptr, 10);
+        char* end = nullptr;
+        long pin = strtol(value.c_str(), &end, 10);
+        if (*end) return key + ": \"" + value + "\" is not a GPIO number";
         if (pin >= 0) setsPin = true;
         std::string why = pinProblem(pin, s.pin, r);
         return why.empty() ? "" : key + ": " + why;

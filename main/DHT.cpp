@@ -65,8 +65,8 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    dht11Pin = Settings::pin("dht11_pin", PinUse::Output, -1, "DHT11 sensor pin");
-    dht22Pin = Settings::pin("dht22_pin", PinUse::Output, -1, "DHT22 sensor pin");
+    dht11Pin = Settings::pinOutput("dht11_pin", -1, "DHT11 sensor pin");
+    dht22Pin = Settings::pinOutput("dht22_pin", -1, "DHT22 sensor pin");
     dhtTempOffset = Settings::floating("dhtTemp_offset", -40, 125, 0.0, "DHT temperature offset");
     dhtHumidityOffset = Settings::floating("dhtHumidity_offset", -100, 100, 0.0, "DHT humidity offset");
 }

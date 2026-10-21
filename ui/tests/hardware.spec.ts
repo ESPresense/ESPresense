@@ -285,19 +285,40 @@ test.describe('Hardware Settings Page', () => {
 		expect(restarted).toBe(false);
 	});
 
-	test('pin pickers list Off and the chip\'s GPIOs, never -1', async ({ page }) => {
+	test('pin pickers offer only the GPIOs the node lists, never -1', async ({ page }) => {
+		// Like a classic ESP32 with PSRAM: 6-11 and 16-17 reserved, 34-39 input-only.
+		const pins = { usable: [0, 2, 4, 5, 12, 13, 14, 15, 34, 35], inputOnly: [34, 35] };
 		await page.route('**/wifi/hardware', (route) =>
-			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...mockHardwareSettings, maxPin: 21 }) })
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...mockHardwareSettings, pins }) })
 		);
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		const led1Pin = pinOf(page, 'LED 1:');
-		await expect(led1Pin.locator('option')).toHaveText(['Off', ...Array.from({ length: 22 }, (_, i) => `GPIO ${i}`)]);
+		// LED 1 drives its pin: no input-only GPIOs. Its stored pin 2 is usable, so nothing extra.
+		await expect(pinOf(page, 'LED 1:').locator('option')).toHaveText(['Off', ...[0, 2, 4, 5, 12, 13, 14, 15].map((p) => `GPIO ${p}`)]);
+		// An input reads its pin, so input-only GPIOs are offered.
+		await expect(pinOf(page, 'Input 1:').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
 		const dht11 = page.getByLabel('DHT11 sensor pin');
 		await expect(dht11.locator('option').first()).toHaveText('Default (off)');
-		await expect(dht11.locator('option')).toHaveCount(24);
+		await expect(dht11.locator('option', { hasText: 'GPIO 34' })).toHaveCount(0);
+		await expect(page.getByLabel('Voltage pin (ADC1 only)').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
 		await expect(page.locator('option', { hasText: '-1' })).toHaveCount(0);
+	});
+
+	test('a stored pin the node does not offer stays shown, marked', async ({ page }) => {
+		const pins = { usable: [0, 2, 4, 5], inputOnly: [] };
+		await page.route('**/wifi/hardware', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ ...mockHardwareSettings, values: { ...mockHardwareSettings.values, dht22_pin: '7' }, pins })
+			})
+		);
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.getByLabel('DHT22 sensor pin')).toHaveValue('7');
+		await expect(page.getByLabel('DHT22 sensor pin').locator('option:checked')).toHaveText('GPIO 7 (not usable here)');
 	});
 
 	test('should have links to documentation', async ({ page }) => {

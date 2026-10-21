@@ -24,8 +24,8 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    sckPin = Settings::pin("HX711_sckPin", PinUse::Output, -1, "HX711 SCK (Clock) pin");
-    doutPin = Settings::pin("HX711_doutPin", PinUse::Input, -1, "HX711 DOUT (Data) pin");
+    sckPin = Settings::pinOutput("HX711_sckPin", -1, "HX711 SCK (Clock) pin");
+    doutPin = Settings::pinInput("HX711_doutPin", -1, "HX711 DOUT (Data) pin");
 }
 
 void SerialReport() {
@@ -71,7 +71,7 @@ void Loop() {
 }
 
 bool SendDiscovery() {
-    if (!sckPin && !doutPin) return true;
+    if (sckPin < 0 || doutPin < 0 || (!sckPin && !doutPin)) return true;
     return sendSensorDiscovery("Raw Weight", EC_NONE);
 }
 }  // namespace HX711

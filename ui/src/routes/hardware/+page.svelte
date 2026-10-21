@@ -2,7 +2,7 @@
     import { hardwareSettings } from '#lib/stores.js';
     import { saveSettingsWithRetry } from '#lib/utils/settings.js';
     import JsonList from '#lib/components/JsonList.svelte';
-    import PinInput from '#lib/components/PinInput.svelte';
+    import PinSelect from '#lib/components/PinSelect.svelte';
 
     const ledTypes = [
         ['pwm', 'PWM'], ['pwm_inverted', 'PWM Inverted'],
@@ -92,12 +92,12 @@
     </p>
 {/snippet}
 
-{#snippet itemPin(it: Record<string, unknown>, set: (field: string, value: unknown) => void, types: string[][])}
+{#snippet itemPin(it: Record<string, unknown>, set: (field: string, value: unknown) => void, types: string[][], input = false)}
     <p>
         <label>
             Pin and type:<br />
             <span class="flex items-center gap-2">
-                <PinInput label="Pin" value={it.pin} onchange={(p) => set('pin', p)}/>
+                <PinSelect label="Pin" {input} value={it.pin} onchange={(p) => set('pin', p)}/>
                 <select aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
                     {#each types as [v, text] (v)}
                         <option value={v} selected={(it.type ?? types[0][0]) === v}>{text}</option>
@@ -136,7 +136,7 @@
 {#snippet input(it: Record<string, unknown>, i: number, set: (field: string, value: unknown) => void)}
     {@render field('Name', it.name, (v) => set('name', v), `Input ${i + 1}`)}
     {@render choose('Role', it.role, inputRoles, (v) => set('role', v))}
-    {@render itemPin(it, set, inputPinTypes)}
+    {@render itemPin(it, set, inputPinTypes, true)}
     <p>
         <label>
             Timeout (in seconds):<br />
@@ -190,7 +190,7 @@
             <p>
                 <label>
                     Voltage pin (ADC1 only):<br />
-                    <PinInput name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
+                    <PinSelect input name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
                 </label>
             </p>
             <p>
@@ -218,7 +218,7 @@
             <p>
                 <label>
                     RX pin (CSE7766 TX; factory calibrated, no settings needed):<br />
-                    <PinInput value={power.rx} onchange={(p) => setPower('rx', p)}/>
+                    <PinSelect input value={power.rx} onchange={(p) => setPower('rx', p)}/>
                 </label>
             </p>
         {:else if power.model}
@@ -227,7 +227,7 @@
                     <p>
                         <label>
                             {label}:<br />
-                            <PinInput value={power[key]} onchange={(p) => setPower(key, p)}/>
+                            <PinSelect input={key !== 'sel'} value={power[key]} onchange={(p) => setPower(key, p)}/>
                         </label>
                     </p>
                 {/each}
@@ -265,13 +265,13 @@
         <p>
             <label>
                 DHT11 sensor pin:<br />
-                <PinInput name="dht11_pin" fallback={$hardwareSettings.defaults['dht11_pin']} bind:value={$hardwareSettings.values['dht11_pin']}/>
+                <PinSelect name="dht11_pin" fallback={$hardwareSettings.defaults['dht11_pin']} bind:value={$hardwareSettings.values['dht11_pin']}/>
             </label>
         </p>
         <p>
             <label>
                 DHT22 sensor pin:<br />
-                <PinInput name="dht22_pin" fallback={$hardwareSettings.defaults['dht22_pin']} bind:value={$hardwareSettings.values['dht22_pin']}/>
+                <PinSelect name="dht22_pin" fallback={$hardwareSettings.defaults['dht22_pin']} bind:value={$hardwareSettings.values['dht22_pin']}/>
             </label>
         </p>
         <p>
@@ -307,26 +307,26 @@
         <p>
             <label>
                 SDA pin:<br />
-                <PinInput name="I2C_Bus_1_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_1_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
+                <PinSelect name="I2C_Bus_1_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_1_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
             </label>
         </p>
         <p>
             <label>
                 SCL pin:<br />
-                <PinInput name="I2C_Bus_1_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_1_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
+                <PinSelect name="I2C_Bus_1_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_1_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
             </label>
         </p>
         <h4>Bus 2:</h4>
         <p>
             <label>
                 SDA pin:<br />
-                <PinInput name="I2C_Bus_2_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_2_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
+                <PinSelect name="I2C_Bus_2_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_2_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
             </label>
         </p>
         <p>
             <label>
                 SCL pin:<br />
-                <PinInput name="I2C_Bus_2_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_2_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>
+                <PinSelect name="I2C_Bus_2_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_2_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>
             </label>
         </p>
         <p>
@@ -525,20 +525,20 @@
         <p>
             <label>
                 HX711 SCK (Clock) pin:<br />
-                <PinInput name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
+                <PinSelect name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
             </label>
         </p>
         <p>
             <label>
                 HX711 DOUT (Data) pin:<br />
-                <PinInput name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
+                <PinSelect input name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
             </label>
         </p>
         <h4>DS18B20:</h4>
         <p>
             <label>
                 DS18B20 sensor pin:<br />
-                <PinInput name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
+                <PinSelect name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
             </label>
         </p>
         <p>

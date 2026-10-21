@@ -186,6 +186,13 @@ void test_check_pins_on_stored_values(void) {
     SettingSpec leds = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"pin", PinUse::Output}}};
     TEST_ASSERT_EQUAL_STRING("leds[0].pin: GPIO 7 is used by the flash or PSRAM", checkPins("leds", leds, R"([{"type":"grb","pin":7}])", p, setsPin).c_str());
     TEST_ASSERT_EQUAL_STRING("", checkPins("leds", leds, "not json", p, setsPin).c_str());
+    // -1 is the only "off": drivers keep pins in int8_t, where -250 is GPIO 6, a flash pin.
+    TEST_ASSERT_EQUAL_STRING("", checkPins("led_1_pin", led, "-1", p, setsPin).c_str());
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO -2 doesn't exist on this chip", checkPins("led_1_pin", led, "-2", p, setsPin).c_str());
+    TEST_ASSERT_EQUAL_STRING("leds[0].pin: GPIO -250 doesn't exist on this chip", checkPins("leds", leds, R"([{"pin":-250}])", p, setsPin).c_str());
+    // A form value must be a whole number, not text strtol would read as 0.
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: \"abc\" is not a GPIO number", checkPins("led_1_pin", led, "abc", p, setsPin).c_str());
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: \"5x\" is not a GPIO number", checkPins("led_1_pin", led, "5x", p, setsPin).c_str());
 }
 
 void test_missing_or_empty_settings_rejected(void) {

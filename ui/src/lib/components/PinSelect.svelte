@@ -2,8 +2,8 @@
     import { hardwareSettings } from '#lib/stores.js';
 
     /**
-     * A GPIO picker: Off, or GPIO 0 up to the chip's highest (maxPin). Never shows the -1 that
-     * stores "off".
+     * A GPIO picker: Off, or the GPIOs the node says this setting can use (pins: no flash/PSRAM
+     * pins, and no input-only ones unless `input`). Never shows the -1 that stores "off".
      *
      * With `name` it posts in the form and starts with "Default (...)": unset, so the node follows
      * the setting's default; choosing it again unsets the pin. Without, `onchange` gets the pin.
@@ -15,21 +15,27 @@
         fallback?: unknown;
         name?: string;
         label?: string;
+        /** The firmware only reads this pin, so input-only GPIOs are fine */
+        input?: boolean;
         onchange?: (pin: number) => void;
         class?: string;
     }
 
-    let { value = $bindable(), fallback = -1, name, label, onchange, class: cls = 'w-32' }: Props = $props();
+    let { value = $bindable(), fallback = -1, name, label, input = false, onchange, class: cls = 'w-32' }: Props = $props();
 
     const unset = (v: unknown) => v === undefined || v === null || v === '';
     const describe = (p: number) => (p >= 0 ? `GPIO ${p}` : 'off');
-    // A stored pin past maxPin (e.g. from another chip) stays listed rather than silently changing.
-    const pins = $derived.by(() => {
-        const max = $hardwareSettings?.maxPin ?? 48;
-        const list = Array.from({ length: max + 1 }, (_, i) => i);
+    // Older firmware sends no list: offer 0..48 and let the node's save check refuse a bad one.
+    const usable = $derived.by(() => {
+        const pins = $hardwareSettings?.pins;
+        if (!pins) return Array.from({ length: 49 }, (_, i) => i);
+        return pins.usable.filter((p) => input || !pins.inputOnly.includes(p)).sort((a, b) => a - b);
+    });
+    // A stored pin the list doesn't offer (e.g. set on another chip) stays shown, marked, rather
+    // than silently changing.
+    const stray = $derived.by(() => {
         const current = Number(value);
-        if (!unset(value) && Number.isInteger(current) && current > max) list.push(current);
-        return list;
+        return !unset(value) && Number.isInteger(current) && current >= 0 && !usable.includes(current) ? current : undefined;
     });
     const selected = $derived(unset(value) ? (name ? '' : '-1') : String(Number(value) < 0 ? -1 : Number(value)));
 
@@ -48,7 +54,10 @@
         <option value="" selected={selected === ''}>Default ({describe(unset(fallback) ? -1 : Number(fallback))})</option>
     {/if}
     <option value="-1" selected={selected === '-1'}>Off</option>
-    {#each pins as p (p)}
+    {#each usable as p (p)}
         <option value={String(p)} selected={selected === String(p)}>GPIO {p}</option>
     {/each}
+    {#if stray !== undefined}
+        <option value={String(stray)} selected>GPIO {stray} (not usable here)</option>
+    {/if}
 </select>

@@ -31,7 +31,7 @@ struct Param {
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
     bool board = false;  // exported in board templates (markBoard)
-    PinUse pin = PinUse::None;                              // pin()
+    PinUse pin = PinUse::None;                              // pinInput()/pinOutput()
     std::vector<std::pair<std::string, PinUse>> pinFields;  // json(..., pins)
     SettingSpec spec_;   // filled by spec()
 
@@ -281,7 +281,15 @@ esp_err_t getHandler(httpd_req_t* req) {
     section(false);
     put("},\"defaults\":{");
     section(true);
-    put("},\"maxPin\":" + std::to_string(SOC_GPIO_PIN_COUNT - 1) + "}");  // the chip's highest GPIO, for pin()
+    // The GPIOs a pin picker may offer, from the same masks the save check uses (pins()).
+    std::string usable, inputOnly;
+    for (int i = 0; i < 64; i++) {
+        if (!((pinRules.exists >> i) & 1) || ((pinRules.reserved >> i) & 1)) continue;
+        std::string& list = ((pinRules.output >> i) & 1) ? usable : inputOnly;
+        if (!list.empty()) list += ",";
+        list += std::to_string(i);
+    }
+    put("},\"pins\":{\"usable\":[" + usable + (usable.empty() || inputOnly.empty() ? "" : ",") + inputOnly + "],\"inputOnly\":[" + inputOnly + "]}}");
     if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
     return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
@@ -424,11 +432,13 @@ long integer(const std::string& name, long min, long max, long init, const std::
     return rv;
 }
 
-long pin(const std::string& name, PinUse use, long init, const std::string& label) {
+static long pin(const std::string& name, PinUse use, long init, const std::string& label) {
     long rv = integer(name, -1, SOC_GPIO_PIN_COUNT - 1, init, label);
     last()->pin = use;
     return rv;
 }
+long pinInput(const std::string& name, long init, const std::string& label) { return pin(name, PinUse::Input, init, label); }
+long pinOutput(const std::string& name, long init, const std::string& label) { return pin(name, PinUse::Output, init, label); }
 
 float floating(const std::string& name, float init, const std::string& label) {
     auto* p = add(Type::Float, name, toStr(init), label);

@@ -51,8 +51,8 @@ export interface ExtraSettings {
     defaults: {
         [key: string]: any;
     };
-    /** The chip's highest GPIO */
-    maxPin?: number;
+    /** GPIOs this chip lets a setting use (not flash/PSRAM); inputOnly ones can't drive a level */
+    pins?: { usable: number[]; inputOnly: number[] };
 }
 
 export interface WebSocketCommand {
