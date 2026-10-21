@@ -2,37 +2,53 @@
     import { hardwareSettings } from '#lib/stores.js';
 
     /**
-     * A GPIO field. A disabled pin (-1) shows as an empty field reading "off", and clearing the
-     * field disables the pin, so the -1 never shows. The range is the chip's (maxPin).
+     * A GPIO picker: Off, or GPIO 0 up to the chip's highest (maxPin). Never shows the -1 that
+     * stores "off".
      *
-     * With `name` it posts in the form through a hidden field: blank until edited (the node keeps
-     * its default), then the pin, -1 when cleared. Without, `onchange` gets the pin.
+     * With `name` it posts in the form and starts with "Default (...)": unset, so the node follows
+     * the setting's default; choosing it again unsets the pin. Without, `onchange` gets the pin.
      */
     interface Props {
         /** Stored value: a number, a numeric string, or unset */
         value?: unknown;
-        /** Shown while value is unset, e.g. the setting's default */
+        /** The setting's default, shown in the "Default" option */
         fallback?: unknown;
         name?: string;
+        label?: string;
         onchange?: (pin: number) => void;
         class?: string;
     }
 
-    let { value = $bindable(), fallback = -1, name, onchange, class: cls = 'w-24' }: Props = $props();
+    let { value = $bindable(), fallback = -1, name, label, onchange, class: cls = 'w-32' }: Props = $props();
 
     const unset = (v: unknown) => v === undefined || v === null || v === '';
-    const pin = $derived(Number(unset(value) ? fallback : value));
-    const shown = $derived(Number.isInteger(pin) && pin >= 0 ? String(pin) : '');
+    const describe = (p: number) => (p >= 0 ? `GPIO ${p}` : 'off');
+    // A stored pin past maxPin (e.g. from another chip) stays listed rather than silently changing.
+    const pins = $derived.by(() => {
+        const max = $hardwareSettings?.maxPin ?? 48;
+        const list = Array.from({ length: max + 1 }, (_, i) => i);
+        const current = Number(value);
+        if (!unset(value) && Number.isInteger(current) && current > max) list.push(current);
+        return list;
+    });
+    const selected = $derived(unset(value) ? (name ? '' : '-1') : String(Number(value) < 0 ? -1 : Number(value)));
 
-    function input(text: string): void {
-        const p = text === '' ? -1 : Number(text);
-        value = p;
-        onchange?.(p);
+    function choose(v: string): void {
+        if (v === '') {
+            value = '';
+            return;
+        }
+        value = Number(v);
+        onchange?.(Number(v));
     }
 </script>
 
-<input type="number" step="1" min="0" max={$hardwareSettings?.maxPin ?? 48} placeholder="off" class={cls} value={shown}
-    oninput={(e) => input(e.currentTarget.value)}/>
-{#if name}
-    <input type="hidden" {name} value={unset(value) ? '' : String(value)}/>
-{/if}
+<select {name} aria-label={label} class={cls} onchange={(e) => choose(e.currentTarget.value)}>
+    {#if name}
+        <option value="" selected={selected === ''}>Default ({describe(Number(fallback))})</option>
+    {/if}
+    <option value="-1" selected={selected === '-1'}>Off</option>
+    {#each pins as p (p)}
+        <option value={String(p)} selected={selected === String(p)}>GPIO {p}</option>
+    {/each}
+</select>

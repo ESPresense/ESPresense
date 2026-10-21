@@ -97,7 +97,7 @@
         <label>
             Pin and type:<br />
             <span class="flex items-center gap-2">
-                <PinInput value={it.pin} onchange={(p) => set('pin', p)}/>
+                <PinInput label="Pin" value={it.pin} onchange={(p) => set('pin', p)}/>
                 <select aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
                     {#each types as [v, text] (v)}
                         <option value={v} selected={(it.type ?? types[0][0]) === v}>{text}</option>

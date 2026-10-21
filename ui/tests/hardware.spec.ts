@@ -4,8 +4,8 @@ import { test, expect, type Page } from '@playwright/test';
 const item = (page: Page, heading: string) => page.locator('h4', { hasText: heading }).locator('xpath=following-sibling::p');
 const pinRow = (page: Page, heading: string) =>
 	item(page, heading).filter({ has: page.getByRole('combobox', { name: 'Pin type' }) }).first();
-const pinOf = (page: Page, heading: string) => pinRow(page, heading).locator('input');
-const typeOf = (page: Page, heading: string) => pinRow(page, heading).locator('select');
+const pinOf = (page: Page, heading: string) => pinRow(page, heading).getByRole('combobox', { name: 'Pin', exact: true });
+const typeOf = (page: Page, heading: string) => pinRow(page, heading).getByRole('combobox', { name: 'Pin type' });
 
 // Mock data for hardware settings
 const mockHardwareSettings = {
@@ -117,11 +117,11 @@ test.describe('Hardware Settings Page', () => {
 		await expect(pinOf(page, 'LED 1:')).toHaveValue('2');
 
 		// Check I2C Bus 1 SDA pin
-		const i2cSda = page.locator('input[name="I2C_Bus_1_SDA"]');
+		const i2cSda = page.locator('select[name="I2C_Bus_1_SDA"]');
 		await expect(i2cSda).toHaveValue('21');
 
 		// Check I2C Bus 1 SCL pin
-		const i2cScl = page.locator('input[name="I2C_Bus_1_SCL"]');
+		const i2cScl = page.locator('select[name="I2C_Bus_1_SCL"]');
 		await expect(i2cScl).toHaveValue('22');
 	});
 
@@ -131,7 +131,7 @@ test.describe('Hardware Settings Page', () => {
 
 		// Change LED 1 pin
 		const led1Pin = pinOf(page, 'LED 1:');
-		await led1Pin.fill('5');
+		await led1Pin.selectOption('5');
 		await expect(led1Pin).toHaveValue('5');
 
 		// Change LED type dropdown; addressable types show a count
@@ -142,7 +142,7 @@ test.describe('Hardware Settings Page', () => {
 
 		// Change input 1 pin
 		const inputPin = pinOf(page, 'Input 1:');
-		await inputPin.fill('15');
+		await inputPin.selectOption('15');
 		await expect(inputPin).toHaveValue('15');
 	});
 
@@ -180,7 +180,7 @@ test.describe('Hardware Settings Page', () => {
 		await page.waitForSelector('form#hardware');
 
 		// Change a value
-		await pinOf(page, 'LED 1:').fill('5');
+		await pinOf(page, 'LED 1:').selectOption('5');
 
 		// Submit form
 		const initialGetCount = getCallCount;
@@ -285,36 +285,19 @@ test.describe('Hardware Settings Page', () => {
 		expect(restarted).toBe(false);
 	});
 
-	test('should validate pin number ranges', async ({ page }) => {
-		await page.goto('/hardware');
-		await page.waitForSelector('form#hardware');
-
-		const led1Pin = pinOf(page, 'LED 1:');
-
-		// A cleared pin is off, shown blank rather than -1
-		await led1Pin.fill('');
-		expect(await led1Pin.inputValue()).toBe('');
-		await expect(led1Pin).toHaveAttribute('placeholder', 'off');
-
-		// Test max value
-		await led1Pin.fill('48'); // Valid max
-		expect(await led1Pin.inputValue()).toBe('48');
-
-		// HTML5 validation should prevent > 48
-		await led1Pin.fill('49');
-		const validationMessage = await led1Pin.evaluate((el: HTMLInputElement) => el.validationMessage);
-		expect(validationMessage).toBeTruthy();
-	});
-
-	test('pin fields stop at the chip\'s highest GPIO', async ({ page }) => {
+	test('pin pickers list Off and the chip\'s GPIOs, never -1', async ({ page }) => {
 		await page.route('**/wifi/hardware', (route) =>
 			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...mockHardwareSettings, maxPin: 21 }) })
 		);
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await expect(pinOf(page, 'LED 1:')).toHaveAttribute('max', '21');
-		await expect(page.getByLabel('DHT11 sensor pin')).toHaveAttribute('max', '21');
+		const led1Pin = pinOf(page, 'LED 1:');
+		await expect(led1Pin.locator('option')).toHaveText(['Off', ...Array.from({ length: 22 }, (_, i) => `GPIO ${i}`)]);
+		const dht11 = page.getByLabel('DHT11 sensor pin');
+		await expect(dht11.locator('option').first()).toHaveText('Default (off)');
+		await expect(dht11.locator('option')).toHaveCount(24);
+		await expect(page.locator('option', { hasText: '-1' })).toHaveCount(0);
 	});
 
 	test('should have links to documentation', async ({ page }) => {
@@ -488,8 +471,8 @@ test.describe('Hardware lists', () => {
 		const out2 = page.locator('h4', { hasText: 'Output 2:' });
 		const fields = out2.locator('xpath=following-sibling::p');
 		await fields.nth(0).locator('input').fill('Plug');
-		await fields.nth(1).locator('input').fill('5');
-		await fields.nth(1).locator('select').selectOption('output_inverted');
+		await pinOf(page, 'Output 2:').selectOption('5');
+		await typeOf(page, 'Output 2:').selectOption('output_inverted');
 		await fields.nth(2).locator('select').selectOption('restore');
 		const link = fields.nth(3).locator('select');
 		await expect(link.locator('option', { hasText: '1: Hallway PIR' })).toHaveCount(1);
@@ -508,9 +491,9 @@ test.describe('Hardware lists', () => {
 		await page.waitForSelector('form#hardware');
 
 		const fields = page.locator('h4', { hasText: 'Output 1:' }).locator('xpath=following-sibling::p');
-		await expect(fields.nth(1).locator('select')).toHaveValue('high');
+		await expect(typeOf(page, 'Output 1:')).toHaveValue('high');
 		await expect(page.getByLabel('Power-on state')).toHaveCount(0);
-		await fields.nth(1).locator('select').selectOption('output');
+		await typeOf(page, 'Output 1:').selectOption('output');
 		await expect(page.getByLabel('Power-on state')).toHaveCount(1);
 	});
 
@@ -531,23 +514,25 @@ test.describe('Hardware lists', () => {
 		expect(new URLSearchParams(posted).get('inputs')).toBe('[]');
 	});
 
-	test('disabled pins show blank and post -1 once cleared', async ({ page }) => {
+	test('a pin can be off, a GPIO, or back to its default', async ({ page }) => {
 		let posted = '';
-		await mockSettings(page, { dht11_pin: '-1' }, (body) => (posted = body));
+		await mockSettings(page, { dht11_pin: '-1', dht22_pin: '4', I2C_Bus_1_SDA: '21' }, (body) => (posted = body));
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await expect(pinOf(page, 'Input 1:')).toHaveValue('');
-		await expect(page.getByLabel('DHT11 sensor pin')).toHaveValue('');
-		await page.getByLabel('SDA pin').first().fill('');
+		await expect(pinOf(page, 'Input 1:')).toHaveValue('-1');
+		await expect(page.getByLabel('DHT11 sensor pin')).toHaveValue('-1');
+		await page.getByLabel('DHT22 sensor pin').selectOption('');
+		await page.getByLabel('SDA pin').first().selectOption('-1');
+		await page.getByLabel('SCL pin').first().selectOption('5');
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('I2C_Bus_1_SDA=');
 		const form = new URLSearchParams(posted);
-		expect(form.get('I2C_Bus_1_SDA')).toBe('-1');
 		expect(form.get('dht11_pin')).toBe('-1');
-		expect(form.get('dht22_pin')).toBe('-1');
-		expect(JSON.parse(form.get('inputs')!)[0].pin).toBe(-1);
+		expect(form.get('dht22_pin')).toBe('');
+		expect(form.get('I2C_Bus_1_SDA')).toBe('-1');
+		expect(form.get('I2C_Bus_1_SCL')).toBe('5');
 	});
 
 	test('power monitor posts one JSON object', async ({ page }) => {
@@ -558,9 +543,9 @@ test.describe('Hardware lists', () => {
 
 		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
 		await page.getByLabel('Chip (most relay plugs have one)').selectOption('bl0937');
-		await page.getByLabel('CF pin (power)').fill('6');
-		await page.getByLabel('CF1 pin (V / A)').fill('7');
-		await page.getByLabel('SEL pin').fill('10');
+		await page.getByLabel('CF pin (power)').selectOption('6');
+		await page.getByLabel('CF1 pin (V / A)').selectOption('7');
+		await page.getByLabel('SEL pin').selectOption('10');
 		await page.getByLabel("Voltage divider (as in ESPHome's hlw8012)").fill('1517');
 		await page.getByLabel('SEL polarity').selectOption('1');
 
@@ -577,7 +562,7 @@ test.describe('Hardware lists', () => {
 
 		await page.getByLabel('Chip (most relay plugs have one)').selectOption('cse7766');
 		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
-		await page.getByLabel('RX pin (CSE7766 TX; factory calibrated, no settings needed)').fill('20');
+		await page.getByLabel('RX pin (CSE7766 TX; factory calibrated, no settings needed)').selectOption('20');
 
 		await page.locator('button[type="submit"]').click();
 		await expect.poll(() => posted).toContain('power=');

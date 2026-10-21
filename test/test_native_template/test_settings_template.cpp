@@ -34,10 +34,10 @@ struct Result {
     std::vector<SettingChange> changes;
 };
 
-// Classic ESP32 shape: GPIO 20, 24 and 28-31 missing, 6-11 on the flash, 34-39 input-only.
+// ESP32 as ESP-IDF sees it: GPIO 24 and 28-31 missing, 6-11 on the flash, 34-39 input-only.
 PinRules esp32Pins() {
     PinRules p;
-    p.exists = ((1ULL << 40) - 1) & ~((1ULL << 20) | (1ULL << 24) | (0xFULL << 28));
+    p.exists = ((1ULL << 40) - 1) & ~((1ULL << 24) | (0xFULL << 28));
     p.reserved = 0x3FULL << 6;
     p.output = p.exists & ~(0x3FULL << 34);
     return p;
@@ -150,8 +150,8 @@ void test_pins_checked_against_the_chip(void) {
     Result r = parse(R"({"chip":"esp32","settings":{"led_1_pin":6}})", "esp32", p);
     TEST_ASSERT_FALSE(r.ok);
     TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 6 is used by the flash or PSRAM", r.err.c_str());
-    r = parse(R"({"chip":"esp32","settings":{"led_1_pin":20}})", "esp32", p);
-    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 20 doesn't exist on this chip", r.err.c_str());
+    r = parse(R"({"chip":"esp32","settings":{"led_1_pin":24}})", "esp32", p);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 24 doesn't exist on this chip", r.err.c_str());
     r = parse(R"({"chip":"esp32","settings":{"led_1_pin":45}})", "esp32", p);
     TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 45 doesn't exist on this chip", r.err.c_str());
     // Input-only pins can read but not drive.
