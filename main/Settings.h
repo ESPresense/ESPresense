@@ -17,7 +17,7 @@ std::string pstring(const std::string& name, const std::string& init = "", const
 long dropdown(const std::string& name, const std::vector<std::string>& options, long init = 0, const std::string& label = "");
 long integer(const std::string& name, long init = 0, const std::string& label = "");
 long integer(const std::string& name, long min, long max, long init = 0, const std::string& label = "");
-// A GPIO (-1 = disabled). Templates and saves are refused when the pin can't serve `use` on
+// A GPIO (-1 = disabled, at most the chip's highest GPIO, which /wifi/<endpoint> reports as maxPin). Templates and saves are refused when the pin can't serve `use` on
 // this chip.
 long pin(const std::string& name, PinUse use, long init = -1, const std::string& label = "");
 float floating(const std::string& name, float init = 0, const std::string& label = "");

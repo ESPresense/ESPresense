@@ -291,9 +291,10 @@ test.describe('Hardware Settings Page', () => {
 
 		const led1Pin = pinOf(page, 'LED 1:');
 
-		// Test min value
-		await led1Pin.fill('-1'); // Valid (disable)
-		expect(await led1Pin.inputValue()).toBe('-1');
+		// A cleared pin is off, shown blank rather than -1
+		await led1Pin.fill('');
+		expect(await led1Pin.inputValue()).toBe('');
+		await expect(led1Pin).toHaveAttribute('placeholder', 'off');
 
 		// Test max value
 		await led1Pin.fill('48'); // Valid max
@@ -303,6 +304,17 @@ test.describe('Hardware Settings Page', () => {
 		await led1Pin.fill('49');
 		const validationMessage = await led1Pin.evaluate((el: HTMLInputElement) => el.validationMessage);
 		expect(validationMessage).toBeTruthy();
+	});
+
+	test('pin fields stop at the chip\'s highest GPIO', async ({ page }) => {
+		await page.route('**/wifi/hardware', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...mockHardwareSettings, maxPin: 21 }) })
+		);
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(pinOf(page, 'LED 1:')).toHaveAttribute('max', '21');
+		await expect(page.getByLabel('DHT11 sensor pin')).toHaveAttribute('max', '21');
 	});
 
 	test('should have links to documentation', async ({ page }) => {
@@ -517,6 +529,25 @@ test.describe('Hardware lists', () => {
 		await expect.poll(() => posted).toContain('leds=');
 		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)).toEqual([{ type: 'pwm', pin: 2, control: 'status' }]);
 		expect(new URLSearchParams(posted).get('inputs')).toBe('[]');
+	});
+
+	test('disabled pins show blank and post -1 once cleared', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { dht11_pin: '-1' }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(pinOf(page, 'Input 1:')).toHaveValue('');
+		await expect(page.getByLabel('DHT11 sensor pin')).toHaveValue('');
+		await page.getByLabel('SDA pin').first().fill('');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('I2C_Bus_1_SDA=');
+		const form = new URLSearchParams(posted);
+		expect(form.get('I2C_Bus_1_SDA')).toBe('-1');
+		expect(form.get('dht11_pin')).toBe('-1');
+		expect(form.get('dht22_pin')).toBe('-1');
+		expect(JSON.parse(form.get('inputs')!)[0].pin).toBe(-1);
 	});
 
 	test('power monitor posts one JSON object', async ({ page }) => {

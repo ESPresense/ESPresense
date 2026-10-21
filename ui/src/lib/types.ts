@@ -51,6 +51,8 @@ export interface ExtraSettings {
     defaults: {
         [key: string]: any;
     };
+    /** The chip's highest GPIO */
+    maxPin?: number;
 }
 
 export interface WebSocketCommand {

@@ -281,7 +281,7 @@ esp_err_t getHandler(httpd_req_t* req) {
     section(false);
     put("},\"defaults\":{");
     section(true);
-    put("}}");
+    put("},\"maxPin\":" + std::to_string(SOC_GPIO_PIN_COUNT - 1) + "}");  // the chip's highest GPIO, for pin()
     if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
     return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
@@ -425,7 +425,7 @@ long integer(const std::string& name, long min, long max, long init, const std::
 }
 
 long pin(const std::string& name, PinUse use, long init, const std::string& label) {
-    long rv = integer(name, -1, 48, init, label);
+    long rv = integer(name, -1, SOC_GPIO_PIN_COUNT - 1, init, label);
     last()->pin = use;
     return rv;
 }

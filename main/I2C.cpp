@@ -66,11 +66,11 @@ static bool startBus(int idx, int port, int sda, int scl) {
 }
 
 void ConnectToWifi(bool updating) {
-    I2C_Bus_1_SDA = Settings::pin("I2C_Bus_1_SDA", PinUse::Output, DEFAULT_I2C_BUS_1_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_1_SCL = Settings::pin("I2C_Bus_1_SCL", PinUse::Output, DEFAULT_I2C_BUS_1_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_1_SDA = Settings::pin("I2C_Bus_1_SDA", PinUse::Output, DEFAULT_I2C_BUS_1_SDA, "SDA pin");
+    I2C_Bus_1_SCL = Settings::pin("I2C_Bus_1_SCL", PinUse::Output, DEFAULT_I2C_BUS_1_SCL, "SCL pin");
 
-    I2C_Bus_2_SDA = Settings::pin("I2C_Bus_2_SDA", PinUse::Output, DEFAULT_I2C_BUS_2_SDA, "SDA pin (-1 to disable)");
-    I2C_Bus_2_SCL = Settings::pin("I2C_Bus_2_SCL", PinUse::Output, DEFAULT_I2C_BUS_2_SCL, "SCL pin (-1 to disable)");
+    I2C_Bus_2_SDA = Settings::pin("I2C_Bus_2_SDA", PinUse::Output, DEFAULT_I2C_BUS_2_SDA, "SDA pin");
+    I2C_Bus_2_SCL = Settings::pin("I2C_Bus_2_SCL", PinUse::Output, DEFAULT_I2C_BUS_2_SCL, "SCL pin");
 
     I2CDebug = Settings::checkbox("I2CDebug", false, "Debug I2C addreses. Look at the serial log to get the correct address");
 
