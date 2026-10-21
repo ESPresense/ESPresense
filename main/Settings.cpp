@@ -355,7 +355,8 @@ void begin() {
     pinRules.reserved = 0;
     for (int i = 0; i < 64; i++)
         if (((pinRules.exists >> i) & 1) && esp_gpio_is_reserved(BIT64(i))) pinRules.reserved |= BIT64(i);
-    Log.printf("Flash/PSRAM GPIO mask: 0x%llx\n", (unsigned long long)pinRules.reserved);
+    // Two halves: newlib nano printf has no %llx.
+    Log.printf("Flash/PSRAM GPIO mask: 0x%08lx%08lx\n", (unsigned long)(pinRules.reserved >> 32), (unsigned long)pinRules.reserved);
     esp_vfs_spiffs_conf_t conf = {};
     conf.base_path = BASE;
     conf.partition_label = "spiffs";
