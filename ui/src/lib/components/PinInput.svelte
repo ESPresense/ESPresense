@@ -45,7 +45,7 @@
 
 <select {name} aria-label={label} class={cls} onchange={(e) => choose(e.currentTarget.value)}>
     {#if name}
-        <option value="" selected={selected === ''}>Default ({describe(Number(fallback))})</option>
+        <option value="" selected={selected === ''}>Default ({describe(unset(fallback) ? -1 : Number(fallback))})</option>
     {/if}
     <option value="-1" selected={selected === '-1'}>Off</option>
     {#each pins as p (p)}
