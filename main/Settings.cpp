@@ -25,18 +25,27 @@ constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
 using Type = SettingType;
 
+struct Param;
+// json(..., pins): a side table, since only a handful of settings hold GPIOs in their JSON.
+// Allocated once at registration and never freed, so a SettingSpec can point into it.
+std::vector<std::pair<const Param*, const PinFields*>> jsonPins;
+const PinFields* pinFieldsOf(const Param* p) {
+    for (auto& e : jsonPins)
+        if (e.first == p) return e.second;
+    return nullptr;
+}
+
 struct Param {
     Type type;
     std::string name, label, value, init;
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
     bool board = false;  // exported in board templates (markBoard)
-    PinUse pin = PinUse::None;                              // pinInput()/pinOutput()
-    std::vector<std::pair<std::string, PinUse>> pinFields;  // json(..., pins)
+    PinUse pin = PinUse::None;  // pinInput()/pinOutput(); one byte, in board's padding
     SettingSpec spec_;   // filled by spec()
 
     const SettingSpec* spec() {
-        spec_ = {type, min, max, options.size(), pin, pinFields};
+        spec_ = {type, min, max, options.size(), pin, pinFieldsOf(this)};
         return &spec_;
     }
     std::string effective() const { return value.empty() ? init : value; }
@@ -327,7 +336,7 @@ esp_err_t postHandler(httpd_req_t* req) {
     std::string v;
     bool setsPin = false;
     for (auto* prm : endpoints[idx].params) {
-        if (prm->pin == PinUse::None && prm->pinFields.empty()) continue;
+        if (prm->pin == PinUse::None && !pinFieldsOf(prm)) continue;
         formValue(body, prm->name, v);
         std::string err = checkPins(prm->name, *prm->spec(), v, pinRules, setsPin);
         if (!err.empty()) {
@@ -466,7 +475,7 @@ std::string json(const std::string& name, const std::string& init, const std::st
 std::string json(const std::string& name, const std::string& init, const std::string& label,
                  const std::vector<std::pair<std::string, PinUse>>& pins) {
     std::string rv = json(name, init, label);
-    last()->pinFields = pins;
+    jsonPins.push_back({last(), new PinFields(pins)});
     return rv;
 }
 

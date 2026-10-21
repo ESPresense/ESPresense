@@ -21,8 +21,10 @@ std::map<std::string, SettingSpec> registry() {
     r["I2CDebug"] = {SettingType::Bool, LONG_MIN, LONG_MAX, 0};
     r["AHTX0_I2c"] = {SettingType::String, LONG_MIN, LONG_MAX, 0};
     r["eth"] = {SettingType::Dropdown, LONG_MIN, LONG_MAX, 15};
-    r["outputs"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"pin", PinUse::Output}}};
-    r["power"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"rx", PinUse::Input}, {"sel", PinUse::Output}}};
+    static const PinFields outputPins = {{"pin", PinUse::Output}};
+    r["outputs"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, &outputPins};
+    static const PinFields powerPins = {{"rx", PinUse::Input}, {"sel", PinUse::Output}};
+    r["power"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, &powerPins};
     r["BMP280_I2c"] = {SettingType::String, LONG_MIN, LONG_MAX, 0};
     r["SHT_I2c_Bus"] = {SettingType::Int, 1, 2, 0};
     return r;
@@ -183,7 +185,8 @@ void test_check_pins_on_stored_values(void) {
     TEST_ASSERT_FALSE(setsPin);
     TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 11 is used by the flash or PSRAM", checkPins("led_1_pin", led, "11", p, setsPin).c_str());
     TEST_ASSERT_TRUE(setsPin);
-    SettingSpec leds = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"pin", PinUse::Output}}};
+    static const PinFields ledPins = {{"pin", PinUse::Output}};
+    SettingSpec leds = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, &ledPins};
     TEST_ASSERT_EQUAL_STRING("leds[0].pin: GPIO 7 is used by the flash or PSRAM", checkPins("leds", leds, R"([{"type":"grb","pin":7}])", p, setsPin).c_str());
     TEST_ASSERT_EQUAL_STRING("", checkPins("leds", leds, "not json", p, setsPin).c_str());
     // -1 is the only "off": drivers keep pins in int8_t, where -250 is GPIO 6, a flash pin.

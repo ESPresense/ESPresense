@@ -32,7 +32,9 @@ enum class SettingType { Dropdown, String, Password, Int, Float, Bool, Json };
 
 // How a setting uses a GPIO. Output covers anything the chip drives, including two-way buses
 // (I2C, 1-Wire, DHT), so an input-only pin can't take it.
-enum class PinUse { None, Input, Output };
+enum class PinUse : uint8_t { None, Input, Output };
+// A Json setting's members holding GPIOs, e.g. {{"pin", PinUse::Output}}.
+using PinFields = std::vector<std::pair<std::string, PinUse>>;
 
 struct SettingSpec {
     SettingType type;
@@ -40,7 +42,8 @@ struct SettingSpec {
     size_t options = 0;  // dropdown option count; the stored value is the index
     PinUse pin = PinUse::None;  // an Int setting holding a GPIO (-1 = disabled)
     // A Json setting's members holding GPIOs: in the object itself or in each array element.
-    std::vector<std::pair<std::string, PinUse>> pinFields = {};
+    // A pointer, not a copy: only a few settings have any, and every setting carries a spec.
+    const PinFields* pinFields = nullptr;
 };
 
 struct SettingChange {
@@ -78,11 +81,11 @@ inline std::string checkPins(const std::string& key, const SettingSpec& s, const
         std::string why = pinProblem(pin, s.pin, r);
         return why.empty() ? "" : key + ": " + why;
     }
-    if (s.pinFields.empty() || value.empty()) return "";
+    if (!s.pinFields || s.pinFields->empty() || value.empty()) return "";
     DynamicJsonDocument doc(value.size() * 2 + 128);
     if (deserializeJson(doc, value)) return "";  // not ours to judge: the type check reports it
     auto check = [&](JsonObjectConst o, const std::string& where) -> std::string {
-        for (auto& f : s.pinFields) {
+        for (auto& f : *s.pinFields) {
             JsonVariantConst v = o[f.first];
             if (!v.is<long>()) continue;  // absent or not a number: the firmware treats it as unset
             long pin = v.as<long>();
