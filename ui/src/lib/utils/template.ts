@@ -7,6 +7,8 @@
  *
  * The node validates and applies them (POST /json/template); only the keys in `settings` change.
  * Any setting may appear (pins, LEDs, Ethernet type, ...), so templates live on their own page.
+ * `chip` is needed only when a template sets a pin; add-on templates without pins (a sensor's
+ * address and bus) fit any node. The node also refuses pins this chip can't use.
  */
 
 export interface TemplateChange {
@@ -33,7 +35,7 @@ export function normalizeTemplate(text: string): string {
 		throw new Error(`Not valid JSON: ${(error as Error).message}`);
 	}
 	if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-		throw new Error('A template must be a JSON object with "chip" and "settings"');
+		throw new Error('A template must be a JSON object with "settings"');
 	}
 	return JSON.stringify(parsed);
 }

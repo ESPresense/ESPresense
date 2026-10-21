@@ -262,6 +262,29 @@ test.describe('Hardware Settings Page', () => {
 		await expect(page.locator('button[type="submit"]')).toHaveText('Save', { timeout: 3000 });
 	});
 
+	test('should show the reason when the node refuses a save, without restarting', async ({ page }) => {
+		let restarted = false;
+		await page.route('**/wifi/hardware', async (route) => {
+			if (route.request().method() === 'GET') {
+				await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(mockHardwareSettings) });
+			} else {
+				await route.fulfill({ status: 400, contentType: 'text/plain', body: 'leds[0].pin: GPIO 6 is used by the flash or PSRAM' });
+			}
+		});
+		await page.route('**/restart', async (route) => {
+			restarted = true;
+			await route.abort('failed');
+		});
+
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+		await page.locator('button[type="submit"]').click();
+
+		await expect(page.getByRole('alert')).toHaveText('leds[0].pin: GPIO 6 is used by the flash or PSRAM');
+		await expect(page.locator('button[type="submit"]')).toHaveText('Save');
+		expect(restarted).toBe(false);
+	});
+
 	test('should validate pin number ranges', async ({ page }) => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');

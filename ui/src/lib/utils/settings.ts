@@ -5,7 +5,8 @@ import type { ExtraSettings } from '#lib/types.js';
  * Saves settings to the device with automatic restart and retry logic.
  *
  * This function handles the complete save flow:
- * 1. POSTs form data to the specified endpoint
+ * 1. POSTs form data to the specified endpoint; a refused save (e.g. a pin this chip can't use)
+ *    throws with the device's message and nothing restarts
  * 2. Triggers a device restart (which typically fails due to connection drop)
  * 3. Retries loading settings up to 5 times with 1-second delays
  * 4. Updates the provided settings store on success
@@ -13,7 +14,8 @@ import type { ExtraSettings } from '#lib/types.js';
  * @param endpoint - The API endpoint to POST settings to (e.g., "/wifi/extras" or "/wifi/hardware")
  * @param formData - The FormData object containing settings to save
  * @param settingsStore - The Svelte store to update with reloaded settings
- * @throws Error if settings fail to reload after all retry attempts
+ * @throws Error with the device's message if it refuses the save, or if settings fail to reload
+ * after all retry attempts
  *
  * @example
  * ```typescript
@@ -34,7 +36,11 @@ export async function saveSettingsWithRetry(
 	}
 
 	// Save settings to device
-	await fetch(endpoint, { method: 'POST', body: params });
+	const response = await fetch(endpoint, { method: 'POST', body: params });
+	if (!response.ok) {
+		const message = (await response.text().catch(() => '')).trim();
+		throw new Error(message || `Save failed (${response.status})`);
+	}
 
 	try {
 		// Trigger device restart

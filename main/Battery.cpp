@@ -56,6 +56,7 @@ static unsigned int leadAcidPercent(int mv) {
 
 void ConnectToWifi(bool updating) {
     battPin = Settings::integer("batt_pin", -1, 48, -1, "Battery voltage pin (-1 to disable)");
+    Settings::markPin(PinUse::Input);
     battMult = Settings::floating("batt_mult", 1, 20, 2, "Battery voltage divider (multiplier)");
     leadAcid = Settings::dropdown("batt_type", {"Li-ion (1 cell)", "12V lead-acid"}, 0, "Battery type") == 1;
 }

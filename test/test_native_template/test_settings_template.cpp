@@ -1,5 +1,6 @@
 // Board template parsing (#2529): a template may only name registered settings, values must
-// match the setting's type and range, the chip must match, and one bad key rejects the lot.
+// match the setting's type and range, a chip given must match (and is required once a template
+// sets a pin), every pin must be usable on the chip, and one bad key rejects the lot.
 #include <map>
 #include <string>
 #include <vector>
@@ -13,13 +14,17 @@ namespace {
 // A slice of the settings registry: /wifi/hardware plus Ethernet type from /wifi.
 std::map<std::string, SettingSpec> registry() {
     std::map<std::string, SettingSpec> r;
-    r["led_1_pin"] = {SettingType::Int, -1, 48, 0};
+    r["led_1_pin"] = {SettingType::Int, -1, 48, 0, PinUse::Output};
+    r["batt_pin"] = {SettingType::Int, -1, 48, 0, PinUse::Input};
     r["led_1_type"] = {SettingType::Dropdown, LONG_MIN, LONG_MAX, 6};
     r["button_1_timeout"] = {SettingType::Float, 0, 300, 0};
     r["I2CDebug"] = {SettingType::Bool, LONG_MIN, LONG_MAX, 0};
     r["AHTX0_I2c"] = {SettingType::String, LONG_MIN, LONG_MAX, 0};
     r["eth"] = {SettingType::Dropdown, LONG_MIN, LONG_MAX, 15};
-    r["outputs"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0};
+    r["outputs"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"pin", PinUse::Output}}};
+    r["power"] = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"rx", PinUse::Input}, {"sel", PinUse::Output}}};
+    r["BMP280_I2c"] = {SettingType::String, LONG_MIN, LONG_MAX, 0};
+    r["SHT_I2c_Bus"] = {SettingType::Int, 1, 2, 0};
     return r;
 }
 
@@ -29,7 +34,16 @@ struct Result {
     std::vector<SettingChange> changes;
 };
 
-Result parse(const char* json, const char* chip = "esp32c3") {
+// Classic ESP32 shape: GPIO 20, 24 and 28-31 missing, 6-11 on the flash, 34-39 input-only.
+PinRules esp32Pins() {
+    PinRules p;
+    p.exists = ((1ULL << 40) - 1) & ~((1ULL << 20) | (1ULL << 24) | (0xFULL << 28));
+    p.reserved = 0x3FULL << 6;
+    p.output = p.exists & ~(0x3FULL << 34);
+    return p;
+}
+
+Result parse(const char* json, const char* chip = "esp32c3", const PinRules& pins = PinRules()) {
     static std::map<std::string, SettingSpec> reg = registry();
     DynamicJsonDocument doc(2048);
     TEST_ASSERT_FALSE(deserializeJson(doc, json));
@@ -38,7 +52,7 @@ Result parse(const char* json, const char* chip = "esp32c3") {
         auto it = reg.find(key);
         return it == reg.end() ? nullptr : &it->second;
     };
-    r.ok = parseTemplate(doc.as<JsonObjectConst>(), chip, "settings", lookup, r.changes, r.err);
+    r.ok = parseTemplate(doc.as<JsonObjectConst>(), chip, "settings", lookup, pins, r.changes, r.err);
     return r;
 }
 
@@ -104,10 +118,74 @@ void test_settings_must_be_under_settings_key(void) {
     TEST_ASSERT_EQUAL_STRING("missing \"settings\" object", r.err.c_str());
 }
 
-void test_missing_chip_rejected(void) {
+void test_missing_chip_rejected_when_template_sets_a_pin(void) {
     Result r = parse(R"({"settings":{"led_1_pin":6}})");
     TEST_ASSERT_FALSE(r.ok);
-    TEST_ASSERT_EQUAL_STRING("missing \"chip\"", r.err.c_str());
+    TEST_ASSERT_EQUAL_STRING("missing \"chip\" (required when a template sets pins)", r.err.c_str());
+    TEST_ASSERT_EQUAL_UINT(0, r.changes.size());
+    // A pin inside a list counts too.
+    TEST_ASSERT_FALSE(parse(R"({"settings":{"outputs":[{"pin":5}]}})").ok);
+    TEST_ASSERT_FALSE(parse(R"({"settings":{"power":{"model":"cse7766","rx":3}}})").ok);
+}
+
+void test_chip_optional_without_pins(void) {
+    // An add-on sensor's address and bus fit any node.
+    Result r = parse(R"({"name":"M5Stack ENV IV","settings":{"BMP280_I2c":"0x76","SHT_I2c_Bus":1}})");
+    TEST_ASSERT_TRUE_MESSAGE(r.ok, r.err.c_str());
+    TEST_ASSERT_EQUAL_STRING("0x76", value(r, "BMP280_I2c").c_str());
+    // Disabling a pin, or a list with no pins set, is the same on every chip.
+    TEST_ASSERT_TRUE(parse(R"({"settings":{"led_1_pin":-1}})").ok);
+    TEST_ASSERT_TRUE(parse(R"({"settings":{"outputs":[]}})").ok);
+    TEST_ASSERT_TRUE(parse(R"({"settings":{"outputs":[{"name":"Relay","pin":-1}]}})").ok);
+    // A chip given must still be right, and a string.
+    TEST_ASSERT_FALSE(parse(R"({"chip":"esp32","settings":{"SHT_I2c_Bus":1}})").ok);
+    r = parse(R"({"chip":5,"settings":{"SHT_I2c_Bus":1}})");
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("\"chip\" must be a string", r.err.c_str());
+}
+
+void test_pins_checked_against_the_chip(void) {
+    PinRules p = esp32Pins();
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":2}})", "esp32", p).ok);
+    Result r = parse(R"({"chip":"esp32","settings":{"led_1_pin":6}})", "esp32", p);
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 6 is used by the flash or PSRAM", r.err.c_str());
+    r = parse(R"({"chip":"esp32","settings":{"led_1_pin":20}})", "esp32", p);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 20 doesn't exist on this chip", r.err.c_str());
+    r = parse(R"({"chip":"esp32","settings":{"led_1_pin":45}})", "esp32", p);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 45 doesn't exist on this chip", r.err.c_str());
+    // Input-only pins can read but not drive.
+    r = parse(R"({"chip":"esp32","settings":{"led_1_pin":34}})", "esp32", p);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 34 is input-only", r.err.c_str());
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"batt_pin":34}})", "esp32", p).ok);
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":-1}})", "esp32", p).ok);
+}
+
+void test_pins_in_lists_and_objects_checked(void) {
+    PinRules p = esp32Pins();
+    Result r = parse(R"({"chip":"esp32","settings":{"outputs":[{"pin":5},{"pin":36}]}})", "esp32", p);
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("outputs[1].pin: GPIO 36 is input-only", r.err.c_str());
+    TEST_ASSERT_EQUAL_UINT(0, r.changes.size());
+    r = parse(R"({"chip":"esp32","settings":{"power":{"model":"bl0937","rx":-1,"sel":39}}})", "esp32", p);
+    TEST_ASSERT_EQUAL_STRING("power.sel: GPIO 39 is input-only", r.err.c_str());
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"power":{"model":"cse7766","rx":39}}})", "esp32", p).ok);
+    // Members the firmware doesn't read as pins are left alone.
+    TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"outputs":[{"pin":5,"input":9}]}})", "esp32", p).ok);
+}
+
+void test_check_pins_on_stored_values(void) {
+    // The /wifi form save runs the same check on the stored text.
+    PinRules p = esp32Pins();
+    SettingSpec led = {SettingType::Int, -1, 48, 0, PinUse::Output};
+    bool setsPin = false;
+    TEST_ASSERT_EQUAL_STRING("", checkPins("led_1_pin", led, "", p, setsPin).c_str());
+    TEST_ASSERT_FALSE(setsPin);
+    TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 11 is used by the flash or PSRAM", checkPins("led_1_pin", led, "11", p, setsPin).c_str());
+    TEST_ASSERT_TRUE(setsPin);
+    SettingSpec leds = {SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, {{"pin", PinUse::Output}}};
+    TEST_ASSERT_EQUAL_STRING("leds[0].pin: GPIO 7 is used by the flash or PSRAM", checkPins("leds", leds, R"([{"type":"grb","pin":7}])", p, setsPin).c_str());
+    TEST_ASSERT_EQUAL_STRING("", checkPins("leds", leds, "not json", p, setsPin).c_str());
 }
 
 void test_missing_or_empty_settings_rejected(void) {
@@ -189,7 +267,11 @@ int main(int, char**) {
     RUN_TEST(test_chip_mismatch_rejected);
     RUN_TEST(test_chip_is_exact_lowercase_name);
     RUN_TEST(test_settings_must_be_under_settings_key);
-    RUN_TEST(test_missing_chip_rejected);
+    RUN_TEST(test_missing_chip_rejected_when_template_sets_a_pin);
+    RUN_TEST(test_chip_optional_without_pins);
+    RUN_TEST(test_pins_checked_against_the_chip);
+    RUN_TEST(test_pins_in_lists_and_objects_checked);
+    RUN_TEST(test_check_pins_on_stored_values);
     RUN_TEST(test_missing_or_empty_settings_rejected);
     RUN_TEST(test_not_an_object_rejected);
     RUN_TEST(test_unknown_key_rejects_everything);

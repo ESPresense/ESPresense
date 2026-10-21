@@ -44,6 +44,8 @@
 
     /** Tracks whether the form is currently being saved */
     let isSaving = $state<boolean>(false);
+    /** Why the last save failed, shown by the Save button */
+    let saveError = $state<string>('');
 
     /**
      * Handles form submission for hardware settings.
@@ -53,12 +55,13 @@
         try {
             event.preventDefault();
             isSaving = true;
+            saveError = '';
             const form = event.target as HTMLFormElement;
             const formData = new FormData(form);
             await saveSettingsWithRetry('/wifi/hardware', formData, hardwareSettings);
         } catch (error) {
             console.error('Failed to save hardware settings:', error);
-            // TODO: Show user-friendly error toast notification
+            saveError = error instanceof Error ? error.message : String(error);
         } finally {
             isSaving = false;
         }
@@ -614,6 +617,9 @@
                     bind:value={$hardwareSettings.values['dsTemp_offset']}/>
             </label>
         </p>
+        {#if saveError}
+            <p role="alert" class="text-red-600 dark:text-red-400">{saveError}</p>
+        {/if}
         <div class="flex justify-end">
             <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                 {isSaving ? "Saving..." : "Save"}

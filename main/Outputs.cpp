@@ -63,6 +63,7 @@ void Setup() {
  */
 void ConnectToWifi(bool updating) {
     std::string text = Settings::json("outputs", "[]", "Outputs");
+    Settings::markPin(PinUse::Output, "pin");
     DynamicJsonDocument list(text.size() * 2 + 256);
     count = 0;
     outputs.clear();

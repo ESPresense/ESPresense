@@ -10,7 +10,10 @@
 #include "HttpStatic.h"
 #include "Logger.h"
 #include "Network.h"
+#include "esp_bit_defs.h"
+#include "esp_private/esp_gpio_reserve.h"
 #include "esp_spiffs.h"
+#include "soc/soc_caps.h"
 #include "util.h"
 
 namespace Settings {
@@ -28,10 +31,12 @@ struct Param {
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
     bool board = false;  // exported in board templates (markBoard)
+    PinUse pin = PinUse::None;                              // markPin() on an integer
+    std::vector<std::pair<std::string, PinUse>> pinFields;  // markPin(use, field) on json()
     SettingSpec spec_;   // filled by spec()
 
     const SettingSpec* spec() {
-        spec_ = {type, min, max, options.size()};
+        spec_ = {type, min, max, options.size(), pin, pinFields};
         return &spec_;
     }
     std::string effective() const { return value.empty() ? init : value; }
@@ -180,6 +185,8 @@ Param* add(Type type, const std::string& name, const std::string& init, const st
 
 Param* last() { return endpoints[current].params.back(); }
 
+PinRules pinRules;
+
 Param* findParam(const std::string& key) {
     for (auto& e : endpoints)
         for (auto* p : e.params)
@@ -308,8 +315,20 @@ esp_err_t postHandler(httpd_req_t* req) {
     std::string body;
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
-    bool ok = true;
+    // Refuse the whole save if a pin can't work on this chip, before anything is changed.
     std::string v;
+    bool setsPin = false;
+    for (auto* prm : endpoints[idx].params) {
+        if (prm->pin == PinUse::None && prm->pinFields.empty()) continue;
+        formValue(body, prm->name, v);
+        std::string err = checkPins(prm->name, *prm->spec(), v, pinRules, setsPin);
+        if (!err.empty()) {
+            Log.printf("POST %s refused: %s\n", p.c_str(), err.c_str());
+            return sendText(req, "400 Bad Request", err.c_str());
+        }
+    }
+
+    bool ok = true;
     for (auto* prm : endpoints[idx].params) {
         formValue(body, prm->name, v);
         prm->set(v);
@@ -329,6 +348,14 @@ void begin() {
     static bool begun = false;
     if (begun) return;
     begun = true;
+    // ESP-IDF reserves the flash (and any PSRAM) pins before app_main; drivers reserve theirs as
+    // they start, so snapshot now, while only the memory pins are taken.
+    pinRules.exists = SOC_GPIO_VALID_GPIO_MASK;
+    pinRules.output = SOC_GPIO_VALID_OUTPUT_GPIO_MASK;
+    pinRules.reserved = 0;
+    for (int i = 0; i < 64; i++)
+        if (((pinRules.exists >> i) & 1) && esp_gpio_is_reserved(BIT64(i))) pinRules.reserved |= BIT64(i);
+    Log.printf("Flash/PSRAM GPIO mask: 0x%llx\n", (unsigned long long)pinRules.reserved);
     esp_vfs_spiffs_conf_t conf = {};
     conf.base_path = BASE;
     conf.partition_label = "spiffs";
@@ -422,6 +449,11 @@ std::string json(const std::string& name, const std::string& init, const std::st
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
 void markBoard() { last()->board = true; }
+void markPin(PinUse use, const char* field) {
+    if (field) last()->pinFields.push_back({field, use});
+    else last()->pin = use;
+}
+const PinRules& pins() { return pinRules; }
 
 const SettingSpec* spec(const std::string& key) {
     Param* p = findParam(key);

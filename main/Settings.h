@@ -10,7 +10,7 @@
 #include "esp_http_server.h"
 
 namespace Settings {
-void begin();  // mount SPIFFS (formats on first use)
+void begin();  // mount SPIFFS (formats on first use); snapshot the chip's GPIOs (pins())
 
 std::string string(const std::string& name, const std::string& init = "", const std::string& label = "");
 std::string pstring(const std::string& name, const std::string& init = "", const std::string& label = "");
@@ -28,6 +28,12 @@ void markExtra();                           // following settings belong to /wif
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
 void markBoard();                           // last setting describes the board (e.g. Ethernet
                                             // type): exported in templates like /wifi/hardware
+// The last setting holds a GPIO (an integer), or for a json() setting, its member `field` does
+// (in the object or in each list element; call once per field). Templates and saves are refused
+// when such a pin can't serve `use` on this chip.
+void markPin(PinUse use, const char* field = nullptr);
+// The running chip's usable GPIOs, captured in begin() before any driver claims a pin.
+const PinRules& pins();
 
 // Board templates (#2529) may set any configuration setting on any endpoint.
 // Typed lookup by name; nullptr if unknown or a password (never in templates).

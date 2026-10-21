@@ -72,9 +72,9 @@
         <a href="https://espresense.com/configuration/templates" target="_blank">Board Template</a>
     </h2>
     <p class="text-sm text-gray-600 dark:text-gray-300">
-        Paste a board template to set up this board in one step. A template can change any setting: pins, LEDs,
-        Ethernet type and more. Only the settings it names change, Preview lists every one before anything is
-        saved, and the node restarts after applying.
+        Paste a board or add-on template to set up this board in one step. A template can change any setting: pins, LEDs,
+        sensors, Ethernet type and more. Only the settings it names change, Preview lists every one before anything is
+        saved, and the node restarts after applying. Templates stack, so apply the board's first, then any add-ons.
     </p>
     <p class="text-sm text-gray-600 dark:text-gray-300">
         Export saves this board's pin, LED, sensor and Ethernet settings that differ from the defaults. Room,
