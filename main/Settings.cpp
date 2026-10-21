@@ -31,8 +31,8 @@ struct Param {
     long min = LONG_MIN, max = LONG_MAX;
     std::vector<std::string> options;
     bool board = false;  // exported in board templates (markBoard)
-    PinUse pin = PinUse::None;                              // markPin() on an integer
-    std::vector<std::pair<std::string, PinUse>> pinFields;  // markPin(use, field) on json()
+    PinUse pin = PinUse::None;                              // pin()
+    std::vector<std::pair<std::string, PinUse>> pinFields;  // json(..., pins)
     SettingSpec spec_;   // filled by spec()
 
     const SettingSpec* spec() {
@@ -424,6 +424,12 @@ long integer(const std::string& name, long min, long max, long init, const std::
     return rv;
 }
 
+long pin(const std::string& name, PinUse use, long init, const std::string& label) {
+    long rv = integer(name, -1, 48, init, label);
+    last()->pin = use;
+    return rv;
+}
+
 float floating(const std::string& name, float init, const std::string& label) {
     auto* p = add(Type::Float, name, toStr(init), label);
     return toFloat(p->value.empty() ? p->init : p->value);
@@ -447,13 +453,16 @@ std::string json(const std::string& name, const std::string& init, const std::st
     return p->value.empty() ? p->init : p->value;
 }
 
+std::string json(const std::string& name, const std::string& init, const std::string& label,
+                 const std::vector<std::pair<std::string, PinUse>>& pins) {
+    std::string rv = json(name, init, label);
+    last()->pinFields = pins;
+    return rv;
+}
+
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
 void markBoard() { last()->board = true; }
-void markPin(PinUse use, const char* field) {
-    if (field) last()->pinFields.push_back({field, use});
-    else last()->pin = use;
-}
 const PinRules& pins() { return pinRules; }
 
 const SettingSpec* spec(const std::string& key) {

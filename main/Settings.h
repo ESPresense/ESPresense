@@ -17,21 +17,23 @@ std::string pstring(const std::string& name, const std::string& init = "", const
 long dropdown(const std::string& name, const std::vector<std::string>& options, long init = 0, const std::string& label = "");
 long integer(const std::string& name, long init = 0, const std::string& label = "");
 long integer(const std::string& name, long min, long max, long init = 0, const std::string& label = "");
+// A GPIO (-1 = disabled). Templates and saves are refused when the pin can't serve `use` on
+// this chip.
+long pin(const std::string& name, PinUse use, long init = -1, const std::string& label = "");
 float floating(const std::string& name, float init = 0, const std::string& label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const std::string& label = "");
 bool checkbox(const std::string& name, bool init = false, const std::string& label = "");
 // JSON text (an array like leds/inputs/outputs, or an object like power); the UI and templates
 // see real JSON.
 std::string json(const std::string& name, const std::string& init = "[]", const std::string& label = "");
+// As above, with members holding a GPIO (in the object, or in each list element), checked like pin().
+std::string json(const std::string& name, const std::string& init, const std::string& label,
+                 const std::vector<std::pair<std::string, PinUse>>& pins);
 
 void markExtra();                           // following settings belong to /wifi/extras
 void markEndpoint(const std::string& name); // following settings belong to /wifi/<name>
 void markBoard();                           // last setting describes the board (e.g. Ethernet
                                             // type): exported in templates like /wifi/hardware
-// The last setting holds a GPIO (an integer), or for a json() setting, its member `field` does
-// (in the object or in each list element; call once per field). Templates and saves are refused
-// when such a pin can't serve `use` on this chip.
-void markPin(PinUse use, const char* field = nullptr);
 // The running chip's usable GPIOs, captured in begin() before any driver claims a pin.
 const PinRules& pins();
 

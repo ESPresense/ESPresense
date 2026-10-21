@@ -24,10 +24,8 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    sckPin = Settings::integer("HX711_sckPin", -1, 48, 0, "HX711 SCK (Clock) pin");
-    Settings::markPin(PinUse::Output);
-    doutPin = Settings::integer("HX711_doutPin", -1, 48, 0, "HX711 DOUT (Data) pin");
-    Settings::markPin(PinUse::Input);
+    sckPin = Settings::pin("HX711_sckPin", PinUse::Output, 0, "HX711 SCK (Clock) pin");
+    doutPin = Settings::pin("HX711_doutPin", PinUse::Input, 0, "HX711 DOUT (Data) pin");
 }
 
 void SerialReport() {

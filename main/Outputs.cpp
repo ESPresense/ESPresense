@@ -62,8 +62,7 @@ void Setup() {
  * The level is written before the pin becomes an output, so there is no glitch to the wrong state.
  */
 void ConnectToWifi(bool updating) {
-    std::string text = Settings::json("outputs", "[]", "Outputs");
-    Settings::markPin(PinUse::Output, "pin");
+    std::string text = Settings::json("outputs", "[]", "Outputs", {{"pin", PinUse::Output}});
     DynamicJsonDocument list(text.size() * 2 + 256);
     count = 0;
     outputs.clear();

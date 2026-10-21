@@ -68,11 +68,7 @@ bool pubValue(const char* name, double v, int decimals) {
 }  // namespace
 
 void ConnectToWifi(bool updating) {
-    std::string text = Settings::json("power", "{}", "Power monitor");
-    Settings::markPin(PinUse::Input, "rx");
-    Settings::markPin(PinUse::Input, "cf");
-    Settings::markPin(PinUse::Input, "cf1");
-    Settings::markPin(PinUse::Output, "sel");
+    std::string text = Settings::json("power", "{}", "Power monitor", {{"rx", PinUse::Input}, {"cf", PinUse::Input}, {"cf1", PinUse::Input}, {"sel", PinUse::Output}});
     DynamicJsonDocument cfg(text.size() * 2 + 128);
     enabled = false;
     if (deserializeJson(cfg, text) || !cfg.is<JsonObject>()) return;

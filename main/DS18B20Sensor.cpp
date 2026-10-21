@@ -70,8 +70,7 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    ds18b20Pin = Settings::integer("ds18b20_pin", -1, 48, -1, "DS18B20 sensor pin (-1 for disable)");
-    Settings::markPin(PinUse::Output);
+    ds18b20Pin = Settings::pin("ds18b20_pin", PinUse::Output, -1, "DS18B20 sensor pin (-1 for disable)");
     dsTempOffset = Settings::floating("dsTemp_offset", -40, 125, 0.0, "DS18B20 temperature offset");
 }
 
