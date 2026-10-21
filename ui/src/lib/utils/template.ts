@@ -13,7 +13,6 @@
 
 export interface TemplateChange {
 	key: string;
-	label: string;
 	from: unknown;
 	to: unknown;
 }

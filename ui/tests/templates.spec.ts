@@ -9,8 +9,8 @@ test.describe('Board template import', () => {
 		settings: { led_1_pin: 6, I2C_Bus_1_SDA: 3 }
 	};
 	const plugChanges = [
-		{ key: 'led_1_pin', label: 'Pin (-1 to disable)', from: 2, to: 6 },
-		{ key: 'I2C_Bus_1_SDA', label: 'SDA pin', from: -1, to: 3 }
+		{ key: 'led_1_pin', from: 2, to: 6 },
+		{ key: 'I2C_Bus_1_SDA', from: -1, to: 3 }
 	];
 
 	/** Records template POSTs; `reply` decides the response per request. */
@@ -127,7 +127,7 @@ test.describe('Board template import', () => {
 		const ethTemplate = { name: 'WT32-ETH01', chip: 'esp32', settings: { eth: 1 } };
 		const calls = await mockTemplate(page, () => ({
 			status: 200,
-			body: { changes: [{ key: 'eth', label: 'Ethernet Type', from: 0, to: 1 }], restart: false }
+			body: { changes: [{ key: 'eth', from: 0, to: 1 }], restart: false }
 		}));
 		await page.goto('/templates');
 

@@ -113,7 +113,7 @@
                 <tbody>
                     {#each changes as change (change.key)}
                         <tr class="border-t border-gray-300 dark:border-gray-600">
-                            <td class="py-1 pr-4" title={change.label}><code>{change.key}</code></td>
+                            <td class="py-1 pr-4"><code>{change.key}</code></td>
                             <td class="py-1 pr-4">{formatValue(change.from)}</td>
                             <td class="py-1 font-semibold">{formatValue(change.to)}</td>
                         </tr>

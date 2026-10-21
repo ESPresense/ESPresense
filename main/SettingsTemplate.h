@@ -42,7 +42,7 @@ struct SettingSpec {
     size_t options = 0;  // dropdown option count; the stored value is the index
     PinUse pin = PinUse::None;  // an Int setting holding a GPIO (-1 = disabled)
     // A Json setting's members holding GPIOs: in the object itself or in each array element.
-    // A pointer, not a copy: only a few settings have any, and every setting carries a spec.
+    // A pointer, not a copy: only a few settings have any.
     const PinFields* pinFields = nullptr;
 };
 
@@ -220,7 +220,7 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
     bool setsPin = false;
     for (JsonPairConst kv : settings) {
         const char* key = kv.key().c_str();
-        const SettingSpec* spec = lookup(key);
+        auto spec = lookup(key);  // a pointer or optional: anything that tests false when unknown
         if (!spec) {
             err = std::string("unknown setting \"") + key + "\"";
             out.clear();
