@@ -24,11 +24,13 @@ inline uint32_t freeHeap() { return esp_get_free_heap_size(); }
 inline uint32_t maxAllocHeap() { return heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT); }
 uint64_t getNowMs();
 
-// Arduino's ESP.getEfuseMac() >> 24: the base MAC's bytes 3..5 as a little-endian int.
-// Topics and HA unique_ids are built from it, so it has to stay bit-identical.
+// The factory MAC's bytes 3..5 as a little-endian int, as Arduino's ESP.getEfuseMac() >> 24
+// gave on chips without 802.15.4. Topics and HA unique_ids are built from it, so it has to
+// stay bit-identical there. Not esp_efuse_mac_get_default(): on the C6 it writes an 8-byte
+// EUI-64 (ff:fe in bytes 3..4), which overflowed mac[] and left one unique byte (#2402).
 inline uint32_t chipId() {
     uint8_t mac[6] = {0};
-    esp_efuse_mac_get_default(mac);
+    esp_read_mac(mac, ESP_MAC_EFUSE_FACTORY);
     return (uint32_t)mac[3] | ((uint32_t)mac[4] << 8) | ((uint32_t)mac[5] << 16);
 }
 #define CHIPID chipId()
