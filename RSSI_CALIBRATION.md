@@ -35,15 +35,21 @@ the wrong sign, and nothing in a bare number says which convention it was writte
 
 ## First boot on v5
 
-The same first-boot step that converts v4's LED, input and I2C settings converts calibration,
-once:
+One first-boot step (`main/SettingsMigration.h`, run right after the settings filesystem mounts)
+converts everything v5 stores differently, once; a `v5_migrated` marker keeps it from running
+again. For calibration:
 
-- If `rx_offset_rssi` isn't stored and the node was configured before (WiFi is set), store
+- If the node was configured before (WiFi is set) and `rx_offset_rssi` isn't stored, store
   `rx_offset_rssi = -(effective rx_adj_rssi)`: the stored value, or the old default when none was
   stored. Every existing node keeps its distances. An S3 that relied on the old +20 gets -20.
 - A fresh install (no WiFi configured yet) starts at `rx_offset_rssi` 0 and gets any per-board offset
   from its template.
 - The old `rx_adj_rssi` file is left in place, unused, so a downgrade still finds it.
+
+The same step converts v4's hardware settings, for a node with any of them stored: the LED
+settings (`led_1_pin`, ...) into the `leds` list (an LED turned off stays off), PIR/radar/button/
+switch into the `inputs` list, and, for a node with an I2C sensor on bus 1 and no bus 1 pins, v4's
+default pins for its chip (21/22, or 19/18 on the C3).
 
 ## Compatibility
 

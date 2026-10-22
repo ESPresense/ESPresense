@@ -81,15 +81,28 @@
 #define DEFAULT_MAX_FINGERPRINTS 45
 #endif
 
-// RX_ADJ_RSSI Defaults
-#ifdef ESP32S3
-#define DEFAULT_RX_ADJ_RSSI 20
+// Receiver offset (rx_offset_rssi, added to every reading): 0 on every chip. A board that reads
+// weak or strong carries its offset in its template.
+#define DEFAULT_RX_OFFSET_RSSI 0
+
+// The settings v5 replaced, for the first-boot conversion (SettingsMigration.h): the old
+// subtracted rx_adj_rssi default, and v4's default I2C bus 1 pins (v4 had no C6 build).
+#if defined(ESP32S3)
+#define LEGACY_RX_ADJ_RSSI 20
+#define V4_I2C_BUS_1_SDA 21
+#define V4_I2C_BUS_1_SCL 22
+#elif defined(ESP32C3)
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA 19
+#define V4_I2C_BUS_1_SCL 18
+#elif defined(ESP32C6)
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA -1
+#define V4_I2C_BUS_1_SCL -1
 #else
-#ifdef ESP32C6
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
-#define DEFAULT_RX_ADJ_RSSI 0
-#endif
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA 21
+#define V4_I2C_BUS_1_SCL 22
 #endif
 
 // I2C Defaults: off unless configured. Any default pin collides with something on some board

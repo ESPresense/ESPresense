@@ -186,6 +186,19 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
 }
 
 
+// rx_adj_rssi was subtracted; v5's rx_offset_rssi is added. A template written with the old name
+// is converted the way the MQTT alias is: rx_offset_rssi = -rx_adj_rssi. Run on the settings
+// object before parseTemplate. With both keys present nothing changes, so the parser rejects the
+// old one rather than one being dropped silently.
+inline void upgradeTemplateKeys(JsonObject settings) {
+    if (settings.isNull() || settings.containsKey("rx_offset_rssi")) return;
+    JsonVariant adj = settings["rx_adj_rssi"];
+    if (adj.isNull() || !adj.is<long>()) return;
+    long offset = -adj.as<long>();
+    settings.remove("rx_adj_rssi");
+    settings["rx_offset_rssi"] = offset;
+}
+
 // Validates a whole template before anything is written: every key must be known to lookup
 // (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, every
 // pin usable under pins, or nothing is applied. target is the running firmware's IDF target,

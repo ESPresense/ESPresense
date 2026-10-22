@@ -42,7 +42,7 @@ BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
     raw = advertisedDevice->getRSSI();
-    rssi = raw - BleFingerprintCollection::rxAdjRssi;
+    rssi = raw + BleFingerprintCollection::rxOffsetRssi;
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
     seenCount = 1;
     queryReport = nullptr;
@@ -430,17 +430,17 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
             new AdaptivePercentileRSSI((uint32_t)BleFingerprintCollection::rssiWindowMs));
     // Applied here, not from the MQTT task: a resize there would free the buffer under this task.
     adaptivePercentileRSSI->setTimeWindow((uint32_t)BleFingerprintCollection::rssiWindowMs);
-    // The window holds raw RSSI and the current receiver adjustment is applied on the way out, so
-    // changing rx_adj_rssi moves the whole window at once instead of mixing two calibrations
+    // The window holds raw RSSI and the current receiver offset is added on the way out, so
+    // changing rx_offset_rssi moves the whole window at once instead of mixing two calibrations
     // until it refills. A constant shift doesn't change the fenced mean or the variance.
-    int8_t adj = BleFingerprintCollection::rxAdjRssi;
+    int8_t offset = BleFingerprintCollection::rxOffsetRssi;
     adaptivePercentileRSSI->addMeasurement(raw);
-    rssi = adaptivePercentileRSSI->getMedianIQR() - adj;
+    rssi = adaptivePercentileRSSI->getMedianIQR() + offset;
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
-    // Raw samples against the reference shifted by the adjustment: the same distances as
+    // Raw samples against the reference shifted by the offset: the same distances as
     // normalized samples against the reference.
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi() + adj, BleFingerprintCollection::absorption);
+    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi() - offset, BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
@@ -458,7 +458,9 @@ bool BleFingerprint::fill(JsonObject *doc) {
     auto refRssi = get1mRssi();
     if (refRssi > NO_RSSI) (*doc)["rssi@1m"] = refRssi;
     if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rssi"] = serialized(toStr(rssi));
-    (*doc)["rxAdj"] = BleFingerprintCollection::rxAdjRssi;
+    // rxAdj keeps the old subtracted convention for Companion versions that read it.
+    (*doc)["rxAdj"] = -BleFingerprintCollection::rxOffsetRssi;
+    (*doc)["rxOffset"] = BleFingerprintCollection::rxOffsetRssi;
     if (isnormal(rssiVar)) (*doc)["rssiVar"] = serialized(toStr(rssiVar));
 
     if (isnormal(dist) || dist == 0) (*doc)["distance"] = serialized(toStr(dist));

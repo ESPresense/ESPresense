@@ -4,6 +4,8 @@
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 
+#include "SettingsMigration.h"
+
 // app0 size tells a Tasmota v11 layout (0x1D0000, left by SwitchbOTA) apart from ESPresense's own (0x1E0000)
 static const esp_partition_t *app0Partition() {
     static const esp_partition_t *app0 = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_0, nullptr);
@@ -39,7 +41,9 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && pub((roomsTopic + "/max_distance").c_str(), 0, true, toStr(BleFingerprintCollection::maxDistance).c_str())
             && pub((roomsTopic + "/absorption").c_str(), 0, true, toStr(BleFingerprintCollection::absorption).c_str())
             && pub((roomsTopic + "/tx_ref_rssi").c_str(), 0, true, toStr(BleFingerprintCollection::txRefRssi).c_str())
-            && pub((roomsTopic + "/rx_adj_rssi").c_str(), 0, true, toStr(BleFingerprintCollection::rxAdjRssi).c_str())
+            && pub((roomsTopic + "/rx_offset_rssi").c_str(), 0, true, toStr(BleFingerprintCollection::rxOffsetRssi).c_str())
+            // Clears the retained rx_adj_rssi that firmware before rx_offset_rssi published.
+            && pub((roomsTopic + "/rx_adj_rssi").c_str(), 0, true, "")
             && pub((roomsTopic + "/query").c_str(), 0, true, BleFingerprintCollection::query.c_str())
             && pub((roomsTopic + "/include").c_str(), 0, true, BleFingerprintCollection::include.c_str())
             && pub((roomsTopic + "/exclude").c_str(), 0, true, BleFingerprintCollection::exclude.c_str())
@@ -511,6 +515,12 @@ void setup() {
 
     SerialImprov::Setup();
     Settings::begin();
+    // Once, before any setting is read: converts what v5 stores differently (SettingsMigration.h).
+    for (auto& change : migrateSettings(
+             [](const std::string& key) { return Settings::slurp("/" + key); },
+             [](const std::string& key, const std::string& value) { Settings::spurt("/" + key, value); },
+             MigrationDefaults{LEGACY_RX_ADJ_RSSI, V4_I2C_BUS_1_SDA, V4_I2C_BUS_1_SCL, DEFAULT_LED1_PIN}))
+        Log.printf("Settings converted for v5: %s\n", change.c_str());
     Network::Setup();
 
     GUI::Setup(true);
