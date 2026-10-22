@@ -1,79 +1,93 @@
-# RSSI calibration: the Legacy checkbox
+# RSSI calibration in v5: an additive receiver offset
 
-Status: specification. No firmware, UI or Companion behavior changes in this PR.
+Status: specification for v5.0.0. No firmware, UI or Companion behavior changes in this PR.
 
-## Today
+## Why
+
+Up to now the receiver adjustment is subtracted:
 
 ```text
 normalized_rssi = raw_rssi - rx_adj_rssi
+```
+
+so +5 means "this node reads 5 dB strong". That's backwards from what people expect of an
+adjustment, and every ESP32-S3 gets +20 by default whatever the board. v5.0.0 already converts
+v4 settings on first boot (LEDs, inputs, I2C pins), so it's the moment to fix the convention
+once, with no mode to support afterwards.
+
+## The v5 convention
+
+```text
+normalized_rssi = raw_rssi + rx_offset
 distance        = 10 ^ ((rssi_1m - normalized_rssi) / (10 * absorption))
 ```
 
-`rx_adj_rssi` is subtracted: +5 means "this node reads 5 dB strong". That's backwards from what
-people expect of an adjustment, and every ESP32-S3 gets +20 by default whatever the board.
+- **`rx_offset`**, integer dB, -100 to 100, **added**: +5 means "this node reads 5 dB weak, add
+  5". Label: **Receiver offset (dB)**.
+- **Default 0 on every chip.** No chip-wide S3 offset.
+- Applied exactly once; everything downstream (distance, close/left, the Companion's fitting)
+  works on normalized RSSI.
 
-## The checkbox
+`rx_offset` is a new name rather than `rx_adj_rssi` with a flipped sign. A retained
+`rx_adj_rssi/set` message, an older Companion, or an old template would otherwise be read with
+the wrong sign, and nothing in a bare number says which convention it was written in.
 
-A **Legacy** checkbox under Calibration, on by default, so nothing changes unless a node is
-switched. Off ("modern") fixes the convention.
+## First boot on v5
 
-| | Legacy (default) | Modern |
-| --- | --- | --- |
-| Receiver setting | `rx_adj_rssi`, subtracted | `rx_offset`, **added** |
-| Meaning of +5 | this node reads 5 dB strong | this node reads 5 dB weak, add 5 |
-| Formula | `normalized = raw - rx_adj_rssi` | `normalized = raw + rx_offset` |
-| Default | +20 on ESP32-S3, 0 elsewhere | 0 on every chip |
-| Per-board offset | built into the S3 default | from the board's template |
+The same first-boot step that converts v4's LED, input and I2C settings converts calibration,
+once:
 
-The offset is applied exactly once in both modes; everything downstream (distance, close/left,
-the Companion's fitting) works on normalized RSSI.
+- If `rx_offset` isn't stored and the node was configured before (WiFi is set), store
+  `rx_offset = -(effective rx_adj_rssi)`: the stored value, or the old default when none was
+  stored. Every existing node keeps its distances. An S3 that relied on the old +20 gets -20.
+- A fresh install (no WiFi configured yet) starts at `rx_offset` 0 and gets any per-board offset
+  from its template.
+- The old `rx_adj_rssi` file is left in place, unused, so a downgrade still finds it.
 
-## A new setting name, not a flipped sign
+## Compatibility
 
-Modern uses `rx_offset`; `rx_adj_rssi` keeps its meaning forever. A retained
-`rx_adj_rssi/set` message, an older Companion, or a template written before the switch would
-otherwise be read with the wrong sign, and nothing in the value says which convention it was
-written in. With two names every value carries its meaning. A Legacy node ignores `rx_offset`
-and a modern node ignores `rx_adj_rssi`; both are kept.
-
-## Switching converts once and changes no distances
-
-Turning Legacy off stores `rx_offset = -(effective rx_adj_rssi)`, including an unset S3's +20
-(giving -20), then restarts. Turning it back on stores the matching `rx_adj_rssi`. A node
-reports the same normalized RSSI and distances before and after the switch; explicit values
-convert exactly.
+- **`rx_adj_rssi/set` keeps working for now, as a deprecated alias:** the node stores
+  `rx_offset = -value`, and an empty payload resets `rx_offset` to 0. A Companion that hasn't
+  been updated keeps calibrating v5 nodes correctly. Log a deprecation line on use; remove the
+  alias in a later major version.
+- **Reports keep `rxAdj` in the old convention** (`rxAdj = -rx_offset`), so the Companion's
+  existing `rssi + rxAdj - candidate` arithmetic keeps working. They add `rxOffset`.
+- **The node publishes `rx_offset`** as a retained room setting. It stops publishing
+  `rx_adj_rssi`, so the Companion can tell which convention a node uses from what it reports.
+- **Templates use `rx_offset`.** A template carrying `rx_adj_rssi` is converted the same way as
+  the MQTT alias.
 
 ## Per-board offsets live in templates
 
 A receiver's offset belongs to the board and its antenna, not the chip. A board measured to
 read weak or strong carries `"rx_offset": n` in its template on espresense.com; boards without a
-measurement leave it out. The Companion's fitted per-node value still overrides it, as any
-explicit setting does.
+measurement leave it out. The Companion's fitted per-node value overrides it, as any explicit
+setting does.
 
 Measurements come from the HIL bench: four boards and a BLE flood transmitter in fixed
 positions. A step that records each board's smoothed RSSI of the flood dongle gives a per-board
 offset relative to the others, and repeated runs show how stable it is. An offset goes into a
 template only from such a measurement, noting the board, antenna and reference on its page.
 
-## Reporting and the Companion
+## The Companion
 
-Device reports keep `rxAdj`, always in the Legacy convention (modern reports `-rx_offset`), so
-older Companion versions keep working, and add `legacy: true/false`. The node publishes
-`legacy` and `rx_offset` as retained room settings. The Companion reads the mode and writes
-whichever setting the node uses, showing the offset in the modern convention.
+When a node reports `rx_offset`, the Companion writes `rx_offset` and shows the offset in the new
+convention; otherwise it keeps writing `rx_adj_rssi` (v4 and v5 betas). Its fitting keeps
+working on `rxAdj` throughout, so this can ship after v5.0.0.
 
-## Later
+## Documentation
 
-Once the Companion and the templates carry `rx_offset`, Legacy can default to off for new
-installs (a node with no WiFi configured yet). Existing nodes stay in Legacy until switched.
+The upgrade guide says the receiver adjustment is now an additive offset and was converted
+automatically, so distances don't change. The calibration guide describes `rx_offset` and gets
+absorption's direction right: a higher absorption gives a shorter distance beyond 1 m.
 
 ## Tests
 
-- **Normalization:** reference -65, raw -60: Legacy `rx_adj_rssi` +5 and modern `rx_offset` -5
-  both give normalized -65 and 1 m.
-- **Switch:** an unset S3 switched to modern stores `rx_offset` -20 and reports the same
-  distances; switching back restores `rx_adj_rssi` 20; explicit values convert exactly, and
-  each switch restarts once.
-- **Names:** a Legacy node ignores `rx_offset/set` and a modern node ignores `rx_adj_rssi/set`;
-  neither changes the active offset.
-- **Reports:** `rxAdj` equals `-rx_offset` in modern mode, and `legacy` matches the checkbox.
+- **Normalization:** reference -65: raw -60 with `rx_offset` -5, and raw -70 with `rx_offset`
+  +5, both give normalized -65 and 1 m.
+- **First boot:** an S3 configured with no stored `rx_adj_rssi` gets `rx_offset` -20; a stored
+  `rx_adj_rssi` 7 gets -7; a fresh install gets 0; an existing `rx_offset` is never touched;
+  distances are unchanged across the upgrade.
+- **Alias:** `rx_adj_rssi/set` 7 stores `rx_offset` -7; an empty payload resets `rx_offset`
+  to 0; a template with `rx_adj_rssi` converts the same way.
+- **Reports:** `rxAdj` equals `-rx_offset` and `rxOffset` equals `rx_offset`.
