@@ -195,6 +195,8 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
         return false;
     }
     JsonVariantConst c = root["chip"];
+    // Present means containsKey(), not "reads as non-null": ArduinoJson returns null for both a
+    // missing key and an explicit null, so a null chip is caught here rather than after the lookup.
     if (root.containsKey("chip") && !c.is<const char*>()) {
         err = "\"chip\" must be a string";
         return false;
@@ -242,7 +244,7 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
         }
         out.push_back({key, value});
     }
-    if (setsPin && c.isNull()) {
+    if (setsPin && chip.empty()) {
         err = "missing \"chip\" (required when a template sets pins)";
         out.clear();
         return false;

@@ -146,6 +146,21 @@ void test_chip_optional_without_pins(void) {
     TEST_ASSERT_EQUAL_STRING("\"chip\" must be a string", r.err.c_str());
 }
 
+void test_null_chip_is_not_a_missing_chip(void) {
+    // ArduinoJson reads a null member and an absent one the same, so the requirement and the type
+    // check have to look at whether the key is there, not at the value. A template that relied on
+    // that would import with no chip at all, or with the chip requirement skipped.
+    Result r = parse(R"({"chip":null,"settings":{"led_1_pin":2}})");
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("\"chip\" must be a string", r.err.c_str());
+    TEST_ASSERT_EQUAL_UINT(0, r.changes.size());
+    // Without a pin too: null is still present, so it is a type error rather than "no chip".
+    r = parse(R"({"chip":null,"settings":{"SHT_I2c_Bus":1}})");
+    TEST_ASSERT_FALSE(r.ok);
+    TEST_ASSERT_EQUAL_STRING("\"chip\" must be a string", r.err.c_str());
+    TEST_ASSERT_EQUAL_UINT(0, r.changes.size());
+}
+
 void test_pins_checked_against_the_chip(void) {
     PinRules p = esp32Pins();
     TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":2}})", "esp32", p).ok);
@@ -279,6 +294,7 @@ int main(int, char**) {
     RUN_TEST(test_settings_must_be_under_settings_key);
     RUN_TEST(test_missing_chip_rejected_when_template_sets_a_pin);
     RUN_TEST(test_chip_optional_without_pins);
+    RUN_TEST(test_null_chip_is_not_a_missing_chip);
     RUN_TEST(test_pins_checked_against_the_chip);
     RUN_TEST(test_pins_in_lists_and_objects_checked);
     RUN_TEST(test_check_pins_on_stored_values);
