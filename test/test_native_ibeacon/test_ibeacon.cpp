@@ -80,9 +80,38 @@ void test_no_candidates(void) {
 
 }  // namespace
 
+void test_builds_own_advertisement(void) {
+    uint8_t uuidLE[16];
+    for (int i = 0; i < 16; i++) uuidLE[i] = (uint8_t)i;  // little-endian, as NimBLE stores it
+    uint8_t adv[31] = {};
+    size_t len = buildIBeaconAdv(adv, uuidLE, 0x1234, 0xabcd, -59);
+    TEST_ASSERT_EQUAL(30, len);
+    // The manufacturer data (after flags and the length/type bytes) parses as an iBeacon frame
+    // with the uuid big-endian.
+    uint8_t uuid[16];
+    TEST_ASSERT_TRUE(iBeaconUuid(adv + 5, 25, uuid));
+    for (int i = 0; i < 16; i++) TEST_ASSERT_EQUAL_UINT8(15 - i, uuid[i]);
+    TEST_ASSERT_EQUAL_UINT8(0x12, adv[25]);
+    TEST_ASSERT_EQUAL_UINT8(0x34, adv[26]);
+    TEST_ASSERT_EQUAL_UINT8(0xab, adv[27]);
+    TEST_ASSERT_EQUAL_UINT8(0xcd, adv[28]);
+    TEST_ASSERT_EQUAL_INT8(-59, (int8_t)adv[len - 1]);  // tx_ref_rssi: Enrollment::Loop refreshes it
+}
+
+void test_advertisement_carries_any_tx_ref(void) {
+    uint8_t uuidLE[16] = {}, adv[31] = {};
+    const int8_t txs[] = {0, -59, -100};
+    for (int8_t tx : txs) {
+        size_t len = buildIBeaconAdv(adv, uuidLE, 0, 0, tx);
+        TEST_ASSERT_EQUAL_INT8(tx, (int8_t)adv[len - 1]);
+    }
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_parses_uuid);
+    RUN_TEST(test_builds_own_advertisement);
+    RUN_TEST(test_advertisement_carries_any_tx_ref);
     RUN_TEST(test_rejects_wrong_length);
     RUN_TEST(test_rejects_other_apple_frame);
     RUN_TEST(test_rejects_altbeacon);
