@@ -244,7 +244,7 @@ esp_err_t serveJson(httpd_req_t* req) {
             node["id"] = c.id;
             node["alias"] = c.alias;
             node["name"] = c.name;
-            if (c.calRssi > -128) node["rssi@1m"] = c.calRssi;
+            if (c.calRssi != NO_RSSI) node["rssi@1m"] = c.calRssi;
             if (!first) raw(",");
             first = false;
             serializeJson(item, w);
@@ -271,7 +271,7 @@ esp_err_t postJson(httpd_req_t* req) {
     std::string id = root["id"].as<std::string>();
     std::string alias = root.containsKey("alias") && !root["alias"].as<std::string>().empty() ? root["alias"].as<std::string>() : id;
     std::string name = root.containsKey("name") ? root["name"].as<std::string>() : "";
-    int calRssi = root.containsKey("rssi@1m") ? root["rssi@1m"].as<int>() : -128;
+    int calRssi = root.containsKey("rssi@1m") ? root["rssi@1m"].as<int>() : NO_RSSI;
     if (sendConfig(id, alias, name, calRssi)) return sendJsonStr(req, "200 OK", "{\"success\":true}");
     return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"Failed to save config\"}");
 }

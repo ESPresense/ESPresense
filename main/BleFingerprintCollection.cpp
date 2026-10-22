@@ -319,7 +319,7 @@ bool Config(std::string &id, std::string &json) {
         if (alias != id) config.alias = alias;
     }
     if (doc.containsKey("rssi@1m"))
-        config.calRssi = doc["rssi@1m"].as<int8_t>();
+        config.calRssi = doc["rssi@1m"].as<rssi1m_t>();
     if (doc.containsKey("name"))
         config.name = doc["name"].as<std::string>();
     if (doc.containsKey("connect") && doc["connect"].is<bool>())
