@@ -20,6 +20,14 @@ inline size_t buildIBeaconAdv(uint8_t out[31], const uint8_t uuidLE[16], uint16_
     return p - out;
 }
 
+// Puts tx in a payload from buildIBeaconAdv. Returns true if it changed, i.e. the advertisement
+// needs to be sent again; false for an unchanged tx or an empty (not yet built) payload.
+inline bool setIBeaconTx(uint8_t* adv, size_t len, int8_t tx) {
+    if (!len || (int8_t)adv[len - 1] == tx) return false;
+    adv[len - 1] = (uint8_t)tx;
+    return true;
+}
+
 inline bool iBeaconUuid(const uint8_t* mfg, size_t len, uint8_t out[16]) {
     if (len != 25 || mfg[0] != 0x4c || mfg[1] != 0x00 || mfg[2] != 0x02 || mfg[3] != 0x15) return false;
     memcpy(out, mfg + 4, 16); /* Flawfinder: ignore */

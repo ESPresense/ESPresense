@@ -107,11 +107,31 @@ void test_advertisement_carries_any_tx_ref(void) {
     }
 }
 
+void test_tx_change_is_reported_once(void) {
+    uint8_t uuidLE[16] = {}, adv[31] = {};
+    size_t len = buildIBeaconAdv(adv, uuidLE, 0x1234, 0xabcd, -59);
+    uint8_t before[31];
+    memcpy(before, adv, sizeof adv);
+    TEST_ASSERT_FALSE(setIBeaconTx(adv, len, -59));  // unchanged: no re-advertise
+    TEST_ASSERT_TRUE(setIBeaconTx(adv, len, -65));   // changed over MQTT: re-advertise once
+    TEST_ASSERT_FALSE(setIBeaconTx(adv, len, -65));  // later loops: nothing to do
+    TEST_ASSERT_EQUAL_INT8(-65, (int8_t)adv[len - 1]);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(before, adv, len - 1);  // only the tx byte moves
+}
+
+void test_tx_ignored_before_setup(void) {
+    uint8_t adv[31] = {};
+    TEST_ASSERT_FALSE(setIBeaconTx(adv, 0, -65));
+    TEST_ASSERT_EQUAL_UINT8(0, adv[0]);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_parses_uuid);
     RUN_TEST(test_builds_own_advertisement);
     RUN_TEST(test_advertisement_carries_any_tx_ref);
+    RUN_TEST(test_tx_change_is_reported_once);
+    RUN_TEST(test_tx_ignored_before_setup);
     RUN_TEST(test_rejects_wrong_length);
     RUN_TEST(test_rejects_other_apple_frame);
     RUN_TEST(test_rejects_altbeacon);

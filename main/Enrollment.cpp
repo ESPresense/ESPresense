@@ -53,8 +53,7 @@ bool Loop() {
     // task, rather than from the MQTT callback, and re-advertise unless enrolling (the next switch
     // back to iBeacon picks it up).
     int8_t tx = BleFingerprintCollection::txRefRssi;
-    bool txChanged = beaconAdvLen && (int8_t)beaconAdv[beaconAdvLen - 1] != tx;
-    if (txChanged) beaconAdv[beaconAdvLen - 1] = (uint8_t)tx;
+    bool txChanged = setIBeaconTx(beaconAdv, beaconAdvLen, tx);
     if (txChanged && !enrolling && enrolling == lastEnrolling) {
         Ble::Server::AdvertiseRaw(beaconAdv, beaconAdvLen);
         Log.printf("%u Advert | iBeacon (tx %d)\n", (unsigned)xPortGetCoreID(), tx);
