@@ -1,97 +1,79 @@
-# RSSI calibration fixes
+# RSSI calibration: the Legacy checkbox
 
-Status: plan. No firmware, UI or Companion behavior changes in this PR; each fix below lands as
-its own PR with tests.
+Status: specification. No firmware, UI or Companion behavior changes in this PR.
 
-Calibration today applies the receiver adjustment twice in one place, mixes old and new
-adjustments in another, and gives every ESP32-S3 a +20 dB default that wasn't measured per
-board. This plan fixes those bugs without a compatibility mode: the meaning of the settings
-stays the same, so values people have already fitted stay valid.
-
-## The model
-
-One model, used everywhere:
+## Today
 
 ```text
-normalized_rssi = raw_rssi - rx_adj_rssi          (rx_adj_rssi: receiver bias in dB)
+normalized_rssi = raw_rssi - rx_adj_rssi
 distance        = 10 ^ ((rssi_1m - normalized_rssi) / (10 * absorption))
 ```
 
-`rx_adj_rssi` keeps its sign: positive means this receiver reads stronger than the reference
-receiver. That is what the firmware and the Companion already do, so retained settings and
-fitted values keep their meaning. Example: with a 1 m reference of -65 dBm, a node reading -60
-needs +5 and a node reading -70 needs -5; both then normalize to -65 and report 1 m.
+`rx_adj_rssi` is subtracted: +5 means "this node reads 5 dB strong". That's backwards from what
+people expect of an adjustment, and every ESP32-S3 gets +20 by default whatever the board.
 
-The bias is subtracted exactly once. Nothing adds it back to a reference or a threshold.
+## The checkbox
 
-## Fixes
+A **Legacy** checkbox under Calibration, on by default, so nothing changes unless a node is
+switched. Off ("modern") fixes the convention.
 
-| # | Bug | Evidence (main) | Fix |
-| --- | --- | --- | --- |
-| 1 | The Companion sends 0 as an empty payload, which the node reads as reset-to-default: +20 on S3. An S3 fitted to 0 got +20. | ESPresense-companion `MqttCoordinatorExtensions.UpdateSetting` | Send `"0"`; reset calibration with explicit empty payloads. **ESPresense-companion#1765.** |
-| 2 | Close/left applies the bias twice: `rssi` is already normalized, then compared with `-40 + rxAdjRssi` / `-50 + rxAdjRssi`. With the S3's +20, "close" needs a raw reading above 0 dBm, so it never triggers. | `BleFingerprint.cpp`, close/left check | Compare normalized RSSI with -40 (enter) and -50 (leave). Keep the hysteresis. |
-| 3 | The smoothing window stores already-adjusted samples, so changing `rx_adj_rssi` live mixes two calibrations until the window refills. | `BleFingerprint::seen()`: `addMeasurement(raw - rxAdjRssi)` | Store raw samples; subtract the current bias when reading the filtered value. Distance variance uses the raw window with `rssi_1m + bias`, the same thing in the raw coordinate system. No second filter. |
-| 4 | 1 m references are `int8_t` and sums can wrap: an Eddystone power of -100 gives -141, which wraps to +115. `-128` doubles as "missing". | `BleFingerprint.h`: `calRssi`, `bcnRssi`, `mdRssi`, `asRssi` | 16-bit references with a separate "missing" flag; compute sums in wide arithmetic. |
-| 5 | Changing `tx_ref_rssi` doesn't change what the node advertises: the iBeacon payload is built once at setup. | `Enrollment.cpp`: `beaconAdv` | Rebuild the payload on the BLE task when `tx_ref_rssi` changes, and re-advertise (outside enrollment mode). |
-| 6 | Every ESP32-S3 gets `rx_adj_rssi` +20 by default, whatever the board or antenna. | `defaults.h`, from #1571 | Default 0 on every chip. Per-board offsets move to board templates (below). |
-| 7 | The calibration guide describes the adjustment as additive, the opposite of the firmware, and says more absorption gives longer distances (it gives shorter ones for signals weaker than the 1 m reference). | espresense.com/guides/calibration | Correct both, in the documentation repository. |
+| | Legacy (default) | Modern |
+| --- | --- | --- |
+| Receiver setting | `rx_adj_rssi`, subtracted | `rx_offset`, **added** |
+| Meaning of +5 | this node reads 5 dB strong | this node reads 5 dB weak, add 5 |
+| Formula | `normalized = raw - rx_adj_rssi` | `normalized = raw + rx_offset` |
+| Default | +20 on ESP32-S3, 0 elsewhere | 0 on every chip |
+| Per-board offset | built into the S3 default | from the board's template |
 
-Fixes 2-5 are plain bug fixes and apply unconditionally: nobody needs the old behavior back.
+The offset is applied exactly once in both modes; everything downstream (distance, close/left,
+the Companion's fitting) works on normalized RSSI.
+
+## A new setting name, not a flipped sign
+
+Modern uses `rx_offset`; `rx_adj_rssi` keeps its meaning forever. A retained
+`rx_adj_rssi/set` message, an older Companion, or a template written before the switch would
+otherwise be read with the wrong sign, and nothing in the value says which convention it was
+written in. With two names every value carries its meaning. A Legacy node ignores `rx_offset`
+and a modern node ignores `rx_adj_rssi`; both are kept.
+
+## Switching converts once and changes no distances
+
+Turning Legacy off stores `rx_offset = -(effective rx_adj_rssi)`, including an unset S3's +20
+(giving -20), then restarts. Turning it back on stores the matching `rx_adj_rssi`. A node
+reports the same normalized RSSI and distances before and after the switch; explicit values
+convert exactly.
 
 ## Per-board offsets live in templates
 
-A receiver's offset is a property of the board and its antenna, not of the chip. Board templates
-already carry a board's pins and settings, and they can set any setting, including
-`rx_adj_rssi`. So:
+A receiver's offset belongs to the board and its antenna, not the chip. A board measured to
+read weak or strong carries `"rx_offset": n` in its template on espresense.com; boards without a
+measurement leave it out. The Companion's fitted per-node value still overrides it, as any
+explicit setting does.
 
-- The firmware default for `rx_adj_rssi` is 0 on every chip.
-- A board measured to read hot or cold carries its offset in its template on espresense.com,
-  e.g. `"rx_adj_rssi": 8`. Boards without a measurement leave it out.
-- The Companion's fitted per-node values still override the template, as any explicit setting
-  does.
+Measurements come from the HIL bench: four boards and a BLE flood transmitter in fixed
+positions. A step that records each board's smoothed RSSI of the flood dongle gives a per-board
+offset relative to the others, and repeated runs show how stable it is. An offset goes into a
+template only from such a measurement, noting the board, antenna and reference on its page.
 
-**Keeping existing S3 calibrations, without a mode switch.** On the first boot of the release
-with fix 6, an ESP32-S3 that has WiFi configured and no stored `rx_adj_rssi` stores 20
-explicitly, so it keeps behaving as before. A freshly installed node has no WiFi configured yet,
-so it starts at 0 and gets its offset from its template. An explicitly stored value, from the
-user or the Companion, is never touched.
+## Reporting and the Companion
 
-**Measuring.** The HIL bench has four boards and a BLE flood transmitter in fixed positions.
-A HIL step that records each board's smoothed RSSI of the flood dongle gives a measured offset
-per board relative to the others; repeated over runs, it also shows how stable that offset is.
-Offsets go into templates only from measurements like these, with the board, the antenna and the
-reference noted in the template's page.
+Device reports keep `rxAdj`, always in the Legacy convention (modern reports `-rx_offset`), so
+older Companion versions keep working, and add `legacy: true/false`. The node publishes
+`legacy` and `rx_offset` as retained room settings. The Companion reads the mode and writes
+whichever setting the node uses, showing the offset in the modern convention.
 
-## Out of scope for now
+## Later
 
-These were in the first draft. They can follow if someone needs them:
-
-- New report fields (`rssiRaw`, reference provenance) and a separate fallback-reference setting.
-- Changing reference precedence (advertised transmit power over a model's estimate).
-- A Legacy/Modern mode switch. Fixes 2-5 don't need one, and fix 6 is handled by pinning the
-  old default on existing S3 nodes.
-
-Companion follow-up, to check separately: the first draft reported that `RxAdjRssiOptimizer`
-uses a fixed -59 dBm reference and applies the candidate bias to RSSI that is already
-normalized.
+Once the Companion and the templates carry `rx_offset`, Legacy can default to off for new
+installs (a node with no WiFi configured yet). Existing nodes stay in Legacy until switched.
 
 ## Tests
 
-Host tests for each firmware fix, using these values:
-
-- **Normalization:** reference -65, raw -60, bias +5 gives normalized -65 and 1 m; raw -70,
-  bias -5 gives the same. At absorption 2, normalized -75 gives 3.1622777 m and -55 gives
-  0.31622777 m.
-- **Close/left:** enter above normalized -40, leave below -50, keep the state in between and at
-  both boundaries, with positive and negative bias.
-- **Live bias change:** with a full window, changing the bias moves the whole window on the next
-  advertisement; RSSI variance is unchanged. Raw samples -65/-75, bias +5, reference -65,
-  absorption 2 give per-sample distances 1.7782794/5.6234133 m and variance 3.6962636 m².
-- **References:** Eddystone -100 gives -141 dBm at 1 m; sums at the input limits don't wrap;
-  missing stays distinct from any value.
-- **S3 default:** an S3 with WiFi configured and no stored bias pins 20; a fresh S3 gets 0; a
-  stored value is never changed.
-- **Advertisement:** after a `tx_ref_rssi` change, the next iBeacon payload carries the new value.
-
-Fix 3 changes the hot path, so it also needs the long HIL soak (`[soak]` in the PR title) with
-heap compared against main.
+- **Normalization:** reference -65, raw -60: Legacy `rx_adj_rssi` +5 and modern `rx_offset` -5
+  both give normalized -65 and 1 m.
+- **Switch:** an unset S3 switched to modern stores `rx_offset` -20 and reports the same
+  distances; switching back restores `rx_adj_rssi` 20; explicit values convert exactly, and
+  each switch restarts once.
+- **Names:** a Legacy node ignores `rx_offset/set` and a modern node ignores `rx_adj_rssi/set`;
+  neither changes the active offset.
+- **Reports:** `rxAdj` equals `-rx_offset` in modern mode, and `legacy` matches the checkbox.
