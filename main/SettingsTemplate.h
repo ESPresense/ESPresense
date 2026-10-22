@@ -83,7 +83,9 @@ inline std::string checkPins(const std::string& key, const SettingSpec& s, const
     }
     if (!s.pinFields || s.pinFields->empty() || value.empty()) return "";
     DynamicJsonDocument doc(value.size() * 2 + 128);
-    if (deserializeJson(doc, value)) return "";  // not ours to judge: the type check reports it
+    auto error = deserializeJson(doc, value);
+    if (error == DeserializationError::NoMemory) return key + ": insufficient memory to validate GPIOs";
+    if (error) return "";  // Malformed form JSON is ignored by Param::set().
     auto check = [&](JsonObjectConst o, const std::string& where) -> std::string {
         for (auto& f : *s.pinFields) {
             JsonVariantConst v = o[f.first];
