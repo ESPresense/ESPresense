@@ -4,6 +4,14 @@
 #define CLOSE_RSSI int8_t(-40)
 #define LEFT_RSSI int8_t(-50)
 
+// Close/left hysteresis on normalized RSSI, which already has the receiver adjustment applied
+// (once): enter above CLOSE_RSSI, leave below LEFT_RSSI, otherwise keep the state.
+inline bool nextClose(bool close, float rssi) {
+    if (!close && rssi > CLOSE_RSSI) return true;
+    if (close && rssi < LEFT_RSSI) return false;
+    return close;
+}
+
 #define DEFAULT_TX int8_t(-6)
 
 #define APPLE_TX int8_t(0)
