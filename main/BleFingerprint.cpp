@@ -595,12 +595,12 @@ bool BleFingerprint::queryBattery() {
 }
 
 bool BleFingerprint::shouldCount() {
-    if (!close && rssi > CLOSE_RSSI + BleFingerprintCollection::rxAdjRssi) {
-        BleFingerprintCollection::Close(this, true);
-        close = true;
-    } else if (close && rssi < LEFT_RSSI + BleFingerprintCollection::rxAdjRssi) {
-        BleFingerprintCollection::Close(this, false);
-        close = false;
+    // rssi is normalized already: comparing it with thresholds shifted by rxAdjRssi applied the
+    // adjustment twice, so an S3 (+20 by default) needed a raw reading above 0 dBm to be close.
+    bool nowClose = nextClose(close, rssi);
+    if (nowClose != close) {
+        BleFingerprintCollection::Close(this, nowClose);
+        close = nowClose;
     }
 
     bool prevCounting = counting;
