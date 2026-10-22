@@ -97,8 +97,8 @@
         <label>
             Pin and type:<br />
             <span class="flex items-center gap-2">
-                <PinSelect label="Pin" {input} value={it.pin} onchange={(p) => set('pin', p)}/>
-                <select aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
+                <PinSelect label="Pin" class="min-w-0 flex-1" {input} value={it.pin} onchange={(p) => set('pin', p)}/>
+                <select class="min-w-0 flex-1" aria-label="Pin type" onchange={(e) => set('type', e.currentTarget.value)}>
                     {#each types as [v, text] (v)}
                         <option value={v} selected={(it.type ?? types[0][0]) === v}>{text}</option>
                     {/each}
@@ -186,11 +186,11 @@
                 <span>AXP192 power chip (M5StickC): reads the battery from it instead of a pin. Needs I2C bus 2 on SDA 21 / SCL 22.</span>
             </label>
         </p>
-        <div class="flex flex-wrap gap-4">
+        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-3">
             <p>
                 <label>
                     Voltage pin (ADC1 only):<br />
-                    <PinSelect input name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
+                    <PinSelect input class="w-full" name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
                 </label>
             </p>
             <p>
@@ -265,13 +265,13 @@
         <p>
             <label>
                 DHT11 sensor pin:<br />
-                <PinSelect name="dht11_pin" fallback={$hardwareSettings.defaults['dht11_pin']} bind:value={$hardwareSettings.values['dht11_pin']}/>
+                <PinSelect class="w-full" name="dht11_pin" fallback={$hardwareSettings.defaults['dht11_pin']} bind:value={$hardwareSettings.values['dht11_pin']}/>
             </label>
         </p>
         <p>
             <label>
                 DHT22 sensor pin:<br />
-                <PinSelect name="dht22_pin" fallback={$hardwareSettings.defaults['dht22_pin']} bind:value={$hardwareSettings.values['dht22_pin']}/>
+                <PinSelect class="w-full" name="dht22_pin" fallback={$hardwareSettings.defaults['dht22_pin']} bind:value={$hardwareSettings.values['dht22_pin']}/>
             </label>
         </p>
         <p>
@@ -304,31 +304,35 @@
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
         <h4>Bus 1:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 SDA pin:<br />
-                <PinSelect name="I2C_Bus_1_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_1_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
+                <PinSelect class="w-full" name="I2C_Bus_1_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_1_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_1_SDA']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 SCL pin:<br />
-                <PinSelect name="I2C_Bus_1_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_1_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
+                <PinSelect class="w-full" name="I2C_Bus_1_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_1_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_1_SCL']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>Bus 2:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 SDA pin:<br />
-                <PinSelect name="I2C_Bus_2_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_2_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
+                <PinSelect class="w-full" name="I2C_Bus_2_SDA" fallback={$hardwareSettings.defaults['I2C_Bus_2_SDA']} bind:value={$hardwareSettings.values['I2C_Bus_2_SDA']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 SCL pin:<br />
-                <PinSelect name="I2C_Bus_2_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_2_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>
+                <PinSelect class="w-full" name="I2C_Bus_2_SCL" fallback={$hardwareSettings.defaults['I2C_Bus_2_SCL']} bind:value={$hardwareSettings.values['I2C_Bus_2_SCL']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <p>
             <label class="flex items-center space-x-2">
                 <input type="checkbox" name="I2CDebug" bind:checked={$hardwareSettings.values['I2CDebug']}/>
@@ -339,7 +343,8 @@
             <a href="https://espresense.com/configuration/settings#i2c-sensors" target="_blank">I2C Sensors</a>
         </h2>
         <h4>AHTX0 - Temperature + Humidity Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -351,15 +356,17 @@
                     placeholder={$hardwareSettings.defaults['AHTX0_I2c_Bus']}
                     bind:value={$hardwareSettings.values['AHTX0_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x38 or 0x39):<br />
                 <input name="AHTX0_I2c" bind:value={$hardwareSettings.values['AHTX0_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>BH1750 - Ambient Light Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -371,15 +378,17 @@
                     placeholder={$hardwareSettings.defaults['BH1750_I2c_Bus']}
                     bind:value={$hardwareSettings.values['BH1750_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x23 or 0x5C):<br />
                 <input name="BH1750_I2c" bind:value={$hardwareSettings.values['BH1750_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>BME280 - Humidity + Temp + Pressure Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -391,15 +400,17 @@
                     placeholder={$hardwareSettings.defaults['BME280_I2c_Bus']}
                     bind:value={$hardwareSettings.values['BME280_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x76 or 0x77):<br />
                 <input name="BME280_I2c" bind:value={$hardwareSettings.values['BME280_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>BMP085/BMP180 - Barometric Pressure + Temperature:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -411,15 +422,17 @@
                     placeholder={$hardwareSettings.defaults['BMP180_I2c_Bus']}
                     bind:value={$hardwareSettings.values['BMP180_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x77):<br />
                 <input name="BMP180_I2c" bind:value={$hardwareSettings.values['BMP180_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>BMP280 - Barometric Pressure + Temperature Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -431,13 +444,14 @@
                     placeholder={$hardwareSettings.defaults['BMP280_I2c_Bus']}
                     bind:value={$hardwareSettings.values['BMP280_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x76 or 0x77):<br />
                 <input name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>SHTC1/3, SHTW1/2, SHT2x/3x/4x, SHT85, HTU21D, Si7021 (GY-21) - Temperature and Humidity Sensor:</h4>
         <p>
             <label>
@@ -453,7 +467,8 @@
             </label>
         </p>
         <h4>TSL2561 - Ambient Light Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -465,13 +480,14 @@
                     placeholder={$hardwareSettings.defaults['TSL2561_I2c_Bus']}
                     bind:value={$hardwareSettings.values['TSL2561_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x39, 0x49 or 0x29):<br />
                 <input name="TSL2561_I2c" bind:value={$hardwareSettings.values['TSL2561_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <p>
             <label>
                 Gain (auto, 1x or 16x):<br />
@@ -482,7 +498,8 @@
             </label>
         </p>
         <h4>SGP30 - Air Quality Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -494,15 +511,17 @@
                     placeholder={$hardwareSettings.defaults['SGP30_I2c_Bus']}
                     bind:value={$hardwareSettings.values['SGP30_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x58):<br />
                 <input name="SGP30_I2c" bind:value={$hardwareSettings.values['SGP30_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>SCD4x - CO₂, Temperature and Humidity Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
                 <input
@@ -514,31 +533,34 @@
                     placeholder={$hardwareSettings.defaults['SCD4x_I2c_Bus']}
                     bind:value={$hardwareSettings.values['SCD4x_I2c_Bus']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address (0x62):<br />
                 <input name="SCD4x_I2c" bind:value={$hardwareSettings.values['SCD4x_I2c']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>HX711 - Weight Sensor:</h4>
-        <p>
+        <div class="mb-4 flex gap-4">
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 HX711 SCK (Clock) pin:<br />
-                <PinSelect name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
+                <PinSelect class="w-full" name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
             </label>
-        </p>
-        <p>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
             <label>
                 HX711 DOUT (Data) pin:<br />
-                <PinSelect input name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
+                <PinSelect input class="w-full" name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
             </label>
-        </p>
+            </p>
+        </div>
         <h4>DS18B20:</h4>
         <p>
             <label>
                 DS18B20 sensor pin:<br />
-                <PinSelect name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
+                <PinSelect class="w-full" name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
             </label>
         </p>
         <p>
