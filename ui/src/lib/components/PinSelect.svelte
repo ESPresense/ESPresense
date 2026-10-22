@@ -21,7 +21,7 @@
         class?: string;
     }
 
-    let { value = $bindable(), fallback = -1, name, label, input = false, onchange, class: cls = 'w-32' }: Props = $props();
+    let { value = $bindable(), fallback = -1, name, label, input = false, onchange, class: cls = 'w-auto' }: Props = $props();
 
     const unset = (v: unknown) => v === undefined || v === null || v === '';
     const describe = (p: number) => (p >= 0 ? `GPIO ${p}` : 'off');
