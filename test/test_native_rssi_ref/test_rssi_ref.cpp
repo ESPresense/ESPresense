@@ -1,4 +1,5 @@
 // 1 m references are rssi1m_t: their sums go below -128, and NO_RSSI must stay outside them.
+#include <climits>
 #include <limits>
 
 #include "unity.h"
@@ -28,10 +29,20 @@ static void no_rssi_is_not_a_reference() {
     TEST_ASSERT_TRUE(rssi1m_t(-128) != NO_RSSI);  // -128 is a value now, not "missing"
 }
 
+static void rssi_settings_clamp_instead_of_wrapping() {
+    TEST_ASSERT_EQUAL_INT8(-100, clampRssi(-200, -100, 0));  // (int8_t)-200 is +56
+    TEST_ASSERT_EQUAL_INT8(0, clampRssi(300, -100, 0));      // (int8_t)300 is +44
+    TEST_ASSERT_EQUAL_INT8(-59, clampRssi(-59, -100, 0));
+    TEST_ASSERT_EQUAL_INT8(-100, clampRssi(-100, -100, 100));
+    TEST_ASSERT_EQUAL_INT8(100, clampRssi(100, -100, 100));
+    TEST_ASSERT_EQUAL_INT8(100, clampRssi(LONG_MAX, -100, 100));
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(eddystone_converts_without_wrapping);
     RUN_TEST(sums_at_the_input_limits_fit);
     RUN_TEST(no_rssi_is_not_a_reference);
+    RUN_TEST(rssi_settings_clamp_instead_of_wrapping);
     return UNITY_END();
 }

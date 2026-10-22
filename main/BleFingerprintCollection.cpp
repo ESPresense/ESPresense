@@ -383,11 +383,11 @@ void ConnectToWifi(bool updating) {
     if (rssiWindowMs > 60000) rssiWindowMs = 60000;  // NVS value would otherwise be applied verbatim
     maxFingerprints = Settings::integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
 
-    rxRefRssi = Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)");
-    rxAdjRssi = Settings::integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)");
+    rxRefRssi = clampRssi(Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)"), -100, 100);
+    rxAdjRssi = clampRssi(Settings::integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)"), -100, 100);
     absorption = Settings::floating("absorption", 1, 5, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     forgetMs = Settings::integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
-    txRefRssi = Settings::integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)");
+    txRefRssi = clampRssi(Settings::integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)"), -100, 0);
     maxDivisor = Settings::integer("max_divisor", 2, 10, DEFAULT_MAX_DIVISOR, "Max divisor for reporting interval");
     if (!updating)
         configureSlots(maxFingerprints);
@@ -433,13 +433,13 @@ bool Command(std::string &command, std::string &pay) {
         absorption = pay.empty() ? DEFAULT_ABSORPTION : toFloat(pay);
         spurt("/absorption", toStr(absorption));
     } else if (command == "rx_adj_rssi") {
-        rxAdjRssi = pay.empty() ? DEFAULT_RX_ADJ_RSSI : (int8_t)toInt(pay);
+        rxAdjRssi = pay.empty() ? DEFAULT_RX_ADJ_RSSI : clampRssi(toInt(pay), -100, 100);
         spurt("/rx_adj_rssi", toStr(rxAdjRssi));
     } else if (command == "ref_rssi") {
-        rxRefRssi = pay.empty() ? DEFAULT_RX_REF_RSSI : (int8_t)toInt(pay);
+        rxRefRssi = pay.empty() ? DEFAULT_RX_REF_RSSI : clampRssi(toInt(pay), -100, 100);
         spurt("/ref_rssi", toStr(rxRefRssi));
     } else if (command == "tx_ref_rssi") {
-        txRefRssi = pay.empty() ? DEFAULT_TX_REF_RSSI : (int8_t)toInt(pay);
+        txRefRssi = pay.empty() ? DEFAULT_TX_REF_RSSI : clampRssi(toInt(pay), -100, 0);
         spurt("/tx_ref_rssi", toStr(txRefRssi));
     } else if (command == "query") {
         query = pay.empty() ? DEFAULT_QUERY : pay;
