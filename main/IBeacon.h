@@ -6,6 +6,28 @@
 #include <cstdint>
 #include <cstring>
 
+// The node's own iBeacon advertisement: flags, then Apple manufacturer data with the uuid
+// big-endian (uuidLE is its little-endian bytes, as NimBLE stores a 128-bit uuid), major, minor
+// and tx (rssi@1m) as the last byte. Returns the length, 30; out needs 31 bytes.
+inline size_t buildIBeaconAdv(uint8_t out[31], const uint8_t uuidLE[16], uint16_t major, uint16_t minor, int8_t tx) {
+    uint8_t* p = out;
+    *p++ = 2; *p++ = 0x01; *p++ = 0x04;  // flags: BR/EDR not supported
+    *p++ = 26; *p++ = 0xFF; *p++ = 0x4C; *p++ = 0x00; *p++ = 0x02; *p++ = 0x15;
+    for (int i = 15; i >= 0; i--) *p++ = uuidLE[i];
+    *p++ = major >> 8; *p++ = major & 0xFF;
+    *p++ = minor >> 8; *p++ = minor & 0xFF;
+    *p++ = (uint8_t)tx;
+    return p - out;
+}
+
+// Puts tx in a payload from buildIBeaconAdv. Returns true if it changed, i.e. the advertisement
+// needs to be sent again; false for an unchanged tx or an empty (not yet built) payload.
+inline bool setIBeaconTx(uint8_t* adv, size_t len, int8_t tx) {
+    if (!len || (int8_t)adv[len - 1] == tx) return false;
+    adv[len - 1] = (uint8_t)tx;
+    return true;
+}
+
 inline bool iBeaconUuid(const uint8_t* mfg, size_t len, uint8_t out[16]) {
     if (len != 25 || mfg[0] != 0x4c || mfg[1] != 0x00 || mfg[2] != 0x02 || mfg[3] != 0x15) return false;
     memcpy(out, mfg + 4, 16); /* Flawfinder: ignore */

@@ -6,6 +6,7 @@
 #include "BleFingerprintCollection.h"
 #include "BleUuids.h"
 #include "HttpWebServer.h"
+#include "IBeacon.h"
 #include "globals.h"
 #include "mqtt.h"
 #include "string_utils.h"
@@ -43,19 +44,20 @@ void Setup() {
     major = (nodeId & 0xFFFF0000) >> 16;
     minor = nodeId & 0xFFFF;
 
-    // iBeacon advertisement: flags + Apple manufacturer data (uuid big-endian, major, minor, tx).
-    uint8_t* p = beaconAdv;
-    *p++ = 2; *p++ = 0x01; *p++ = 0x04;  // flags: BR/EDR not supported
-    *p++ = 26; *p++ = 0xFF; *p++ = 0x4C; *p++ = 0x00; *p++ = 0x02; *p++ = 0x15;
-    for (int i = 15; i >= 0; i--) *p++ = espresenseUUID.u128.value[i];
-    *p++ = major >> 8; *p++ = major & 0xFF;
-    *p++ = minor >> 8; *p++ = minor & 0xFF;
-    *p++ = (uint8_t)BleFingerprintCollection::txRefRssi;
-    beaconAdvLen = p - beaconAdv;
+    beaconAdvLen = buildIBeaconAdv(beaconAdv, espresenseUUID.u128.value, major, minor, BleFingerprintCollection::txRefRssi);
 }
 
 bool Loop() {
     static bool lastEnrolling = true;
+    // tx_ref_rssi can change over MQTT; it's the payload's last byte. Refresh it here, on this
+    // task, rather than from the MQTT callback, and re-advertise unless enrolling (the next switch
+    // back to iBeacon picks it up).
+    int8_t tx = BleFingerprintCollection::txRefRssi;
+    bool txChanged = setIBeaconTx(beaconAdv, beaconAdvLen, tx);
+    if (txChanged && !enrolling && enrolling == lastEnrolling) {
+        Ble::Server::AdvertiseRaw(beaconAdv, beaconAdvLen);
+        Log.printf("%u Advert | iBeacon (tx %d)\n", (unsigned)xPortGetCoreID(), tx);
+    }
     if (enrolling != lastEnrolling) {
         if (enrolling) {
             Ble::Server::AdvertiseConnectable();
