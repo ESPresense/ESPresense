@@ -430,11 +430,17 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
             new AdaptivePercentileRSSI((uint32_t)BleFingerprintCollection::rssiWindowMs));
     // Applied here, not from the MQTT task: a resize there would free the buffer under this task.
     adaptivePercentileRSSI->setTimeWindow((uint32_t)BleFingerprintCollection::rssiWindowMs);
-    adaptivePercentileRSSI->addMeasurement(raw - BleFingerprintCollection::rxAdjRssi);
-    rssi = adaptivePercentileRSSI->getMedianIQR();
+    // The window holds raw RSSI and the current receiver adjustment is applied on the way out, so
+    // changing rx_adj_rssi moves the whole window at once instead of mixing two calibrations
+    // until it refills. A constant shift doesn't change the fenced mean or the variance.
+    int8_t adj = BleFingerprintCollection::rxAdjRssi;
+    adaptivePercentileRSSI->addMeasurement(raw);
+    rssi = adaptivePercentileRSSI->getMedianIQR() - adj;
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi(), BleFingerprintCollection::absorption);
+    // Raw samples against the reference shifted by the adjustment: the same distances as
+    // normalized samples against the reference.
+    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi() + adj, BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
