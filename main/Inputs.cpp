@@ -39,7 +39,7 @@ int indexOf(const char* s, std::initializer_list<const char*> options, int fallb
 }  // namespace
 
 void ConnectToWifi(bool updating) {
-    std::string text = Settings::json("inputs", "[]", "Inputs");
+    std::string text = Settings::json("inputs", "[]", "Inputs", {{"pin", PinUse::Input}});
     DynamicJsonDocument list(text.size() * 2 + 256);
     inputs.clear();
     if (deserializeJson(list, text)) {

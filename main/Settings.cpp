@@ -6,11 +6,15 @@
 #include <climits>
 #include <cstdio>
 #include <memory>
+#include <optional>
 
 #include "HttpStatic.h"
 #include "Logger.h"
 #include "Network.h"
+#include "esp_bit_defs.h"
+#include "esp_private/esp_gpio_reserve.h"
 #include "esp_spiffs.h"
+#include "soc/soc_caps.h"
 #include "util.h"
 
 namespace Settings {
@@ -22,18 +26,27 @@ constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
 using Type = SettingType;
 
+struct Param;
+// json(..., pins): a side table, since only a handful of settings hold GPIOs in their JSON.
+// Allocated once at registration and never freed, so a SettingSpec can point into it.
+std::vector<std::pair<const Param*, const PinFields*>> jsonPins;
+const PinFields* pinFieldsOf(const Param* p) {
+    for (auto& e : jsonPins)
+        if (e.first == p) return e.second;
+    return nullptr;
+}
+
 struct Param {
     Type type;
-    std::string name, label, value, init;
+    // Only what storage, /wifi and template checks need: every setting stays in RAM for the
+    // node's lifetime, so labels and dropdown option text (the UI has its own) aren't kept.
+    std::string name, value, init;
     long min = LONG_MIN, max = LONG_MAX;
-    std::vector<std::string> options;
-    bool board = false;  // exported in board templates (markBoard)
-    SettingSpec spec_;   // filled by spec()
+    uint8_t options = 0;  // dropdown option count; the stored value is the index
+    bool board = false;   // exported in board templates (markBoard)
+    PinUse pin = PinUse::None;  // pinInput()/pinOutput()
 
-    const SettingSpec* spec() {
-        spec_ = {type, min, max, options.size()};
-        return &spec_;
-    }
+    SettingSpec spec() const { return {type, min, max, options, pin, pinFieldsOf(this)}; }
     std::string effective() const { return value.empty() ? init : value; }
 
     std::string filename() const { return "/" + name; }
@@ -166,12 +179,11 @@ int find(const std::string& name) {
     return -1;
 }
 
-Param* add(Type type, const std::string& name, const std::string& init, const std::string& label) {
+Param* add(Type type, const std::string& name, const std::string& init) {
     findOrCreate("main");
     auto* p = new Param();
     p->type = type;
     p->name = name;
-    p->label = label.empty() ? name : label;
     p->init = init;
     p->fill();
     endpoints[current].params.push_back(p);
@@ -179,6 +191,8 @@ Param* add(Type type, const std::string& name, const std::string& init, const st
 }
 
 Param* last() { return endpoints[current].params.back(); }
+
+PinRules pinRules;
 
 Param* findParam(const std::string& key) {
     for (auto& e : endpoints)
@@ -216,20 +230,6 @@ esp_err_t sendText(httpd_req_t* req, const char* status, const char* text) {
 esp_err_t getHandler(httpd_req_t* req) {
     std::string p = uriPath(req);
     Log.printf("GET %s\n", p.c_str());
-
-    if (startsWith(p, "/wifi/options/")) {
-        std::string name = p.substr(14);
-        for (auto& e : endpoints)
-            for (auto* prm : e.params)
-                if (prm->name == name && prm->type == Type::Dropdown) {
-                    std::string out = "[";
-                    for (size_t i = 0; i < prm->options.size(); i++)
-                        out += (i ? ",\"" : "\"") + Param::encode(prm->options[i]) + "\"";
-                    out += "]";
-                    return sendJson(req, out);
-                }
-        return sendText(req, "404 Not Found", "Dropdown not found");
-    }
 
     if (p == "/wifi/scan") {
         std::string out = "{\"networks\":{";
@@ -274,7 +274,15 @@ esp_err_t getHandler(httpd_req_t* req) {
     section(false);
     put("},\"defaults\":{");
     section(true);
-    put("}}");
+    // The GPIOs a pin picker may offer, from the same masks the save check uses (pins()).
+    std::string usable, inputOnly;
+    for (int i = 0; i < 64; i++) {
+        if (!((pinRules.exists >> i) & 1) || ((pinRules.reserved >> i) & 1)) continue;
+        std::string& list = ((pinRules.output >> i) & 1) ? usable : inputOnly;
+        if (!list.empty()) list += ",";
+        list += std::to_string(i);
+    }
+    put("},\"pins\":{\"usable\":[" + usable + (usable.empty() || inputOnly.empty() ? "" : ",") + inputOnly + "],\"inputOnly\":[" + inputOnly + "]}}");
     if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
     return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
@@ -308,8 +316,20 @@ esp_err_t postHandler(httpd_req_t* req) {
     std::string body;
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
-    bool ok = true;
+    // Refuse the whole save if a pin can't work on this chip, before anything is changed.
     std::string v;
+    bool setsPin = false;
+    for (auto* prm : endpoints[idx].params) {
+        if (prm->pin == PinUse::None && !pinFieldsOf(prm)) continue;
+        formValue(body, prm->name, v);
+        std::string err = checkPins(prm->name, prm->spec(), v, pinRules, setsPin);
+        if (!err.empty()) {
+            Log.printf("POST %s refused: %s\n", p.c_str(), err.c_str());
+            return sendText(req, "400 Bad Request", err.c_str());
+        }
+    }
+
+    bool ok = true;
     for (auto* prm : endpoints[idx].params) {
         formValue(body, prm->name, v);
         prm->set(v);
@@ -329,6 +349,15 @@ void begin() {
     static bool begun = false;
     if (begun) return;
     begun = true;
+    // ESP-IDF reserves the flash (and any PSRAM) pins before app_main; drivers reserve theirs as
+    // they start, so snapshot now, while only the memory pins are taken.
+    pinRules.exists = SOC_GPIO_VALID_GPIO_MASK;
+    pinRules.output = SOC_GPIO_VALID_OUTPUT_GPIO_MASK;
+    pinRules.reserved = 0;
+    for (int i = 0; i < 64; i++)
+        if (((pinRules.exists >> i) & 1) && esp_gpio_is_reserved(BIT64(i))) pinRules.reserved |= BIT64(i);
+    // Two halves: newlib nano printf has no %llx.
+    Log.printf("Flash/PSRAM GPIO mask: 0x%08lx%08lx\n", (unsigned long)(pinRules.reserved >> 32), (unsigned long)pinRules.reserved);
     esp_vfs_spiffs_conf_t conf = {};
     conf.base_path = BASE;
     conf.partition_label = "spiffs";
@@ -365,67 +394,84 @@ bool exists(const std::string& fn) {
 
 bool remove(const std::string& fn) { return unlink(path(fn).c_str()) == 0; }
 
-std::string string(const std::string& name, const std::string& init, const std::string& label) {
-    auto* p = add(Type::String, name, init, label);
+std::string string(const std::string& name, const std::string& init, const char* /*label*/) {
+    auto* p = add(Type::String, name, init);
     return p->value.empty() ? p->init : p->value;
 }
 
-std::string pstring(const std::string& name, const std::string& init, const std::string& label) {
-    auto* p = add(Type::Password, name, init, label);
+std::string pstring(const std::string& name, const std::string& init, const char* /*label*/) {
+    auto* p = add(Type::Password, name, init);
     return p->value.empty() ? p->init : p->value;
 }
 
-long dropdown(const std::string& name, const std::vector<std::string>& options, long init, const std::string& label) {
-    auto* p = add(Type::Dropdown, name, toStr(init), label);
-    p->options = options;
+long dropdown(const std::string& name, const std::vector<std::string>& options, long init, const char* /*label*/) {
+    auto* p = add(Type::Dropdown, name, toStr(init));
+    p->options = options.size();
     // The UI binds a <select> to values.<name> only, so an unsaved dropdown must still report
     // its default or the control renders blank.
     if (p->value.empty()) p->value = p->init;
     return toInt(p->value);
 }
 
-long integer(const std::string& name, long init, const std::string& label) {
-    auto* p = add(Type::Int, name, toStr(init), label);
+long integer(const std::string& name, long init, const char* /*label*/) {
+    auto* p = add(Type::Int, name, toStr(init));
     return toInt(p->value.empty() ? p->init : p->value);
 }
 
-long integer(const std::string& name, long min, long max, long init, const std::string& label) {
+long integer(const std::string& name, long min, long max, long init, const char* label) {
     long rv = integer(name, init, label);
     last()->min = min;
     last()->max = max;
     return rv;
 }
 
-float floating(const std::string& name, float init, const std::string& label) {
-    auto* p = add(Type::Float, name, toStr(init), label);
+static long pin(const std::string& name, PinUse use, long init, const char* label) {
+    long rv = integer(name, -1, SOC_GPIO_PIN_COUNT - 1, init, label);
+    last()->pin = use;
+    return rv;
+}
+long pinInput(const std::string& name, long init, const char* label) { return pin(name, PinUse::Input, init, label); }
+long pinOutput(const std::string& name, long init, const char* label) { return pin(name, PinUse::Output, init, label); }
+
+float floating(const std::string& name, float init, const char* /*label*/) {
+    auto* p = add(Type::Float, name, toStr(init));
     return toFloat(p->value.empty() ? p->init : p->value);
 }
 
-float floating(const std::string& name, long min, long max, float init, const std::string& label) {
+float floating(const std::string& name, long min, long max, float init, const char* label) {
     float rv = floating(name, init, label);
     last()->min = min;
     last()->max = max;
     return rv;
 }
 
-bool checkbox(const std::string& name, bool init, const std::string& label) {
-    auto* p = add(Type::Bool, name, toStr((int)init), label);
+bool checkbox(const std::string& name, bool init, const char* /*label*/) {
+    auto* p = add(Type::Bool, name, toStr((int)init));
     if (p->value.empty()) p->value = p->init;
     return toInt(p->value) != 0;
 }
 
-std::string json(const std::string& name, const std::string& init, const std::string& label) {
-    auto* p = add(Type::Json, name, init, label);
+std::string json(const std::string& name, const std::string& init, const char* /*label*/) {
+    auto* p = add(Type::Json, name, init);
     return p->value.empty() ? p->init : p->value;
+}
+
+std::string json(const std::string& name, const std::string& init, const char* label,
+                 const std::vector<std::pair<std::string, PinUse>>& pins) {
+    std::string rv = json(name, init, label);
+    jsonPins.push_back({last(), new PinFields(pins)});
+    return rv;
 }
 
 void markExtra() { current = findOrCreate("extras"); }
 void markEndpoint(const std::string& name) { current = findOrCreate(name); }
 void markBoard() { last()->board = true; }
+const PinRules& pins() { return pinRules; }
 
-const SettingSpec* spec(const std::string& key) {
+std::optional<SettingSpec> spec(const std::string& key) {
     Param* p = findParam(key);
-    return templatable(p) ? p->spec() : nullptr;
+    if (!templatable(p)) return std::nullopt;
+    return p->spec();
 }
 
 void serializeBoard(JsonObject out) {
@@ -448,7 +494,6 @@ bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray dif
         changed++;
         JsonObject d = diff.createNestedObject();
         d["key"] = p->name.c_str();
-        d["label"] = p->label.c_str();
         p->put(d["from"], from);
         p->put(d["to"], c.value);
         if (dryRun) continue;

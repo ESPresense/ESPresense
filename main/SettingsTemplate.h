@@ -6,7 +6,11 @@
 //
 // Setting names are unique across endpoints, so "settings" is flat and may name any configuration
 // setting; a full backup (#2493) can use the same shape. chip is the lowercase
-// chip name ("esp32", "esp32c3", "esp32c6", "esp32s3") and must match the node exactly.
+// chip name ("esp32", "esp32c3", "esp32c6", "esp32s3"); when present it must match the node
+// exactly. It is required only when the template sets a pin, since pin numbers mean different
+// things on each chip. Without pins (e.g. an add-on sensor's address and bus) a template fits any
+// node. Every pin is also checked against the running chip: it must exist, not belong to the
+// flash or PSRAM, and be output-capable where the setting drives it.
 //
 // Parsing and validation only: no flash, no HTTP, so it runs in the host tests. Settings.cpp owns
 // the registry (which keys exist, their types and ranges) and applies the result; a template only
@@ -14,24 +18,99 @@
 // excepted), so new settings work in templates without changes here.
 #include <cctype>
 #include <climits>
+#include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "ArduinoJson.h"
 
 enum class SettingType { Dropdown, String, Password, Int, Float, Bool, Json };
 
+// How a setting uses a GPIO. Output covers anything the chip drives, including two-way buses
+// (I2C, 1-Wire, DHT), so an input-only pin can't take it.
+enum class PinUse : uint8_t { None, Input, Output };
+// A Json setting's members holding GPIOs, e.g. {{"pin", PinUse::Output}}.
+using PinFields = std::vector<std::pair<std::string, PinUse>>;
+
 struct SettingSpec {
     SettingType type;
     long min = LONG_MIN, max = LONG_MAX;
     size_t options = 0;  // dropdown option count; the stored value is the index
+    PinUse pin = PinUse::None;  // an Int setting holding a GPIO (-1 = disabled)
+    // A Json setting's members holding GPIOs: in the object itself or in each array element.
+    // A pointer, not a copy: only a few settings have any.
+    const PinFields* pinFields = nullptr;
 };
 
 struct SettingChange {
     std::string key, value;  // value in the form Settings stores it
 };
+
+// The running chip's GPIOs as bit masks (bit n = GPIO n). Defaults allow every pin.
+struct PinRules {
+    uint64_t exists = ~0ULL;    // GPIOs the chip has
+    uint64_t reserved = 0;      // taken by the flash or PSRAM
+    uint64_t output = ~0ULL;    // GPIOs that can drive a level
+};
+
+// Why `pin` can't serve `use` on this chip, or "" when it can. Negative means disabled: fine.
+inline std::string pinProblem(long pin, PinUse use, const PinRules& r) {
+    if (pin == -1 || use == PinUse::None) return "";
+    std::string gpio = "GPIO " + std::to_string(pin);
+    // Below -1 too: drivers keep pins in int8_t, so -250 would wrap to a real GPIO (6).
+    if (pin < 0 || pin > 63 || !((r.exists >> pin) & 1)) return gpio + " doesn't exist on this chip";
+    if ((r.reserved >> pin) & 1) return gpio + " is used by the flash or PSRAM";
+    if (use == PinUse::Output && !((r.output >> pin) & 1)) return gpio + " is input-only";
+    return "";
+}
+
+// Checks every GPIO a setting's value names; value is in the form Settings stores it (number
+// text, or JSON text for a list or object). Returns "<where>: <problem>" for the first unusable
+// pin, or "". setsPin is set when any pin is enabled (>= 0), usable or not.
+inline std::string checkPins(const std::string& key, const SettingSpec& s, const std::string& value, const PinRules& r, bool& setsPin) {
+    if (s.pin != PinUse::None) {
+        if (value.empty()) return "";
+        char* end = nullptr;
+        long pin = strtol(value.c_str(), &end, 10);
+        if (*end) return key + ": \"" + value + "\" is not a GPIO number";
+        if (pin >= 0) setsPin = true;
+        std::string why = pinProblem(pin, s.pin, r);
+        return why.empty() ? "" : key + ": " + why;
+    }
+    if (!s.pinFields || s.pinFields->empty() || value.empty()) return "";
+    DynamicJsonDocument doc(value.size() * 2 + 128);
+    auto error = deserializeJson(doc, value);
+    if (error == DeserializationError::NoMemory) return key + ": insufficient memory to validate GPIOs";
+    if (error) return "";  // Malformed form JSON is ignored by Param::set().
+    auto check = [&](JsonObjectConst o, const std::string& where) -> std::string {
+        for (auto& f : *s.pinFields) {
+            JsonVariantConst v = o[f.first];
+            if (!v.is<long>()) continue;  // absent or not a number: the firmware treats it as unset
+            long pin = v.as<long>();
+            if (pin >= 0) setsPin = true;
+            std::string why = pinProblem(pin, f.second, r);
+            if (!why.empty()) return where + "." + f.first + ": " + why;
+        }
+        return "";
+    };
+    if (doc.is<JsonArrayConst>()) {
+        size_t i = 0;
+        for (JsonVariantConst e : doc.as<JsonArrayConst>()) {
+            if (e.is<JsonObjectConst>()) {
+                std::string err = check(e.as<JsonObjectConst>(), key + "[" + std::to_string(i) + "]");
+                if (!err.empty()) return err;
+            }
+            i++;
+        }
+        return "";
+    }
+    if (doc.is<JsonObjectConst>()) return check(doc.as<JsonObjectConst>(), key);
+    return "";
+}
 
 // JSON value -> stored string for a setting of this type. False with err set when the value has
 // the wrong type or is out of range.
@@ -105,22 +184,23 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
 
 
 // Validates a whole template before anything is written: every key must be known to lookup
-// (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, or
-// nothing is applied. target is the running firmware's IDF target, section the key holding the settings.
+// (const SettingSpec*(const char* key), nullptr = not importable) and every value valid, every
+// pin usable under pins, or nothing is applied. target is the running firmware's IDF target,
+// section the key holding the settings.
 template <class Lookup>
-bool parseTemplate(JsonObjectConst root, const char* target, const char* section, Lookup lookup, std::vector<SettingChange>& out, std::string& err) {
+bool parseTemplate(JsonObjectConst root, const char* target, const char* section, Lookup lookup, const PinRules& pins, std::vector<SettingChange>& out, std::string& err) {
     out.clear();
     if (root.isNull()) {
         err = "template must be a JSON object";
         return false;
     }
     JsonVariantConst c = root["chip"];
-    if (!c.is<const char*>()) {
-        err = "missing \"chip\"";
+    if (root.containsKey("chip") && !c.is<const char*>()) {
+        err = "\"chip\" must be a string";
         return false;
     }
-    std::string chip = c.as<const char*>();
-    if (chip != target) {
+    std::string chip = c.isNull() ? "" : c.as<const char*>();
+    if (!c.isNull() && chip != target) {
         std::string squashed;  // "ESP32-C6" -> "esp32c6", to tell a misspelling from a wrong chip
         for (unsigned char ch : chip)
             if (isalnum(ch)) squashed += (char)tolower(ch);
@@ -139,9 +219,10 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
         err = std::string("\"") + section + "\" is empty";
         return false;
     }
+    bool setsPin = false;
     for (JsonPairConst kv : settings) {
         const char* key = kv.key().c_str();
-        const SettingSpec* spec = lookup(key);
+        auto spec = lookup(key);  // a pointer or optional: anything that tests false when unknown
         if (!spec) {
             err = std::string("unknown setting \"") + key + "\"";
             out.clear();
@@ -153,7 +234,18 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
             out.clear();
             return false;
         }
+        why = checkPins(key, *spec, value, pins, setsPin);
+        if (!why.empty()) {
+            err = why;
+            out.clear();
+            return false;
+        }
         out.push_back({key, value});
+    }
+    if (setsPin && c.isNull()) {
+        err = "missing \"chip\" (required when a template sets pins)";
+        out.clear();
+        return false;
     }
     return true;
 }

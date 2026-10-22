@@ -8,8 +8,8 @@
 #include "mqtt.h"
 
 namespace HX711 {
-int sckPin = 0;
-int doutPin = 0;
+int sckPin = -1;
+int doutPin = -1;
 int gain = 1;
 int sensorInterval = 5000;
 unsigned long lastMillis = 0;
@@ -17,25 +17,25 @@ unsigned long lastMillis = 0;
 static portMUX_TYPE hxMux = portMUX_INITIALIZER_UNLOCKED;
 
 void Setup() {
-    if (!sckPin && !doutPin) return;
+    if (sckPin < 0 || doutPin < 0 || (!sckPin && !doutPin)) return;  // 0/0 was "off" before -1
     pinMode(doutPin, INPUT);
     pinMode(sckPin, OUTPUT);
     digitalWrite(sckPin, LOW);
 }
 
 void ConnectToWifi(bool updating) {
-    sckPin = Settings::integer("HX711_sckPin", -1, 48, 0, "HX711 SCK (Clock) pin");
-    doutPin = Settings::integer("HX711_doutPin", -1, 48, 0, "HX711 DOUT (Data) pin");
+    sckPin = Settings::pinOutput("HX711_sckPin", -1, "HX711 SCK (Clock) pin");
+    doutPin = Settings::pinInput("HX711_doutPin", -1, "HX711 DOUT (Data) pin");
 }
 
 void SerialReport() {
-    if (!sckPin && !doutPin) return;
+    if (sckPin < 0 || doutPin < 0 || (!sckPin && !doutPin)) return;  // 0/0 was "off" before -1
     Log.print("HX711 Weight Sensor: ");
     Log.println(toStr(sckPin) + "/" + toStr(doutPin));
 }
 
 void Loop() {
-    if (!sckPin && !doutPin) return;
+    if (sckPin < 0 || doutPin < 0 || (!sckPin && !doutPin)) return;  // 0/0 was "off" before -1
     if (millis() - lastMillis < (unsigned long)sensorInterval) return;
     if (digitalRead(doutPin) != LOW) {
         // HX711 is not ready for new measurements yet!
@@ -71,7 +71,7 @@ void Loop() {
 }
 
 bool SendDiscovery() {
-    if (!sckPin && !doutPin) return true;
+    if (sckPin < 0 || doutPin < 0 || (!sckPin && !doutPin)) return true;
     return sendSensorDiscovery("Raw Weight", EC_NONE);
 }
 }  // namespace HX711

@@ -65,7 +65,7 @@ int indexOf(const char* s, const char* const (&options)[N], int fallback) {
 void ConnectToWifi(bool updating) {
     std::string def = DEFAULT_LED1_PIN < 0 ? "[]"
         : Sprintf(R"([{"type":"%s","pin":%d,"count":%d,"control":"%s"}])", ledTypes[DEFAULT_LED1_TYPE], DEFAULT_LED1_PIN, DEFAULT_LED1_CNT, ledControls[DEFAULT_LED1_CNTRL]);
-    std::string text = Settings::json("leds", def, "LEDs");
+    std::string text = Settings::json("leds", def, "LEDs", {{"pin", PinUse::Output}});
     DynamicJsonDocument list(text.size() * 2 + 256);
     if (deserializeJson(list, text)) {
         Log.println("LEDs: invalid JSON, ignored");

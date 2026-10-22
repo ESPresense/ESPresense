@@ -68,7 +68,7 @@ bool pubValue(const char* name, double v, int decimals) {
 }  // namespace
 
 void ConnectToWifi(bool updating) {
-    std::string text = Settings::json("power", "{}", "Power monitor");
+    std::string text = Settings::json("power", "{}", "Power monitor", {{"rx", PinUse::Input}, {"cf", PinUse::Input}, {"cf1", PinUse::Input}, {"sel", PinUse::Output}});
     DynamicJsonDocument cfg(text.size() * 2 + 128);
     enabled = false;
     if (deserializeJson(cfg, text) || !cfg.is<JsonObject>()) return;
