@@ -193,7 +193,7 @@ bool parseTemplate(JsonObjectConst root, const char* target, const char* section
         return false;
     }
     JsonVariantConst c = root["chip"];
-    if (!c.isNull() && !c.is<const char*>()) {
+    if (root.containsKey("chip") && !c.is<const char*>()) {
         err = "\"chip\" must be a string";
         return false;
     }
