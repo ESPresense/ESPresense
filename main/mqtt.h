@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "rssi.h"
+
 const char* const EC_DIAGNOSTIC = "diagnostic";
 const char* const EC_CONFIG = "config";
 const char* const EC_NONE = "";
@@ -42,5 +44,5 @@ bool sendLightDiscovery(const std::string& name, const std::string& entityCatego
 
 bool sendDeleteDiscovery(const std::string& domain, const std::string& name);
 
-bool sendConfig(const std::string& id, const std::string& alias, const std::string& name = "", int calRssi = -128);
+bool sendConfig(const std::string& id, const std::string& alias, const std::string& name = "", int calRssi = NO_RSSI);
 bool deleteConfig(const std::string& id);

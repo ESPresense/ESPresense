@@ -19,7 +19,7 @@ struct DeviceConfig {
     std::string id;
     std::string alias;
     std::string name;
-    int8_t calRssi = NO_RSSI;
+    int16_t calRssi = NO_RSSI;
     bool allowConnect = false;
 };
 

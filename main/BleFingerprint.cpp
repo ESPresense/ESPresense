@@ -321,12 +321,12 @@ void BleFingerprint::fingerprintServiceData(const Ble::Advert *advertisedDevice,
         } else if (Ble::uuidEq(uuid, eddystoneUUID) && strServiceData.length() > 0) {
             const auto *d = (const uint8_t *)strServiceData.data();
             if (d[0] == 0x10 && strServiceData.length() >= 2 && strServiceData.length() <= 18) {  // URL frame
-                bcnRssi = EDDYSTONE_ADD_1M + (int8_t)d[1];
+                bcnRssi = eddystone1mRssi((int8_t)d[1]);
             } else if (d[0] == 0x20 && strServiceData.length() >= 6) {  // TLM frame
                 mv = (d[2] << 8) | d[3];
                 temp = (int8_t)d[4] + d[5] / 256.0f;
             } else if (d[0] == 0x00 && strServiceData.length() >= 18) {  // UID frame
-                bcnRssi = EDDYSTONE_ADD_1M + (int8_t)d[1];
+                bcnRssi = eddystone1mRssi((int8_t)d[1]);
                 setId(Sprintf("eddy:%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x-%02x%02x%02x%02x%02x%02x",
                               d[2], d[3], d[4], d[5], d[6], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], d[16], d[17]),
                       ID_TYPE_EBEACON);

@@ -16,7 +16,6 @@
 #include "string_utils.h"
 #include "AdaptivePercentileRSSI.h"
 
-#define NO_RSSI int8_t(-128)
 
 #define ID_TYPE_TX_POW short(1)
 
@@ -104,7 +103,7 @@ class BleFingerprint {
     const float getRawRssi() const { return raw; }
 
     const int get1mRssi() const;
-    void set1mRssi(int8_t rssi) { calRssi = rssi; }
+    void set1mRssi(int16_t rssi) { calRssi = rssi; }
 
     const ble_addr_t &getAddress() const { return address; }
     // A fingerprint locked to an iBeacon only accepts adverts carrying that UUID, so a beacon that
@@ -151,7 +150,7 @@ class BleFingerprint {
     std::unique_ptr<std::string> discoveredIrk;  // only the rare device that exposes its IRK pays for it
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
-    int8_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;
+    int16_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;  // 1 m references
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
