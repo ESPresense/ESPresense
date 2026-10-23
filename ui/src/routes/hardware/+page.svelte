@@ -189,7 +189,7 @@
         <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-3">
             <p>
                 <label>
-                    Voltage pin (ADC1):<br />
+                    Voltage pin:<br />
                     <PinSelect analog class="w-full" name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
                 </label>
             </p>

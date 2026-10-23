@@ -472,9 +472,9 @@ test.describe('Hardware Settings Page', () => {
 		await expect(address.locator('input')).toHaveValue('0x38');
 		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39');
 
-		// The voltage pin's picker only offers ADC1 pins; its label says why.
+		// The voltage pin needs no note: its picker only offers pins the battery can read.
 		const voltagePin = page.locator('label', { has: page.locator('select[name="batt_pin"]') });
-		await expect(voltagePin).toContainText('ADC1');
+		await expect(voltagePin).not.toContainText('ADC1');
 	});
 });
 
