@@ -190,9 +190,12 @@
             <p>
                 <label>
                     Voltage pin:<br />
-                    <span class="relative block">
+                    <span class="@container block">
+                <span class="relative block">
                 <PinSelect input class="peer w-full" name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-10 flex items-center text-sm text-gray-400">ADC1 only</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-10 hidden @2xs:flex items-center text-sm text-gray-400">ADC1 only</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">ADC1 only</span>
             </span>
                 </label>
             </p>
@@ -363,9 +366,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="AHTX0_I2c" bind:value={$hardwareSettings.values['AHTX0_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x38 or 0x39</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x38 or 0x39</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x38 or 0x39</span>
             </span>
             </label>
             </p>
@@ -388,9 +394,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="BH1750_I2c" bind:value={$hardwareSettings.values['BH1750_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x23 or 0x5C</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x23 or 0x5C</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x23 or 0x5C</span>
             </span>
             </label>
             </p>
@@ -413,9 +422,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="BME280_I2c" bind:value={$hardwareSettings.values['BME280_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x76 or 0x77</span>
             </span>
             </label>
             </p>
@@ -438,9 +450,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="BMP180_I2c" bind:value={$hardwareSettings.values['BMP180_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x77</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x77</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x77</span>
             </span>
             </label>
             </p>
@@ -463,9 +478,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x76 or 0x77</span>
             </span>
             </label>
             </p>
@@ -502,9 +520,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="TSL2561_I2c" bind:value={$hardwareSettings.values['TSL2561_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x39, 0x49 or 0x29</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x39, 0x49 or 0x29</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x39, 0x49 or 0x29</span>
             </span>
             </label>
             </p>
@@ -512,12 +533,15 @@
         <p>
             <label>
                 Gain:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer"
                     name="TSL2561_I2c_Gain"
                     placeholder={$hardwareSettings.defaults['TSL2561_I2c_Gain']}
                     bind:value={$hardwareSettings.values['TSL2561_I2c_Gain']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">auto, 1x or 16x</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">auto, 1x or 16x</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">auto, 1x or 16x</span>
             </span>
             </label>
         </p>
@@ -539,9 +563,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="SGP30_I2c" bind:value={$hardwareSettings.values['SGP30_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x58</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x58</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x58</span>
             </span>
             </label>
             </p>
@@ -564,9 +591,12 @@
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C address:<br />
+                <span class="@container block">
                 <span class="relative block">
                 <input class="peer" name="SCD4x_I2c" bind:value={$hardwareSettings.values['SCD4x_I2c']}/>
-                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x62</span>
+                <span data-hint="inline" class="pointer-events-none peer-focus:opacity-0 absolute inset-y-0 right-4 hidden @2xs:flex items-center text-sm text-gray-400">0x62</span>
+                </span>
+                <span data-hint="below" class="mt-1 block text-sm text-gray-400 @2xs:hidden">0x62</span>
             </span>
             </label>
             </p>
