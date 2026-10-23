@@ -95,14 +95,14 @@ class BleFingerprint {
 
     const std::string getMac() const;
 
-    const short getIdType() const { return idType; }
+    short getIdType() const { return idType; }
 
-    const float getDistance() const { return dist; }
+    float getDistance() const { return dist; }
 
-    const float getRssi() const { return rssi; }
-    const float getRawRssi() const { return raw; }
+    float getRssi() const { return rssi; }
+    float getRawRssi() const { return raw; }
 
-    const int get1mRssi() const;
+    int get1mRssi() const;
     void set1mRssi(rssi1m_t rssi) { calRssi = rssi; }
 
     const ble_addr_t &getAddress() const { return address; }
@@ -111,19 +111,19 @@ class BleFingerprint {
     bool hasIBeacon() const { return hasBcnUuid; }
     uint16_t iBeaconCrc() const { return bcnCrc; }
 
-    const unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
+    unsigned long getMsSinceLastSeen() const { return lastSeenMillis ? millis() - lastSeenMillis : 4294967295; };
 
-    const unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
+    unsigned long getMsSinceFirstSeen() const { return millis() - firstSeenMillis; };
 
-    const bool getVisible() const { return !ignore && !hidden; }
+    bool getVisible() const { return !ignore && !hidden; }
 
-    const bool getAdded() const { return added; };
+    bool getAdded() const { return added; };
 
-    const bool getIgnore() const { return ignore; };
+    bool getIgnore() const { return ignore; };
 
-    const bool getAllowQuery() const { return allowQuery; };
+    bool getAllowQuery() const { return allowQuery; };
 
-    const bool hasReport() { return queryReport != nullptr; };
+    bool hasReport() { return queryReport != nullptr; };
     const QueryReport getReport() { return *queryReport; };
     void setReport(const QueryReport &report) { queryReport = std::unique_ptr<QueryReport>(new QueryReport{report}); };
     void clearReport() { queryReport.reset(); };

@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "BleFingerprintCollection.h"
 #include "BleUuids.h"
@@ -14,7 +15,7 @@
 #include "NameModelHandler.h"
 #include "defaults.h"
 #include "globals.h"
-#include "mbedtls/aes.h"
+#include "aes/esp_aes.h"
 #include "rssi.h"
 #include "string_utils.h"
 #include "util.h"
@@ -137,7 +138,7 @@ const std::string BleFingerprint::getMac() const {
     return Sprintf("%02x%02x%02x%02x%02x%02x", nativeAddress[5], nativeAddress[4], nativeAddress[3], nativeAddress[2], nativeAddress[1], nativeAddress[0]);
 }
 
-const int BleFingerprint::get1mRssi() const {
+int BleFingerprint::get1mRssi() const {
     if (calRssi != NO_RSSI) return calRssi;
     if (bcnRssi != NO_RSSI) return bcnRssi;
     if (mdRssi != NO_RSSI) return mdRssi;
@@ -165,17 +166,17 @@ void BleFingerprint::fingerprint(const Ble::Advert *advertisedDevice) {
 }
 
 static int bt_encrypt_be(const uint8_t *key, const uint8_t *plaintext, uint8_t *enc_data) {
-    mbedtls_aes_context ctx;
-    mbedtls_aes_init(&ctx);
-    if (mbedtls_aes_setkey_enc(&ctx, key, 128) != 0) {
-        mbedtls_aes_free(&ctx);
+    esp_aes_context ctx;
+    esp_aes_init(&ctx);
+    if (esp_aes_setkey(&ctx, key, 128) != 0) {
+        esp_aes_free(&ctx);
         return BLE_HS_EUNKNOWN;
     }
-    if (mbedtls_aes_crypt_ecb(&ctx, MBEDTLS_AES_ENCRYPT, plaintext, enc_data) != 0) {
-        mbedtls_aes_free(&ctx);
+    if (esp_aes_crypt_ecb(&ctx, ESP_AES_ENCRYPT, plaintext, enc_data) != 0) {
+        esp_aes_free(&ctx);
         return BLE_HS_EUNKNOWN;
     }
-    mbedtls_aes_free(&ctx);
+    esp_aes_free(&ctx);
     return 0;
 }
 
@@ -457,12 +458,12 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     auto refRssi = get1mRssi();
     if (refRssi > NO_RSSI) (*doc)["rssi@1m"] = refRssi;
-    if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rssi"] = serialized(toStr(rssi));
+    if (rssi > NO_RSSI && (std::isnormal(rssi) || rssi == 0)) (*doc)["rssi"] = serialized(toStr(rssi));
     (*doc)["rxAdj"] = BleFingerprintCollection::rxAdjRssi;
-    if (isnormal(rssiVar)) (*doc)["rssiVar"] = serialized(toStr(rssiVar));
+    if (std::isnormal(rssiVar)) (*doc)["rssiVar"] = serialized(toStr(rssiVar));
 
-    if (isnormal(dist) || dist == 0) (*doc)["distance"] = serialized(toStr(dist));
-    if (isnormal(distVar) || distVar == 0) (*doc)["var"] = serialized(toStr(distVar));
+    if (std::isnormal(dist) || dist == 0) (*doc)["distance"] = serialized(toStr(dist));
+    if (std::isnormal(distVar) || distVar == 0) (*doc)["var"] = serialized(toStr(distVar));
     if (close) (*doc)["close"] = true;
 
     (*doc)["int"] = (millis() - firstSeenMillis) / seenCount;

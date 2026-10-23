@@ -10,7 +10,7 @@
 #include "Logger.h"
 #include "defaults.h"
 #include "esp_ota_ops.h"
-#include "mbedtls/md5.h"
+#include "esp_rom_md5.h"
 #include "util.h"
 
 namespace EspOta {
@@ -39,9 +39,8 @@ void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* 
 
     esp_ota_handle_t ota = 0;
     esp_err_t err = esp_ota_begin(part, size, &ota);
-    mbedtls_md5_context md5;
-    mbedtls_md5_init(&md5);
-    mbedtls_md5_starts(&md5);
+    md5_context_t md5;
+    esp_rom_md5_init(&md5);
     static uint8_t buf[1460];
     size_t written = 0;
     int lastPct = -1;
@@ -52,7 +51,7 @@ void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* 
             break;
         }
         err = esp_ota_write(ota, buf, n);
-        mbedtls_md5_update(&md5, buf, n);
+        esp_rom_md5_update(&md5, buf, n);
         written += n;
         char ack[16];
         int len = snprintf(ack, sizeof(ack), "%u", (unsigned)written);
@@ -64,8 +63,7 @@ void runUpdate(const sockaddr_in& host, uint16_t port, size_t size, const char* 
         }
     }
     uint8_t digest[16];
-    mbedtls_md5_finish(&md5, digest);
-    mbedtls_md5_free(&md5);
+    esp_rom_md5_final(digest, &md5);
     char got[33];
     for (int i = 0; i < 16; i++) snprintf(got + i * 2, 3, "%02x", digest[i]);
 
@@ -120,7 +118,7 @@ void task(void* arg) {
         // handshake line that has no floats in it.
         // %39s bounds the write and the != 4 short-circuits, so md5hex is always terminated here;
         // the zero-init and strnlen keep that true even if this condition is ever reordered.
-        if (siscanf(pkt, "%u %u %u %39s", &cmd, &hostPort, &size, md5hex) != 4 || strnlen(md5hex, sizeof(md5hex)) != 32) continue;
+        if (sscanf(pkt, "%u %u %u %39s", &cmd, &hostPort, &size, md5hex) != 4 || strnlen(md5hex, sizeof(md5hex)) != 32) continue;
         if (cmd != 0) {  // 0 = flash; 100 = filesystem, which we do not carry
             sendto(udp, "ERR: only flash", 15, 0, (sockaddr*)&from, fromLen);
             continue;

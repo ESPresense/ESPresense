@@ -16,11 +16,21 @@
 #include "util.h"
 #ifdef USE_ETHERNET
 #include "esp_eth.h"
+// IDF 6 moved the PHY and SPI-Ethernet chip drivers out of esp_eth into registry components
+// (espressif/lan87xx, ip101, rtl8201, w5500; see main/idf_component.yml).
+#if CONFIG_ETH_USE_ESP32_EMAC
 #include "esp_eth_mac_esp.h"
-#if CONFIG_ETH_SPI_ETHERNET_W5500
+#include "esp_eth_phy_ip101.h"
+#include "esp_eth_phy_lan87xx.h"
+#include "esp_eth_phy_rtl8201.h"
+#endif
+// The W5500 component has no Kconfig switch of its own; it is wired for the Waveshare ESP32-S3-ETH.
+#if CONFIG_IDF_TARGET_ESP32S3 && CONFIG_ETH_USE_SPI_ETHERNET
+#define HAVE_W5500 1
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "esp_eth_mac_spi.h"
+#include "esp_eth_mac_w5500.h"
+#include "esp_eth_phy_w5500.h"
 #include "esp_mac.h"
 #endif
 #endif
@@ -148,7 +158,7 @@ void dnsTask(void* arg) {
         Log.printf("AP password is %u bytes, not 8-63; starting an OPEN access point.\n", (unsigned)apPassword.size());
     }
     esp_wifi_set_config(WIFI_IF_AP, &ap);
-    esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+    esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW20);
     // Hand ourselves out as the DNS server so the phone's captive-portal probe lands on us.
     {
         esp_netif_ip_info_t apInfo;
@@ -221,8 +231,9 @@ esp_eth_handle_t installRmii(int type) {
     emac.smi_gpio.mdc_num = b.mdc;
     emac.smi_gpio.mdio_num = b.mdio;
     emac.clock_config.rmii.clock_mode = b.clkOut ? EMAC_CLK_OUT : EMAC_CLK_EXT_IN;
-    // Arduino's ETH_CLOCK_GPIO17_OUT: the inverted 50MHz clock on GPIO17, not EMAC_APPL_CLK_OUT_GPIO (GPIO0).
-    emac.clock_config.rmii.clock_gpio = b.clkOut ? EMAC_CLK_OUT_180_GPIO : EMAC_CLK_IN_GPIO;
+    // Arduino's ETH_CLOCK_GPIO17_OUT: the inverted 50MHz clock on GPIO17 (EMAC_CLK_OUT_180), not
+    // GPIO0's CLK_OUT1; external clock comes in on GPIO0. IDF 6 takes plain GPIO numbers here.
+    emac.clock_config.rmii.clock_gpio = b.clkOut ? 17 : 0;
     esp_eth_mac_t* mac = esp_eth_mac_new_esp32(&emac, &mac_config);
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.phy_addr = b.addr;
@@ -237,7 +248,7 @@ esp_eth_handle_t installRmii(int type) {
 }
 #endif
 
-#if CONFIG_ETH_SPI_ETHERNET_W5500
+#if HAVE_W5500
 constexpr int kWaveshareS3Eth = 14;  // index in the "eth" dropdown (main.cpp)
 
 // Waveshare ESP32-S3-ETH: W5500 on SPI2 (SCLK 13, MISO 12, MOSI 11, CS 14, INT 10, RST 9).
@@ -256,7 +267,7 @@ esp_eth_handle_t installW5500() {
     dev.spics_io_num = 14;
     dev.queue_size = 20;
     eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(SPI2_HOST, &dev);
-    w5500.int_gpio_num = 10;
+    w5500.base.int_gpio_num = 10;  // w5500 v2: the WIZnet fields live in .base
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.reset_gpio_num = 9;
@@ -284,7 +295,7 @@ bool initEthernet(int type) {
 #if CONFIG_ETH_USE_ESP32_EMAC
     handle = installRmii(type);
 #endif
-#if CONFIG_ETH_SPI_ETHERNET_W5500
+#if HAVE_W5500
     if (type == kWaveshareS3Eth) handle = installW5500();
 #endif
     if (!handle) return false;
