@@ -301,7 +301,7 @@ test.describe('Hardware Settings Page', () => {
 		const dht11 = page.getByLabel('DHT11 sensor pin');
 		await expect(dht11.locator('option').first()).toHaveText('Default (off)');
 		await expect(dht11.locator('option', { hasText: 'GPIO 34' })).toHaveCount(0);
-		await expect(page.getByLabel('Voltage pin (ADC1 only)').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
+		await expect(page.getByLabel('Voltage pin').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
 		await expect(page.locator('option', { hasText: '-1' })).toHaveCount(0);
 	});
 
