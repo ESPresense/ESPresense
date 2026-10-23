@@ -134,10 +134,19 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
         if (!get(base + "_I2c").empty() && num(base + "_I2c_Bus", 1) == 1) bus1 = true;
     }
     if (num("SHT_I2c_Bus", -1) == 1) bus1 = true;
-    if (bus1 && d.v4I2cSda >= 0 && get("I2C_Bus_1_SDA").empty() && get("I2C_Bus_1_SCL").empty()) {
-        store("I2C_Bus_1_SDA", std::to_string(d.v4I2cSda));
-        store("I2C_Bus_1_SCL", std::to_string(d.v4I2cScl));
-        done.push_back("I2C bus 1=" + std::to_string(d.v4I2cSda) + "/" + std::to_string(d.v4I2cScl));
+    // Each pin on its own: v4 used its default for whichever pin wasn't set, and a retry after a
+    // failed write fills in only the pin still missing.
+    if (bus1 && d.v4I2cSda >= 0) {
+        std::string filled;
+        if (get("I2C_Bus_1_SDA").empty()) {
+            store("I2C_Bus_1_SDA", std::to_string(d.v4I2cSda));
+            filled += " SDA=" + std::to_string(d.v4I2cSda);
+        }
+        if (get("I2C_Bus_1_SCL").empty()) {
+            store("I2C_Bus_1_SCL", std::to_string(d.v4I2cScl));
+            filled += " SCL=" + std::to_string(d.v4I2cScl);
+        }
+        if (!filled.empty()) done.push_back("I2C bus 1" + filled);
     }
     return finish();
 }

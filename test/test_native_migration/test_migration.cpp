@@ -83,7 +83,10 @@ static void v4_i2c_defaults_come_back_for_sensors_on_bus_1() {
     TEST_ASSERT_EQUAL_STRING("22", at(s, "I2C_Bus_1_SCL").c_str());
     TEST_ASSERT_EQUAL_STRING("19", at(run(configured({{"pir_pin", "-1"}, {"SHT_I2c_Bus", "1"}}), {0, 19, 18, 2}), "I2C_Bus_1_SDA").c_str());
     // Pins already stored, a sensor on bus 2, no sensor, or a chip v4 didn't build: untouched.
-    TEST_ASSERT_EQUAL_STRING("4", at(run(configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}, {"I2C_Bus_1_SDA", "4"}})), "I2C_Bus_1_SDA").c_str());
+    // Only SDA set on v4: v4 used its default SCL, so that one is filled in and SDA kept.
+    Store partial = run(configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}, {"I2C_Bus_1_SDA", "4"}}));
+    TEST_ASSERT_EQUAL_STRING("4", at(partial, "I2C_Bus_1_SDA").c_str());
+    TEST_ASSERT_EQUAL_STRING("22", at(partial, "I2C_Bus_1_SCL").c_str());
     TEST_ASSERT_EQUAL_STRING("", at(run(configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}, {"BME280_I2c_Bus", "2"}})), "I2C_Bus_1_SDA").c_str());
     TEST_ASSERT_EQUAL_STRING("", at(run(configured({{"pir_pin", "-1"}})), "I2C_Bus_1_SDA").c_str());
     TEST_ASSERT_EQUAL_STRING("", at(run(configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}}), C6), "I2C_Bus_1_SDA").c_str());
@@ -102,12 +105,25 @@ static void a_failed_write_retries_next_boot() {
     TEST_ASSERT_EQUAL_STRING(R"([{"type":"pwm","pin":4,"count":1,"control":"status"}])", at(s, "leds").c_str());
 }
 
+static void a_failed_i2c_pin_write_is_filled_in_next_boot() {
+    Store s = configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}});
+    // SDA lands, SCL fails: no marker.
+    migrateSettings([&](const std::string& k) { auto i = s.find(k); return i == s.end() ? std::string() : i->second; },
+                    [&](const std::string& k, const std::string& v) { if (k == "I2C_Bus_1_SCL") return false; s[k] = v; return true; }, ESP32);
+    TEST_ASSERT_EQUAL_STRING("21", at(s, "I2C_Bus_1_SDA").c_str());
+    TEST_ASSERT_EQUAL_STRING("", at(s, "v5_migrated").c_str());
+    s = run(s);  // next boot: only the missing SCL is written
+    TEST_ASSERT_EQUAL_STRING("22", at(s, "I2C_Bus_1_SCL").c_str());
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "v5_migrated").c_str());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
     RUN_TEST(ethernet_only_node_still_converts);
     RUN_TEST(runs_once);
     RUN_TEST(a_failed_write_retries_next_boot);
+    RUN_TEST(a_failed_i2c_pin_write_is_filled_in_next_boot);
     RUN_TEST(receiver_adjustment_is_negated);
     RUN_TEST(v5_beta_node_only_converts_the_offset);
     RUN_TEST(v4_leds_become_the_list);
