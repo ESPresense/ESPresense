@@ -448,6 +448,29 @@ test.describe('Hardware Settings Page', () => {
 		await expect(pinOf(page, 'LED 1:')).toBeVisible();
 		await expect(typeOf(page, 'LED 1:')).toBeVisible();
 	});
+
+	test('field hints sit in the box when it is wide and under it when narrow', async ({ page }) => {
+		const address = page.locator('label', { has: page.locator('input[name="AHTX0_I2c"]') });
+		const inline = address.locator('[data-hint="inline"]');
+		const below = address.locator('[data-hint="below"]');
+
+		// Phone width: a saved value (0x38) has no room to share, so the hint drops under the field.
+		await page.setViewportSize({ width: 375, height: 800 });
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+		await expect(address.locator('input')).toHaveValue('0x38');
+		await expect(below).toBeVisible();
+		await expect(inline).toBeHidden();
+
+		// Desktop width: the hint moves into the box, and gets out of the way while the field has focus.
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await expect(inline).toBeVisible();
+		await expect(below).toBeHidden();
+		await address.locator('input').focus();
+		await expect(inline).toHaveCSS('opacity', '0');
+		await address.locator('input').blur();
+		await expect(inline).toHaveCSS('opacity', '1');
+	});
 });
 
 test.describe('Hardware lists', () => {
