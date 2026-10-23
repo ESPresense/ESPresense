@@ -1,7 +1,9 @@
 #pragma once
 // First boot on v5.0.0: converts settings that v5 stores differently, once (the v5_migrated file).
 // Pure, so host tests can run it on a map. get(key) returns the stored text or "" when absent;
-// put(key, value) stores it. Keys are setting names (Settings stores each as the file "/<key>").
+// put(key, value) stores it and returns false if the write failed. Keys are setting names (Settings
+// stores each as the file "/<key>"). If any write fails, v5_migrated isn't written, so the whole
+// conversion runs again on the next boot (each step skips what's already stored).
 //
 // - The receiver adjustment: v4/early-v5 rx_adj_rssi (subtracted) becomes rx_offset_rssi
 //   (added) = -effective rx_adj_rssi, so distances don't change. "Effective" includes the old
@@ -35,14 +37,22 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
         std::string v = get(key);
         return v.empty() ? def : strtof(v.c_str(), nullptr);
     };
-    auto finish = [&]() { put("v5_migrated", "1"); return done; };
+    bool ok = true;
+    auto store = [&](const std::string& key, const std::string& value) {
+        if (!put(key, value)) ok = false;
+    };
+    auto finish = [&]() {
+        if (ok && put("v5_migrated", "1")) return done;
+        done.push_back("a write failed; converting again next boot");
+        return done;
+    };
     if (get("wifi-ssid").empty() && num("eth", 0) <= 0) return finish();
 
     // Receiver adjustment.
     if (get("rx_offset_rssi").empty()) {
         long offset = -num("rx_adj_rssi", d.legacyRxAdjRssi);
         if (offset != 0) {
-            put("rx_offset_rssi", std::to_string(offset));
+            store("rx_offset_rssi", std::to_string(offset));
             done.push_back("rx_offset_rssi=" + std::to_string(offset));
         }
     }
@@ -85,7 +95,7 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
         }
         std::string text;
         serializeJson(list, text);
-        put("leds", text);
+        store("leds", text);
         done.push_back("leds=" + text);
     }
 
@@ -111,7 +121,7 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
         if (a.size()) {
             std::string text;
             serializeJson(list, text);
-            put("inputs", text);
+            store("inputs", text);
             done.push_back("inputs=" + text);
         }
     }
@@ -125,8 +135,8 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
     }
     if (num("SHT_I2c_Bus", -1) == 1) bus1 = true;
     if (bus1 && d.v4I2cSda >= 0 && get("I2C_Bus_1_SDA").empty() && get("I2C_Bus_1_SCL").empty()) {
-        put("I2C_Bus_1_SDA", std::to_string(d.v4I2cSda));
-        put("I2C_Bus_1_SCL", std::to_string(d.v4I2cScl));
+        store("I2C_Bus_1_SDA", std::to_string(d.v4I2cSda));
+        store("I2C_Bus_1_SCL", std::to_string(d.v4I2cScl));
         done.push_back("I2C bus 1=" + std::to_string(d.v4I2cSda) + "/" + std::to_string(d.v4I2cScl));
     }
     return finish();

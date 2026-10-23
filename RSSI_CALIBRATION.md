@@ -44,7 +44,9 @@ again. For calibration:
   stored. Every existing node keeps its distances. An S3 that relied on the old +20 gets -20.
 - A fresh install (no WiFi configured yet) starts at `rx_offset_rssi` 0 and gets any per-board offset
   from its template.
-- The old `rx_adj_rssi` file is left in place, unused, so a downgrade still finds it.
+- The old `rx_adj_rssi` file is left in place, unused, so a downgrade still finds it. A downgrade
+  therefore restores the calibration from before v5: v5 only writes `rx_offset_rssi`, so a node
+  recalibrated on v5 and then downgraded needs recalibrating.
 
 The same step converts v4's hardware settings, for a node with any of them stored: the LED
 settings (`led_1_pin`, ...) into the `leds` list (an LED turned off stays off), PIR/radar/button/
@@ -54,8 +56,11 @@ default pins for its chip (21/22, or 19/18 on the C3).
 ## Compatibility
 
 - **`rx_adj_rssi/set` keeps working for now, as a deprecated alias:** the node stores
-  `rx_offset_rssi = -value`, and an empty payload resets `rx_offset_rssi` to 0. A Companion that hasn't
-  been updated keeps calibrating v5 nodes correctly. Log a deprecation line on use; remove the
+  `rx_offset_rssi = -value`, and an empty payload resets `rx_offset_rssi` to 0. On an S3 that is
+  deliberately not the old empty meaning (+20): an older Companion only sends an empty payload
+  when it meant 0 (it turned 0 into empty, ESPresense-companion#1765) or to reset to the
+  defaults, and v5's default is 0 on every chip. A Companion that hasn't been updated keeps
+  calibrating v5 nodes correctly. Log a deprecation line on use; remove the
   alias in a later major version.
 - **Reports keep `rxAdj` in the old convention** (`rxAdj = -rx_offset_rssi`), so the Companion's
   existing `rssi + rxAdj - candidate` arithmetic keeps working. They add `rxOffset`.
@@ -71,10 +76,13 @@ read weak or strong carries `"rx_offset_rssi": n` in its template on espresense.
 measurement leave it out. The Companion's fitted per-node value overrides it, as any explicit
 setting does.
 
-Measurements come from the HIL bench: four boards and a BLE flood transmitter in fixed
-positions. A step that records each board's smoothed RSSI of the flood dongle gives a per-board
-offset relative to the others, and repeated runs show how stable it is. An offset goes into a
-template only from such a measurement, noting the board, antenna and reference on its page.
+A board's offset has to be measured with the board in the same place as a reference board, not
+from where it happens to sit: at different positions, distance, orientation and multipath swamp
+the receiver's own bias. Put the reference board and the board under test in turn at one fixed
+spot, same orientation, against the same transmitter at a known distance, and compare their
+smoothed RSSI over several minutes; repeat on another day to see how stable it is. The fixed HIL
+bench can't do this as it stands, because its boards never move. An offset goes into a template
+only from such a measurement, noting the board, antenna, reference board and distance on its page.
 
 ## The Companion
 

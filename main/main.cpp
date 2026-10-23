@@ -518,7 +518,7 @@ void setup() {
     // Once, before any setting is read: converts what v5 stores differently (SettingsMigration.h).
     for (auto& change : migrateSettings(
              [](const std::string& key) { return Settings::slurp("/" + key); },
-             [](const std::string& key, const std::string& value) { Settings::spurt("/" + key, value); },
+             [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); },
              MigrationDefaults{LEGACY_RX_ADJ_RSSI, V4_I2C_BUS_1_SDA, V4_I2C_BUS_1_SCL, DEFAULT_LED1_PIN}))
         Log.printf("Settings converted for v5: %s\n", change.c_str());
     Network::Setup();

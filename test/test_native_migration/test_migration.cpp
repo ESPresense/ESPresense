@@ -10,7 +10,7 @@ static const MigrationDefaults S3 = {20, 21, 22, 2}, ESP32 = {0, 21, 22, 2}, C6 
 
 static Store run(Store s, const MigrationDefaults& d = ESP32) {
     migrateSettings([&](const std::string& k) { auto i = s.find(k); return i == s.end() ? std::string() : i->second; },
-                    [&](const std::string& k, const std::string& v) { s[k] = v; }, d);
+                    [&](const std::string& k, const std::string& v) { s[k] = v; return true; }, d);
     return s;
 }
 static std::string at(const Store& s, const char* k) { auto i = s.find(k); return i == s.end() ? "" : i->second; }
@@ -89,11 +89,25 @@ static void v4_i2c_defaults_come_back_for_sensors_on_bus_1() {
     TEST_ASSERT_EQUAL_STRING("", at(run(configured({{"pir_pin", "-1"}, {"BME280_I2c", "0x76"}}), C6), "I2C_Bus_1_SDA").c_str());
 }
 
+static void a_failed_write_retries_next_boot() {
+    Store s = configured({{"rx_adj_rssi", "7"}, {"led_1_pin", "4"}});
+    // The leds write fails: no marker, so the next boot tries again.
+    migrateSettings([&](const std::string& k) { auto i = s.find(k); return i == s.end() ? std::string() : i->second; },
+                    [&](const std::string& k, const std::string& v) { if (k == "leds") return false; s[k] = v; return true; }, ESP32);
+    TEST_ASSERT_EQUAL_STRING("", at(s, "v5_migrated").c_str());
+    TEST_ASSERT_EQUAL_STRING("-7", at(s, "rx_offset_rssi").c_str());
+    s = run(s);  // the next boot, with working storage
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "v5_migrated").c_str());
+    TEST_ASSERT_EQUAL_STRING("-7", at(s, "rx_offset_rssi").c_str());  // not converted twice
+    TEST_ASSERT_EQUAL_STRING(R"([{"type":"pwm","pin":4,"count":1,"control":"status"}])", at(s, "leds").c_str());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
     RUN_TEST(ethernet_only_node_still_converts);
     RUN_TEST(runs_once);
+    RUN_TEST(a_failed_write_retries_next_boot);
     RUN_TEST(receiver_adjustment_is_negated);
     RUN_TEST(v5_beta_node_only_converts_the_offset);
     RUN_TEST(v4_leds_become_the_list);
