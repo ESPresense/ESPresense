@@ -670,16 +670,16 @@ test.describe('Hardware lists', () => {
 		expect(JSON.parse(new URLSearchParams(posted).get('leds')!)[0]).toMatchObject({ control: 'output' });
 	});
 
-	test('LED max brightness defaults to 50 for every type and posts in the list', async ({ page }) => {
+	test('LED max brightness defaults to 64 for every type and posts in the list', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, {}, (body) => (posted = body));
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
 		const max = item(page, 'LED 1:').filter({ hasText: 'Max brightness' }).first().locator('input');
-		await expect(max).toHaveValue('50');  // PWM
+		await expect(max).toHaveValue('64');  // PWM
 		await typeOf(page, 'LED 1:').selectOption('grb');
-		await expect(max).toHaveValue('50');
+		await expect(max).toHaveValue('64');
 		await max.fill('128');
 
 		await page.locator('button[type="submit"]').click();
