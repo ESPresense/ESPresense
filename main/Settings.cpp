@@ -11,6 +11,7 @@
 #include "HttpStatic.h"
 #include "Logger.h"
 #include "Network.h"
+#include "esp_adc/adc_oneshot.h"
 #include "esp_bit_defs.h"
 #include "esp_private/esp_gpio_reserve.h"
 #include "esp_spiffs.h"
@@ -44,7 +45,7 @@ struct Param {
     long min = LONG_MIN, max = LONG_MAX;
     uint8_t options = 0;  // dropdown option count; the stored value is the index
     bool board = false;   // exported in board templates (markBoard)
-    PinUse pin = PinUse::None;  // pinInput()/pinOutput()
+    PinUse pin = PinUse::None;  // pinInput()/pinOutput()/pinAnalog()
 
     SettingSpec spec() const { return {type, min, max, options, pin, pinFieldsOf(this)}; }
     std::string effective() const { return value.empty() ? init : value; }
@@ -275,14 +276,17 @@ esp_err_t getHandler(httpd_req_t* req) {
     put("},\"defaults\":{");
     section(true);
     // The GPIOs a pin picker may offer, from the same masks the save check uses (pins()).
-    std::string usable, inputOnly;
-    for (int i = 0; i < 64; i++) {
-        if (!((pinRules.exists >> i) & 1) || ((pinRules.reserved >> i) & 1)) continue;
-        std::string& list = ((pinRules.output >> i) & 1) ? usable : inputOnly;
+    std::string usable, inputOnly, adc1;
+    auto add = [](std::string& list, int i) {
         if (!list.empty()) list += ",";
         list += std::to_string(i);
+    };
+    for (int i = 0; i < 64; i++) {
+        if (!((pinRules.exists >> i) & 1) || ((pinRules.reserved >> i) & 1)) continue;
+        add(((pinRules.output >> i) & 1) ? usable : inputOnly, i);
+        if ((pinRules.adc1 >> i) & 1) add(adc1, i);
     }
-    put("},\"pins\":{\"usable\":[" + usable + (usable.empty() || inputOnly.empty() ? "" : ",") + inputOnly + "],\"inputOnly\":[" + inputOnly + "]}}");
+    put("},\"pins\":{\"usable\":[" + usable + (usable.empty() || inputOnly.empty() ? "" : ",") + inputOnly + "],\"inputOnly\":[" + inputOnly + "],\"adc1\":[" + adc1 + "]}}");
     if (ok && !chunk.empty()) ok = httpd_resp_send_chunk(req, chunk.data(), chunk.size()) == ESP_OK;
     return ok ? httpd_resp_send_chunk(req, nullptr, 0) : ESP_FAIL;
 }
@@ -354,10 +358,18 @@ void begin() {
     pinRules.exists = SOC_GPIO_VALID_GPIO_MASK;
     pinRules.output = SOC_GPIO_VALID_OUTPUT_GPIO_MASK;
     pinRules.reserved = 0;
-    for (int i = 0; i < 64; i++)
-        if (((pinRules.exists >> i) & 1) && esp_gpio_is_reserved(BIT64(i))) pinRules.reserved |= BIT64(i);
+    pinRules.adc1 = 0;
+    for (int i = 0; i < 64; i++) {
+        if (!((pinRules.exists >> i) & 1)) continue;
+        if (esp_gpio_is_reserved(BIT64(i))) pinRules.reserved |= BIT64(i);
+        // The same lookup Battery uses to read the pin.
+        adc_unit_t unit;
+        adc_channel_t channel;
+        if (adc_oneshot_io_to_channel(i, &unit, &channel) == ESP_OK && unit == ADC_UNIT_1) pinRules.adc1 |= BIT64(i);
+    }
     // Two halves: newlib nano printf has no %llx.
     Log.printf("Flash/PSRAM GPIO mask: 0x%08lx%08lx\n", (unsigned long)(pinRules.reserved >> 32), (unsigned long)pinRules.reserved);
+    Log.printf("ADC1 GPIO mask: 0x%08lx%08lx\n", (unsigned long)(pinRules.adc1 >> 32), (unsigned long)pinRules.adc1);
     esp_vfs_spiffs_conf_t conf = {};
     conf.base_path = BASE;
     conf.partition_label = "spiffs";
@@ -432,6 +444,7 @@ static long pin(const std::string& name, PinUse use, long init, const char* labe
 }
 long pinInput(const std::string& name, long init, const char* label) { return pin(name, PinUse::Input, init, label); }
 long pinOutput(const std::string& name, long init, const char* label) { return pin(name, PinUse::Output, init, label); }
+long pinAnalog(const std::string& name, long init, const char* label) { return pin(name, PinUse::Analog, init, label); }
 
 float floating(const std::string& name, float init, const char* /*label*/) {
     auto* p = add(Type::Float, name, toStr(init));
