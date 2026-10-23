@@ -21,7 +21,8 @@ const OUT = path.resolve(process.env.ESPRESENSE_DOCS_IMAGES ?? path.join(UI_DIR,
 // Phone width at 2x: what the docs show, and how the device UI is mostly used.
 const VIEWPORT = { width: 430, height: 900 };
 
-// Representative hardware settings for the docs: a node with a couple of sensors wired up.
+// Representative hardware settings for the docs: a node with a couple of sensors wired up. I2C
+// addresses are left unset so the page shows their placeholder hints.
 const hardware = {
 	values: {
 		leds: [{ type: 'pwm', pin: 2, control: 'status' }],
@@ -38,23 +39,15 @@ const hardware = {
 		I2C_Bus_2_SCL: '-1',
 		I2CDebug: false,
 		AHTX0_I2c_Bus: '1',
-		AHTX0_I2c: '0x38',
 		BH1750_I2c_Bus: '1',
-		BH1750_I2c: '0x23',
 		BME280_I2c_Bus: '1',
-		BME280_I2c: '0x76',
 		BMP180_I2c_Bus: '1',
-		BMP180_I2c: '0x77',
 		BMP280_I2c_Bus: '1',
-		BMP280_I2c: '0x76',
 		SHT_I2c_Bus: '1',
 		TSL2561_I2c_Bus: '1',
-		TSL2561_I2c: '0x39',
 		TSL2561_I2c_Gain: 'auto',
 		SGP30_I2c_Bus: '1',
-		SGP30_I2c: '0x58',
 		SCD4x_I2c_Bus: '1',
-		SCD4x_I2c: '0x62',
 		HX711_sckPin: '-1',
 		HX711_doutPin: '-1',
 		ds18b20_pin: '-1',
