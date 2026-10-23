@@ -52,7 +52,7 @@ export interface ExtraSettings {
         [key: string]: any;
     };
     /** GPIOs this chip lets a setting use (not flash/PSRAM); inputOnly ones can't drive a level */
-    pins?: { usable: number[]; inputOnly: number[] };
+    pins?: { usable: number[]; inputOnly: number[]; adc1?: number[] };
 }
 
 export interface WebSocketCommand {

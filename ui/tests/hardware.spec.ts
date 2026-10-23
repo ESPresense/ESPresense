@@ -301,8 +301,22 @@ test.describe('Hardware Settings Page', () => {
 		const dht11 = page.getByLabel('DHT11 sensor pin');
 		await expect(dht11.locator('option').first()).toHaveText('Default (off)');
 		await expect(dht11.locator('option', { hasText: 'GPIO 34' })).toHaveCount(0);
+		// No pins.adc1 (older firmware): the battery pin is offered like any input.
 		await expect(page.getByLabel('Voltage pin').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
 		await expect(page.locator('option', { hasText: '-1' })).toHaveCount(0);
+	});
+
+	test('the battery pin picker offers only ADC1 pins', async ({ page }) => {
+		const pins = { usable: [0, 2, 4, 5, 12, 13, 14, 15, 32, 33, 34, 35], inputOnly: [34, 35], adc1: [35, 32, 33, 34] };
+		await page.route('**/wifi/hardware', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ...mockHardwareSettings, pins }) })
+		);
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.getByLabel('Voltage pin').locator('option')).toHaveText(['Default (off)', 'Off', 'GPIO 32', 'GPIO 33', 'GPIO 34', 'GPIO 35']);
+		// Other inputs still get every input-capable pin.
+		await expect(pinOf(page, 'Input 1:').locator('option', { hasText: 'GPIO 13' })).toHaveCount(1);
 	});
 
 	test('a stored pin the node does not offer stays shown, marked', async ({ page }) => {
@@ -458,9 +472,9 @@ test.describe('Hardware Settings Page', () => {
 		await expect(address.locator('input')).toHaveValue('0x38');
 		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39');
 
-		// The voltage pin cannot hold a placeholder (a select shows its option), so its note sits under the box.
+		// The voltage pin's picker only offers ADC1 pins; its label says why.
 		const voltagePin = page.locator('label', { has: page.locator('select[name="batt_pin"]') });
-		await expect(voltagePin).toContainText('ADC1 only');
+		await expect(voltagePin).toContainText('ADC1');
 	});
 });
 
