@@ -188,6 +188,7 @@ static const char* chipModel() {
         case CHIP_ESP32C3: return "ESP32-C3";
         case CHIP_ESP32C6: return "ESP32-C6";
         case CHIP_ESP32H2: return "ESP32-H2";
+        case CHIP_ESP32S31: return "ESP32-S31";
         default: return "ESP32";
     }
 }

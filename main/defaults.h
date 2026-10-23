@@ -77,6 +77,10 @@
 #define DEFAULT_MAX_FINGERPRINTS 100
 #elif defined(ESP32C6)
 #define DEFAULT_MAX_FINGERPRINTS 200
+#elif defined(ESP32S31)
+// S31: dual core like the S3, 512 KB HP SRAM like the C6, plus PSRAM. Untested on hardware;
+// start at the S3's value.
+#define DEFAULT_MAX_FINGERPRINTS 150
 #else
 #define DEFAULT_MAX_FINGERPRINTS 45
 #endif

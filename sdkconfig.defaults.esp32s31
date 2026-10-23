@@ -1,0 +1,18 @@
+# ESP32-S31 (IDF preview target; build.sh passes --preview). Dual core like the S3.
+CONFIG_BT_NIMBLE_PINNED_TO_CORE_1=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
+# BLE-only controller: the S31 controller is dual-mode, and we never use BR/EDR.
+CONFIG_BTDM_CTRL_MODE_BLE_ONLY=y
+# We scan with filter_duplicates=0; the controller dedup cache is dead weight.
+CONFIG_BT_LE_SCAN_DUPL=n
+
+# 8 MB flash layout (partitions_8mb.csv, 4032 KB OTA slots): the S31 image is ~1863 KB, under 60 KB
+# short of the 4 MB table's 1920 KB slots. ESP-Mosaico has 16 MB; 8 MB also fits smaller modules.
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_8mb.csv"
+
+# In-package PSRAM (ESP32-S31NRV16 on ESP-Mosaico: 16 MB). Large allocations go there via
+# malloc; boot carries on without it on PSRAM-less parts.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_USE_MALLOC=y
+CONFIG_SPIRAM_IGNORE_NOTFOUND=y

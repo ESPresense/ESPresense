@@ -12,8 +12,21 @@ git clone -b v6.1 --recursive https://github.com/espressif/esp-idf ~/esp/esp-idf
 ```
 
 `build.sh <env>` picks the chip target and sdkconfig fragments for a firmware variant
-(`esp32`, `esp32c3`, `esp32c3-cdc`, `esp32c6`, `esp32s3`, `*-verbose`, ...); `envs.cmake` maps the variant to compile definitions. Anything after the
+(`esp32`, `esp32c3`, `esp32c3-cdc`, `esp32c6`, `esp32s3`, `esp32s31`, `*-verbose`, ...); `envs.cmake` maps the variant to compile definitions. Anything after the
 variant name is passed to `idf.py`.
+
+### ESP32-S31 (preview)
+
+```sh
+~/esp/esp-idf/install.sh esp32s31
+./build.sh esp32s31                               # build/esp32s31/espresense.bin
+```
+
+The S31 is still a preview target in IDF 6.1; `build.sh` adds `idf.py --preview` for the
+`esp32s31*` variants. It uses an 8 MB layout (`partitions_8mb.csv`, 4032 KB OTA slots) and enables
+the in-package PSRAM. There is no `-cdc` variant: the S31's USB-Serial/JTAG sits on dedicated pins,
+not the OTG D+/D- that single-USB boards wire to their connector, and IDF has no USB-OTG CDC
+console for it yet (espressif/esp-idf#18992). Ethernet is not enabled on the S31.
 
 ## Flashing and monitoring
 
@@ -27,7 +40,8 @@ The `-cdc` variants add `sdkconfig.cdc`, which routes the console over the nativ
 ## Firmware size budget
 
 Flash is 4 MB with a dual-OTA layout (`partitions_singleapp.csv`): `app0` and `app1` are each
-`0x1E0000` (1920 KB), and each must hold a complete image. CI (`build.yml`) fails any variant
+`0x1E0000` (1920 KB), and each must hold a complete image. The `esp32s31*` variants use 8 MB
+(`partitions_8mb.csv`, `0x3F0000` = 4032 KB slots). CI (`build.yml`) fails any variant
 whose `espresense.bin` exceeds that, so read the byte-count line `idf.py` prints at the end of
 a build when adding sensors or UI features.
 
@@ -51,7 +65,7 @@ the PR labels from `.github/pr-labeler.yml` (branch prefixes `feature/*`/`feat/*
 `major`/`minor`/`patch`, defaulting to patch. Only label a PR if its branch prefix didn't
 already set one.
 
-Publishing is a tag push. `build.yml` builds all 15 variants, enforces the 1920 KB size gate,
+Publishing is a tag push. `build.yml` builds every matrix variant, enforces the per-variant size gate,
 and, on a `v*` tag, attaches every `<env>.bin` to the GitHub release via
 `softprops/action-gh-release`. `FW_VERSION`/`FW_BRANCH` are baked into the firmware (see
 `envs.cmake`): on a tag, `FW_VERSION` is the tag itself; on `main`/PRs it's the short SHA.
