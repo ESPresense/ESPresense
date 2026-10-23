@@ -159,6 +159,7 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF;
+    int8_t rssiOffset = 0;  // the rx_offset_rssi rssi was computed with, so rawRssi = rssi - rssiOffset
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
 

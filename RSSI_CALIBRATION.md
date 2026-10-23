@@ -62,8 +62,10 @@ default pins for its chip (21/22, or 19/18 on the C3).
   defaults, and v5's default is 0 on every chip. A Companion that hasn't been updated keeps
   calibrating v5 nodes correctly. Log a deprecation line on use; remove the
   alias in a later major version.
-- **Reports keep `rxAdj` in the old convention** (`rxAdj = -rx_offset_rssi`), so the Companion's
-  existing `rssi + rxAdj - candidate` arithmetic keeps working. They add `rxOffset`.
+- **Reports carry `rssi` (corrected, `raw + rx_offset_rssi`) and `rawRssi`** (the same smoothed
+  reading before the offset), and no longer `rxAdj` or `rxOffset`. `distance` follows from `rssi`.
+  The Companion derives the old `rxAdj` as `rawRssi - rssi`, the same in both conventions
+  (ESPresense-companion#1769), so it must be updated before v5.0.0.
 - **The node publishes `rx_offset_rssi`** as a retained room setting. It stops publishing
   `rx_adj_rssi`, so the Companion can tell which convention a node uses from what it reports.
 - **Templates use `rx_offset_rssi`.** A template carrying `rx_adj_rssi` is converted the same way as
@@ -86,9 +88,11 @@ only from such a measurement, noting the board, antenna, reference board and dis
 
 ## The Companion
 
-When a node reports `rx_offset_rssi`, the Companion writes `rx_offset_rssi` and shows the offset in the new
-convention; otherwise it keeps writing `rx_adj_rssi` (v4 and v5 betas). Its fitting keeps
-working on `rxAdj` throughout, so this can ship after v5.0.0.
+When a node reports `rx_offset_rssi`, the Companion writes and resets `rx_offset_rssi`; otherwise
+it keeps writing `rx_adj_rssi` (v4 and v5 betas). Its fitting keeps working in the subtracted
+convention throughout, taking `rxAdj` from reports that have it and `rawRssi - rssi` from those
+that don't. Reports no longer carry `rxAdj`, so this ships before v5.0.0
+(ESPresense-companion#1769).
 
 ## Documentation
 
@@ -105,4 +109,5 @@ absorption's direction right: a higher absorption gives a shorter distance beyon
   distances are unchanged across the upgrade.
 - **Alias:** `rx_adj_rssi/set` 7 stores `rx_offset_rssi` -7; an empty payload resets `rx_offset_rssi`
   to 0; a template with `rx_adj_rssi` converts the same way.
-- **Reports:** `rxAdj` equals `-rx_offset_rssi` and `rxOffset` equals `rx_offset_rssi`.
+- **Reports:** `rawRssi` equals `rssi - rx_offset_rssi` for the offset `rssi` was computed with,
+  even if the offset changes before the report goes out; no `rxAdj` or `rxOffset`.

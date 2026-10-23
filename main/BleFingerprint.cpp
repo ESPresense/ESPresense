@@ -42,7 +42,8 @@ BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
     raw = advertisedDevice->getRSSI();
-    rssi = raw + BleFingerprintCollection::rxOffsetRssi;
+    rssiOffset = BleFingerprintCollection::rxOffsetRssi;
+    rssi = raw + rssiOffset;
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
     seenCount = 1;
     queryReport = nullptr;
@@ -51,6 +52,7 @@ BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
+    rssiOffset = other.rssiOffset;
     rssiVar = other.rssiVar;
     dist = other.dist;
     distVar = other.distVar;
@@ -434,6 +436,7 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
     // changing rx_offset_rssi moves the whole window at once instead of mixing two calibrations
     // until it refills. A constant shift doesn't change the fenced mean or the variance.
     int8_t offset = BleFingerprintCollection::rxOffsetRssi;
+    rssiOffset = offset;
     adaptivePercentileRSSI->addMeasurement(raw);
     rssi = adaptivePercentileRSSI->getMedianIQR() + offset;
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();
@@ -458,9 +461,8 @@ bool BleFingerprint::fill(JsonObject *doc) {
     auto refRssi = get1mRssi();
     if (refRssi > NO_RSSI) (*doc)["rssi@1m"] = refRssi;
     if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rssi"] = serialized(toStr(rssi));
-    // rxAdj keeps the old subtracted convention for Companion versions that read it.
-    (*doc)["rxAdj"] = -BleFingerprintCollection::rxOffsetRssi;
-    (*doc)["rxOffset"] = BleFingerprintCollection::rxOffsetRssi;
+    // rssi is corrected by rx_offset_rssi; rawRssi is the same smoothed reading before it.
+    if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rawRssi"] = serialized(toStr(rssi - rssiOffset));
     if (isnormal(rssiVar)) (*doc)["rssiVar"] = serialized(toStr(rssiVar));
 
     if (isnormal(dist) || dist == 0) (*doc)["distance"] = serialized(toStr(dist));
