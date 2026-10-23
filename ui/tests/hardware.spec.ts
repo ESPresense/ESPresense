@@ -301,7 +301,7 @@ test.describe('Hardware Settings Page', () => {
 		const dht11 = page.getByLabel('DHT11 sensor pin');
 		await expect(dht11.locator('option').first()).toHaveText('Default (off)');
 		await expect(dht11.locator('option', { hasText: 'GPIO 34' })).toHaveCount(0);
-		await expect(page.getByLabel('Voltage pin (ADC1 only)').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
+		await expect(page.getByLabel('Voltage pin').locator('option', { hasText: 'GPIO 34' })).toHaveCount(1);
 		await expect(page.locator('option', { hasText: '-1' })).toHaveCount(0);
 	});
 
@@ -447,6 +447,20 @@ test.describe('Hardware Settings Page', () => {
 
 		await expect(pinOf(page, 'LED 1:')).toBeVisible();
 		await expect(typeOf(page, 'LED 1:')).toBeVisible();
+	});
+
+	test('hints are a placeholder or a note, never text over a saved value', async ({ page }) => {
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		// The I2C address hint is the placeholder: one saved value is written and the hint goes away with it.
+		const address = page.locator('label', { has: page.locator('input[name="AHTX0_I2c"]') });
+		await expect(address.locator('input')).toHaveValue('0x38');
+		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39');
+
+		// The voltage pin cannot hold a placeholder (a select shows its option), so its note sits under the box.
+		const voltagePin = page.locator('label', { has: page.locator('select[name="batt_pin"]') });
+		await expect(voltagePin).toContainText('ADC1 only');
 	});
 });
 
