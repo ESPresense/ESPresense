@@ -679,7 +679,7 @@ test.describe('Hardware lists', () => {
 		const max = item(page, 'LED 1:').filter({ hasText: 'Max brightness' }).first().locator('input');
 		await expect(max).toHaveValue('255');
 		await typeOf(page, 'LED 1:').selectOption('grb');
-		await expect(max).toHaveValue('100');
+		await expect(max).toHaveValue('50');
 		await max.fill('128');
 
 		await page.locator('button[type="submit"]').click();
