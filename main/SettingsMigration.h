@@ -10,7 +10,7 @@
 // - v4's PIR, radar, button and switch settings become the inputs list.
 // - v4 had default I2C pins and v5 has none: a v4 node with an I2C sensor on bus 1 and no bus 1
 //   pins stored gets v4's default pins for its chip back.
-// A node with no WiFi configured is a fresh install: nothing to convert.
+// A node with no WiFi and no Ethernet configured is a fresh install: nothing to convert.
 #include <ArduinoJson.h>
 
 #include <cstdlib>
@@ -36,7 +36,7 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
         return v.empty() ? def : strtof(v.c_str(), nullptr);
     };
     auto finish = [&]() { put("v5_migrated", "1"); return done; };
-    if (get("wifi-ssid").empty()) return finish();
+    if (get("wifi-ssid").empty() && num("eth", 0) <= 0) return finish();
 
     // Receiver adjustment.
     if (get("rx_offset_rssi").empty()) {

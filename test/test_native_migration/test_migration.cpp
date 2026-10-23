@@ -15,11 +15,23 @@ static Store run(Store s, const MigrationDefaults& d = ESP32) {
 }
 static std::string at(const Store& s, const char* k) { auto i = s.find(k); return i == s.end() ? "" : i->second; }
 static Store configured(Store extra = {}) { extra["wifi-ssid"] = "home"; return extra; }
+static Store ethOnly(Store extra = {}, const char* type = "1") { extra["eth"] = type; return extra; }
 
 static void fresh_install_only_marks_itself() {
     Store s = run({}, S3);
     TEST_ASSERT_EQUAL_STRING("1", at(s, "v5_migrated").c_str());
     TEST_ASSERT_EQUAL(1, s.size());  // no rx_offset_rssi: a fresh S3 starts at 0
+}
+
+static void ethernet_only_node_still_converts() {
+    // No wifi-ssid but eth configured (Network::connect supports Ethernet without WiFi): not a fresh install.
+    Store s = run(ethOnly({{"rx_adj_rssi", "7"}}));
+    TEST_ASSERT_EQUAL_STRING("-7", at(s, "rx_offset_rssi").c_str());
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "v5_migrated").c_str());
+
+    // S3 Ethernet node (Waveshare W5500, eth=14) that never set rx_adj_rssi: the old implicit +20 default.
+    Store s3 = run(ethOnly({}, "14"), S3);
+    TEST_ASSERT_EQUAL_STRING("-20", at(s3, "rx_offset_rssi").c_str());
 }
 
 static void runs_once() {
@@ -80,6 +92,7 @@ static void v4_i2c_defaults_come_back_for_sensors_on_bus_1() {
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
+    RUN_TEST(ethernet_only_node_still_converts);
     RUN_TEST(runs_once);
     RUN_TEST(receiver_adjustment_is_negated);
     RUN_TEST(v5_beta_node_only_converts_the_offset);
