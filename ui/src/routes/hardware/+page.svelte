@@ -186,11 +186,14 @@
                 <span>AXP192 power chip (M5StickC): reads the battery from it instead of a pin. Needs I2C bus 2 on SDA 21 / SCL 22.</span>
             </label>
         </p>
-        <div class="grid grid-cols-1 gap-x-4 sm:grid-cols-3">
+        <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-3">
             <p>
                 <label>
-                    Voltage pin (ADC1 only):<br />
-                    <PinSelect input class="w-full" name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
+                    Voltage pin:<br />
+                    <span class="relative block">
+                <PinSelect input class="peer w-full" name="batt_pin" fallback={$hardwareSettings.defaults['batt_pin']} bind:value={$hardwareSettings.values['batt_pin']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-10 flex items-center text-sm text-gray-400">ADC1 only</span>
+            </span>
                 </label>
             </p>
             <p>
@@ -205,7 +208,7 @@
                 <label>
                     Type:<br />
                     <select name="batt_type" bind:value={$hardwareSettings.values['batt_type']}>
-                        <option value="0">Li-ion (1 cell)</option>
+                        <option value="0">Li-ion</option>
                         <option value="1">12V lead-acid</option>
                     </select>
                 </label>
@@ -304,7 +307,7 @@
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
         <h4>Bus 1:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 SDA pin:<br />
@@ -319,7 +322,7 @@
             </p>
         </div>
         <h4>Bus 2:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 SDA pin:<br />
@@ -343,7 +346,7 @@
             <a href="https://espresense.com/configuration/settings#i2c-sensors" target="_blank">I2C Sensors</a>
         </h2>
         <h4>AHTX0 - Temperature + Humidity Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -359,13 +362,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x38 or 0x39):<br />
-                <input name="AHTX0_I2c" bind:value={$hardwareSettings.values['AHTX0_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="AHTX0_I2c" bind:value={$hardwareSettings.values['AHTX0_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x38 or 0x39</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>BH1750 - Ambient Light Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -381,13 +387,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x23 or 0x5C):<br />
-                <input name="BH1750_I2c" bind:value={$hardwareSettings.values['BH1750_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="BH1750_I2c" bind:value={$hardwareSettings.values['BH1750_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x23 or 0x5C</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>BME280 - Humidity + Temp + Pressure Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -403,13 +412,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x76 or 0x77):<br />
-                <input name="BME280_I2c" bind:value={$hardwareSettings.values['BME280_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="BME280_I2c" bind:value={$hardwareSettings.values['BME280_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>BMP085/BMP180 - Barometric Pressure + Temperature:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -425,13 +437,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x77):<br />
-                <input name="BMP180_I2c" bind:value={$hardwareSettings.values['BMP180_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="BMP180_I2c" bind:value={$hardwareSettings.values['BMP180_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x77</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>BMP280 - Barometric Pressure + Temperature Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -447,8 +462,11 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x76 or 0x77):<br />
-                <input name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="BMP280_I2c" bind:value={$hardwareSettings.values['BMP280_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x76 or 0x77</span>
+            </span>
             </label>
             </p>
         </div>
@@ -467,7 +485,7 @@
             </label>
         </p>
         <h4>TSL2561 - Ambient Light Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -483,22 +501,28 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x39, 0x49 or 0x29):<br />
-                <input name="TSL2561_I2c" bind:value={$hardwareSettings.values['TSL2561_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="TSL2561_I2c" bind:value={$hardwareSettings.values['TSL2561_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x39, 0x49 or 0x29</span>
+            </span>
             </label>
             </p>
         </div>
         <p>
             <label>
-                Gain (auto, 1x or 16x):<br />
-                <input
+                Gain:<br />
+                <span class="relative block">
+                <input class="peer"
                     name="TSL2561_I2c_Gain"
                     placeholder={$hardwareSettings.defaults['TSL2561_I2c_Gain']}
                     bind:value={$hardwareSettings.values['TSL2561_I2c_Gain']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">auto, 1x or 16x</span>
+            </span>
             </label>
         </p>
         <h4>SGP30 - Air Quality Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -514,13 +538,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x58):<br />
-                <input name="SGP30_I2c" bind:value={$hardwareSettings.values['SGP30_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="SGP30_I2c" bind:value={$hardwareSettings.values['SGP30_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x58</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>SCD4x - CO₂, Temperature and Humidity Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 I2C Bus:<br />
@@ -536,13 +563,16 @@
             </p>
             <p class="mb-0 min-w-0 flex-1">
             <label>
-                I2C address (0x62):<br />
-                <input name="SCD4x_I2c" bind:value={$hardwareSettings.values['SCD4x_I2c']}/>
+                I2C address:<br />
+                <span class="relative block">
+                <input class="peer" name="SCD4x_I2c" bind:value={$hardwareSettings.values['SCD4x_I2c']}/>
+                <span class="pointer-events-none peer-focus:hidden absolute inset-y-0 right-4 flex items-center text-sm text-gray-400">0x62</span>
+            </span>
             </label>
             </p>
         </div>
         <h4>HX711 - Weight Sensor:</h4>
-        <div class="mb-4 flex gap-4">
+        <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>
                 HX711 SCK (Clock) pin:<br />
