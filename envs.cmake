@@ -3,7 +3,8 @@
 set(FW_DEFS "FIRMWARE=\"${FW_ENV}\"" SENSORS)
 
 if(FW_ENV MATCHES "-verbose$")
-  list(APPEND FW_DEFS LOG_LEVEL_DEBUG)
+  # Not LOG_LEVEL_DEBUG: IDF 6's NimBLE log_common.h defines that name.
+  list(APPEND FW_DEFS FW_LOG_DEBUG)
 endif()
 
 if(FW_ENV MATCHES "^esp32c3")

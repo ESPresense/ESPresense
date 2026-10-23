@@ -1,9 +1,9 @@
 # Building
 
-ESPresense is a plain [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) (v5.4) project.
+ESPresense is a plain [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) (v6.1) project.
 
 ```sh
-git clone -b v5.4.4 --recursive https://github.com/espressif/esp-idf ~/esp/esp-idf
+git clone -b v6.1 --recursive https://github.com/espressif/esp-idf ~/esp/esp-idf
 ~/esp/esp-idf/install.sh esp32,esp32c3,esp32s3,esp32c6
 . ~/esp/esp-idf/export.sh
 

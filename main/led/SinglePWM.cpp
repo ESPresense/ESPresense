@@ -1,6 +1,5 @@
 #include "SinglePWM.h"
 
-#include "esp_private/periph_ctrl.h"
 #include "soc/soc_caps.h"
 
 #include <cmath>
@@ -28,12 +27,9 @@ SinglePWM::SinglePWM(uint8_t index, ControlType controlType, bool inverted, int 
 void SinglePWM::init() {
     // After a software reset the ESP32 keeps the LEDC channel's duty_start bit set with its
     // timer stopped, and ledc_ll_set_duty_start() spins on that bit forever inside a critical
-    // section (Interrupt WDT in HIL 1274). Start from a clean peripheral.
-    static bool reset = false;
-    if (!reset) {
-        reset = true;
-        periph_module_reset(PERIPH_LEDC_MODULE);
-    }
+    // section (Interrupt WDT in HIL 1274). IDF 6 dropped periph_module_reset(PERIPH_LEDC_MODULE);
+    // its LEDC driver now resets the peripheral itself (ledc_ll_reset_register) the first time
+    // the group is acquired, which is this ledc_timer_config() call.
     ledc_timer_config_t timer = {};
     timer.speed_mode = PWM_MODE;
     timer.duty_resolution = LEDC_TIMER_12_BIT;
@@ -46,7 +42,6 @@ void SinglePWM::init() {
     channel.gpio_num = pin;
     channel.speed_mode = PWM_MODE;
     channel.channel = (ledc_channel_t)LED::getIndex();
-    channel.intr_type = LEDC_INTR_DISABLE;
     channel.timer_sel = PWM_TIMER;
     channel.duty = 0;
     channel.hpoint = 0;

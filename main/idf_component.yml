@@ -1,6 +1,26 @@
 dependencies:
-  idf: ">=5.4"
+  idf: ">=6.0"
   bblanchon/arduinojson: "^6.21.6"
   espressif/led_strip: "^3.0.3"
   espressif/onewire_bus: "^1.1.1"
   espressif/ds18b20: "^0.4.0"
+  # IDF 6 moved MQTT and the Ethernet PHY / SPI-Ethernet drivers out of the IDF tree into the registry.
+  espressif/mqtt: "^1.0.0"
+  # RMII PHYs for the ESP32's EMAC boards (Network.cpp installRmii).
+  espressif/lan87xx:
+    version: "^1.0.0"
+    rules:
+      - if: "target in [esp32]"
+  espressif/ip101:
+    version: "^1.0.0"
+    rules:
+      - if: "target in [esp32]"
+  espressif/rtl8201:
+    version: "^1.0.0"
+    rules:
+      - if: "target in [esp32]"
+  # SPI Ethernet for the Waveshare ESP32-S3-ETH (Network.cpp installW5500).
+  espressif/w5500:
+    version: "^2.0.1"
+    rules:
+      - if: "target in [esp32s3]"

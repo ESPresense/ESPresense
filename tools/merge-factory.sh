@@ -9,4 +9,5 @@ DIR="build/$ENV"
 TARGET=$(sed -n 's/^CONFIG_IDF_TARGET="\(.*\)"$/\1/p' "$DIR/sdkconfig")
 cd "$DIR"
 # flash_args lists every image with its offset and the flash mode/freq/size the bootloader header needs.
-esptool.py --chip "$TARGET" merge_bin -o espresense.factory.bin @flash_args
+# esptool v5 (IDF 6): `esptool` / `merge-bin`; the `.py` / `merge_bin` spellings are deprecated.
+esptool --chip "$TARGET" merge-bin -o espresense.factory.bin @flash_args

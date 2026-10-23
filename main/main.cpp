@@ -348,8 +348,8 @@ void onMqttMessage(const char *topic, const char *payload) {
             changed = true;
         else if (Updater::Command(command, pay))
             changed = true;
-        else if (Outputs::Command(command, pay))
-            ;
+        else
+            Outputs::Command(command, pay);  // last handler; its result never sets `changed`
         if (changed) online = false;
     } else {
     skip:
@@ -499,7 +499,7 @@ void scanTask(void *parameter) {
  * starts the BLE scan task, and performs MQTT/reporting setup.
  */
 void setup() {
-#ifdef LOG_LEVEL_DEBUG
+#ifdef FW_LOG_DEBUG
     esp_log_level_set("*", ESP_LOG_DEBUG);
 #else
     esp_log_level_set("*", ESP_LOG_ERROR);

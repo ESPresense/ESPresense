@@ -1,7 +1,7 @@
 # Repo Guidelines for Agents
 
 * After modifying files under `ui`, execute `npm run build` in that folder to regenerate C++ headers under `main`.
-* Pure ESP-IDF v5.4 project: `. ~/esp/esp-idf/export.sh && ./build.sh <env>` (see BUILDING.md). No Arduino, no PlatformIO.
+* Pure ESP-IDF v6.1 project: `. ~/esp/esp-idf/export.sh && ./build.sh <env>` (see BUILDING.md). No Arduino, no PlatformIO.
 * Flash with `tools/flash.sh <env> <port> [seconds]`: it flashes, then captures the serial log
   (saved to `build/<env>/serial.log`). Always show the user the post-flash log output, and
   confirm the board booted before calling a flash done. `tools/serial_log.py <port> [seconds]`

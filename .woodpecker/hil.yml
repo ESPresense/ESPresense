@@ -95,7 +95,7 @@ steps:
       - touch /flood/done
 
   - name: test-esp32
-    image: espressif/idf:v5.4.4
+    image: espressif/idf:v6.1
     pull: true
     privileged: true
     depends_on: []
@@ -118,7 +118,7 @@ steps:
       - *hil_run
 
   - name: test-esp32c3
-    image: espressif/idf:v5.4.4
+    image: espressif/idf:v6.1
     pull: true
     privileged: true
     depends_on: []
@@ -141,7 +141,7 @@ steps:
       - *hil_run
 
   - name: test-esp32c6
-    image: espressif/idf:v5.4.4
+    image: espressif/idf:v6.1
     pull: true
     privileged: true
     depends_on: []
@@ -164,7 +164,7 @@ steps:
       - *hil_run
 
   - name: test-esp32s3
-    image: espressif/idf:v5.4.4
+    image: espressif/idf:v6.1
     pull: true
     privileged: true
     depends_on: []

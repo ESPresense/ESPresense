@@ -10,7 +10,7 @@ on:
     types: [published]
 
 env:
-  IDF_VERSION: v5.4.4
+  IDF_VERSION: v6.1
 
 jobs:
   build:
