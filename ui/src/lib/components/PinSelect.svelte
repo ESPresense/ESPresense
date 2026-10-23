@@ -17,11 +17,13 @@
         label?: string;
         /** The firmware only reads this pin, so input-only GPIOs are fine */
         input?: boolean;
+        /** The firmware reads this pin through ADC1 (e.g. a battery): only the node's ADC1 pins */
+        analog?: boolean;
         onchange?: (pin: number) => void;
         class?: string;
     }
 
-    let { value = $bindable(), fallback = -1, name, label, input = false, onchange, class: cls = 'w-auto' }: Props = $props();
+    let { value = $bindable(), fallback = -1, name, label, input = false, analog = false, onchange, class: cls = 'w-auto' }: Props = $props();
 
     const unset = (v: unknown) => v === undefined || v === null || v === '';
     const describe = (p: number) => (p >= 0 ? `GPIO ${p}` : 'off');
@@ -29,7 +31,9 @@
     const usable = $derived.by(() => {
         const pins = $hardwareSettings?.pins;
         if (!pins) return Array.from({ length: 49 }, (_, i) => i);
-        return pins.usable.filter((p) => input || !pins.inputOnly.includes(p)).sort((a, b) => a - b);
+        // Firmware before pins.adc1 sends no list; then an analog pin is offered like any input.
+        if (analog && pins.adc1) return [...pins.adc1].sort((a, b) => a - b);
+        return pins.usable.filter((p) => input || analog || !pins.inputOnly.includes(p)).sort((a, b) => a - b);
     });
     // A stored pin the list doesn't offer (e.g. set on another chip) stays shown, marked, rather
     // than silently changing.

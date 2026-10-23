@@ -32,7 +32,8 @@ enum class SettingType { Dropdown, String, Password, Int, Float, Bool, Json };
 
 // How a setting uses a GPIO. Output covers anything the chip drives, including two-way buses
 // (I2C, 1-Wire, DHT), so an input-only pin can't take it.
-enum class PinUse : uint8_t { None, Input, Output };
+// Analog is an input read through ADC1 (ADC2 is shared with WiFi), so it needs an ADC1 channel.
+enum class PinUse : uint8_t { None, Input, Output, Analog };
 // A Json setting's members holding GPIOs, e.g. {{"pin", PinUse::Output}}.
 using PinFields = std::vector<std::pair<std::string, PinUse>>;
 
@@ -55,6 +56,7 @@ struct PinRules {
     uint64_t exists = ~0ULL;    // GPIOs the chip has
     uint64_t reserved = 0;      // taken by the flash or PSRAM
     uint64_t output = ~0ULL;    // GPIOs that can drive a level
+    uint64_t adc1 = ~0ULL;      // GPIOs with an ADC1 channel
 };
 
 // Why `pin` can't serve `use` on this chip, or "" when it can. Negative means disabled: fine.
@@ -65,6 +67,7 @@ inline std::string pinProblem(long pin, PinUse use, const PinRules& r) {
     if (pin < 0 || pin > 63 || !((r.exists >> pin) & 1)) return gpio + " doesn't exist on this chip";
     if ((r.reserved >> pin) & 1) return gpio + " is used by the flash or PSRAM";
     if (use == PinUse::Output && !((r.output >> pin) & 1)) return gpio + " is input-only";
+    if (use == PinUse::Analog && !((r.adc1 >> pin) & 1)) return gpio + " has no ADC1 channel";
     return "";
 }
 

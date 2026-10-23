@@ -1,22 +1,26 @@
 #!/usr/bin/env node
 /**
- * Capture the web-UI screenshots used by the docs site (ESPresense.com, public/images/).
+ * Capture the web-UI screenshots used by the docs site (ESPresense.com, public/images/): Hardware,
+ * Network, Settings, and the Calibration part of Settings.
  *
  *   npm run screenshots
  *
- * Starts `vite dev` unless one is already running on BASE. Every endpoint a captured page reads is
+ * Starts its own `vite dev` on a free port, so the shots always come from this checkout (another
+ * worktree's dev server on a fixed port would otherwise be reused silently). Set ESPRESENSE_UI_URL
+ * to capture from a server you started yourself instead. Every endpoint a captured page reads is
  * mocked, so no node is needed and a bench node's leftover configuration never ends up in the docs.
  * Writes to ../../ESPresense.com/public/images (the docs repo as a sibling of this one); set
  * ESPRESENSE_DOCS_IMAGES to write somewhere else.
  */
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import net from 'node:net';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const UI_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const BASE = process.env.ESPRESENSE_UI_URL ?? 'http://localhost:5199';
+let BASE = process.env.ESPRESENSE_UI_URL;
 const OUT = path.resolve(process.env.ESPRESENSE_DOCS_IMAGES ?? path.join(UI_DIR, '../../ESPresense.com/public/images'));
 // Phone width at 2x: what the docs show, and how the device UI is mostly used.
 const VIEWPORT = { width: 430, height: 900 };
@@ -81,10 +85,12 @@ const hardware = {
 		HX711_sckPin: '-1',
 		HX711_doutPin: '-1'
 	},
-	// A plain ESP32's usable GPIOs (no flash/PSRAM pins); input-only ones are listed separately.
+	// A plain ESP32's usable GPIOs (no flash/PSRAM pins); input-only ones are listed separately,
+	// and adc1 is what the battery picker offers.
 	pins: {
 		usable: [2, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 21, 22, 23, 25, 26, 27, 32, 33, 34, 35, 36, 39],
-		inputOnly: [34, 35, 36, 39]
+		inputOnly: [34, 35, 36, 39],
+		adc1: [32, 33, 34, 35, 36, 39]
 	}
 };
 
@@ -126,6 +132,18 @@ const network = {
 	pins
 };
 
+// Representative Settings page values: the firmware defaults, plus counting enabled for IRKs.
+// Both receiver-adjustment names are present, so the shot works before and after rx_offset_rssi.
+const extras = {
+	values: { count_ids: 'irk:' },
+	defaults: {
+		known_macs: '', known_irks: '', forget_ms: 150000, max_fingerprints: 100, query: '', requery_ms: 300,
+		count_ids: '', count_enter: 2, count_exit: 4, count_ms: 10000, include: '', exclude: '', max_dist: 16,
+		skip_dist: 0.5, skip_ms: 5000, rssi_window_ms: 15000, ref_rssi: -65, rx_adj_rssi: 0, rx_offset_rssi: 0,
+		absorption: 2.7, tx_ref_rssi: -59
+	}
+};
+
 // What the node's WiFi scan sees: SSID -> RSSI, the node's own network strongest.
 const wifiNetworks = {
 	MyNetwork: -48,
@@ -137,10 +155,18 @@ const wifiNetworks = {
 
 /**
  * One entry per docs screenshot. `feed` maps a URL pattern to the JSON the page should see;
- * /json (page chrome) is always mocked and the websocket is refused.
+ * /json (page chrome) is always mocked and the websocket is refused. `crop` keeps only the part
+ * from 12 px above the first selector down to the top of the second (which is left out).
  */
 const SHOTS = [
 	{ route: '/hardware', file: 'hardware_screen.png', feed: { '**/wifi/hardware*': hardware } },
+	{ route: '/settings', file: 'settings_screen.png', feed: { '**/wifi/extras*': extras } },
+	{
+		route: '/settings',
+		file: 'calibration_screen.png',
+		feed: { '**/wifi/extras*': extras },
+		crop: ['h2:has-text("Calibration")', 'button[type="submit"]']
+	},
 	{
 		route: '/network',
 		file: 'network_screen.png',
@@ -162,10 +188,28 @@ async function waitForServer(url, timeoutMs = 90_000) {
 	return false;
 }
 
+/** A TCP port nothing is listening on. */
+function freePort() {
+	return new Promise((resolve, reject) => {
+		const srv = net.createServer();
+		srv.unref();
+		srv.on('error', reject);
+		srv.listen(0, '127.0.0.1', () => {
+			const { port } = srv.address();
+			srv.close(() => resolve(port));
+		});
+	});
+}
+
 async function ensureDevServer() {
-	if (await waitForServer(BASE, 1500)) return null;
+	if (BASE) {
+		if (!(await waitForServer(BASE, 1500))) throw new Error(`ESPRESENSE_UI_URL ${BASE} is not answering`);
+		return null;
+	}
+	const port = await freePort();
+	BASE = `http://localhost:${port}`;
 	// Run vite itself rather than through npx, so kill() stops the server and not just a wrapper.
-	const child = spawn(path.join(UI_DIR, 'node_modules/.bin/vite'), ['dev', '--port', new URL(BASE).port, '--strictPort'], {
+	const child = spawn(path.join(UI_DIR, 'node_modules/.bin/vite'), ['dev', '--port', String(port), '--strictPort'], {
 		cwd: UI_DIR,
 		stdio: 'inherit'
 	});
@@ -193,7 +237,7 @@ async function mockDevice(page, feed = {}) {
  * The app scrolls inside <main>, not the document, so `fullPage` only ever sees one viewport.
  * Grow the viewport to the content instead: that keeps the phone layout while capturing all of it.
  */
-async function shoot(page, route, file) {
+async function shoot(page, route, file, crop) {
 	// Reset first: a previous shot left the viewport as tall as its content, which would make
 	// scrollHeight report that height instead of this page's.
 	await page.setViewportSize(VIEWPORT);
@@ -213,6 +257,16 @@ async function shoot(page, route, file) {
 	await page.waitForTimeout(200);
 
 	const target = path.join(OUT, file);
+	if (crop) {
+		const top = await page.locator(crop[0]).first().boundingBox();
+		const end = await page.locator(crop[1]).first().boundingBox();
+		const y = Math.max(0, top.y - 12);
+		// Ends at the top of the second element: the Save button isn't part of the docs image.
+		const clip = { x: 0, y, width: viewport.width, height: end.y - y };
+		await page.screenshot({ path: target, clip });
+		console.log(`${file}  ${viewport.width}x${Math.round(clip.height)} (cropped)`);
+		return;
+	}
 	await page.screenshot({ path: target, fullPage: true });
 	console.log(`${file}  ${viewport.width}x${Math.ceil(contentHeight)}`);
 }
@@ -228,9 +282,9 @@ async function shoot(page, route, file) {
 			colorScheme: 'light'
 		});
 		const page = await context.newPage();
-		for (const { route, file, feed } of SHOTS) {
+		for (const { route, file, feed, crop } of SHOTS) {
 			await mockDevice(page, feed);
-			await shoot(page, route, file);
+			await shoot(page, route, file, crop);
 			await page.unrouteAll({ behavior: 'ignoreErrors' });
 		}
 	} finally {
