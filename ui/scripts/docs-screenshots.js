@@ -156,7 +156,7 @@ const wifiNetworks = {
 /**
  * One entry per docs screenshot. `feed` maps a URL pattern to the JSON the page should see;
  * /json (page chrome) is always mocked and the websocket is refused. `crop` keeps only the part
- * from the first selector down to the second.
+ * from 12 px above the first selector down to the top of the second (which is left out).
  */
 const SHOTS = [
 	{ route: '/hardware', file: 'hardware_screen.png', feed: { '**/wifi/hardware*': hardware } },
@@ -260,7 +260,9 @@ async function shoot(page, route, file, crop) {
 	if (crop) {
 		const top = await page.locator(crop[0]).first().boundingBox();
 		const end = await page.locator(crop[1]).first().boundingBox();
-		const clip = { x: 0, y: Math.max(0, top.y - 12), width: viewport.width, height: end.y - top.y };
+		const y = Math.max(0, top.y - 12);
+		// Ends at the top of the second element: the Save button isn't part of the docs image.
+		const clip = { x: 0, y, width: viewport.width, height: end.y - y };
 		await page.screenshot({ path: target, clip });
 		console.log(`${file}  ${viewport.width}x${Math.round(clip.height)} (cropped)`);
 		return;
