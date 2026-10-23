@@ -6,7 +6,7 @@
 //
 // Setting names are unique across endpoints, so "settings" is flat and may name any configuration
 // setting; a full backup (#2493) can use the same shape. chip is the lowercase
-// chip name ("esp32", "esp32c3", "esp32c6", "esp32s3"); when present it must match the node
+// chip name ("esp32", "esp32c3", "esp32c6", "esp32s3", "esp32s31"); when present it must match the node
 // exactly. It is required only when the template sets a pin, since pin numbers mean different
 // things on each chip. Without pins (e.g. an add-on sensor's address and bus) a template fits any
 // node. Every pin is also checked against the running chip: it must exist, not belong to the
