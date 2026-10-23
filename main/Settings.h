@@ -24,6 +24,8 @@ long integer(const std::string& name, long min, long max, long init = 0, const c
 // lists the usable GPIOs as pins.
 long pinInput(const std::string& name, long init = -1, const char* label = "");
 long pinOutput(const std::string& name, long init = -1, const char* label = "");
+// A GPIO read through ADC1 (e.g. a battery voltage): refused unless the pin has an ADC1 channel.
+long pinAnalog(const std::string& name, long init = -1, const char* label = "");
 float floating(const std::string& name, float init = 0, const char* label = "");
 float floating(const std::string& name, long min, long max, float init = 0, const char* label = "");
 bool checkbox(const std::string& name, bool init = false, const char* label = "");

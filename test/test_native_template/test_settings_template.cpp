@@ -15,7 +15,7 @@ namespace {
 std::map<std::string, SettingSpec> registry() {
     std::map<std::string, SettingSpec> r;
     r["led_1_pin"] = {SettingType::Int, -1, 48, 0, PinUse::Output};
-    r["batt_pin"] = {SettingType::Int, -1, 48, 0, PinUse::Input};
+    r["batt_pin"] = {SettingType::Int, -1, 48, 0, PinUse::Analog};
     r["led_1_type"] = {SettingType::Dropdown, LONG_MIN, LONG_MAX, 6};
     r["button_1_timeout"] = {SettingType::Float, 0, 300, 0};
     r["I2CDebug"] = {SettingType::Bool, LONG_MIN, LONG_MAX, 0};
@@ -42,6 +42,7 @@ PinRules esp32Pins() {
     p.exists = ((1ULL << 40) - 1) & ~((1ULL << 24) | (0xFULL << 28));
     p.reserved = 0x3FULL << 6;
     p.output = p.exists & ~(0x3FULL << 34);
+    p.adc1 = 0xFFULL << 32;  // GPIO 32-39
     return p;
 }
 
@@ -175,6 +176,10 @@ void test_pins_checked_against_the_chip(void) {
     r = parse(R"({"chip":"esp32","settings":{"led_1_pin":34}})", "esp32", p);
     TEST_ASSERT_EQUAL_STRING("led_1_pin: GPIO 34 is input-only", r.err.c_str());
     TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"batt_pin":34}})", "esp32", p).ok);
+    // The battery is read through ADC1: GPIO 13 (ADC2) can't take it.
+    Result adc = parse(R"({"chip":"esp32","settings":{"batt_pin":13}})", "esp32", p);
+    TEST_ASSERT_FALSE(adc.ok);
+    TEST_ASSERT_EQUAL_STRING("batt_pin: GPIO 13 has no ADC1 channel", adc.err.c_str());
     TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":-1}})", "esp32", p).ok);
 }
 
