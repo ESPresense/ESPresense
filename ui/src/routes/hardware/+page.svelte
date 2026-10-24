@@ -204,6 +204,7 @@
             </p>
             {/if}
         </div>
+        {#if !($hardwareSettings.values['batt_gauge_bus'] > 0)}
         <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-3">
             <p>
                 <label>
@@ -229,6 +230,7 @@
                 </label>
             </p>
         </div>
+        {/if}
         <h4>Energy meter:</h4>
         <input type="hidden" name="power" value={JSON.stringify(power)} />
         {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
