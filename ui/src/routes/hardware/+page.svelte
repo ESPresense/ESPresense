@@ -233,7 +233,7 @@
         {/if}
         <h4>Energy meter:</h4>
         <input type="hidden" name="power" value={JSON.stringify(power)} />
-        {@render choose('Chip (most relay plugs have one)', power.model ?? '', powerModels, (v) => setPower('model', v))}
+        {@render choose('Chip', power.model ?? '', powerModels, (v) => setPower('model', v))}
         {#if power.model === 'cse7766'}
             <p>
                 <label>
