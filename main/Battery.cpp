@@ -52,7 +52,7 @@ static int adcMilliVolts() {
 }
 
 // Refreshes the cached reading once READ_INTERVAL_MS has passed (or on the first call).
-static void read() {
+static void refresh() {
     if (lastRead && millis() - lastRead < READ_INTERVAL_MS) return;
     lastRead = millis();
     if (BQ27220::Ready()) {
@@ -133,7 +133,7 @@ void Setup() {
     caliCfg.bitwidth = ADC_BITWIDTH_12;
     if (adc_cali_create_scheme_line_fitting(&caliCfg, &cali) != ESP_OK) cali = nullptr;
 #endif
-    read();
+    refresh();
 }
 
 // By configuration, not by what has answered: discovery goes out once, when MQTT connects, and a
@@ -148,7 +148,7 @@ bool SendDiscovery() {
 
 void SendTelemetry() {
     if (!enabled()) return;
-    read();
+    refresh();
     if (lastMilliVolts < 0) return;  // gauge with no battery fitted, or nothing read yet
     doc["mV"] = lastMilliVolts;
     doc["batt"] = lastPercent >= 0 ? (unsigned int)lastPercent : liIonPercent(lastMilliVolts);

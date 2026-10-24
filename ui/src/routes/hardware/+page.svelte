@@ -192,8 +192,7 @@
                     </select>
                 </label>
             </p>
-            {#if $hardwareSettings.values['batt_gauge_bus'] > 0}
-            <p>
+            <p class:hidden={!($hardwareSettings.values['batt_gauge_bus'] > 0)}>
                 <label>
                     Gauge chip:<br />
                     <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
@@ -202,10 +201,9 @@
                     </select>
                 </label>
             </p>
-            {/if}
         </div>
-        {#if !($hardwareSettings.values['batt_gauge_bus'] > 0)}
-        <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-3">
+        <!-- Hidden, not removed: a save posts every field and the firmware clears any it doesn't get. -->
+        <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-3" class:hidden={$hardwareSettings.values['batt_gauge_bus'] > 0}>
             <p>
                 <label>
                     Voltage pin:<br />
@@ -230,7 +228,6 @@
                 </label>
             </p>
         </div>
-        {/if}
         <h4>Energy meter:</h4>
         <input type="hidden" name="power" value={JSON.stringify(power)} />
         {@render choose('Chip', power.model ?? '', powerModels, (v) => setPower('model', v))}

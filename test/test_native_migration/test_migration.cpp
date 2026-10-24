@@ -133,6 +133,8 @@ static void i2c_address_becomes_a_bus() {
 
 static void a_bus_without_an_address_was_off() {
     TEST_ASSERT_EQUAL_STRING("0", at(runI2c({{"TSL2561_I2c_Bus", "2"}}), "TSL2561_I2c_Bus").c_str());
+    TEST_ASSERT_EQUAL_STRING("0", at(runI2c({{"SHT_I2c_Bus", "-1"}}), "SHT_I2c_Bus").c_str());  // SHT's old "disabled"
+    TEST_ASSERT_EQUAL_STRING("2", at(runI2c({{"SHT_I2c_Bus", "2"}}), "SHT_I2c_Bus").c_str());   // SHT's bus already meant on
 }
 
 static void axp192_checkbox_becomes_the_gauge() {

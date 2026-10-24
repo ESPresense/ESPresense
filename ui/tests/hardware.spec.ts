@@ -470,7 +470,7 @@ test.describe('Hardware Settings Page', () => {
 		// The I2C address hint is the placeholder: one saved value is written and the hint goes away with it.
 		const address = page.locator('label', { has: page.locator('input[name="AHTX0_I2c"]') });
 		await expect(address.locator('input')).toHaveValue('0x38');
-		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39');
+		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39 (optional)');
 
 		// The voltage pin needs no note: its picker only offers pins the battery can read.
 		const voltagePin = page.locator('label', { has: page.locator('select[name="batt_pin"]') });
