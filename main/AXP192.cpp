@@ -13,7 +13,7 @@ namespace AXP192 {
 static bool enabled = false, ready = false;
 
 void ConnectToWifi(bool updating) {
-    enabled = Battery::SelectedGauge() == Battery::Gauge::AXP192;
+    enabled = Battery::GaugeBus() && Battery::SelectedGauge() == Battery::Gauge::AXP192;
 }
 
 bool Ready() { return ready; }

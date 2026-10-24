@@ -183,22 +183,22 @@
         <div class="grid grid-cols-1 items-end gap-x-4 sm:grid-cols-2">
             <p>
                 <label>
-                    Gauge chip:<br />
-                    <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
-                        <option value="0">None (voltage pin)</option>
-                        <option value="1">AXP192 (M5StickC, SDA 21 / SCL 22)</option>
-                        <option value="2">BQ27220 (LILYGO T-Embed)</option>
+                    Gauge I2C bus:<br />
+                    <select name="batt_gauge_bus" bind:value={$hardwareSettings.values['batt_gauge_bus']}>
+                        <option value="0">None (use the voltage pin)</option>
+                        <option value="1">Bus 1</option>
+                        <option value="2">Bus 2</option>
+                        {#if $hardwareSettings.values['batt_gauge'] != '1'}<option value="3">Bus 3 (software)</option>{/if}
                     </select>
                 </label>
             </p>
-            {#if $hardwareSettings.values['batt_gauge'] != '0'}
+            {#if $hardwareSettings.values['batt_gauge_bus'] > 0}
             <p>
                 <label>
-                    Gauge I2C bus:<br />
-                    <select name="batt_gauge_bus" bind:value={$hardwareSettings.values['batt_gauge_bus']}>
-                        <option value="1">Bus 1</option>
-                        <option value="2">Bus 2</option>
-                        {#if $hardwareSettings.values['batt_gauge'] == '1'}<option value="3">Bus 3 (software)</option>{/if}
+                    Gauge chip:<br />
+                    <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
+                        <option value="0">AXP192 (M5StickC, SDA 21 / SCL 22)</option>
+                        <option value="1">BQ27220 (LILYGO T-Embed, SDA 8 / SCL 18)</option>
                     </select>
                 </label>
             </p>

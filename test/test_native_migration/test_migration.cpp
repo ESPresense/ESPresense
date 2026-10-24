@@ -137,9 +137,9 @@ static void a_bus_without_an_address_was_off() {
 
 static void axp192_checkbox_becomes_the_gauge() {
     Store s = runI2c({{"axp192", "1"}});
-    TEST_ASSERT_EQUAL_STRING("1", at(s, "batt_gauge").c_str());
+    TEST_ASSERT_EQUAL_STRING("0", at(s, "batt_gauge").c_str());  // AXP192
     TEST_ASSERT_EQUAL_STRING("2", at(s, "batt_gauge_bus").c_str());
-    TEST_ASSERT_EQUAL_STRING("", at(runI2c({{"axp192", "0"}}), "batt_gauge").c_str());
+    TEST_ASSERT_EQUAL_STRING("", at(runI2c({{"axp192", "0"}}), "batt_gauge_bus").c_str());
 }
 
 static void i2c_conversion_runs_once() {

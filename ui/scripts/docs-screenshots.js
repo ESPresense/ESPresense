@@ -62,7 +62,7 @@ const hardware = {
 		batt_mult: '1',
 		batt_type: '0',
 		batt_gauge: '0',
-		batt_gauge_bus: '1'
+		batt_gauge_bus: '0'
 	},
 	defaults: {
 		leds: [{ type: 'pwm', pin: 2, count: 1, control: 'status' }],

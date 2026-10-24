@@ -19,7 +19,7 @@ namespace Battery {
 // GPIO3, x2) or a 12 V lead-acid (car) battery.
 static int battPin = -1;
 static bool leadAcid = false;
-static Gauge gaugeType = Gauge::None;
+static Gauge gaugeType = Gauge::AXP192;
 static int gaugeBus = 0;
 static float battMult = 2;
 static adc_oneshot_unit_handle_t adc = nullptr;
@@ -63,11 +63,11 @@ static unsigned int leadAcidPercent(int mv) {
 Gauge SelectedGauge() { return gaugeType; }
 // The AXP192 always sits on the software bus, which frees both hardware controllers for sensors.
 // Only the AXP192 (a PMIC) may use the software bus 3; the BQ27220 stays on a hardware bus.
-int GaugeBus() { return gaugeType == Gauge::None || (gaugeType == Gauge::BQ27220 && gaugeBus > 2) ? 0 : gaugeBus; }
+int GaugeBus() { return gaugeType == Gauge::BQ27220 && gaugeBus > 2 ? 0 : gaugeBus; }
 
 void ConnectToWifi(bool updating) {
-    gaugeType = (Gauge)Settings::dropdown("batt_gauge", {"None (voltage pin)", "AXP192 (M5StickC)", "BQ27220 (LILYGO T-Embed)"}, 0, "Battery gauge chip");
-    gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus", 3);
+    gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus (None: voltage pin)", 3);
+    gaugeType = (Gauge)Settings::dropdown("batt_gauge", {"AXP192 (M5StickC)", "BQ27220 (LILYGO T-Embed)"}, 0, "Battery gauge chip");
     battPin = Settings::pinAnalog("batt_pin", -1, "Battery voltage pin (ADC1)");
     battMult = Settings::floating("batt_mult", 1, 20, 2, "Battery voltage divider (multiplier)");
     leadAcid = Settings::dropdown("batt_type", {"Li-ion (1 cell)", "12V lead-acid"}, 0, "Battery type") == 1;

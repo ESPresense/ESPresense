@@ -9,7 +9,7 @@ namespace BQ27220 {
 static bool enabled = false, ready = false;
 
 void ConnectToWifi(bool updating) {
-    enabled = Battery::SelectedGauge() == Battery::Gauge::BQ27220;
+    enabled = Battery::GaugeBus() && Battery::SelectedGauge() == Battery::Gauge::BQ27220;
 }
 
 bool Ready() { return ready; }
@@ -45,6 +45,7 @@ void Loop() {
         }
         return;
     }
+    Log.printf("BQ27220: found on I2C bus %d\n", Battery::GaugeBus());
     ready = true;
 }
 
