@@ -174,9 +174,9 @@ std::vector<std::string> migrateI2cBus(Get get, Put put) {
         store(base + "_I2c_Bus", now);
         done.push_back(base + "_I2c_Bus=" + now);
     }
-    if (strtol(get("axp192").c_str(), nullptr, 10) != 0 && get("batt_gauge_bus").empty()) {
-        store("batt_gauge", "0");
-        store("batt_gauge_bus", "2");  // it was hardwired to bus 2
+    if (strtol(get("axp192").c_str(), nullptr, 10) != 0 && (get("batt_gauge").empty() || get("batt_gauge_bus").empty())) {
+        if (get("batt_gauge").empty()) store("batt_gauge", "0");
+        if (get("batt_gauge_bus").empty()) store("batt_gauge_bus", "2");  // it was hardwired to bus 2
         done.push_back("batt_gauge=AXP192 on bus 2");
     }
     if (ok && put("i2c_bus_migrated", "1")) return done;
