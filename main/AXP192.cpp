@@ -2,6 +2,7 @@
 
 #include <soc/soc_caps.h>
 
+#include "Battery.h"
 #include "I2C.h"
 #include "util.h"
 
@@ -12,23 +13,22 @@ namespace AXP192 {
 static bool enabled = false, ready = false;
 
 void ConnectToWifi(bool updating) {
-    enabled = Settings::checkbox("axp192", false, "AXP192 power chip on I2C bus 2 (M5StickC)");
+    enabled = Battery::GaugeBus() && Battery::SelectedGauge() == Battery::Gauge::AXP192;
 }
 
 bool Ready() { return ready; }
 
-#if HAS_I2C_BUS_2
-static const int BUS = 2;
+#ifdef SENSORS
 static const uint8_t ADDR = 0x34;
 
 uint8_t Read8bit(uint8_t Addr) {
     uint8_t v = 0;
-    I2C::readReg8(BUS, ADDR, Addr, v);
+    I2C::readReg8(Battery::GaugeBus(), ADDR, Addr, v);
     return v;
 }
 
 void Write1Byte(uint8_t Addr, uint8_t Data) {
-    I2C::writeReg(BUS, ADDR, Addr, Data);
+    I2C::writeReg(Battery::GaugeBus(), ADDR, Addr, Data);
 }
 
 void SetLDO2(bool State) {
@@ -56,13 +56,13 @@ static void configure() {
     Write1Byte(0x28, 0xec);
 }
 
-// Configure once bus 2 is up: I2C starts with the settings, after the old Setup() ran.
+// Configure once its bus is up: I2C starts with the settings, after the old Setup() ran.
 void Loop() {
-    if (!enabled || ready || !I2C::started(BUS)) return;
+    if (!enabled || ready || !I2C::started(Battery::GaugeBus())) return;
     uint8_t status;
-    if (!I2C::readReg8(BUS, ADDR, 0x00, status)) {
+    if (!I2C::readReg8(Battery::GaugeBus(), ADDR, 0x00, status)) {
         enabled = false;  // not there; don't retry every loop
-        Log.println("AXP192: no reply on I2C bus 2");
+        Log.println("AXP192: no reply on I2C bus");
         return;
     }
     configure();

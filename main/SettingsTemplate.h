@@ -191,12 +191,37 @@ inline bool settingFromJson(const SettingSpec& s, JsonVariantConst v, std::strin
 // object before parseTemplate. With both keys present nothing changes, so the parser rejects the
 // old one rather than one being dropped silently.
 inline void upgradeTemplateKeys(JsonObject settings) {
-    if (settings.isNull() || settings.containsKey("rx_offset_rssi")) return;
-    JsonVariant adj = settings["rx_adj_rssi"];
-    if (adj.isNull() || !adj.is<long>()) return;
-    long offset = -adj.as<long>();
-    settings.remove("rx_adj_rssi");
-    settings["rx_offset_rssi"] = offset;
+    if (settings.isNull()) return;
+    if (!settings.containsKey("rx_offset_rssi")) {
+        JsonVariant adj = settings["rx_adj_rssi"];
+        if (!adj.isNull() && adj.is<long>()) {
+            long offset = -adj.as<long>();
+            settings.remove("rx_adj_rssi");
+            settings["rx_offset_rssi"] = offset;
+        }
+    }
+    // I2C sensors used to be on when their address was set, with the bus a separate 1-2 number;
+    // now the bus setting (0 None) turns them on. BMP180, SGP30 and SCD4x have one address and no
+    // address setting any more. A blank address is left alone: in the new format it means
+    // "auto-detect" on the chosen bus, and exports never write one (it is the default), so there
+    // is no old template to turn off.
+    static const char* const sensors[] = {"AHTX0", "BH1750", "BME280", "BMP180", "BMP280", "TSL2561", "SGP30", "SCD4x"};
+    for (const char* s : sensors) {
+        std::string addr = std::string(s) + "_I2c", bus = addr + "_Bus";
+        bool on = settings.containsKey(addr.c_str()) && !settings[addr.c_str()].isNull() && settings[addr.c_str()].as<std::string>() != "";
+        if (on && !settings.containsKey(bus.c_str())) settings[bus.c_str()] = 1;
+        if (!strcmp(s, "BMP180") || !strcmp(s, "SGP30") || !strcmp(s, "SCD4x")) settings.remove(addr.c_str());
+    }
+    if (settings["SHT_I2c_Bus"].is<long>() && settings["SHT_I2c_Bus"].as<long>() < 0) settings["SHT_I2c_Bus"] = 0;
+    // The M5StickC "axp192" checkbox: the gauge chip on bus 2, where it was hardwired.
+    if (settings.containsKey("axp192")) {
+        bool on = settings["axp192"].as<bool>();
+        settings.remove("axp192");
+        if (on && !settings.containsKey("batt_gauge_bus")) {
+            settings["batt_gauge"] = 0;
+            settings["batt_gauge_bus"] = 2;
+        }
+    }
 }
 
 // Validates a whole template before anything is written: every key must be known to lookup

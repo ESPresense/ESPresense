@@ -111,6 +111,8 @@
 #define DEFAULT_I2C_BUS_1_SCL -1
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS_3_SDA -1
+#define DEFAULT_I2C_BUS_3_SCL -1
 #define DEFAULT_I2C_BUS 1
 
 // TSL2561 Defaults

@@ -32,6 +32,7 @@
 #include "string_utils.h"
 #include "util.h"
 #include "AXP192.h"
+#include "BQ27220.h"
 #ifdef SENSORS
 #include "AHTX0.h"
 #include "BH1750.h"

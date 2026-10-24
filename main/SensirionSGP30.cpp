@@ -11,7 +11,6 @@
 namespace SensirionSGP30 {
 static const uint8_t SGP30_ADDR = 0x58;
 long SGP30_status;
-std::string SGP30_I2c;
 int SGP30_I2c_Bus;
 
 unsigned long SGP30PreviousSensorMillis = 0;
@@ -48,8 +47,7 @@ static bool readWords(uint16_t* words, size_t count) {
 }
 
 void Setup() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (SGP30_I2c != "0x58") return;
+    if (!I2C::started(SGP30_I2c_Bus)) return;
 
     // Get_serial_id doubles as the presence check (what SparkFun's begin() does).
     uint16_t serial[3];
@@ -67,19 +65,17 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    SGP30_I2c_Bus = Settings::integer("SGP30_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-    SGP30_I2c = Settings::string("SGP30_I2c", "", "I2C address (0x58)");
+    SGP30_I2c_Bus = I2C::busSetting("SGP30_I2c_Bus");
 }
 
 void SerialReport() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (SGP30_I2c.empty()) return;
+    if (!I2C::started(SGP30_I2c_Bus)) return;
     Log.print("SGP30:        ");
-    Log.println(SGP30_I2c + " on bus " + toStr(SGP30_I2c_Bus));
+    Log.println("on bus " + toStr(SGP30_I2c_Bus));
 }
 
 void Loop() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+    if (!I2C::started(SGP30_I2c_Bus)) return;
     if (!initialized) return;
 
     if (SGP30PreviousSensorMillis == 0 || millis() - SGP30PreviousSensorMillis >= (unsigned long)sensorInterval) {
@@ -105,7 +101,7 @@ void Loop() {
 }
 
 bool SendDiscovery() {
-    if (SGP30_I2c.empty()) return true;
+    if (SGP30_I2c_Bus < 1) return true;
 
     return sendSensorDiscovery("Co2", EC_NONE, "carbon_dioxide", "ppm") && sendSensorDiscovery("TVOC", EC_NONE, "volatile_organic_compounds_parts", "ppb");
 }

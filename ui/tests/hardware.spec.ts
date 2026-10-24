@@ -470,7 +470,7 @@ test.describe('Hardware Settings Page', () => {
 		// The I2C address hint is the placeholder: one saved value is written and the hint goes away with it.
 		const address = page.locator('label', { has: page.locator('input[name="AHTX0_I2c"]') });
 		await expect(address.locator('input')).toHaveValue('0x38');
-		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39');
+		await expect(address.locator('input')).toHaveAttribute('placeholder', '0x38 or 0x39 (optional)');
 
 		// The voltage pin needs no note: its picker only offers pins the battery can read.
 		const voltagePin = page.locator('label', { has: page.locator('select[name="batt_pin"]') });
@@ -591,7 +591,7 @@ test.describe('Hardware lists', () => {
 		await page.waitForSelector('form#hardware');
 
 		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
-		await page.getByLabel('Chip (most relay plugs have one)').selectOption('bl0937');
+		await page.getByRole('combobox', { name: 'Chip:', exact: true }).selectOption('bl0937');
 		await page.getByLabel('CF pin (power)').selectOption('6');
 		await page.getByLabel('CF1 pin (V / A)').selectOption('7');
 		await page.getByLabel('SEL pin').selectOption('10');
@@ -609,7 +609,7 @@ test.describe('Hardware lists', () => {
 		await page.goto('/hardware');
 		await page.waitForSelector('form#hardware');
 
-		await page.getByLabel('Chip (most relay plugs have one)').selectOption('cse7766');
+		await page.getByRole('combobox', { name: 'Chip:', exact: true }).selectOption('cse7766');
 		await expect(page.getByLabel('CF pin (power)')).toHaveCount(0);
 		await page.getByLabel('RX pin (CSE7766 TX; factory calibrated, no settings needed)').selectOption('20');
 
