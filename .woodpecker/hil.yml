@@ -81,7 +81,7 @@ steps:
     temp_volumes:
       - flood:/flood
     commands:
-      - flock -w 18000 /lock/ble-flood.lock python3 /app/ble_flood.py --index 0 --rate 40 --until /flood/done --seconds 34000
+      - flock -w 18000 /lock/ble-flood.lock python3 /app/ble_flood.py --index 0 --rate 40 --pool 1024 --until /flood/done --seconds 34000
 
   # Ends the flood once every device test is done, whether they passed or failed.
   - name: ble-flood-stop
