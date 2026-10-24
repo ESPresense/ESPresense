@@ -117,6 +117,36 @@ static void a_failed_i2c_pin_write_is_filled_in_next_boot() {
     TEST_ASSERT_EQUAL_STRING("1", at(s, "v5_migrated").c_str());
 }
 
+static Store runI2c(Store s) {
+    migrateI2cBus([&](const std::string& k) { auto i = s.find(k); return i == s.end() ? std::string() : i->second; },
+                  [&](const std::string& k, const std::string& v) { s[k] = v; return true; });
+    return s;
+}
+
+static void i2c_address_becomes_a_bus() {
+    Store s = runI2c({{"BME280_I2c", "0x76"}, {"BH1750_I2c", "0x23"}, {"BH1750_I2c_Bus", "2"}});
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "BME280_I2c_Bus").c_str());  // the old default bus
+    TEST_ASSERT_EQUAL_STRING("2", at(s, "BH1750_I2c_Bus").c_str());
+    TEST_ASSERT_EQUAL_STRING("", at(s, "AHTX0_I2c_Bus").c_str());  // never set: stays None
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "i2c_bus_migrated").c_str());
+}
+
+static void a_bus_without_an_address_was_off() {
+    TEST_ASSERT_EQUAL_STRING("0", at(runI2c({{"TSL2561_I2c_Bus", "2"}}), "TSL2561_I2c_Bus").c_str());
+}
+
+static void axp192_checkbox_becomes_the_gauge() {
+    Store s = runI2c({{"axp192", "1"}});
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "batt_gauge").c_str());
+    TEST_ASSERT_EQUAL_STRING("2", at(s, "batt_gauge_bus").c_str());
+    TEST_ASSERT_EQUAL_STRING("", at(runI2c({{"axp192", "0"}}), "batt_gauge").c_str());
+}
+
+static void i2c_conversion_runs_once() {
+    Store s = runI2c({{"i2c_bus_migrated", "1"}, {"BME280_I2c", "0x76"}});
+    TEST_ASSERT_EQUAL_STRING("", at(s, "BME280_I2c_Bus").c_str());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
@@ -124,6 +154,10 @@ int main(int, char**) {
     RUN_TEST(runs_once);
     RUN_TEST(a_failed_write_retries_next_boot);
     RUN_TEST(a_failed_i2c_pin_write_is_filled_in_next_boot);
+    RUN_TEST(i2c_address_becomes_a_bus);
+    RUN_TEST(a_bus_without_an_address_was_off);
+    RUN_TEST(axp192_checkbox_becomes_the_gauge);
+    RUN_TEST(i2c_conversion_runs_once);
     RUN_TEST(receiver_adjustment_is_negated);
     RUN_TEST(v5_beta_node_only_converts_the_offset);
     RUN_TEST(v4_leds_become_the_list);

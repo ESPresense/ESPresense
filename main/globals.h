@@ -32,3 +32,4 @@ _DECL unsigned long enrollingEndMillis;
 // I2C
 _DECL bool I2C_Bus_1_Started;
 _DECL bool I2C_Bus_2_Started;
+_DECL bool I2C_Bus_3_Started;

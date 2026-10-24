@@ -63,11 +63,9 @@ namespace BMP280
 
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BMP280_I2c_Bus)) return;
 
-        if (BMP280_I2c == "0x76") addr = 0x76;
-        else if (BMP280_I2c == "0x77") addr = 0x77;
-        else return;
+        if (!I2C::pickAddress(BMP280_I2c, {0x76, 0x77}, addr)) return;
         bus = BMP280_I2c_Bus;
 
         uint8_t id = 0;
@@ -91,14 +89,13 @@ namespace BMP280
 
     void ConnectToWifi(bool updating)
     {
-        BMP280_I2c_Bus = Settings::integer("BMP280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BMP280_I2c = Settings::string("BMP280_I2c", "", "I2C address (0x76 or 0x77)");
+        BMP280_I2c_Bus = I2C::busSetting("BMP280_I2c_Bus");
+        BMP280_I2c = Settings::string("BMP280_I2c", "", "I2C address (optional, default 0x76)");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (BMP280_I2c.empty()) return;
+        if (!I2C::started(BMP280_I2c_Bus)) return;
         Log.print("BMP280:       ");
         Log.println(BMP280_I2c + " on bus " + toStr(BMP280_I2c_Bus));
     }
@@ -117,7 +114,7 @@ namespace BMP280
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BMP280_I2c_Bus)) return;
         if (!initialized) return;
 
         if (BMP280PreviousMillis == 0 || millis() - BMP280PreviousMillis >= sensorInterval) {
@@ -139,7 +136,7 @@ namespace BMP280
 
     bool SendDiscovery()
     {
-        if (BMP280_I2c.empty()) return true;
+        if (BMP280_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("BMP280 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("BMP280 Pressure", EC_NONE, "pressure", "hPa");

@@ -8,6 +8,8 @@
 #include "mqtt.h"
 #include "Settings.h"
 #include "AXP192.h"
+#include "BQ27220.h"
+#include "I2C.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_oneshot.h"
@@ -17,17 +19,21 @@ namespace Battery {
 // GPIO3, x2) or a 12 V lead-acid (car) battery.
 static int battPin = -1;
 static bool leadAcid = false;
+static Gauge gaugeType = Gauge::None;
+static int gaugeBus = 0;
 static float battMult = 2;
 static adc_oneshot_unit_handle_t adc = nullptr;
 static adc_cali_handle_t cali = nullptr;
 static adc_channel_t channel;
 static int smoothMilliVolts = 0;
 
-// An AXP192 (M5StickC) measures the cell itself; otherwise an ADC pin does.
-static bool enabled() { return adc != nullptr || AXP192::Ready(); }
+// An AXP192 (M5StickC) or BQ27220 (T-Embed) measures the cell itself; otherwise an ADC pin does.
+static bool gauge() { return AXP192::Ready() || BQ27220::Ready(); }
+static bool enabled() { return adc != nullptr || gauge(); }
 
 static int readMilliVolts() {
     if (AXP192::Ready()) return AXP192::BatteryMilliVolts();
+    if (BQ27220::Ready()) return BQ27220::BatteryMilliVolts();
     int raw = 0, mv = 0;
     if (adc_oneshot_read(adc, channel, &raw) != ESP_OK) return smoothMilliVolts;
     if (!cali || adc_cali_raw_to_voltage(cali, raw, &mv) != ESP_OK) mv = raw * 3100 / 4095;
@@ -54,7 +60,14 @@ static unsigned int leadAcidPercent(int mv) {
     return (unsigned int)std::clamp(lround(soc), 0L, 100L);
 }
 
+Gauge SelectedGauge() { return gaugeType; }
+// The AXP192 always sits on the software bus, which frees both hardware controllers for sensors.
+// Only the AXP192 (a PMIC) may use the software bus 3; the BQ27220 stays on a hardware bus.
+int GaugeBus() { return gaugeType == Gauge::None || (gaugeType == Gauge::BQ27220 && gaugeBus > 2) ? 0 : gaugeBus; }
+
 void ConnectToWifi(bool updating) {
+    gaugeType = (Gauge)Settings::dropdown("batt_gauge", {"None (voltage pin)", "AXP192 (M5StickC)", "BQ27220 (LILYGO T-Embed)"}, 0, "Battery gauge chip");
+    gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus", 3);
     battPin = Settings::pinAnalog("batt_pin", -1, "Battery voltage pin (ADC1)");
     battMult = Settings::floating("batt_mult", 1, 20, 2, "Battery voltage divider (multiplier)");
     leadAcid = Settings::dropdown("batt_type", {"Li-ion (1 cell)", "12V lead-acid"}, 0, "Battery type") == 1;
@@ -101,15 +114,19 @@ bool SendDiscovery() {
     if (!enabled()) return true;
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
         && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
-        && (!(leadAcid || AXP192::Ready()) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
+        && (!(leadAcid || gauge()) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
 }
 
 void SendTelemetry() {
     if (!enabled()) return;
     auto mv = readMilliVolts();
-    if (mv < 0) return;  // AXP192 with no battery fitted
+    if (mv < 0) return;  // gauge with no battery fitted
     doc["mV"] = mv;
-    if (AXP192::Ready()) {
+    if (BQ27220::Ready()) {
+        int pct = BQ27220::Percent();
+        doc["batt"] = pct >= 0 ? (unsigned int)pct : liIonPercent(mv);
+        doc["charging"] = BQ27220::Charging() ? "ON" : "OFF";
+    } else if (AXP192::Ready()) {
         doc["batt"] = liIonPercent(mv);
         doc["charging"] = AXP192::Charging() ? "ON" : "OFF";
     } else if (leadAcid) {

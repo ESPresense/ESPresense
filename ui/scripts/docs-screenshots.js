@@ -41,6 +41,8 @@ const hardware = {
 		I2C_Bus_1_SCL: '22',
 		I2C_Bus_2_SDA: '-1',
 		I2C_Bus_2_SCL: '-1',
+		I2C_Bus_3_SDA: '-1',
+		I2C_Bus_3_SCL: '-1',
 		I2CDebug: false,
 		AHTX0_I2c_Bus: '1',
 		BH1750_I2c_Bus: '1',
@@ -59,7 +61,8 @@ const hardware = {
 		batt_pin: '-1',
 		batt_mult: '1',
 		batt_type: '0',
-		batt_axp192: false
+		batt_gauge: '0',
+		batt_gauge_bus: '1'
 	},
 	defaults: {
 		leds: [{ type: 'pwm', pin: 2, count: 1, control: 'status' }],

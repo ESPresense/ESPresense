@@ -221,6 +221,7 @@ void setupNetwork() {
     PowerMonitor::ConnectToWifi(updating);
     Battery::ConnectToWifi(updating);
     AXP192::ConnectToWifi(updating);
+    BQ27220::ConnectToWifi(updating);
 
 #ifdef SENSORS
     DHT::ConnectToWifi(updating);
@@ -521,6 +522,10 @@ void setup() {
              [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); },
              MigrationDefaults{LEGACY_RX_ADJ_RSSI, V4_I2C_BUS_1_SDA, V4_I2C_BUS_1_SCL, DEFAULT_LED1_PIN}))
         Log.printf("Settings converted for v5: %s\n", change.c_str());
+    for (auto& change : migrateI2cBus(
+             [](const std::string& key) { return Settings::slurp("/" + key); },
+             [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); }))
+        Log.printf("I2C settings converted: %s\n", change.c_str());
     Network::Setup();
 
     GUI::Setup(true);
@@ -605,6 +610,7 @@ void loop() {
     SerialImprov::Loop(false);
     NTP::Loop();
     AXP192::Loop();
+    BQ27220::Loop();
 #ifdef SENSORS
     DHT::Loop();
     AHTX0::Loop();

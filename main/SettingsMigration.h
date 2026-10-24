@@ -150,3 +150,36 @@ std::vector<std::string> migrateSettings(Get get, Put put, const MigrationDefaul
     }
     return finish();
 }
+
+// I2C bus selection, once (the i2c_bus_migrated file). A sensor used to be on when its I2C address
+// was set, with the bus a separate 1-2 number; now the bus setting is a dropdown (0 None, 1-3) and
+// turns the sensor on. A sensor with an address keeps its bus (default 1); one with only a bus
+// stored was off, so its bus becomes None. The M5StickC "axp192" checkbox becomes the battery
+// gauge chip on bus 2. Run after migrateSettings, which still reads the old meaning.
+template <class Get, class Put>
+std::vector<std::string> migrateI2cBus(Get get, Put put) {
+    std::vector<std::string> done;
+    if (!get("i2c_bus_migrated").empty()) return done;
+    bool ok = true;
+    auto store = [&](const std::string& key, const std::string& value) {
+        if (!put(key, value)) ok = false;
+    };
+    static const char* const sensors[] = {"AHTX0", "BH1750", "BME280", "BMP180", "BMP280", "TSL2561", "SGP30", "SCD4x"};
+    for (const char* s : sensors) {
+        std::string base = s, bus = get(base + "_I2c_Bus");
+        long old = bus.empty() ? 1 : strtol(bus.c_str(), nullptr, 10);
+        std::string now = !get(base + "_I2c").empty() && old >= 1 && old <= 2 ? std::to_string(old) : "0";
+        if (now == "0" && bus.empty()) continue;  // never set: already None
+        if (bus == now) continue;
+        store(base + "_I2c_Bus", now);
+        done.push_back(base + "_I2c_Bus=" + now);
+    }
+    if (strtol(get("axp192").c_str(), nullptr, 10) != 0 && get("batt_gauge").empty()) {
+        store("batt_gauge", "1");
+        store("batt_gauge_bus", "2");  // it was hardwired to bus 2
+        done.push_back("batt_gauge=AXP192 on bus 2");
+    }
+    if (ok && put("i2c_bus_migrated", "1")) return done;
+    done.push_back("a write failed; converting again next boot");
+    return done;
+}

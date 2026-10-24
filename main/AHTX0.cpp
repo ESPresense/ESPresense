@@ -40,11 +40,9 @@ namespace AHTX0
 
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(AHTX0_I2c_Bus)) return;
 
-        if (AHTX0_I2c == "0x38") addr = 0x38;
-        else if (AHTX0_I2c == "0x39") addr = 0x39;
-        else return;
+        if (!I2C::pickAddress(AHTX0_I2c, {0x38, 0x39}, addr)) return;
         bus = AHTX0_I2c_Bus;
 
         bool ok = false;
@@ -64,14 +62,13 @@ namespace AHTX0
 
     void ConnectToWifi(bool updating)
     {
-        AHTX0_I2c_Bus = Settings::integer("AHTX0_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        AHTX0_I2c = Settings::string("AHTX0_I2c", "", "I2C address (0x38 or 0x39)");
+        AHTX0_I2c_Bus = I2C::busSetting("AHTX0_I2c_Bus");
+        AHTX0_I2c = Settings::string("AHTX0_I2c", "", "I2C address (optional, default 0x38)");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (AHTX0_I2c.empty()) return;
+        if (!I2C::started(AHTX0_I2c_Bus)) return;
         Log.print("AHTX0_I2c Sensor: ");
         Log.println(AHTX0_I2c + " on bus " + toStr(AHTX0_I2c_Bus));
     }
@@ -93,7 +90,7 @@ namespace AHTX0
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(AHTX0_I2c_Bus)) return;
         if (!initialized) return;
 
         if (AHTX0PreviousMillis == 0 || millis() - AHTX0PreviousMillis >= sensorInterval) {
@@ -109,7 +106,7 @@ namespace AHTX0
 
     bool SendDiscovery()
     {
-        if (AHTX0_I2c.empty()) return true;
+        if (AHTX0_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("AHTX0 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("AHTX0 Humidity", EC_NONE, "humidity", "%");

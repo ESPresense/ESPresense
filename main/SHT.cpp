@@ -8,7 +8,7 @@
 #include "mqtt.h"
 
 namespace SHT {
-int bus = -1;
+int bus = 0;
 unsigned long lastRead = 0;
 unsigned long sensorInterval = 60000;
 bool initialized = false;
@@ -60,8 +60,7 @@ static bool detectSHT4x(uint8_t a) {
 }
 
 void Setup() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (bus < 1 || bus > 2) return;
+    if (!I2C::started(bus)) return;
 
     if (detectSHT3x(0x44) || detectSHT3x(0x45)) kind = SHT3X;
     else if (detectSHT4x(0x44) || detectSHT4x(0x45)) kind = SHT4X;
@@ -73,12 +72,11 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    bus = Settings::integer("SHT_I2c_Bus", 1, 2, -1, "I2C Bus (-1 to disable)");
+    bus = I2C::busSetting("SHT_I2c_Bus");
 }
 
 void SerialReport() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (bus < 1 || bus > 2) return;
+    if (!I2C::started(bus)) return;
     Log.println("SHT:          Auto-detect on bus " + toStr(bus));
 }
 
@@ -105,7 +103,7 @@ static bool readSample(float& temperature, float& humidity) {
 }
 
 void Loop() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+    if (!I2C::started(bus)) return;
     if (!initialized) return;
 
     if (lastRead == 0 || millis() - lastRead >= sensorInterval) {
@@ -120,7 +118,7 @@ void Loop() {
 }
 
 bool SendDiscovery() {
-    if (bus < 1 || bus > 2) return true;
+    if (bus < 1) return true;
     return sendSensorDiscovery("Temperature", EC_NONE, "temperature", "°C") && sendSensorDiscovery("Humidity", EC_NONE, "humidity", "%");
 }
 }  // namespace SHT
