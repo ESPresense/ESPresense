@@ -69,6 +69,7 @@ static void refresh() {
         lastPercent = lastMilliVolts < 0 ? -1 : (int)(leadAcid ? leadAcidPercent(lastMilliVolts) : liIonPercent(lastMilliVolts));
         lastCharging = leadAcid && lastMilliVolts > 13200;
     }
+    if (lastMilliVolts < 0) lastRead = 0;  // a failed read retries on the next report, not in a minute
 }
 
 // Resting Li-ion voltage to state of charge, linear between points.
