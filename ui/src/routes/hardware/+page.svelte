@@ -185,7 +185,7 @@
                 <label>
                     Gauge I2C bus:<br />
                     <select name="batt_gauge_bus" bind:value={$hardwareSettings.values['batt_gauge_bus']}>
-                        <option value="0">None (use the voltage pin)</option>
+                        <option value="0">None</option>
                         <option value="1">Bus 1</option>
                         <option value="2">Bus 2</option>
                         {#if $hardwareSettings.values['batt_gauge'] != '1'}<option value="3">Bus 3 (software)</option>{/if}
@@ -197,8 +197,8 @@
                 <label>
                     Gauge chip:<br />
                     <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
-                        <option value="0">AXP192 (M5StickC, SDA 21 / SCL 22)</option>
-                        <option value="1">BQ27220 (LILYGO T-Embed, SDA 8 / SCL 18)</option>
+                        <option value="0">AXP192</option>
+                        <option value="1">BQ27220</option>
                     </select>
                 </label>
             </p>
@@ -386,7 +386,7 @@
             </label>
             </p>
         </div>
-        <h4>Bus 3 (software, any two pins; for a power chip like the AXP192):</h4>
+        <h4>Bus 3 (software):</h4>
         <div class="mb-4 flex items-end gap-4">
             <p class="mb-0 min-w-0 flex-1">
             <label>

@@ -66,8 +66,8 @@ Gauge SelectedGauge() { return gaugeType; }
 int GaugeBus() { return gaugeType == Gauge::BQ27220 && gaugeBus > 2 ? 0 : gaugeBus; }
 
 void ConnectToWifi(bool updating) {
-    gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus (None: voltage pin)", 3);
-    gaugeType = (Gauge)Settings::dropdown("batt_gauge", {"AXP192 (M5StickC)", "BQ27220 (LILYGO T-Embed)"}, 0, "Battery gauge chip");
+    gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus", 3);
+    gaugeType = (Gauge)Settings::dropdown("batt_gauge", {"AXP192", "BQ27220"}, 0, "Battery gauge chip");
     battPin = Settings::pinAnalog("batt_pin", -1, "Battery voltage pin (ADC1)");
     battMult = Settings::floating("batt_mult", 1, 20, 2, "Battery voltage divider (multiplier)");
     leadAcid = Settings::dropdown("batt_type", {"Li-ion (1 cell)", "12V lead-acid"}, 0, "Battery type") == 1;
