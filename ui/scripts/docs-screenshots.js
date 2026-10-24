@@ -274,8 +274,9 @@ async function shoot(page, route, file, crop) {
 (async () => {
 	if (!fs.existsSync(OUT)) throw new Error(`${OUT} does not exist. Set ESPRESENSE_DOCS_IMAGES to the docs repo's public/images.`);
 	const server = await ensureDevServer();
-	const browser = await chromium.launch();
+	let browser;
 	try {
+		browser = await chromium.launch();
 		const context = await browser.newContext({
 			viewport: VIEWPORT,
 			deviceScaleFactor: 2,
@@ -288,7 +289,7 @@ async function shoot(page, route, file, crop) {
 			await page.unrouteAll({ behavior: 'ignoreErrors' });
 		}
 	} finally {
-		await browser.close();
+		await browser?.close();
 		server?.kill();
 	}
 })().catch((err) => {
