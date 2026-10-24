@@ -90,8 +90,7 @@ static unsigned int leadAcidPercent(int mv) {
 }
 
 Gauge SelectedGauge() { return gaugeType; }
-// Bus 3 (software) is AXP192-only; a BQ27220 on bus 3 is treated as off.
-int GaugeBus() { return gaugeType == Gauge::BQ27220 && gaugeBus > 2 ? 0 : gaugeBus; }
+int GaugeBus() { return gaugeBus; }
 
 void ConnectToWifi(bool updating) {
     gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus", 3);

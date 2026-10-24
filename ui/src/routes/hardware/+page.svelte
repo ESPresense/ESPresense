@@ -188,7 +188,7 @@
                         <option value="0">None</option>
                         <option value="1">Bus 1</option>
                         <option value="2">Bus 2</option>
-                        {#if $hardwareSettings.values['batt_gauge'] != '1'}<option value="3">Bus 3 (software)</option>{/if}
+                        <option value="3">Bus 3 (software)</option>
                     </select>
                 </label>
             </p>
