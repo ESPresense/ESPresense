@@ -288,6 +288,24 @@ void test_json_setting_takes_an_array_or_object_as_text(void) {
 
 }  // namespace
 
+void test_template_rx_adj_rssi_becomes_rx_offset_rssi(void) {
+    // rx_adj_rssi was subtracted; rx_offset_rssi is added, so the value is negated.
+    DynamicJsonDocument doc(512);
+    deserializeJson(doc, R"({"rx_adj_rssi":7,"absorption":3})");
+    upgradeTemplateKeys(doc.as<JsonObject>());
+    TEST_ASSERT_FALSE(doc.containsKey("rx_adj_rssi"));
+    TEST_ASSERT_EQUAL(-7, doc["rx_offset_rssi"].as<long>());
+    TEST_ASSERT_EQUAL_FLOAT(3, doc["absorption"].as<float>());
+    // Both names, or a value that isn't a number: left for the parser to reject.
+    deserializeJson(doc, R"({"rx_adj_rssi":7,"rx_offset_rssi":2})");
+    upgradeTemplateKeys(doc.as<JsonObject>());
+    TEST_ASSERT_TRUE(doc.containsKey("rx_adj_rssi"));
+    TEST_ASSERT_EQUAL(2, doc["rx_offset_rssi"].as<long>());
+    deserializeJson(doc, R"({"rx_adj_rssi":"x"})");
+    upgradeTemplateKeys(doc.as<JsonObject>());
+    TEST_ASSERT_TRUE(doc.containsKey("rx_adj_rssi"));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_valid_template_yields_only_its_keys);
@@ -303,6 +321,7 @@ int main(int, char**) {
     RUN_TEST(test_pins_checked_against_the_chip);
     RUN_TEST(test_pins_in_lists_and_objects_checked);
     RUN_TEST(test_check_pins_on_stored_values);
+    RUN_TEST(test_template_rx_adj_rssi_becomes_rx_offset_rssi);
     RUN_TEST(test_missing_or_empty_settings_rejected);
     RUN_TEST(test_not_an_object_rejected);
     RUN_TEST(test_unknown_key_rejects_everything);

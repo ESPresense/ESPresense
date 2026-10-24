@@ -123,7 +123,7 @@
         <label>
             Max brightness (1-255):<br />
             <input type="number" step="1" min="1" max="255"
-                value={it.max_brightness ?? (it.type === 'pwm' || it.type === 'pwm_inverted' || it.type === undefined ? 255 : 100)}
+                value={it.max_brightness ?? 64}
                 oninput={(e) => set('max_brightness', Number(e.currentTarget.value))}/>
         </label>
     </p>
