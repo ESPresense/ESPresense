@@ -318,6 +318,41 @@
                     bind:value={$hardwareSettings.values['dhtHumidity_offset']}/>
             </label>
         </p>
+        <h4>HX711 - Weight Sensor:</h4>
+        <div class="mb-4 flex items-end gap-4">
+            <p class="mb-0 min-w-0 flex-1">
+            <label>
+                HX711 SCK (Clock) pin:<br />
+                <PinSelect class="w-full" name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
+            </label>
+            </p>
+            <p class="mb-0 min-w-0 flex-1">
+            <label>
+                HX711 DOUT (Data) pin:<br />
+                <PinSelect input class="w-full" name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
+            </label>
+            </p>
+        </div>
+        <h4>DS18B20:</h4>
+        <p>
+            <label>
+                DS18B20 sensor pin:<br />
+                <PinSelect class="w-full" name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
+            </label>
+        </p>
+        <p>
+            <label>
+                DS18B20 temperature offset:<br />
+                <input
+                    type="number"
+                    step="0.01"
+                    min="-40"
+                    max="125"
+                    name="dsTemp_offset"
+                    placeholder={$hardwareSettings.defaults['dsTemp_offset']}
+                    bind:value={$hardwareSettings.values['dsTemp_offset']}/>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#i2c-settings" target="_blank">I2C Settings</a>
         </h2>
@@ -535,41 +570,6 @@
             </label>
             </p>
         </div>
-        <h4>HX711 - Weight Sensor:</h4>
-        <div class="mb-4 flex items-end gap-4">
-            <p class="mb-0 min-w-0 flex-1">
-            <label>
-                HX711 SCK (Clock) pin:<br />
-                <PinSelect class="w-full" name="HX711_sckPin" fallback={$hardwareSettings.defaults['HX711_sckPin']} bind:value={$hardwareSettings.values['HX711_sckPin']}/>
-            </label>
-            </p>
-            <p class="mb-0 min-w-0 flex-1">
-            <label>
-                HX711 DOUT (Data) pin:<br />
-                <PinSelect input class="w-full" name="HX711_doutPin" fallback={$hardwareSettings.defaults['HX711_doutPin']} bind:value={$hardwareSettings.values['HX711_doutPin']}/>
-            </label>
-            </p>
-        </div>
-        <h4>DS18B20:</h4>
-        <p>
-            <label>
-                DS18B20 sensor pin:<br />
-                <PinSelect class="w-full" name="ds18b20_pin" fallback={$hardwareSettings.defaults['ds18b20_pin']} bind:value={$hardwareSettings.values['ds18b20_pin']}/>
-            </label>
-        </p>
-        <p>
-            <label>
-                DS18B20 temperature offset:<br />
-                <input
-                    type="number"
-                    step="0.01"
-                    min="-40"
-                    max="125"
-                    name="dsTemp_offset"
-                    placeholder={$hardwareSettings.defaults['dsTemp_offset']}
-                    bind:value={$hardwareSettings.values['dsTemp_offset']}/>
-            </label>
-        </p>
         {#if saveError}
             <p role="alert" class="text-red-600 dark:text-red-400">{saveError}</p>
         {/if}
