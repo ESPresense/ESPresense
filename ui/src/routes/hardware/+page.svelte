@@ -188,7 +188,7 @@
                         <option value="0">None</option>
                         <option value="1">Bus 1</option>
                         <option value="2">Bus 2</option>
-                        {#if $hardwareSettings.values['batt_gauge'] != '1'}<option value="3">Bus 3 (software)</option>{/if}
+                        <option value="3">Bus 3 (software)</option>
                     </select>
                 </label>
             </p>
@@ -198,7 +198,7 @@
                     Gauge chip:<br />
                     <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
                         <option value="0">AXP192</option>
-                        <option value="1">BQ27220</option>
+                        {#if $hardwareSettings.values['batt_gauge_bus'] != '3'}<option value="1">BQ27220</option>{/if}
                     </select>
                 </label>
             </p>
