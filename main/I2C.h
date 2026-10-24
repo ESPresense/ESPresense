@@ -20,8 +20,8 @@ void ConnectToWifi(bool updating);
 void Setup();
 void SerialReport();
 
-// Choose a bus for a device: 0 None, 1 / 2 hardware controllers. Only a PMIC (maxBus 3) may use
-// bus 3, the software (bit-banged) one.
+// Choose a bus for a device: 0 None, 1 / 2 hardware controllers, 3 the software (bit-banged) one.
+// Sensors stop at bus 2 (maxBus); the battery gauge chips may also use bus 3.
 // A device is on when its bus is not None; check started(bus) before talking to it.
 int busSetting(const char* key, const char* label = "I2C Bus", int maxBus = 2);
 

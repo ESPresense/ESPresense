@@ -62,8 +62,7 @@ static unsigned int leadAcidPercent(int mv) {
 
 Gauge SelectedGauge() { return gaugeType; }
 // The AXP192 always sits on the software bus, which frees both hardware controllers for sensors.
-// Only the AXP192 (a PMIC) may use the software bus 3; the BQ27220 stays on a hardware bus.
-int GaugeBus() { return gaugeType == Gauge::BQ27220 && gaugeBus > 2 ? 0 : gaugeBus; }
+int GaugeBus() { return gaugeBus; }
 
 void ConnectToWifi(bool updating) {
     gaugeBus = I2C::busSetting("batt_gauge_bus", "Battery gauge I2C bus", 3);

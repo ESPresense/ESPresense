@@ -198,7 +198,7 @@
                     Gauge chip:<br />
                     <select name="batt_gauge" bind:value={$hardwareSettings.values['batt_gauge']}>
                         <option value="0">AXP192</option>
-                        {#if $hardwareSettings.values['batt_gauge_bus'] != '3'}<option value="1">BQ27220</option>{/if}
+                        <option value="1">BQ27220</option>
                     </select>
                 </label>
             </p>
