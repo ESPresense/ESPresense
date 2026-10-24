@@ -139,7 +139,12 @@ void Setup() {
 
 // Sensors this configuration doesn't have are cleaned up by Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    if (!enabled()) return true;
+    if (!enabled()) {
+        // A configured gauge may still be initializing (BQ27220 can take ~30s); keep retrying
+        // discovery rather than latching sentDiscovery=true with no sensor ever announced.
+        if (GaugeBus() > 0) return false;
+        return true;
+    }
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
         && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
         && (!(leadAcid || gauge()) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
