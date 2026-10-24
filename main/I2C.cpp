@@ -72,7 +72,9 @@ static bool begin(int sdaPin, int sclPin) {
     return true;
 }
 
+// Also a repeated start: SCL is low after a byte, so hold it low a half period first.
 static bool start() {
+    delay();
     sdaHigh();
     if (!sclHigh()) return false;
     delay();

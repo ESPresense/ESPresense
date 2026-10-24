@@ -90,7 +90,6 @@ static unsigned int leadAcidPercent(int mv) {
 }
 
 Gauge SelectedGauge() { return gaugeType; }
-// The AXP192 always sits on the software bus, which frees both hardware controllers for sensors.
 int GaugeBus() { return gaugeBus; }
 
 void ConnectToWifi(bool updating) {
@@ -137,17 +136,14 @@ void Setup() {
     read();
 }
 
-// Sensors this configuration doesn't have are cleaned up by Mqtt::PruneStaleDiscovery.
+// By configuration, not by what has answered: discovery goes out once, when MQTT connects, and a
+// gauge may still be probing then. Sensors this configuration doesn't have are cleaned up by
+// Mqtt::PruneStaleDiscovery.
 bool SendDiscovery() {
-    if (!enabled()) {
-        // A configured gauge may still be initializing (BQ27220 can take ~30s); keep retrying
-        // discovery rather than latching sentDiscovery=true with no sensor ever announced.
-        if (GaugeBus() > 0) return false;
-        return true;
-    }
+    if (adc == nullptr && !gaugeBus) return true;
     return sendTeleSensorDiscovery("Battery", EC_NONE, "{{ value_json.batt }}", "battery", "%")
         && sendTeleSensorDiscovery("Battery Voltage", EC_DIAGNOSTIC, "{{ value_json.mV }}", "voltage", "mV")
-        && (!(leadAcid || gauge()) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
+        && (!(leadAcid || gaugeBus) || sendTeleBinarySensorDiscovery("Charging", EC_NONE, "{{ value_json.charging }}", "battery_charging"));
 }
 
 void SendTelemetry() {
@@ -156,6 +152,6 @@ void SendTelemetry() {
     if (lastMilliVolts < 0) return;  // gauge with no battery fitted, or nothing read yet
     doc["mV"] = lastMilliVolts;
     doc["batt"] = lastPercent >= 0 ? (unsigned int)lastPercent : liIonPercent(lastMilliVolts);
-    if (leadAcid || gauge()) doc["charging"] = lastCharging ? "ON" : "OFF";
+    if (leadAcid || gaugeBus) doc["charging"] = lastCharging ? "ON" : "OFF";
 }
 }  // namespace Battery

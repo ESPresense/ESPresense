@@ -56,7 +56,7 @@ static void configure() {
     Write1Byte(0x28, 0xec);
 }
 
-// Configure once bus 2 is up: I2C starts with the settings, after the old Setup() ran.
+// Configure once its bus is up: I2C starts with the settings, after the old Setup() ran.
 void Loop() {
     if (!enabled || ready || !I2C::started(Battery::GaugeBus())) return;
     uint8_t status;
