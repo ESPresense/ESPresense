@@ -25,21 +25,50 @@ static float battMult = 2;
 static adc_oneshot_unit_handle_t adc = nullptr;
 static adc_cali_handle_t cali = nullptr;
 static adc_channel_t channel;
-static int smoothMilliVolts = 0;
+// The battery is read at most once a minute; telemetry in between reuses this.
+static const unsigned long READ_INTERVAL_MS = 60000;
+static unsigned long lastRead = 0;
+static int lastMilliVolts = -1, lastPercent = -1;
+static bool lastCharging = false;
 
 // An AXP192 (M5StickC) or BQ27220 (T-Embed) measures the cell itself; otherwise an ADC pin does.
 static bool gauge() { return AXP192::Ready() || BQ27220::Ready(); }
 static bool enabled() { return adc != nullptr || gauge(); }
 
-static int readMilliVolts() {
-    if (AXP192::Ready()) return AXP192::BatteryMilliVolts();
-    if (BQ27220::Ready()) return BQ27220::BatteryMilliVolts();
-    int raw = 0, mv = 0;
-    if (adc_oneshot_read(adc, channel, &raw) != ESP_OK) return smoothMilliVolts;
-    if (!cali || adc_cali_raw_to_voltage(cali, raw, &mv) != ESP_OK) mv = raw * 3100 / 4095;
-    mv = (int)lround(mv * battMult);
-    smoothMilliVolts = smoothMilliVolts ? (int)lround(0.1 * (mv - smoothMilliVolts) + smoothMilliVolts) : mv;
-    return smoothMilliVolts;
+static unsigned int liIonPercent(int mv);
+static unsigned int leadAcidPercent(int mv);
+
+// ADC pin: the mean of a burst of samples, through the divider. -1 on a read error.
+static int adcMilliVolts() {
+    static const int SAMPLES = 8;
+    long sum = 0;
+    for (int i = 0; i < SAMPLES; i++) {
+        int raw = 0, mv = 0;
+        if (adc_oneshot_read(adc, channel, &raw) != ESP_OK) return -1;
+        if (!cali || adc_cali_raw_to_voltage(cali, raw, &mv) != ESP_OK) mv = raw * 3100 / 4095;
+        sum += mv;
+    }
+    return (int)lround(sum * battMult / SAMPLES);
+}
+
+// Refreshes the cached reading once READ_INTERVAL_MS has passed (or on the first call).
+static void read() {
+    if (lastRead && millis() - lastRead < READ_INTERVAL_MS) return;
+    lastRead = millis();
+    if (BQ27220::Ready()) {
+        lastMilliVolts = BQ27220::BatteryMilliVolts();
+        lastPercent = BQ27220::Percent();
+        lastCharging = BQ27220::Charging();
+    } else if (AXP192::Ready()) {
+        lastMilliVolts = AXP192::BatteryMilliVolts();
+        lastPercent = lastMilliVolts < 0 ? -1 : (int)liIonPercent(lastMilliVolts);
+        lastCharging = AXP192::Charging();
+    } else {
+        int mv = adcMilliVolts();
+        if (mv >= 0) lastMilliVolts = mv;  // a failed burst keeps the last good value
+        lastPercent = lastMilliVolts < 0 ? -1 : (int)(leadAcid ? leadAcidPercent(lastMilliVolts) : liIonPercent(lastMilliVolts));
+        lastCharging = leadAcid && lastMilliVolts > 13200;
+    }
 }
 
 // Resting Li-ion voltage to state of charge, linear between points.
@@ -105,7 +134,7 @@ void Setup() {
     caliCfg.bitwidth = ADC_BITWIDTH_12;
     if (adc_cali_create_scheme_line_fitting(&caliCfg, &cali) != ESP_OK) cali = nullptr;
 #endif
-    readMilliVolts();
+    read();
 }
 
 // Sensors this configuration doesn't have are cleaned up by Mqtt::PruneStaleDiscovery.
@@ -118,21 +147,10 @@ bool SendDiscovery() {
 
 void SendTelemetry() {
     if (!enabled()) return;
-    auto mv = readMilliVolts();
-    if (mv < 0) return;  // gauge with no battery fitted
-    doc["mV"] = mv;
-    if (BQ27220::Ready()) {
-        int pct = BQ27220::Percent();
-        doc["batt"] = pct >= 0 ? (unsigned int)pct : liIonPercent(mv);
-        doc["charging"] = BQ27220::Charging() ? "ON" : "OFF";
-    } else if (AXP192::Ready()) {
-        doc["batt"] = liIonPercent(mv);
-        doc["charging"] = AXP192::Charging() ? "ON" : "OFF";
-    } else if (leadAcid) {
-        doc["batt"] = leadAcidPercent(mv);
-        doc["charging"] = mv > 13200 ? "ON" : "OFF";
-    } else {
-        doc["batt"] = liIonPercent(mv);
-    }
+    read();
+    if (lastMilliVolts < 0) return;  // gauge with no battery fitted, or nothing read yet
+    doc["mV"] = lastMilliVolts;
+    doc["batt"] = lastPercent >= 0 ? (unsigned int)lastPercent : liIonPercent(lastMilliVolts);
+    if (leadAcid || gauge()) doc["charging"] = lastCharging ? "ON" : "OFF";
 }
 }  // namespace Battery

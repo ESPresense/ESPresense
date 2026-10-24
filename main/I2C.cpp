@@ -37,7 +37,7 @@ static i2c_master_bus_handle_t busHandle(int bus) {
     return (bus == 1 || bus == 2) ? buses[bus - 1] : nullptr;
 }
 
-// Bus 3 is bit-banged on any two pins, for boards with more I2C buses than the chip has controllers.
+// Bus 3 is bit-banged on any two pins, for a battery gauge on boards with more I2C buses than the chip has controllers.
 namespace soft {
 static const int HALF_PERIOD_US = 5;     // ~100 kHz
 static const int STRETCH_TIMEOUT_US = 5000;
