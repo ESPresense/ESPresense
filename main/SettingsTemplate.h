@@ -202,13 +202,14 @@ inline void upgradeTemplateKeys(JsonObject settings) {
     }
     // I2C sensors used to be on when their address was set, with the bus a separate 1-2 number;
     // now the bus setting (0 None) turns them on. BMP180, SGP30 and SCD4x have one address and no
-    // address setting any more.
+    // address setting any more. A blank address is left alone: in the new format it means
+    // "auto-detect" on the chosen bus, and exports never write one (it is the default), so there
+    // is no old template to turn off.
     static const char* const sensors[] = {"AHTX0", "BH1750", "BME280", "BMP180", "BMP280", "TSL2561", "SGP30", "SCD4x"};
     for (const char* s : sensors) {
         std::string addr = std::string(s) + "_I2c", bus = addr + "_Bus";
         bool on = settings.containsKey(addr.c_str()) && !settings[addr.c_str()].isNull() && settings[addr.c_str()].as<std::string>() != "";
         if (on && !settings.containsKey(bus.c_str())) settings[bus.c_str()] = 1;
-        if (!on && settings.containsKey(bus.c_str()) && settings.containsKey(addr.c_str())) settings[bus.c_str()] = 0;
         if (!strcmp(s, "BMP180") || !strcmp(s, "SGP30") || !strcmp(s, "SCD4x")) settings.remove(addr.c_str());
     }
     if (settings["SHT_I2c_Bus"].is<long>() && settings["SHT_I2c_Bus"].as<long>() < 0) settings["SHT_I2c_Bus"] = 0;
