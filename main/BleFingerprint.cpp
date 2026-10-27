@@ -390,6 +390,10 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("garmin:" + getMac(), ID_TYPE_GARMIN);
+        } else if (manuf == "094f")  // MikroTik tags (TG-BT5) in their native format
+        {
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("mikrotik:" + getMac(), ID_TYPE_MIKROTIK);
         } else if (manuf == "4d4b")  // iTrack
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
