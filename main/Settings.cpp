@@ -487,10 +487,14 @@ std::optional<SettingSpec> spec(const std::string& key) {
     return p->spec();
 }
 
-void serializeBoard(JsonObject out) {
+void serialize(JsonObject out, bool all) {
     for (auto& e : endpoints)
         for (auto* p : e.params) {
-            if (!templatable(p) || !(p->board || e.name == "hardware")) continue;
+            if (!templatable(p)) continue;
+            if (!all && !(p->board || e.name == "hardware")) continue;
+            // Restoring these would break the node: its WiFi password isn't in the file, and
+            // update is a one-shot "OTA from this URL on next boot", not configuration.
+            if (all && (p->name == "wifi-ssid" || p->name == "update")) continue;
             if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
             p->put(out[p->name.c_str()], p->effective());   // names live forever: stored by pointer
         }

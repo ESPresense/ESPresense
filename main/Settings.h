@@ -46,10 +46,11 @@ const PinRules& pins();
 // Board templates (#2529) may set any configuration setting on any endpoint.
 // Typed lookup by name, built on demand; empty if unknown or a password (never in templates).
 std::optional<SettingSpec> spec(const std::string& key);
-// The board's settings that differ from their defaults, typed (numbers, bools, strings): every
-// /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays
-// out so exported templates are safe to share. Param::put is the typed writer #2493 can reuse.
-void serializeBoard(JsonObject out);
+// Settings that differ from their defaults, typed (numbers, bools, strings). Without all: the
+// board's, i.e. every /wifi/hardware setting plus those marked markBoard(); network identity
+// (room, WiFi, MQTT) stays out so exported templates are safe to share. With all: a backup of
+// every setting (#2493) except passwords, the WiFi SSID and the one-shot update URL.
+void serialize(JsonObject out, bool all);
 // Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which
 // resets every key missing from the body. Values must already be validated (parseTemplate).
 // Appends {key, from, to} for each value that differs (as far as diff has room) and counts

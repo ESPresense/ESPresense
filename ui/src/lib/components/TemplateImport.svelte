@@ -49,16 +49,16 @@
         }
     }
 
-    async function exportTemplate(): Promise<void> {
+    async function exportTemplate(all: boolean): Promise<void> {
         error = '';
         try {
-            const template = await fetchTemplate();
+            const template = await fetchTemplate(all);
             const blob = new Blob([JSON.stringify(template, null, 2) + '\n'], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             const name = typeof template.name === 'string' && template.name ? template.name : 'espresense';
             a.href = url;
-            a.download = `${name.replace(/[^\w.-]+/g, '-')}-template.json`;
+            a.download = `${name.replace(/[^\w.-]+/g, '-')}-${all ? 'backup' : 'template'}.json`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (e) {
@@ -79,6 +79,11 @@
     <p class="text-sm text-gray-600 dark:text-gray-300">
         Export saves this board's pin, LED, sensor and Ethernet settings that differ from the defaults. Room,
         WiFi and MQTT settings are never exported, so the file is safe to share; add the board's name before you do.
+    </p>
+    <p class="text-sm text-gray-600 dark:text-gray-300">
+        Export backup saves every setting that differs from the defaults, including room, MQTT and scanning, to set up a
+        replacement node: flash it, join it to WiFi, then import the backup here. Passwords, the MQTT username and the
+        WiFi network are left out, so enter those again afterwards. Keep backups private.
     </p>
     <label>
         Template JSON:<br />
@@ -124,8 +129,11 @@
     {/if}
 
     <div class="flex flex-wrap justify-end gap-2">
-        <button type="button" class="bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600" onclick={exportTemplate}>
+        <button type="button" class="bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600" onclick={() => exportTemplate(false)}>
             Export as template
+        </button>
+        <button type="button" class="bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600" onclick={() => exportTemplate(true)}>
+            Export backup
         </button>
         <button type="button" class="bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600" disabled={busy || !text.trim()} onclick={preview}>
             Preview
