@@ -56,8 +56,9 @@ and, on a `v*` tag, attaches every `<env>.bin` to the GitHub release via
 `softprops/action-gh-release`. `FW_VERSION`/`FW_BRANCH` are baked into the firmware (see
 `envs.cmake`): on a tag, `FW_VERSION` is the tag itself; on `main`/PRs it's the short SHA.
 
-The draft release is marked `prerelease: true` with a `b` prerelease identifier, so a stable
-release means editing the draft before publishing. Publishing a release (not the tag) triggers
+The workflow names the draft after the highest published release (`v5.0.0b5` drafts `v5.0.0b6`,
+`v5.0.0` drafts `v5.0.1b0`) and marks it a prerelease, so a stable or minor release means editing
+the tag before publishing. Publishing a release (not the tag) triggers
 `dispatch.yml`, which fires a `new-release` repository dispatch at `ESPresense/ESPresense.com`
 to rebuild the docs site.
 
