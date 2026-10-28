@@ -153,6 +153,7 @@ int forgetMs = DEFAULT_FORGET_MS,
     countMs = DEFAULT_COUNT_MS,
     requeryMs = DEFAULT_REQUERY_MS,
     maxFingerprints = DEFAULT_MAX_FINGERPRINTS;
+bool eyeActiveScan = false;
 std::vector<DeviceConfig> deviceConfigs;
 std::vector<uint8_t *> irks;
 TCallbackBool onSeen = nullptr;
@@ -221,6 +222,19 @@ void Close(BleFingerprint *f, bool close) {
 }
 
 void Seen(const Ble::Advert *advertisedDevice) {
+    // Scan responses only arrive during an EYE active-scan window. They feed telemetry to a device
+    // already tracked, never identity or rssi: a name or connectable type in one would otherwise
+    // re-key every device in range once an hour.
+    if (advertisedDevice->isScanResponse()) {
+        FingerprintLease lease;
+        {
+            FingerprintLock lock;
+            if (lock) lease = findByAddress(advertisedDevice);
+        }
+        if (lease) lease.fingerprint->scanResponse(advertisedDevice);
+        Release(lease);
+        return;
+    }
 
     if (onSeen) onSeen(true);
     auto lease = GetFingerprint(advertisedDevice);
@@ -382,6 +396,7 @@ void ConnectToWifi(bool updating) {
     if (rssiWindowMs < 100) rssiWindowMs = 100;      // min/max above only bound the UI; a hand-edited
     if (rssiWindowMs > 60000) rssiWindowMs = 60000;  // NVS value would otherwise be applied verbatim
     maxFingerprints = Settings::integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
+    eyeActiveScan = Settings::checkbox("eye_active_scan", false, "Active scan for 60 s every hour to read Teltonika EYE battery and sensors from scan responses");
 
     rxRefRssi = clampRssi(Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)"), -100, 100);
     rxOffsetRssi = clampRssi(Settings::integer("rx_offset_rssi", -100, 100, DEFAULT_RX_OFFSET_RSSI, "Receiver offset (dB), added to every reading: +5 if this node reads 5 dB weak, -5 if strong"), -100, 100);

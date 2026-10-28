@@ -74,6 +74,8 @@ class BleFingerprint {
 
     bool query();
     bool queryBatteryIfDue();
+    // A scan response (active scan only) to an existing fingerprint: telemetry, never identity.
+    void scanResponse(const Ble::Advert *advertisedDevice);
 
     // id/name/discoveredIrk are written from the BLE host task (seen) and the MQTT task
     // (Config) and read from the loop and httpd tasks: every access goes through fieldLock().
@@ -160,6 +162,7 @@ class BleFingerprint {
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF;
+    int8_t lowBattery = -1;  // -1 unknown, else the device's own low-battery flag
     int8_t rssiOffset = 0;  // the rx_offset_rssi rssi was computed with, so rawRssi = rssi - rssiOffset
     std::unique_ptr<AdaptivePercentileRSSI> adaptivePercentileRSSI;
     std::unique_ptr<QueryReport> queryReport = nullptr;
@@ -170,6 +173,7 @@ class BleFingerprint {
     void fingerprintServiceAdvertisements(const Ble::Advert *advertisedDevice, size_t serviceAdvCount, bool haveTxPower, int8_t txPower);
     void fingerprintServiceData(const Ble::Advert *advertisedDevice, size_t serviceDataCount, bool haveTxPower, int8_t txPower);
     void fingerprintManufactureData(const Ble::Advert *advertisedDevice, bool haveTxPower, int8_t txPower);
+    void teltonikaEye(const std::string &manufacturerData);
 };
 
 #endif

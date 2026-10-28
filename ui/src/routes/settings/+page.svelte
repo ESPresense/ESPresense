@@ -72,6 +72,12 @@
                     bind:value={$extraSettings.values['max_fingerprints']}/>
             </label>
         </p>
+        <p>
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" name="eye_active_scan" bind:checked={$extraSettings.values['eye_active_scan']}/>
+                <span>Active scan for 60 s every hour to read Teltonika EYE battery and sensors (default: &#x2610;)</span>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#querying" target="_blank">Querying</a>
         </h2>

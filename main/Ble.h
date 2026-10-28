@@ -22,6 +22,7 @@ class Advert {
     uint8_t getAddressType() const { return addr.type; }
     int8_t getRSSI() const { return rssi; }
     uint8_t getAdvType() const { return eventType; }
+    bool isScanResponse() const { return eventType == BLE_HCI_ADV_RPT_EVTYPE_SCAN_RSP; }
 
     bool haveName() const;
     std::string getName() const;
@@ -53,6 +54,9 @@ using AdvertCallback = void (*)(const Advert&);
 void Init(const char* deviceName, AdvertCallback cb);  // start host, wait for sync
 void DeleteAllBonds();
 bool StartScan();
+// Active scanning asks every advertiser for its scan response; takes effect at once (restarts
+// a running scan) and survives the stop/start around a GATT query.
+void SetActiveScan(bool active);
 void StopScan();
 bool IsScanning();
 
