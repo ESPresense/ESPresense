@@ -81,9 +81,12 @@ export async function waitForRestart(attempts = 15): Promise<void> {
 	throw new Error('The node did not come back after restarting. Please refresh the page.');
 }
 
-/** Fetches this node's board settings as a template. */
-export async function fetchTemplate(): Promise<Record<string, unknown>> {
-	const response = await fetch('/json/template');
+/**
+ * Fetches this node's board settings as a template, or with `all` a backup of every setting
+ * except passwords and the WiFi network, in the same shape (it imports like a template).
+ */
+export async function fetchTemplate(all = false): Promise<Record<string, unknown>> {
+	const response = await fetch(all ? '/json/template?all' : '/json/template');
 	if (!response.ok) throw new Error(`Export failed (${response.status})`);
 	return response.json();
 }
