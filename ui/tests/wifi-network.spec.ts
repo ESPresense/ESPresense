@@ -222,4 +222,9 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
   await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeVisible();
   await page.getByLabel('Port', { exact: true }).fill('8883');
   await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+
+  posted = undefined;
+  await page.getByRole('button', { name: /save/i }).click();
+  await expect.poll(() => posted?.get('mqtt_tls')).toBe('1');
+  expect(posted?.get('mqtt_port')).toBe('8883');
 });
