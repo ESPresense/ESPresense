@@ -223,6 +223,23 @@
             <div>
                 <label for="mqtt-port" class="block text-sm font-medium">Port</label>
                 <input id="mqtt-port" type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                {#if $mainSettings.values.mqtt_tls && Number($mainSettings.values.mqtt_port || $mainSettings.defaults.mqtt_port) === 1883}
+                    <p class="text-sm text-gray-600 dark:text-gray-300">TLS brokers usually listen on 8883.</p>
+                {/if}
+            </div>
+
+            <div class="space-y-4">
+                <label for="mqtt-tls" class="flex items-center space-x-2">
+                    <input id="mqtt-tls" type="checkbox" name="mqtt_tls" value="1" bind:checked={$mainSettings.values.mqtt_tls} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>Use TLS (MQTTS)</span>
+                </label>
+
+                <!-- Hidden, not removed, while TLS is off: the save posts every field, and a missing one is cleared. -->
+                <div class="ml-6" hidden={!$mainSettings.values.mqtt_tls}>
+                    <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
+                    <textarea id="mqtt-ca" name="mqtt_ca" rows="4" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
+                    <p class="text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
+                </div>
             </div>
 
             <div>

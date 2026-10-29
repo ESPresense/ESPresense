@@ -8,6 +8,8 @@
 #include "Network.h"
 #include "defaults.h"
 #include "esp_chip_info.h"
+#include "esp_crt_bundle.h"
+#include "mbedtls/x509.h"
 #include "globals.h"
 #include "mqtt_client.h"
 #include "string_utils.h"
@@ -106,6 +108,11 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
                 payloadBuffer.shrink_to_fit();
             }
             break;
+        case MQTT_EVENT_ERROR:
+            // esp-tls only logs the mbedTLS code (stored negated); say what the usual cause is.
+            if (ev->error_handle->error_type == MQTT_ERROR_TYPE_TCP_TRANSPORT && ev->error_handle->esp_tls_stack_err == -MBEDTLS_ERR_X509_CERT_VERIFY_FAILED)
+                Log.println("MQTT TLS: broker certificate not trusted (wrong CA, or it doesn't name the server as configured)");
+            break;
         default:
             break;
     }
@@ -127,12 +134,16 @@ void PruneStaleDiscovery() {
 }
 
 void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
-           const std::string& clientId, const std::string& willTopic) {
-    static std::string sHost = host, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic;
+           const std::string& clientId, const std::string& willTopic, bool tls, const std::string& caPem) {
+    static std::string sHost = host, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic, sCa = caPem;
     esp_mqtt_client_config_t cfg = {};
     cfg.broker.address.hostname = sHost.c_str();
     cfg.broker.address.port = port;
-    cfg.broker.address.transport = MQTT_TRANSPORT_OVER_TCP;
+    cfg.broker.address.transport = tls ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP;
+    if (tls && !sCa.empty())
+        cfg.broker.verification.certificate = sCa.c_str();  // PEM: NUL-terminated, length 0 is fine
+    else if (tls)
+        cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
     cfg.credentials.client_id = sClient.c_str();
     if (!sUser.empty()) cfg.credentials.username = sUser.c_str();
     if (!sPass.empty()) cfg.credentials.authentication.password = sPass.c_str();
@@ -143,7 +154,7 @@ void Setup(const std::string& host, uint16_t port, const std::string& user, cons
     cfg.network.reconnect_timeout_ms = 3000;
     cfg.network.timeout_ms = 10000;
     cfg.buffer.size = 1024;
-    cfg.task.stack_size = 5120;
+    cfg.task.stack_size = tls ? 6144 : 5120;  // the TLS handshake runs on this task
     client = esp_mqtt_client_init(&cfg);
     esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, onEvent, nullptr);
     esp_mqtt_client_start(client);

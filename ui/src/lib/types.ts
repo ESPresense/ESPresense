@@ -76,6 +76,8 @@ export interface MainSettings {
         mqtt_port: number;
         mqtt_user: string;
         mqtt_pass: string;
+        mqtt_tls: boolean;
+        mqtt_ca: string;
         discovery: boolean;
         discovery_prefix: string;
         pub_tele: boolean;
