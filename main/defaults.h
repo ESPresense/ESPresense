@@ -5,6 +5,12 @@
 #define CHECK_FOR_UPDATES_INTERVAL 900000
 #endif
 
+// The update check's HTTPS HEAD peaks at 19-25 KB on a C3 and fails cleanly (no crash) once
+// mbedTLS can't get a ~4.7 KB block; it succeeded down to 30 KB free / 9 KB largest block
+// (HIL probe, 2026-10-29). Peak use plus MQTT_MIN_FREE_MEMORY keeps MQTT publishing through it.
+#define UPDATE_CHECK_MIN_FREE_HEAP 40000
+#define UPDATE_CHECK_MIN_MAX_ALLOC 8192
+
 // Number of seconds to wait for a Station Wifi connection to be established
 #ifndef DEFAULT_WIFI_TIMEOUT
 #define DEFAULT_WIFI_TIMEOUT 60
