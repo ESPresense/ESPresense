@@ -12,6 +12,7 @@
 #include "Logger.h"
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
+#include "TeltonikaEye.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mbedtls/aes.h"
@@ -358,6 +359,7 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
     if (strManufacturerData.length() >= 2) {
         const auto *d = (const uint8_t *)strManufacturerData.data();
         std::string manuf = Sprintf("%02x%02x", d[1], d[0]);
+        if (manuf == "089a") teltonikaEye(strManufacturerData);  // telemetry only; id falls through to md:
 
         if (manuf == "004c")  // Apple
         {
@@ -423,6 +425,15 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
     }
 }
 
+void BleFingerprint::teltonikaEye(const std::string &manufacturerData) {
+    TeltonikaEye e;
+    if (!parseTeltonikaEye((const uint8_t *)manufacturerData.data(), manufacturerData.size(), e)) return;
+    lowBattery = e.lowBattery;
+    if (e.hasVoltage) mv = e.mv;
+    if (e.hasTemp) temp = e.temp;
+    if (e.hasHumidity) humidity = e.humidity;
+}
+
 bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
     lastSeenMillis = millis();
     reported = false;
@@ -477,6 +488,7 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     if (mv) (*doc)["mV"] = mv;
     if (battery != 0xFF) (*doc)["batt"] = battery;
+    if (lowBattery >= 0) (*doc)["lowBatt"] = lowBattery;
     if (temp) (*doc)["temp"] = serialized(toStr(temp));
     if (humidity) (*doc)["rh"] = serialized(toStr(humidity));
     if (discoveredIrk) (*doc)["irk"] = *discoveredIrk;
