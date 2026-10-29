@@ -1,5 +1,7 @@
 #include "Updater.h"
 
+#include <errno.h>
+
 #include "EspOta.h"
 #include "GUI.h"
 #include "HttpWebServer.h"
@@ -104,9 +106,10 @@ static esp_err_t updateEvent(esp_http_client_event_t* ev) {
 // one comes up with BLE scanning dead for that boot (seen on C3 and S3). Drop the request and
 // restart clean; the next auto-update check (or a new update command) tries again.
 // The failure happens in early boot where nobody sees the log, so keep why for SendOnline to publish.
-static void giveUp(const std::string& url, const char* what, esp_err_t err) {
-    char why[64];
-    snprintf(why, sizeof(why), "%s: 0x%x, http %d", what, (unsigned)err, updateStatus);
+// detail says how far the download got, so a stalled stream reads differently from a bad image.
+static void giveUp(const std::string& url, const char* what, esp_err_t err, const char* detail = "") {
+    char why[128];
+    snprintf(why, sizeof(why), "%s: %s (0x%x), http %d%s", what, esp_err_to_name(err), (unsigned)err, updateStatus, detail);
     spurt("/update_error", why + std::string(" ") + url);
     Settings::remove("/update");
     Log.println("Update abandoned, restarting");
@@ -151,6 +154,8 @@ void firmwareUpdate() {
             GUI::Update(pct);
         }
     }
+    int readErrno = errno;  // a failed read leaves the socket/TLS error here
+    int got = esp_https_ota_get_image_len_read(handle);
     bool ok = err == ESP_OK && esp_https_ota_is_complete_data_received(handle);
     esp_err_t fin = esp_https_ota_finish(handle);
     GUI::Update(UPDATE_COMPLETE);
@@ -164,7 +169,9 @@ void firmwareUpdate() {
         esp_restart();
     }
     Log.printf("Firmware update failed to apply (%s / %s)\n", esp_err_to_name(err), esp_err_to_name(fin));
-    giveUp(url, "apply", err != ESP_OK ? err : fin);
+    char detail[48];
+    snprintf(detail, sizeof(detail), ", at %d/%d, errno %d", got, total, err != ESP_OK ? readErrno : 0);
+    giveUp(url, "apply", err != ESP_OK ? err : fin, detail);
 }
 
 void Setup() {
