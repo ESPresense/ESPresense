@@ -195,6 +195,8 @@ test('should display SSID with extended characters', async ({ page }) => {
 
 test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ page }) => {
   let posted: URLSearchParams | undefined;
+  // A function, so TypeScript doesn't narrow posted to undefined after it is reset below.
+  const sent = (key: string) => posted?.get(key);
   await page.route('/wifi/main', async route => {
     if (route.request().method() === 'GET') {
       await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: false, mqtt_ca: 'KEEP' } } });
@@ -214,8 +216,8 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
 
   // Hidden, the CA is still posted so saving with TLS off doesn't erase it.
   await page.getByRole('button', { name: /save/i }).click();
-  await expect.poll(() => posted?.get('mqtt_ca')).toBe('KEEP');
-  expect(posted?.has('mqtt_tls')).toBe(false);
+  await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
+  expect(sent('mqtt_tls')).toBeNull();
 
   await page.getByLabel('Use TLS (MQTTS)').check();
   await expect(ca).toBeVisible();
@@ -225,6 +227,6 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
 
   posted = undefined;
   await page.getByRole('button', { name: /save/i }).click();
-  await expect.poll(() => posted?.get('mqtt_tls')).toBe('1');
-  expect(posted?.get('mqtt_port')).toBe('8883');
+  await expect.poll(() => sent('mqtt_tls')).toBe('1');
+  expect(sent('mqtt_port')).toBe('8883');
 });
