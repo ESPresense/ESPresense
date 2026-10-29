@@ -2,6 +2,23 @@ import type { Writable } from 'svelte/store';
 import type { ExtraSettings } from '#lib/types.js';
 
 /**
+ * A settings form as the body the device expects. The device keeps any setting missing from the
+ * body (#2582), so an unchecked checkbox, which FormData leaves out, is sent as "0".
+ */
+export function formParams(form: HTMLFormElement): URLSearchParams {
+	const params = new URLSearchParams();
+	for (const [key, value] of new FormData(form).entries()) {
+		if (typeof value === 'string') {
+			params.append(key, value);
+		}
+	}
+	for (const el of form.querySelectorAll<HTMLInputElement>('input[type="checkbox"][name]')) {
+		if (!el.checked && !el.disabled) params.append(el.name, '0');
+	}
+	return params;
+}
+
+/**
  * Saves settings to the device with automatic restart and retry logic.
  *
  * This function handles the complete save flow:
@@ -12,31 +29,23 @@ import type { ExtraSettings } from '#lib/types.js';
  * 4. Updates the provided settings store on success
  *
  * @param endpoint - The API endpoint to POST settings to (e.g., "/wifi/extras" or "/wifi/hardware")
- * @param formData - The FormData object containing settings to save
+ * @param form - The settings form to save
  * @param settingsStore - The Svelte store to update with reloaded settings
  * @throws Error with the device's message if it refuses the save, or if settings fail to reload
  * after all retry attempts
  *
  * @example
  * ```typescript
- * await saveSettingsWithRetry("/wifi/hardware", formData, hardwareSettings);
+ * await saveSettingsWithRetry("/wifi/hardware", form, hardwareSettings);
  * ```
  */
 export async function saveSettingsWithRetry(
 	endpoint: string,
-	formData: FormData,
+	form: HTMLFormElement,
 	settingsStore: Writable<ExtraSettings | null>
 ): Promise<void> {
-	// Convert FormData to URLSearchParams for posting
-	const params = new URLSearchParams();
-	for (const [key, value] of formData.entries()) {
-		if (typeof value === 'string') {
-			params.append(key, value);
-		}
-	}
-
 	// Save settings to device
-	const response = await fetch(endpoint, { method: 'POST', body: params });
+	const response = await fetch(endpoint, { method: 'POST', body: formParams(form) });
 	if (!response.ok) {
 		const message = (await response.text().catch(() => '')).trim();
 		throw new Error(message || `Save failed (${response.status})`);
