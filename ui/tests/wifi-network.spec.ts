@@ -192,3 +192,34 @@ test('should display SSID with extended characters', async ({ page }) => {
   await page.getByRole('button', { name: 'Darrell’s iPhone' }).click();
   await expect(ssidInput).toHaveValue('Darrell’s iPhone');
 });
+
+test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ page }) => {
+  let posted: URLSearchParams | undefined;
+  await page.route('/wifi/main', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: false, mqtt_ca: 'KEEP' } } });
+    } else {
+      posted = new URLSearchParams(route.request().postData() ?? '');
+      await route.fulfill({ json: { success: true } });
+    }
+  });
+  await page.route('/wifi/scan', route => route.fulfill({ json: { networks: {} } }));
+  await page.route('/json', route => route.fulfill({ json: { room: 'Living Room' } }));
+  await page.route('/restart', route => route.fulfill({ body: '' }));
+  await page.goto('/network');
+
+  const ca = page.getByLabel('CA certificate (optional)');
+  await expect(ca).toBeHidden();
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+
+  // Hidden, the CA is still posted so saving with TLS off doesn't erase it.
+  await page.getByRole('button', { name: /save/i }).click();
+  await expect.poll(() => posted?.get('mqtt_ca')).toBe('KEEP');
+  expect(posted?.has('mqtt_tls')).toBe(false);
+
+  await page.getByLabel('Use TLS (MQTTS)').check();
+  await expect(ca).toBeVisible();
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeVisible();
+  await page.getByLabel('Port', { exact: true }).fill('8883');
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+});
