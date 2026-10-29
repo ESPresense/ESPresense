@@ -1,5 +1,8 @@
 # Repo Guidelines for Agents
 
+* Read the product principles in CONTRIBUTING.md before you propose, port or merge a feature.
+  Passing CI doesn't mean a change fits. Passive scanning comes first: anything that transmits must
+  be limited to devices the user picked and bounded, never an active scan of everything in range.
 * After modifying files under `ui`, execute `npm run build` in that folder to regenerate C++ headers under `main`.
 * Pure ESP-IDF v5.4 project: `. ~/esp/esp-idf/export.sh && ./build.sh <env>` (see BUILDING.md). No Arduino, no PlatformIO.
 * Flash with `tools/flash.sh <env> <port> [seconds]`: it flashes, then captures the serial log
