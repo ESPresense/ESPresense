@@ -184,12 +184,19 @@ void Setup() {
 }
 
 void Loop() {
-    if (arduinoOtaEnabled) EspOta::Start();
+    auto heap = freeHeap();
+    auto maxAlloc = maxAllocHeap();
+    bool roomy = heap > UPDATE_CHECK_MIN_FREE_HEAP && maxAlloc > UPDATE_CHECK_MIN_MAX_ALLOC;
+    if (arduinoOtaEnabled && roomy) EspOta::Start();
     if (!autoUpdateEnabled) return;
     unsigned long now = millis();
     if (now - lastFirmwareCheck > CHECK_FOR_UPDATES_INTERVAL) {
         lastFirmwareCheck = now;
-        checkForUpdates();
+        if (roomy)
+            checkForUpdates();
+        else
+            Log.printf("Skipping update check: %lu bytes free, largest block %lu\n", static_cast<unsigned long>(heap),
+                       static_cast<unsigned long>(maxAlloc));
     }
 }
 
