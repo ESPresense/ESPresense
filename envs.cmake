@@ -16,10 +16,13 @@ else()
   list(APPEND FW_DEFS USE_ETHERNET)
 endif()
 
-# VERSION / BRANCH come from CI: -DFW_VERSION=v4.1.0 -DFW_BRANCH=main
+# VERSION / BRANCH / RUN_ID come from CI: -DFW_VERSION=v4.1.0 -DFW_BRANCH=main -DFW_RUN_ID=40676895203
 if(FW_VERSION)
   list(APPEND FW_DEFS "VERSION=\"${FW_VERSION}\"")
 endif()
 if(FW_BRANCH)
   list(APPEND FW_DEFS "BRANCH=\"${FW_BRANCH}\"")
+endif()
+if(FW_RUN_ID)
+  list(APPEND FW_DEFS "RUN_ID=\"${FW_RUN_ID}\"")
 endif()

@@ -35,6 +35,11 @@ std::string getFirmwareUrl() {
 }
 
 std::string getVersionMarker() {
+#if defined(BRANCH) && defined(RUN_ID)
+    // Branch artifacts redirect to /artifacts/download/runs/<run id>/, which never names the
+    // commit; matching VERSION there would find an "update" to the running build every check.
+    if (prerelease) return "/runs/" RUN_ID "/";
+#endif
 #ifdef VERSION
     return std::string("/") + VERSION + "/";
 #else
