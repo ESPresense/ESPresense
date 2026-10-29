@@ -214,7 +214,6 @@ AdvertCallback advertCb = nullptr;
 SemaphoreHandle_t syncSem;
 uint8_t ownAddrType = BLE_OWN_ADDR_PUBLIC;
 volatile bool scanning = false;
-bool activeScan = false;
 int gapEvent(struct ble_gap_event* ev, void* arg);
 
 // Peripheral state
@@ -429,7 +428,7 @@ void DeleteAllBonds() { ble_store_clear(); }
 bool StartScan() {
     if (scanning) return true;
     struct ble_gap_disc_params p = {};
-    p.passive = !activeScan;
+    p.passive = 1;
     p.filter_duplicates = 0;
     p.itvl = BLE_SCAN_INTERVAL;
     p.window = BLE_SCAN_WINDOW;
@@ -446,14 +445,6 @@ void StopScan() {
 }
 
 bool IsScanning() { return scanning; }
-
-void SetActiveScan(bool active) {
-    if (activeScan == active) return;
-    activeScan = active;
-    if (!scanning) return;
-    StopScan();
-    StartScan();
-}
 
 // --- client --------------------------------------------------------------------------------------
 

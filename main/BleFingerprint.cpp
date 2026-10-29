@@ -434,12 +434,6 @@ void BleFingerprint::teltonikaEye(const std::string &manufacturerData) {
     if (e.hasHumidity) humidity = e.humidity;
 }
 
-void BleFingerprint::scanResponse(const Ble::Advert *advertisedDevice) {
-    if (!advertisedDevice->haveManufacturerData()) return;
-    std::string md = advertisedDevice->getManufacturerData();
-    if (md.size() >= 2 && (uint8_t)md[0] == 0x9a && (uint8_t)md[1] == 0x08) teltonikaEye(md);
-}
-
 bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
     lastSeenMillis = millis();
     reported = false;

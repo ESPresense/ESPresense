@@ -469,25 +469,6 @@ void onAdvert(const Ble::Advert &advert) {
     BleFingerprintCollection::Seen(&advert);
 }
 
-// Teltonika EYE in iBeacon/Eddystone mode only puts its sensors in the scan response, which
-// takes an active scan. That costs every advertiser a reply, so scan actively for a minute an
-// hour (starting when it's enabled) rather than all the time.
-static void eyeActiveScanWindow() {
-    constexpr uint32_t intervalMs = 60 * 60 * 1000, windowMs = 60 * 1000;
-    static bool enabled = false, active = false;
-    static uint32_t since = 0;
-    uint32_t now = millis();
-    if (BleFingerprintCollection::eyeActiveScan != enabled) {
-        enabled = BleFingerprintCollection::eyeActiveScan;
-        since = now;
-    }
-    bool want = enabled && (now - since) % intervalMs < windowMs;
-    if (want == active) return;
-    active = want;
-    Ble::SetActiveScan(active);
-    Log.printf("EYE active scan window %s\n", active ? "opened" : "closed");
-}
-
 void scanTask(void *parameter) {
     Ble::Init("ESPresense", onAdvert);
     Ble::DeleteAllBonds();
@@ -505,7 +486,6 @@ void scanTask(void *parameter) {
         }
 
         Enrollment::Loop();
-        eyeActiveScanWindow();
 
         if (!Ble::IsScanning()) {
             if (!Ble::StartScan())

@@ -1,7 +1,7 @@
 #pragma once
 // Pure parser for Teltonika EYE sensor/beacon manufacturer data, shared by the fingerprint code
-// and host tests. In "EYE Sensors" mode it is the advertisement itself; with iBeacon/Eddystone +
-// EYE Sensors it only arrives in the scan response, so only an active scan sees it.
+// and host tests. Only "EYE Sensors" mode puts it in the advertisement itself. iBeacon/Eddystone +
+// EYE Sensors moves it to the scan response, which a passive scan never requests.
 //
 // Layout (multi-byte values big-endian): [0..1] 0x089a LE, [2] protocol 0x01, [3] flags, then
 // one field per set flag in this order:

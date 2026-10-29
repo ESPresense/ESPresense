@@ -74,8 +74,6 @@ class BleFingerprint {
 
     bool query();
     bool queryBatteryIfDue();
-    // A scan response (active scan only) to an existing fingerprint: telemetry, never identity.
-    void scanResponse(const Ble::Advert *advertisedDevice);
 
     // id/name/discoveredIrk are written from the BLE host task (seen) and the MQTT task
     // (Config) and read from the loop and httpd tasks: every access goes through fieldLock().
