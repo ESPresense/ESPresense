@@ -14,20 +14,34 @@ jobs:
   update_release_draft:
     runs-on: ubuntu-latest
     steps:
-      # Betas are tagged v5.0.0b4, which release-drafter can't parse as a prerelease
-      # (it would draft v5.0.0-b.0). Until v5.0.0 itself ships, draft the next beta
-      # (v5.0.0b5); after that, leave the version to release-drafter.
-      - name: Next beta version
+      # Betas are tagged v5.0.0b4. release-drafter parses versions as semver, so given version
+      # 5.0.0b5 it drafted v5.0.0. The tag is worked out here instead and passed as tag/name,
+      # which release-drafter uses as-is. It follows the highest published release:
+      # v5.0.0b5 -> v5.0.0b6, v5.0.0 -> v5.0.1b0 (retag the draft when publishing a stable or
+      # minor release). Drafts are excluded: `gh release view` finds them, which is how a stray
+      # v5.0.0 draft once looked like a shipped release. `from` keeps the notes to the changes
+      # since that release, not since a newer v4 maintenance release.
+      - name: Next beta tag
         id: next
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          beta=$(gh release list -R "$GITHUB_REPOSITORY" --exclude-drafts --limit 50 --json tagName \
-            -q '[.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+b[0-9]+$"))][0] // ""')
-          [ -n "$beta" ] || exit 0
-          gh release view "${beta%b*}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && exit 0
-          [[ "$beta" =~ ^v(.*)b([0-9]+)$ ]]
-          echo "version=${BASH_REMATCH[1]}b$((BASH_REMATCH[2] + 1))" >> "$GITHUB_OUTPUT"
+          base=$(gh release list -R "$GITHUB_REPOSITORY" --exclude-drafts --limit 100 --json tagName -q '.[].tagName' |
+            grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?$' |
+            sed -E 's/^(v[0-9.]+)$/\1b999999/' | sort -V | tail -n 1 | sed 's/b999999$//')
+          if [[ $base =~ ^v(.+)b([0-9]+)$ ]]; then
+            tag="v${BASH_REMATCH[1]}b$((BASH_REMATCH[2] + 1))"
+          elif [[ $base =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))b0"
+          else
+            echo "No published release to follow" >&2
+            exit 1
+          fi
+          echo "Base $base, drafting $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "from=$base" >> "$GITHUB_OUTPUT"
       - uses: release-drafter/release-drafter@v7
         with:
-          version: ${{ steps.next.outputs.version }}
+          tag: ${{ steps.next.outputs.tag }}
+          name: ${{ steps.next.outputs.tag }}
+          from: ${{ steps.next.outputs.from }}
