@@ -47,8 +47,7 @@ it skips `dependabot/*` branches, so a Dependabot UI bump has to run `npm run bu
 
 Release notes are drafted automatically by `release-drafter.yml` on every push to `main`, using
 the PR labels from `.github/pr-labeler.yml` (branch prefixes `feature/*`/`feat/*`, `fix/*`,
-`bugfix/*`, `bug/*`, `enhancement/*` map to labels). Version bumps come from PR labels:
-`major`/`minor`/`patch`, defaulting to patch. Only label a PR if its branch prefix didn't
+`bugfix/*`, `bug/*`, `enhancement/*` map to labels). Only label a PR if its branch prefix didn't
 already set one.
 
 Publishing is a tag push. `build.yml` builds all 15 variants, enforces the 1920 KB size gate,
@@ -58,7 +57,8 @@ and, on a `v*` tag, attaches every `<env>.bin` to the GitHub release via
 
 The workflow names the draft after the highest published release (`v5.0.0b5` drafts `v5.0.0b6`,
 `v5.0.0` drafts `v5.0.1b0`) and marks it a prerelease, so a stable or minor release means editing
-the tag before publishing. Publishing a release (not the tag) triggers
+the draft before publishing: change the tag and title, and for a stable release clear
+"Set as a pre-release". Publishing a release (not the tag) triggers
 `dispatch.yml`, which fires a `new-release` repository dispatch at `ESPresense/ESPresense.com`
 to rebuild the docs site.
 
