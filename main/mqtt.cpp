@@ -12,13 +12,13 @@
 #include "mqtt_client.h"
 #include "string_utils.h"
 
-// Defined in main.cpp: full-message dispatch and the online flag.
+// Defined in main.cpp: full-message dispatch and the online and discovery flags.
 void onMqttMessage(const char* topic, const char* payload);
-extern bool online;
+extern bool online, sentDiscovery;
 extern int reconnectTries;
 extern std::string setTopic, configTopic;
 
-// Discovery topics announced since boot; PruneStaleDiscovery deletes retained configs not in it.
+// Discovery topics announced since connecting; PruneStaleDiscovery deletes retained configs not in it.
 std::set<std::string> announcedTopics;
 
 namespace Mqtt {
@@ -41,7 +41,7 @@ bool isOwnDiscovery(const char* topic, int len) {
     return t.compare(0, homeAssistantDiscoveryPrefix.size() + 1, homeAssistantDiscoveryPrefix + "/") == 0 && t.find(chip) != std::string::npos && endsWith(t, "/config");
 }
 
-// A retained config we didn't announce this boot: clear it (empty retained payload). Empty
+// A retained config we didn't just announce: clear it (empty retained payload). Empty
 // payloads are our own deletes coming back, or already gone.
 void pruneIfStale(const std::string& topic, int payloadLen) {
     if (!pruneArmed || payloadLen == 0 || announcedTopics.count(topic)) return;
@@ -70,6 +70,9 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
         case MQTT_EVENT_DISCONNECTED:
             isConnected = false;
             online = false;
+            // The broker may have come back without its retained messages (no persistence), and
+            // Home Assistant then has no configs left to rediscover this node from.
+            sentDiscovery = false;
             GUI::Connected(true, false);
             Log.println("Disconnected from MQTT");
             break;
@@ -79,8 +82,8 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
             if (ev->msg_id == pruneSubscribeId && pruneTimer) esp_timer_start_once(pruneTimer, 2ULL * 1000 * 1000);
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
-            // Nothing reads the set after the window (discovery runs once per boot), so release it
-            // rather than hold a topic per entity for the life of the process.
+            // Nothing reads the set after the window (the next discovery rebuilds it), so release
+            // it rather than hold a topic per entity for the life of the process.
             if (ev->msg_id == pruneUnsubscribeId) {
                 announcedTopics.clear();
                 pruneArmed = false;
