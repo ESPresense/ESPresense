@@ -230,3 +230,27 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
   await expect.poll(() => sent('mqtt_tls')).toBe('1');
   expect(sent('mqtt_port')).toBe('8883');
 });
+
+test('a refused save shows the error, restarts nothing and keeps the form', async ({ page }) => {
+  const message = 'Not saved: these settings are over the 8 KB limit.';
+  let restarted = false;
+  await page.route('/wifi/main', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: true, mqtt_ca: '' } } });
+    } else {
+      await route.fulfill({ status: 413, body: message });
+    }
+  });
+  await page.route('/wifi/scan', route => route.fulfill({ json: { networks: {} } }));
+  await page.route('/json', route => route.fulfill({ json: { room: 'Living Room' } }));
+  await page.route('/restart', route => { restarted = true; return route.fulfill({ body: '' }); });
+  await page.goto('/network');
+
+  const ca = page.getByLabel('CA certificate (optional)');
+  await ca.fill('-----BEGIN CERTIFICATE-----\nchain\n-----END CERTIFICATE-----');
+  await page.getByRole('button', { name: /save/i }).click();
+
+  await expect(page.getByRole('alert')).toHaveText(message);
+  await expect(ca).toHaveValue(/chain/);
+  expect(restarted).toBe(false);
+});

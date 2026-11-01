@@ -319,7 +319,7 @@ esp_err_t postHandler(httpd_req_t* req) {
     if (idx < 0) return sendText(req, "404 Not Found", "Endpoint not found");
 
     std::string body;
-    if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
+    if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Not saved: these settings are over the 8 KB limit.");
 
     // Refuse the whole save if a pin can't work on this chip, before anything is changed.
     // Keys missing from the body keep their stored value (#2582).
