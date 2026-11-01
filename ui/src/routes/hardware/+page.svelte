@@ -58,8 +58,7 @@
             isSaving = true;
             saveError = '';
             const form = event.target as HTMLFormElement;
-            const formData = new FormData(form);
-            await saveSettingsWithRetry('/wifi/hardware', formData, hardwareSettings);
+            await saveSettingsWithRetry('/wifi/hardware', form, hardwareSettings);
         } catch (error) {
             console.error('Failed to save hardware settings:', error);
             saveError = error instanceof Error ? error.message : String(error);

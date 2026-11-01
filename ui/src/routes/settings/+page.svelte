@@ -17,8 +17,7 @@
             isSaving = true;
             saveError = '';
             const form = event.target as HTMLFormElement;
-            const formData = new FormData(form);
-            await saveSettingsWithRetry('/wifi/extras', formData, extraSettings);
+            await saveSettingsWithRetry('/wifi/extras', form, extraSettings);
         } catch (error) {
             console.error('Failed to save extra settings:', error);
             saveError = error instanceof Error ? error.message : String(error);

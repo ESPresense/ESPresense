@@ -50,8 +50,7 @@ std::optional<SettingSpec> spec(const std::string& key);
 // /wifi/hardware setting plus those marked markBoard(). Network identity (room, WiFi, MQTT) stays
 // out so exported templates are safe to share. Param::put is the typed writer #2493 can reuse.
 void serializeBoard(JsonObject out);
-// Partial apply: only the given keys are touched, unlike the /wifi/<endpoint> form POST which
-// resets every key missing from the body. Values must already be validated (parseTemplate).
+// Partial apply: only the given keys are touched (as with the /wifi/<endpoint> form POST). Values must already be validated (parseTemplate).
 // Appends {key, from, to} for each value that differs (as far as diff has room) and counts
 // them in changed; dryRun stops there. False on a flash write error.
 bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed);
