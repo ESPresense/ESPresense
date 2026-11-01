@@ -228,11 +228,11 @@
                     <span>Use TLS (MQTTS)</span>
                 </label>
 
-                <!-- Hidden, not removed, while TLS is off: the save posts every field, and a missing one is cleared. -->
+                <!-- Hidden, not removed, while TLS is off: the CA stays in the form and is saved unchanged. -->
                 <div class="ml-6" hidden={!$mainSettings.values.mqtt_tls}>
                     <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
-                    <textarea id="mqtt-ca" name="mqtt_ca" rows="4" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
+                    <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
                 </div>
             </div>
 

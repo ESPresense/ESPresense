@@ -214,10 +214,10 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
   await expect(ca).toBeHidden();
   await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
 
-  // Hidden, the CA is still posted so saving with TLS off doesn't erase it.
+  // Hidden, the CA is still posted, and unticked TLS is sent as 0 (a missing key keeps its value).
   await page.getByRole('button', { name: /save/i }).click();
   await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
-  expect(sent('mqtt_tls')).toBeNull();
+  expect(sent('mqtt_tls')).toBe('0');
 
   await page.getByLabel('Use TLS (MQTTS)').check();
   await expect(ca).toBeVisible();

@@ -6,7 +6,8 @@
 
 @layer base {
   /* Form inputs (excluding checkboxes) */
-  input:not([type="checkbox"]) {
+  input:not([type="checkbox"]),
+  textarea {
     @apply block w-full rounded-xl border-2 border-gray-300 bg-white px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500 dark:border-gray-500 dark:bg-gray-900 dark:text-white;
   }
 
