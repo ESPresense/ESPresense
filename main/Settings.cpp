@@ -497,7 +497,10 @@ void serialize(JsonObject out, bool all) {
             // Restoring these would break the node: its WiFi password isn't in the file, and
             // update is a one-shot "OTA from this URL on next boot", not configuration.
             if (all && (p->name == "wifi-ssid" || p->name == "update")) continue;
-            if (p->same(p->effective(), p->init)) continue;  // defaults stay out of shared templates
+            p->fill();  // MQTT commands write the file directly and leave value stale until a restart
+            // Defaults stay out of shared templates. A backup keeps the room: its default is this
+            // node's MAC, and the replacement should take over the same room and topics.
+            if (p->same(p->effective(), p->init) && !(all && p->name == "room")) continue;
             p->put(out[p->name.c_str()], p->effective());   // names live forever: stored by pointer
         }
 }

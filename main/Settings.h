@@ -49,7 +49,8 @@ std::optional<SettingSpec> spec(const std::string& key);
 // Settings that differ from their defaults, typed (numbers, bools, strings). Without all: the
 // board's, i.e. every /wifi/hardware setting plus those marked markBoard(); network identity
 // (room, WiFi, MQTT) stays out so exported templates are safe to share. With all: a backup of
-// every setting (#2493) except passwords, the WiFi SSID and the one-shot update URL.
+// every setting (#2493) except passwords, the WiFi SSID and the one-shot update URL, read from
+// flash, plus the room even at its default.
 void serialize(JsonObject out, bool all);
 // Partial apply: only the given keys are touched (as with the /wifi/<endpoint> form POST). Values must already be validated (parseTemplate).
 // Appends {key, from, to} for each value that differs (as far as diff has room) and counts
