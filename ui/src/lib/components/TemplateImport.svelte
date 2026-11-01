@@ -82,7 +82,7 @@
     </p>
     <p class="text-sm text-gray-600 dark:text-gray-300">
         Export backup saves every setting that differs from the defaults, including room, MQTT and scanning, to set up a
-        replacement node: flash it, join it to WiFi, then import the backup here. Passwords, the MQTT username and the
+        replacement node: erase and flash it, join it to WiFi, then import the backup here. Passwords, the MQTT username and the
         WiFi network are left out, so enter those again afterwards. Keep backups private.
     </p>
     <label>

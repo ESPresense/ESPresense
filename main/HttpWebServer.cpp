@@ -106,12 +106,15 @@ esp_err_t serveTele(httpd_req_t* req) {
 // and restarts if anything changed. POST ?dry validates and returns the changes without saving.
 // A template may set any configuration setting, not just /wifi/hardware (e.g. Ethernet type).
 constexpr const char* TEMPLATE_SECTION = "settings";
-constexpr size_t TEMPLATE_MAX_BODY = 6144;
+constexpr size_t TEMPLATE_DOC_SIZE = 6144;
+// More than the export's document: it holds keys by pointer and the UI pretty-prints the file, so
+// a backup that fits the document must still be accepted when it comes back.
+constexpr size_t TEMPLATE_MAX_BODY = 8192;
 
 esp_err_t serveTemplate(httpd_req_t* req) {
     std::string dummy;
     bool all = queryParam(req, "all", dummy);
-    DynamicJsonDocument doc(all ? TEMPLATE_MAX_BODY : 4096);
+    DynamicJsonDocument doc(all ? TEMPLATE_DOC_SIZE : 4096);
     JsonObject root = doc.to<JsonObject>();
     if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
     if (!board.empty()) root["name"] = board;
