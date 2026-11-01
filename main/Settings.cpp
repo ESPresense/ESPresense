@@ -46,6 +46,7 @@ struct Param {
     uint8_t options = 0;  // dropdown option count; the stored value is the index
     bool board = false;   // exported in board templates (markBoard)
     PinUse pin = PinUse::None;  // pinInput()/pinOutput()/pinAnalog()
+    bool onDisk = false;  // file(): too big to keep in RAM, so value is empty outside a save
 
     SettingSpec spec() const { return {type, min, max, options, pin, pinFieldsOf(this)}; }
     std::string effective() const { return value.empty() ? init : value; }
@@ -134,7 +135,7 @@ struct Param {
                 return a == b;
         }
     }
-    std::string jsonValue() const { return json(value); }
+    std::string jsonValue() const { return json(onDisk ? slurp(filename()) : value); }
     std::string jsonDefault() const { return type == Type::Password ? "" : json(init); }
 
     static std::string encode(const std::string& raw) {
@@ -340,6 +341,7 @@ esp_err_t postHandler(httpd_req_t* req) {
         if (!formValue(body, prm->name, v)) continue;
         prm->set(v);
         if (!prm->store()) ok = false;
+        if (prm->onDisk) std::string().swap(prm->value);
     }
     if (!ok) {
         Log.println("Error writing to flash filesystem");
@@ -416,6 +418,14 @@ std::string string(const std::string& name, const std::string& init, const char*
 std::string pstring(const std::string& name, const std::string& init, const char* /*label*/) {
     auto* p = add(Type::Password, name, init);
     return p->value.empty() ? p->init : p->value;
+}
+
+std::string file(const std::string& name, const char* /*label*/) {
+    auto* p = add(Type::String, name, "");
+    p->onDisk = true;
+    std::string v;
+    v.swap(p->value);
+    return v;
 }
 
 long dropdown(const std::string& name, const std::vector<std::string>& options, long init, const char* /*label*/) {

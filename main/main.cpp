@@ -199,11 +199,12 @@ void setupNetwork() {
     mqttUser = Settings::pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = Settings::pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
     mqttTls = Settings::checkbox("mqtt_tls", false, "Use TLS (MQTTS)");
-    mqttCa = Settings::string("mqtt_ca", "", "CA certificate (PEM); empty = public CAs");
+    mqttCa = Settings::file("mqtt_ca", "CA certificate (PEM); empty = public CAs");
     if (mqttCa.find("-----BEGIN") == std::string::npos) {  // blank or junk: use the public CAs
         if (mqttTls && mqttCa.find_first_not_of(" \t\r\n") != std::string::npos) Log.println("MQTT CA certificate isn't PEM (no -----BEGIN); using the public CAs");
-        mqttCa.clear();
+        mqttCa = std::string();
     }
+    if (!mqttTls) mqttCa = std::string();
     discovery = Settings::checkbox("discovery", true, "Send to discovery topic");
     homeAssistantDiscoveryPrefix = Settings::string("discovery_prefix", DEFAULT_HA_DISCOVERY_PREFIX, "Home Assistant discovery topic prefix");
     publishTele = Settings::checkbox("pub_tele", true, "Send to telemetry topic");
@@ -392,7 +393,7 @@ void reconnect(TimerHandle_t) {
 }
 
 void connectToMqtt() {
-    Mqtt::Setup(mqttHost, mqttPort, mqttUser, mqttPass, Network::hostname(), statusTopic, mqttTls, mqttCa);
+    Mqtt::Setup(mqttHost, mqttPort, mqttUser, mqttPass, Network::hostname(), statusTopic, mqttTls, std::move(mqttCa));
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     xTimerStart(reconnectTimer, 0);
 }

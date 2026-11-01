@@ -14,7 +14,7 @@ static const char* const DEVICE_CLASS_NONE = "";
 namespace Mqtt {
 // tls: verify the broker against caPem, or against the built-in public CA bundle when it's empty.
 void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
-           const std::string& clientId, const std::string& willTopic, bool tls, const std::string& caPem);
+           const std::string& clientId, const std::string& willTopic, bool tls, std::string caPem);
 bool connected();
 void reconnect();
 // After discovery: listen to this node's retained discovery configs for 2 s and delete any

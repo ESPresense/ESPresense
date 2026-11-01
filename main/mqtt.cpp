@@ -137,14 +137,14 @@ void PruneStaleDiscovery() {
 }
 
 void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
-           const std::string& clientId, const std::string& willTopic, bool tls, const std::string& caPem) {
-    static std::string sHost = host, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic, sCa = caPem;
+           const std::string& clientId, const std::string& willTopic, bool tls, std::string caPem) {
+    static std::string sHost = host, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic, sCa = std::move(caPem);
     esp_mqtt_client_config_t cfg = {};
     cfg.broker.address.hostname = sHost.c_str();
     cfg.broker.address.port = port;
     cfg.broker.address.transport = tls ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP;
     if (tls && !sCa.empty())
-        cfg.broker.verification.certificate = sCa.c_str();  // PEM: NUL-terminated, length 0 is fine
+        cfg.broker.verification.certificate = sCa.c_str();  // Kept, not copied: esp-tls parses it on every connect
     else if (tls)
         cfg.broker.verification.crt_bundle_attach = esp_crt_bundle_attach;
     cfg.credentials.client_id = sClient.c_str();
