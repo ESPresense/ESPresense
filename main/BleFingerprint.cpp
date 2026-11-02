@@ -491,7 +491,6 @@ bool BleFingerprint::fill(JsonObject *doc) {
     if (lowBattery >= 0) (*doc)["lowBatt"] = lowBattery;
     if (temp) (*doc)["temp"] = serialized(toStr(temp));
     if (humidity) (*doc)["rh"] = serialized(toStr(humidity));
-    if (discoveredIrk) (*doc)["irk"] = *discoveredIrk;
     return true;
 }
 
@@ -558,18 +557,6 @@ bool BleFingerprint::query() {
                 else
                     success = NameModelHandler::requestData(client, this);
             }
-
-            // Still connected and no IRK yet: try the Resolving Key characteristic.
-            if (client.isConnected() && !discoveredIrk) {
-                std::string irkBytes = client.read(genericAccessService, resolvingKeyChar);
-                if (irkBytes.length() == 16) {
-                    {
-                        FieldLock lock;
-                        discoveredIrk.reset(new std::string(hexStr(irkBytes)));
-                    }
-                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk->c_str());
-                }
-            }
         }
     }
 
@@ -583,41 +570,6 @@ bool BleFingerprint::query() {
     }
     isQuerying = false;
     return true;
-}
-
-bool BleFingerprint::queryBatteryIfDue() {
-    if (batteryQueryInterval == 0 || isBatteryQuerying) return false;
-    auto now = millis();
-    if (now - lastBatteryQueryMillis < batteryQueryInterval) return false;
-    if (now - lastSeenMillis > 10000) return false;  // not seen in last 10s
-    if (rssi < -90) return false;                     // too weak
-    queryBattery();
-    return true;
-}
-
-bool BleFingerprint::queryBattery() {
-    isBatteryQuerying = true;
-    bool success = false;
-    Log.printf("%u Battery| %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
-    {
-        Ble::Client client;
-        if (client.connect(address, 5000)) {
-            std::string value = client.read(batteryService, batteryLevelChar);
-            if (!value.empty()) {
-                uint8_t battery = (uint8_t)value[0];
-                if (battery > 100) battery = 100;
-                setReport(QueryReport{"battery", "{\"battery\":" + toStr((unsigned)battery) + "}"});
-                success = true;
-            }
-        }
-    }
-    if (success) {
-        lastBatteryQueryMillis = millis();
-    } else {
-        Log.printf("%u BatteryErr | %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
-    }
-    isBatteryQuerying = false;
-    return success;
 }
 
 bool BleFingerprint::shouldCount() {
