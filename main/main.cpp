@@ -91,6 +91,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && SensirionSCD4x::SendDiscovery()
             && HX711::SendDiscovery()
             && DS18B20::SendDiscovery()
+            && CsiMotion::SendDiscovery()
 #endif
         ) {
             sentDiscovery = true;
@@ -125,6 +126,9 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["rssi"] = Network::rssi();
     if (auto app0 = app0Partition()) doc["app0"] = app0->size;
     Battery::SendTelemetry();
+#ifdef SENSORS
+    CsiMotion::SendTelemetry();
+#endif
 
 #ifdef VERSION
     doc["ver"] = VERSION;
@@ -238,6 +242,7 @@ void setupNetwork() {
     SensirionSCD4x::ConnectToWifi(updating);
     HX711::ConnectToWifi(updating);
     DS18B20::ConnectToWifi(updating);
+    CsiMotion::ConnectToWifi(updating);
 #endif
 
     static unsigned int connectProgress = 0;
@@ -290,6 +295,7 @@ void setupNetwork() {
     DHT::SerialReport();
     AHTX0::SerialReport();
     BH1750::SerialReport();
+    CsiMotion::SerialReport();
     BME280::SerialReport();
     BMP180::SerialReport();
     BMP280::SerialReport();
@@ -624,6 +630,7 @@ void loop() {
     SensirionSCD4x::Loop();
     HX711::Loop();
     DS18B20::Loop();
+    CsiMotion::Loop();
 #endif
 
 }
