@@ -3,9 +3,6 @@
 
 #include <vector>
 
-void setUp() {}
-void tearDown() {}
-
 static std::vector<int8_t> frame(int amplitude, int ripple = 0) {
     std::vector<int8_t> csi(CsiWindow::kMaxBytes);
     for (size_t i = 0; i < CsiWindow::kMaxSubcarriers; i++) {
