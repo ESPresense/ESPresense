@@ -54,9 +54,12 @@ variables:
       python3 /tmp/firmware-tester/scripts/improv_wifi.py --port $DEVICE --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
       # The monitor needs every serial line, the CI log does not: 80 New/Del lines a second
       # for 4h stalled the Woodpecker agent (docker API timeouts, exit 126) on pipeline 1280.
+      # tools/hil_coex_count.py keeps that filtering but turns the discarded lines into a
+      # periodic New/Del rate instead of dropping them outright, so a CSI/BLE coexistence
+      # check has an adverts-seen number to compare against a CSI-off run.
       set -o pipefail
       python3 /tmp/firmware-tester/scripts/hil_monitor.py --port $DEVICE --duration $DURATION_SECS \
-        | grep --line-buffered -vE "^[0-9]+ (New|Del) "
+        | python3 tools/hil_coex_count.py
     '
 
 steps:
