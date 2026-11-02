@@ -36,6 +36,7 @@
 #ifdef SENSORS
 #include "AHTX0.h"
 #include "BH1750.h"
+#include "CsiMotion.h"
 #include "BME280.h"
 #include "BMP180.h"
 #include "BMP280.h"
