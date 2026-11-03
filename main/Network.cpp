@@ -307,8 +307,13 @@ bool initEthernet(int type) {
 #if CONFIG_ETH_USE_ESP32_EMAC
     handle = installRmii(type);
 #endif
-#if CONFIG_ETH_SPI_ETHERNET_W5500 || CONFIG_ETH_SPI_ETHERNET_DM9051
-    if (type == kWaveshareS3Eth || type == kEth01Evo) handle = installSpiEth(type);
+    // Each type only on the chip whose build has its driver, so a setting carried over from
+    // another chip never claims that board's pins (GPIO 12/13 are flash pins on the C3).
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+    if (type == kWaveshareS3Eth) handle = installSpiEth(type);
+#endif
+#if CONFIG_ETH_SPI_ETHERNET_DM9051
+    if (type == kEth01Evo) handle = installSpiEth(type);
 #endif
     if (!handle) return false;
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
