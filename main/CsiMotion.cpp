@@ -63,6 +63,8 @@ namespace CsiMotion
         uint16_t key = (info->dmac[0] & 1) ? 0x8000 : 0;
 #if !CONFIG_SOC_WIFI_HE_SUPPORT
         key |= (uint16_t)(info->rx_ctrl.sig_mode & 3) << 8;
+        // rate is only meaningful for legacy frames; HT frames carry their MCS and width instead.
+        if (info->rx_ctrl.sig_mode) return key | (info->rx_ctrl.mcs & 0x7f) | (info->rx_ctrl.cwb ? 0x80 : 0);
 #endif
         key |= info->rx_ctrl.rate & 0xff;
         return key;
