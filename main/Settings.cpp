@@ -497,11 +497,18 @@ void serialize(JsonObject out, bool all) {
             // Restoring these would break the node: its WiFi password isn't in the file, and
             // update is a one-shot "OTA from this URL on next boot", not configuration.
             if (all && (p->name == "wifi-ssid" || p->name == "update")) continue;
-            p->fill();  // MQTT commands write the file directly and leave value stale until a restart
+            // A backup must reflect flash, since MQTT commands write the settings file directly
+            // and leave `value` stale until a restart. fill() would pick that up too, but it also
+            // overwrites `value`, which dropdown()/checkbox() rely on holding the default for an
+            // unsaved setting -- clobbering it there blanks that setting in /wifi until reboot.
+            // Read into a local instead, and only on the backup path, so routine board-template
+            // export (the common case) does no flash I/O at all.
+            std::string onFlash = all ? slurp(p->filename()) : p->value;
+            std::string effective = onFlash.empty() ? p->init : onFlash;
             // Defaults stay out of shared templates. A backup keeps the room: its default is this
             // node's MAC, and the replacement should take over the same room and topics.
-            if (p->same(p->effective(), p->init) && !(all && p->name == "room")) continue;
-            p->put(out[p->name.c_str()], p->effective());   // names live forever: stored by pointer
+            if (p->same(effective, p->init) && !(all && p->name == "room")) continue;
+            p->put(out[p->name.c_str()], effective);   // names live forever: stored by pointer
         }
 }
 
