@@ -17,8 +17,7 @@
             isSaving = true;
             saveError = '';
             const form = event.target as HTMLFormElement;
-            const formData = new FormData(form);
-            await saveSettingsWithRetry('/wifi/extras', formData, extraSettings);
+            await saveSettingsWithRetry('/wifi/extras', form, extraSettings);
         } catch (error) {
             console.error('Failed to save extra settings:', error);
             saveError = error instanceof Error ? error.message : String(error);
@@ -227,15 +226,15 @@
         </p>
         <p>
             <label>
-                RSSI adjustment for receiver (use only if you know this device has a weak antenna):<br />
+                Receiver offset in dB, added to every reading (+5 if this node reads 5 dB weak, -5 if strong):<br />
                 <input
                     type="number"
                     step="1"
                     min="-100"
                     max="100"
-                    name="rx_adj_rssi"
-                    placeholder={$extraSettings.defaults['rx_adj_rssi']}
-                    bind:value={$extraSettings.values['rx_adj_rssi']}/>
+                    name="rx_offset_rssi"
+                    placeholder={$extraSettings.defaults['rx_offset_rssi']}
+                    bind:value={$extraSettings.values['rx_offset_rssi']}/>
             </label>
         </p>
         <p>

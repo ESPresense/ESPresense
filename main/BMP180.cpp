@@ -10,7 +10,6 @@
 namespace BMP180
 {
     long BMP180_status;
-    std::string BMP180_I2c;
     int BMP180_I2c_Bus;
     unsigned long BMP180PreviousMillis = 0;
     unsigned long sensorInterval = 60000;
@@ -94,9 +93,7 @@ namespace BMP180
 
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-
-        if (BMP180_I2c != "0x77") return;
+        if (!I2C::started(BMP180_I2c_Bus)) return;
         bus = BMP180_I2c_Bus;
 
         uint8_t id = 0;
@@ -111,21 +108,19 @@ namespace BMP180
 
     void ConnectToWifi(bool updating)
     {
-        BMP180_I2c_Bus = Settings::integer("BMP180_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BMP180_I2c = Settings::string("BMP180_I2c", "", "I2C address (0x77)");
+        BMP180_I2c_Bus = I2C::busSetting("BMP180_I2c_Bus");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (BMP180_I2c.empty()) return;
+        if (!I2C::started(BMP180_I2c_Bus)) return;
         Log.print("BMP180:       ");
-        Log.println(BMP180_I2c + " on bus " + toStr(BMP180_I2c_Bus));
+        Log.println("on bus " + toStr(BMP180_I2c_Bus));
     }
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BMP180_I2c_Bus)) return;
         if (!initialized) return;
 
         if (BMP180PreviousMillis == 0 || millis() - BMP180PreviousMillis >= sensorInterval) {
@@ -142,7 +137,7 @@ namespace BMP180
 
     bool SendDiscovery()
     {
-        if (BMP180_I2c.empty()) return true;
+        if (BMP180_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("BMP180 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("BMP180 Pressure", EC_NONE, "pressure", "hPa");

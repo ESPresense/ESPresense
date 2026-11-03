@@ -21,11 +21,12 @@ jobs:
     steps:
     - uses: actions/checkout@v7
 
-    # VERSION / BRANCH land in the firmware as FW_VERSION / FW_BRANCH (see envs.cmake).
+    # VERSION / BRANCH / RUN_ID land in the firmware as FW_VERSION / FW_BRANCH / FW_RUN_ID (see envs.cmake).
     - name: Set pr env
       run: |
         echo "FW_BRANCH=${GITHUB_HEAD_REF}" >> $GITHUB_ENV
         echo "FW_VERSION=${HEAD_SHA::7}" >> $GITHUB_ENV
+        echo "FW_RUN_ID=${GITHUB_RUN_ID}" >> $GITHUB_ENV
       env:
         HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       if: ${{ github.event_name == 'pull_request' }}
@@ -34,6 +35,7 @@ jobs:
       run: |
         echo "FW_BRANCH=${GITHUB_REF#refs/heads/}" >> $GITHUB_ENV
         echo "FW_VERSION=${GITHUB_SHA::7}" >> $GITHUB_ENV
+        echo "FW_RUN_ID=${GITHUB_RUN_ID}" >> $GITHUB_ENV
       if: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') }}
 
     - name: Set rel env
@@ -44,7 +46,7 @@ jobs:
       uses: espressif/esp-idf-ci-action@v1
       with:
         esp_idf_version: ${{ env.IDF_VERSION }}
-        command: FW_VERSION="${{ env.FW_VERSION }}" FW_BRANCH="${{ env.FW_BRANCH }}" ./build.sh ${{ matrix.env }} && ./tools/merge-factory.sh ${{ matrix.env }}
+        command: FW_VERSION="${{ env.FW_VERSION }}" FW_BRANCH="${{ env.FW_BRANCH }}" FW_RUN_ID="${{ env.FW_RUN_ID }}" ./build.sh ${{ matrix.env }} && ./tools/merge-factory.sh ${{ matrix.env }}
 
     - name: Check firmware size fits in OTA partition
       run: |

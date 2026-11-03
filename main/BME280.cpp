@@ -83,11 +83,9 @@ namespace BME280
 
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BME280_I2c_Bus)) return;
 
-        if (BME280_I2c == "0x76") addr = 0x76;
-        else if (BME280_I2c == "0x77") addr = 0x77;
-        else return;
+        if (!I2C::pickAddress(BME280_I2c, {0x76, 0x77}, addr)) return;
         bus = BME280_I2c_Bus;
 
         uint8_t id = 0;
@@ -115,14 +113,13 @@ namespace BME280
 
     void ConnectToWifi(bool updating)
     {
-        BME280_I2c_Bus = Settings::integer("BME280_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BME280_I2c = Settings::string("BME280_I2c", "", "I2C address (0x76 or 0x77)");
+        BME280_I2c_Bus = I2C::busSetting("BME280_I2c_Bus");
+        BME280_I2c = Settings::string("BME280_I2c", "", "I2C address (optional, default 0x76)");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (BME280_I2c.empty()) return;
+        if (!I2C::started(BME280_I2c_Bus)) return;
         Log.print("BME280:       ");
         Log.println(BME280_I2c + " on bus " + toStr(BME280_I2c_Bus));
     }
@@ -141,7 +138,7 @@ namespace BME280
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BME280_I2c_Bus)) return;
         if (!initialized) return;
 
         if (millis() - bme280PreviousMillis >= sensorInterval) {
@@ -166,7 +163,7 @@ namespace BME280
 
     bool SendDiscovery()
     {
-        if (BME280_I2c.empty()) return true;
+        if (BME280_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("BME280 Temperature", EC_NONE, "temperature", "°C")
             && sendSensorDiscovery("BME280 Humidity", EC_NONE, "humidity", "%")

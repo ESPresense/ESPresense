@@ -14,4 +14,20 @@ jobs:
   update_release_draft:
     runs-on: ubuntu-latest
     steps:
+      # Betas are tagged v5.0.0b4, which release-drafter can't parse as a prerelease
+      # (it would draft v5.0.0-b.0). Until v5.0.0 itself ships, draft the next beta
+      # (v5.0.0b5); after that, leave the version to release-drafter.
+      - name: Next beta version
+        id: next
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          beta=$(gh release list -R "$GITHUB_REPOSITORY" --exclude-drafts --limit 50 --json tagName \
+            -q '[.[].tagName | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+b[0-9]+$"))][0] // ""')
+          [ -n "$beta" ] || exit 0
+          gh release view "${beta%b*}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 && exit 0
+          [[ "$beta" =~ ^v(.*)b([0-9]+)$ ]]
+          echo "version=${BASH_REMATCH[1]}b$((BASH_REMATCH[2] + 1))" >> "$GITHUB_OUTPUT"
       - uses: release-drafter/release-drafter@v7
+        with:
+          version: ${{ steps.next.outputs.version }}

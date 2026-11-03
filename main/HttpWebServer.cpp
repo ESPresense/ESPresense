@@ -147,6 +147,7 @@ esp_err_t postTemplate(httpd_req_t* req) {
         DeserializationError e = deserializeJson(doc, body);
         if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
         std::string err;
+        upgradeTemplateKeys(doc[TEMPLATE_SECTION].as<JsonObject>());
         auto lookup = [](const char* key) { return Settings::spec(key); };
         if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_SECTION, lookup, Settings::pins(), changes, err))
             return sendTemplateError(req, "400 Bad Request", err);

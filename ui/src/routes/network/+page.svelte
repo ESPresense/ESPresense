@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import { mainSettings } from "#lib/stores.js";
     import type { MainSettings } from "#lib/types.js";
+    import { formParams } from "#lib/utils/settings.js";
 
     let s = $state(false);
     let wifiNetworks: Record<string, number> = $state({});
@@ -49,14 +50,7 @@
             event.preventDefault();
             s = true;
             const form = event.target as HTMLFormElement;
-            const formData = new FormData(form);
-            const params = new URLSearchParams();
-            for (const [key, value] of formData.entries()) {
-                if (typeof value === "string") {
-                    params.append(key, value);
-                }
-            }
-            await fetch("/wifi/main", { method: "POST", body: params });
+            await fetch("/wifi/main", { method: "POST", body: formParams(form) });
 
             try {
                 await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});

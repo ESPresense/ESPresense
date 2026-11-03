@@ -19,7 +19,7 @@ const mockExtraSettings = {
 		max_distance: '50',
 		absorption: '3.5',
 		tx_ref_rssi: '-59',
-		rx_adj_rssi: '0',
+		rx_offset_rssi: '0',
 		query_par: 'false'
 	},
 	defaults: {
@@ -35,7 +35,7 @@ const mockExtraSettings = {
 		max_distance: '50',
 		absorption: '3.5',
 		tx_ref_rssi: '-59',
-		rx_adj_rssi: '0'
+		rx_offset_rssi: '0'
 	}
 };
 

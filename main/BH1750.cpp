@@ -28,10 +28,8 @@ namespace BH1750
     // continuous high-res mode with the default MTreg (69) and a reading of 0xFFFF counts as saturated.
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (BH1750_I2c != "0x23" && BH1750_I2c != "0x5C") return;
-
-        addr = BH1750_I2c == "0x23" ? 0x23 : 0x5C;
+        if (!I2C::started(BH1750_I2c_Bus)) return;
+        if (!I2C::pickAddress(BH1750_I2c, {0x23, 0x5C}, addr)) return;
         bus = BH1750_I2c_Bus;
 
         bool state = cmd(POWER_ON) && cmd(RESET) && cmd(CONT_HIGH_RES);
@@ -50,21 +48,20 @@ namespace BH1750
 
     void ConnectToWifi(bool updating)
     {
-        BH1750_I2c_Bus = Settings::integer("BH1750_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        BH1750_I2c = Settings::string("BH1750_I2c", "", "I2C address (0x23 or 0x5C)");
+        BH1750_I2c_Bus = I2C::busSetting("BH1750_I2c_Bus");
+        BH1750_I2c = Settings::string("BH1750_I2c", "", "I2C address (optional, default 0x23)");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (BH1750_I2c.empty()) return;
+        if (!I2C::started(BH1750_I2c_Bus)) return;
         Log.print("BH1750:       ");
         Log.println(BH1750_I2c + " on bus " + toStr(BH1750_I2c_Bus));
     }
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(BH1750_I2c_Bus)) return;
         if (!initialized || millis() - ms_BH1750 < sensorInterval) return;
 
         uint8_t d[2];
@@ -82,7 +79,7 @@ namespace BH1750
 
     bool SendDiscovery()
     {
-        if (BH1750_I2c.empty()) return true;
+        if (BH1750_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("BH1750 Lux", EC_NONE, "illuminance", "lx");
     }

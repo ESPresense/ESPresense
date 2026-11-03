@@ -12,6 +12,7 @@
 #include "Logger.h"
 #include "MiFloraHandler.h"
 #include "NameModelHandler.h"
+#include "TeltonikaEye.h"
 #include "defaults.h"
 #include "globals.h"
 #include "mbedtls/aes.h"
@@ -42,7 +43,8 @@ BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
     firstSeenMillis = millis();
     address = advertisedDevice->getAddress();
     raw = advertisedDevice->getRSSI();
-    rssi = raw - BleFingerprintCollection::rxAdjRssi;
+    rssiOffset = BleFingerprintCollection::rxOffsetRssi;
+    rssi = raw + rssiOffset;
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
     seenCount = 1;
     queryReport = nullptr;
@@ -51,6 +53,7 @@ BleFingerprint::BleFingerprint(const Ble::Advert *advertisedDevice) {
 
 void BleFingerprint::setInitial(const BleFingerprint &other) {
     rssi = other.rssi;
+    rssiOffset = other.rssiOffset;
     rssiVar = other.rssiVar;
     dist = other.dist;
     distVar = other.distVar;
@@ -356,6 +359,7 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
     if (strManufacturerData.length() >= 2) {
         const auto *d = (const uint8_t *)strManufacturerData.data();
         std::string manuf = Sprintf("%02x%02x", d[1], d[0]);
+        if (manuf == "089a") teltonikaEye(strManufacturerData);  // telemetry only; id falls through to md:
 
         if (manuf == "004c")  // Apple
         {
@@ -388,6 +392,10 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("garmin:" + getMac(), ID_TYPE_GARMIN);
+        } else if (manuf == "094f")  // MikroTik tags (TG-BT5) in their native format
+        {
+            mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("mikrotik:" + getMac(), ID_TYPE_MIKROTIK);
         } else if (manuf == "4d4b")  // iTrack
         {
             mdRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
@@ -417,6 +425,15 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
     }
 }
 
+void BleFingerprint::teltonikaEye(const std::string &manufacturerData) {
+    TeltonikaEye e;
+    if (!parseTeltonikaEye((const uint8_t *)manufacturerData.data(), manufacturerData.size(), e)) return;
+    lowBattery = e.lowBattery;
+    if (e.hasVoltage) mv = e.mv;
+    if (e.hasTemp) temp = e.temp;
+    if (e.hasHumidity) humidity = e.humidity;
+}
+
 bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
     lastSeenMillis = millis();
     reported = false;
@@ -430,17 +447,18 @@ bool BleFingerprint::seen(const Ble::Advert *advertisedDevice) {
             new AdaptivePercentileRSSI((uint32_t)BleFingerprintCollection::rssiWindowMs));
     // Applied here, not from the MQTT task: a resize there would free the buffer under this task.
     adaptivePercentileRSSI->setTimeWindow((uint32_t)BleFingerprintCollection::rssiWindowMs);
-    // The window holds raw RSSI and the current receiver adjustment is applied on the way out, so
-    // changing rx_adj_rssi moves the whole window at once instead of mixing two calibrations
+    // The window holds raw RSSI and the current receiver offset is added on the way out, so
+    // changing rx_offset_rssi moves the whole window at once instead of mixing two calibrations
     // until it refills. A constant shift doesn't change the fenced mean or the variance.
-    int8_t adj = BleFingerprintCollection::rxAdjRssi;
+    int8_t offset = BleFingerprintCollection::rxOffsetRssi;
+    rssiOffset = offset;
     adaptivePercentileRSSI->addMeasurement(raw);
-    rssi = adaptivePercentileRSSI->getMedianIQR() - adj;
+    rssi = adaptivePercentileRSSI->getMedianIQR() + offset;
     rssiVar = adaptivePercentileRSSI->getRSSIVariance();
     dist = rssiToDistance(get1mRssi(), rssi, BleFingerprintCollection::absorption);
-    // Raw samples against the reference shifted by the adjustment: the same distances as
+    // Raw samples against the reference shifted by the offset: the same distances as
     // normalized samples against the reference.
-    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi() + adj, BleFingerprintCollection::absorption);
+    distVar = adaptivePercentileRSSI->getDistanceVariance(get1mRssi() - offset, BleFingerprintCollection::absorption);
 
     if (!added) {
         added = true;
@@ -458,7 +476,8 @@ bool BleFingerprint::fill(JsonObject *doc) {
     auto refRssi = get1mRssi();
     if (refRssi > NO_RSSI) (*doc)["rssi@1m"] = refRssi;
     if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rssi"] = serialized(toStr(rssi));
-    (*doc)["rxAdj"] = BleFingerprintCollection::rxAdjRssi;
+    // rssi is corrected by rx_offset_rssi; rawRssi is the same smoothed reading before it.
+    if (rssi > NO_RSSI && (isnormal(rssi) || rssi == 0)) (*doc)["rawRssi"] = serialized(toStr(rssi - rssiOffset));
     if (isnormal(rssiVar)) (*doc)["rssiVar"] = serialized(toStr(rssiVar));
 
     if (isnormal(dist) || dist == 0) (*doc)["distance"] = serialized(toStr(dist));
@@ -469,9 +488,9 @@ bool BleFingerprint::fill(JsonObject *doc) {
 
     if (mv) (*doc)["mV"] = mv;
     if (battery != 0xFF) (*doc)["batt"] = battery;
+    if (lowBattery >= 0) (*doc)["lowBatt"] = lowBattery;
     if (temp) (*doc)["temp"] = serialized(toStr(temp));
     if (humidity) (*doc)["rh"] = serialized(toStr(humidity));
-    if (discoveredIrk) (*doc)["irk"] = *discoveredIrk;
     return true;
 }
 
@@ -538,18 +557,6 @@ bool BleFingerprint::query() {
                 else
                     success = NameModelHandler::requestData(client, this);
             }
-
-            // Still connected and no IRK yet: try the Resolving Key characteristic.
-            if (client.isConnected() && !discoveredIrk) {
-                std::string irkBytes = client.read(genericAccessService, resolvingKeyChar);
-                if (irkBytes.length() == 16) {
-                    {
-                        FieldLock lock;
-                        discoveredIrk.reset(new std::string(hexStr(irkBytes)));
-                    }
-                    Log.printf("%u IRK    | %s | discovered IRK: %s\n", (unsigned)xPortGetCoreID(), getMac().c_str(), discoveredIrk->c_str());
-                }
-            }
         }
     }
 
@@ -563,41 +570,6 @@ bool BleFingerprint::query() {
     }
     isQuerying = false;
     return true;
-}
-
-bool BleFingerprint::queryBatteryIfDue() {
-    if (batteryQueryInterval == 0 || isBatteryQuerying) return false;
-    auto now = millis();
-    if (now - lastBatteryQueryMillis < batteryQueryInterval) return false;
-    if (now - lastSeenMillis > 10000) return false;  // not seen in last 10s
-    if (rssi < -90) return false;                     // too weak
-    queryBattery();
-    return true;
-}
-
-bool BleFingerprint::queryBattery() {
-    isBatteryQuerying = true;
-    bool success = false;
-    Log.printf("%u Battery| %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
-    {
-        Ble::Client client;
-        if (client.connect(address, 5000)) {
-            std::string value = client.read(batteryService, batteryLevelChar);
-            if (!value.empty()) {
-                uint8_t battery = (uint8_t)value[0];
-                if (battery > 100) battery = 100;
-                setReport(QueryReport{"battery", "{\"battery\":" + toStr((unsigned)battery) + "}"});
-                success = true;
-            }
-        }
-    }
-    if (success) {
-        lastBatteryQueryMillis = millis();
-    } else {
-        Log.printf("%u BatteryErr | %s | %-58s%.1fdBm\n", (unsigned)xPortGetCoreID(), getMac().c_str(), id.c_str(), rssi);
-    }
-    isBatteryQuerying = false;
-    return success;
 }
 
 bool BleFingerprint::shouldCount() {

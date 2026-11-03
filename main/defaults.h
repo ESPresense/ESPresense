@@ -5,6 +5,12 @@
 #define CHECK_FOR_UPDATES_INTERVAL 900000
 #endif
 
+// The update check's HTTPS HEAD peaks at 19-25 KB on a C3 and fails cleanly (no crash) once
+// mbedTLS can't get a ~4.7 KB block; it succeeded down to 30 KB free / 9 KB largest block
+// (HIL probe, 2026-10-29). Peak use plus MQTT_MIN_FREE_MEMORY keeps MQTT publishing through it.
+#define UPDATE_CHECK_MIN_FREE_HEAP 40000
+#define UPDATE_CHECK_MIN_MAX_ALLOC 8192
+
 // Number of seconds to wait for a Station Wifi connection to be established
 #ifndef DEFAULT_WIFI_TIMEOUT
 #define DEFAULT_WIFI_TIMEOUT 60
@@ -81,15 +87,28 @@
 #define DEFAULT_MAX_FINGERPRINTS 45
 #endif
 
-// RX_ADJ_RSSI Defaults
-#ifdef ESP32S3
-#define DEFAULT_RX_ADJ_RSSI 20
+// Receiver offset (rx_offset_rssi, added to every reading): 0 on every chip. A board that reads
+// weak or strong carries its offset in its template.
+#define DEFAULT_RX_OFFSET_RSSI 0
+
+// The settings v5 replaced, for the first-boot conversion (SettingsMigration.h): the old
+// subtracted rx_adj_rssi default, and v4's default I2C bus 1 pins (v4 had no C6 build).
+#if defined(ESP32S3)
+#define LEGACY_RX_ADJ_RSSI 20
+#define V4_I2C_BUS_1_SDA 21
+#define V4_I2C_BUS_1_SCL 22
+#elif defined(ESP32C3)
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA 19
+#define V4_I2C_BUS_1_SCL 18
+#elif defined(ESP32C6)
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA -1
+#define V4_I2C_BUS_1_SCL -1
 #else
-#ifdef ESP32C6
-#define DEFAULT_RX_ADJ_RSSI 0
-#else
-#define DEFAULT_RX_ADJ_RSSI 0
-#endif
+#define LEGACY_RX_ADJ_RSSI 0
+#define V4_I2C_BUS_1_SDA 21
+#define V4_I2C_BUS_1_SCL 22
 #endif
 
 // I2C Defaults: off unless configured. Any default pin collides with something on some board
@@ -98,6 +117,8 @@
 #define DEFAULT_I2C_BUS_1_SCL -1
 #define DEFAULT_I2C_BUS_2_SDA -1
 #define DEFAULT_I2C_BUS_2_SCL -1
+#define DEFAULT_I2C_BUS_3_SDA -1
+#define DEFAULT_I2C_BUS_3_SCL -1
 #define DEFAULT_I2C_BUS 1
 
 // TSL2561 Defaults

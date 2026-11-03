@@ -19,4 +19,5 @@ case "$ENV" in *-verbose) DEFAULTS="$DEFAULTS;sdkconfig.verbose" ;; esac
 export IDF_TARGET="$TARGET"
 exec idf.py -B "build/$ENV" -DSDKCONFIG="build/$ENV/sdkconfig" \
   -DSDKCONFIG_DEFAULTS="$DEFAULTS" -DFW_ENV="$ENV" \
-  ${FW_VERSION:+-DFW_VERSION="$FW_VERSION"} ${FW_BRANCH:+-DFW_BRANCH="$FW_BRANCH"} "$@"
+  ${FW_VERSION:+-DFW_VERSION="$FW_VERSION"} ${FW_BRANCH:+-DFW_BRANCH="$FW_BRANCH"} \
+  ${FW_RUN_ID:+-DFW_RUN_ID="$FW_RUN_ID"} "$@"

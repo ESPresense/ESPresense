@@ -144,7 +144,7 @@ float skipDistance = DEFAULT_SKIP_DISTANCE,
       countEnter = DEFAULT_COUNT_ENTER,
       countExit = DEFAULT_COUNT_EXIT;
 int8_t rxRefRssi = DEFAULT_RX_REF_RSSI,
-       rxAdjRssi = DEFAULT_RX_ADJ_RSSI,
+       rxOffsetRssi = DEFAULT_RX_OFFSET_RSSI,
        txRefRssi = DEFAULT_TX_REF_RSSI,
        maxDivisor = DEFAULT_MAX_DIVISOR;
 int forgetMs = DEFAULT_FORGET_MS,
@@ -384,7 +384,7 @@ void ConnectToWifi(bool updating) {
     maxFingerprints = Settings::integer("max_fingerprints", 16, 2048, DEFAULT_MAX_FINGERPRINTS, "Maximum BLE fingerprints to track");
 
     rxRefRssi = clampRssi(Settings::integer("ref_rssi", -100, 100, DEFAULT_RX_REF_RSSI, "Rssi expected from a 0dBm transmitter at 1 meter (NOT used for iBeacons or Eddystone)"), -100, 100);
-    rxAdjRssi = clampRssi(Settings::integer("rx_adj_rssi", -100, 100, DEFAULT_RX_ADJ_RSSI, "Rssi adjustment for receiver (use only if you know this device has a weak antenna)"), -100, 100);
+    rxOffsetRssi = clampRssi(Settings::integer("rx_offset_rssi", -100, 100, DEFAULT_RX_OFFSET_RSSI, "Receiver offset (dB), added to every reading: +5 if this node reads 5 dB weak, -5 if strong"), -100, 100);
     absorption = Settings::floating("absorption", 1, 5, DEFAULT_ABSORPTION, "Factor used to account for absorption, reflection, or diffraction");
     forgetMs = Settings::integer("forget_ms", 0, 3000000, DEFAULT_FORGET_MS, "Forget beacon if not seen for (in milliseconds)");
     txRefRssi = clampRssi(Settings::integer("tx_ref_rssi", -100, 0, DEFAULT_TX_REF_RSSI, "Rssi expected from this tx power at 1m (used for node iBeacon)"), -100, 0);
@@ -432,9 +432,15 @@ bool Command(std::string &command, std::string &pay) {
     } else if (command == "absorption") {
         absorption = pay.empty() ? DEFAULT_ABSORPTION : toFloat(pay);
         spurt("/absorption", toStr(absorption));
+    } else if (command == "rx_offset_rssi") {
+        rxOffsetRssi = pay.empty() ? DEFAULT_RX_OFFSET_RSSI : clampRssi(toInt(pay), -100, 100);
+        spurt("/rx_offset_rssi", toStr(rxOffsetRssi));
     } else if (command == "rx_adj_rssi") {
-        rxAdjRssi = pay.empty() ? DEFAULT_RX_ADJ_RSSI : clampRssi(toInt(pay), -100, 100);
-        spurt("/rx_adj_rssi", toStr(rxAdjRssi));
+        // Deprecated alias for an older Companion: the old setting was subtracted, so store its
+        // negation. Empty resets the offset to its default.
+        Log.println("rx_adj_rssi is deprecated; use rx_offset_rssi (added, not subtracted)");
+        rxOffsetRssi = pay.empty() ? DEFAULT_RX_OFFSET_RSSI : clampRssi(-toInt(pay), -100, 100);
+        spurt("/rx_offset_rssi", toStr(rxOffsetRssi));
     } else if (command == "ref_rssi") {
         rxRefRssi = pay.empty() ? DEFAULT_RX_REF_RSSI : clampRssi(toInt(pay), -100, 100);
         spurt("/ref_rssi", toStr(rxRefRssi));

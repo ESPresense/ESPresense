@@ -41,6 +41,8 @@ const hardware = {
 		I2C_Bus_1_SCL: '22',
 		I2C_Bus_2_SDA: '-1',
 		I2C_Bus_2_SCL: '-1',
+		I2C_Bus_3_SDA: '-1',
+		I2C_Bus_3_SCL: '-1',
 		I2CDebug: false,
 		AHTX0_I2c_Bus: '1',
 		BH1750_I2c_Bus: '1',
@@ -59,7 +61,8 @@ const hardware = {
 		batt_pin: '-1',
 		batt_mult: '1',
 		batt_type: '0',
-		batt_axp192: false
+		batt_gauge: '0',
+		batt_gauge_bus: '0'
 	},
 	defaults: {
 		leds: [{ type: 'pwm', pin: 2, count: 1, control: 'status' }],
@@ -274,8 +277,9 @@ async function shoot(page, route, file, crop) {
 (async () => {
 	if (!fs.existsSync(OUT)) throw new Error(`${OUT} does not exist. Set ESPRESENSE_DOCS_IMAGES to the docs repo's public/images.`);
 	const server = await ensureDevServer();
-	const browser = await chromium.launch();
+	let browser;
 	try {
+		browser = await chromium.launch();
 		const context = await browser.newContext({
 			viewport: VIEWPORT,
 			deviceScaleFactor: 2,
@@ -288,7 +292,7 @@ async function shoot(page, route, file, crop) {
 			await page.unrouteAll({ behavior: 'ignoreErrors' });
 		}
 	} finally {
-		await browser.close();
+		await browser?.close();
 		server?.kill();
 	}
 })().catch((err) => {

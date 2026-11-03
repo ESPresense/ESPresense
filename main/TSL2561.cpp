@@ -71,12 +71,9 @@ namespace TSL2561
     // sensor is powered once in Setup and only sampled every sensorInterval.
     void Setup()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(TSL2561_I2c_Bus)) return;
 
-        if (TSL2561_I2c == "0x39") addr = 0x39;
-        else if (TSL2561_I2c == "0x29") addr = 0x29;
-        else if (TSL2561_I2c == "0x49") addr = 0x49;
-        else return;
+        if (!I2C::pickAddress(TSL2561_I2c, {0x39, 0x29, 0x49}, addr)) return;
         bus = TSL2561_I2c_Bus;
 
         if (TSL2561_I2c_Gain != "auto" && TSL2561_I2c_Gain != "1x" && TSL2561_I2c_Gain != "16x") {
@@ -90,15 +87,14 @@ namespace TSL2561
 
     void ConnectToWifi(bool updating)
     {
-        TSL2561_I2c_Bus = Settings::integer("TSL2561_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-        TSL2561_I2c = Settings::string("TSL2561_I2c", "", "I2C address (0x39, 0x49 or 0x29)");
+        TSL2561_I2c_Bus = I2C::busSetting("TSL2561_I2c_Bus");
+        TSL2561_I2c = Settings::string("TSL2561_I2c", "", "I2C address (optional, default 0x39)");
         TSL2561_I2c_Gain = Settings::string("TSL2561_I2c_Gain", DEFAULT_TSL2561_I2C_GAIN, "Gain (auto, 1x or 16x)");
     }
 
     void SerialReport()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-        if (TSL2561_I2c.empty()) return;
+        if (!I2C::started(TSL2561_I2c_Bus)) return;
         Log.print("TSL2561:      ");
         Log.println(TSL2561_I2c + " on bus " + toStr(TSL2561_I2c_Bus));
     }
@@ -123,7 +119,7 @@ namespace TSL2561
 
     void Loop()
     {
-        if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+        if (!I2C::started(TSL2561_I2c_Bus)) return;
         if (!powered) return;
         if (millis() - tsl2561PreviousMillis < sensorInterval) return;
 
@@ -141,7 +137,7 @@ namespace TSL2561
 
     bool SendDiscovery()
     {
-        if (TSL2561_I2c.empty()) return true;
+        if (TSL2561_I2c_Bus < 1) return true;
 
         return sendSensorDiscovery("TSL2561 Lux", EC_NONE, "illuminance", "lx");
     }

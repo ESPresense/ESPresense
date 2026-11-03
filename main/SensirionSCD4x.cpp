@@ -11,7 +11,6 @@
 namespace SensirionSCD4x {
 static const uint8_t SCD4x_ADDR = 0x62;
 long SCD4x_status;
-std::string SCD4x_I2c;
 int SCD4x_I2c_Bus;
 
 unsigned long SCD4xPreviousSensorMillis = 0;
@@ -50,8 +49,7 @@ static bool readWords(uint16_t* words, size_t count) {
 }
 
 void Setup() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (SCD4x_I2c != "0x62") return;
+    if (!I2C::started(SCD4x_I2c_Bus)) return;
 
     // wake_up: the sensor does not ACK this command, so the write failing is expected.
     // ponytail: only log it like the old driver did if the write itself errored.
@@ -89,19 +87,17 @@ void Setup() {
 }
 
 void ConnectToWifi(bool updating) {
-    SCD4x_I2c_Bus = Settings::integer("SCD4x_I2c_Bus", 1, 2, DEFAULT_I2C_BUS, "I2C Bus");
-    SCD4x_I2c = Settings::string("SCD4x_I2c", "", "I2C address (0x62 for SCD40/SCD41/SCD43)");
+    SCD4x_I2c_Bus = I2C::busSetting("SCD4x_I2c_Bus");
 }
 
 void SerialReport() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
-    if (SCD4x_I2c.empty()) return;
+    if (!I2C::started(SCD4x_I2c_Bus)) return;
     Log.print("SCD4x:        ");
-    Log.println(SCD4x_I2c + " on bus " + toStr(SCD4x_I2c_Bus));
+    Log.println("on bus " + toStr(SCD4x_I2c_Bus));
 }
 
 void Loop() {
-    if (!I2C_Bus_1_Started && !I2C_Bus_2_Started) return;
+    if (!I2C::started(SCD4x_I2c_Bus)) return;
     if (!initialized) return;
 
     if (SCD4xPreviousSensorMillis == 0 || millis() - SCD4xPreviousSensorMillis >= (unsigned long)sensorInterval) {
@@ -141,7 +137,7 @@ void Loop() {
 }
 
 bool SendDiscovery() {
-    if (SCD4x_I2c.empty()) return true;
+    if (SCD4x_I2c_Bus < 1) return true;
 
     return sendSensorDiscovery("Co2", EC_NONE, "carbon_dioxide", "ppm") && sendSensorDiscovery("Temperature", EC_NONE, "temperature", "°C") && sendSensorDiscovery("Humidity", EC_NONE, "humidity", "%");
 }

@@ -61,7 +61,8 @@ struct Param {
                 value = v;
                 break;
             case Type::Bool:
-                value = v.empty() ? "0" : "1";
+                // The UI posts unchecked boxes as "0"; an empty value is off too.
+                value = v.empty() || v == "0" || v == "false" ? "0" : "1";
                 break;
             case Type::Json: {
                 // Sent to the UI unquoted, so only a valid array or object may be stored.
@@ -321,11 +322,12 @@ esp_err_t postHandler(httpd_req_t* req) {
     if (!HttpWebServer::readBody(req, body)) return sendText(req, "413 Payload Too Large", "Body too large");
 
     // Refuse the whole save if a pin can't work on this chip, before anything is changed.
+    // Keys missing from the body keep their stored value (#2582).
     std::string v;
     bool setsPin = false;
     for (auto* prm : endpoints[idx].params) {
         if (prm->pin == PinUse::None && !pinFieldsOf(prm)) continue;
-        formValue(body, prm->name, v);
+        if (!formValue(body, prm->name, v)) continue;
         std::string err = checkPins(prm->name, prm->spec(), v, pinRules, setsPin);
         if (!err.empty()) {
             Log.printf("POST %s refused: %s\n", p.c_str(), err.c_str());
@@ -335,7 +337,7 @@ esp_err_t postHandler(httpd_req_t* req) {
 
     bool ok = true;
     for (auto* prm : endpoints[idx].params) {
-        formValue(body, prm->name, v);
+        if (!formValue(body, prm->name, v)) continue;
         prm->set(v);
         if (!prm->store()) ok = false;
     }
@@ -510,7 +512,7 @@ bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray dif
         p->put(d["from"], from);
         p->put(d["to"], c.value);
         if (dryRun) continue;
-        p->value = c.value;  // not set(): its form semantics make any present checkbox "on"
+        p->value = c.value;  // not set(): its form semantics (masked passwords) don't apply
         if (!p->store()) ok = false;
     }
     return ok;
