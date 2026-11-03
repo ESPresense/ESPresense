@@ -1,0 +1,24 @@
+name: Auto Assign Reviewer
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign DTTerastar
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          gh pr edit "$PR" --add-assignee DTTerastar
+          if [ "$AUTHOR" != "DTTerastar" ]; then
+            gh pr edit "$PR" --add-reviewer DTTerastar
+          fi
