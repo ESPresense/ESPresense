@@ -17,7 +17,7 @@
 #ifdef USE_ETHERNET
 #include "esp_eth.h"
 #include "esp_eth_mac_esp.h"
-#if CONFIG_ETH_SPI_ETHERNET_W5500
+#if CONFIG_ETH_SPI_ETHERNET_W5500 || CONFIG_ETH_SPI_ETHERNET_DM9051
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_eth_mac_spi.h"
@@ -237,31 +237,54 @@ esp_eth_handle_t installRmii(int type) {
 }
 #endif
 
-#if CONFIG_ETH_SPI_ETHERNET_W5500
-constexpr int kWaveshareS3Eth = 14;  // index in the "eth" dropdown (main.cpp)
+#if CONFIG_ETH_SPI_ETHERNET_W5500 || CONFIG_ETH_SPI_ETHERNET_DM9051
+constexpr int kWaveshareS3Eth = 14;  // indexes in the "eth" dropdown (main.cpp)
+constexpr int kEth01Evo = 15;
 
-// Waveshare ESP32-S3-ETH: W5500 on SPI2 (SCLK 13, MISO 12, MOSI 11, CS 14, INT 10, RST 9).
-esp_eth_handle_t installW5500() {
+struct SpiEthBoard {
+    int sclk, miso, mosi, cs, intr, rst, mhz;
+};
+// Waveshare ESP32-S3-ETH: W5500 on SPI2.
+constexpr SpiEthBoard kWaveshareS3EthPins = {13, 12, 11, 14, 10, 9, 20};
+// WT32-ETH01 EVO (ESP32-C3): DM9051 on SPI2, pins and clock from #1467 (as ESPHome drives it).
+constexpr SpiEthBoard kEth01EvoPins = {7, 3, 10, 9, 8, 6, 8};
+
+esp_eth_handle_t installSpiEth(int type) {
+    const SpiEthBoard& b = type == kEth01Evo ? kEth01EvoPins : kWaveshareS3EthPins;
     gpio_install_isr_service(0);  // ESP_ERR_INVALID_STATE if already installed; either way it's there
     spi_bus_config_t bus = {};
-    bus.mosi_io_num = 11;
-    bus.miso_io_num = 12;
-    bus.sclk_io_num = 13;
+    bus.mosi_io_num = b.mosi;
+    bus.miso_io_num = b.miso;
+    bus.sclk_io_num = b.sclk;
     bus.quadwp_io_num = -1;
     bus.quadhd_io_num = -1;
     if (spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO) != ESP_OK) return nullptr;
     spi_device_interface_config_t dev = {};
     dev.mode = 0;
-    dev.clock_speed_hz = 20 * 1000 * 1000;
-    dev.spics_io_num = 14;
+    dev.clock_speed_hz = b.mhz * 1000 * 1000;
+    dev.spics_io_num = b.cs;
     dev.queue_size = 20;
-    eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(SPI2_HOST, &dev);
-    w5500.int_gpio_num = 10;
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
-    phy_config.reset_gpio_num = 9;
-    esp_eth_mac_t* mac = esp_eth_mac_new_w5500(&w5500, &mac_config);
-    esp_eth_phy_t* phy = esp_eth_phy_new_w5500(&phy_config);
+    phy_config.reset_gpio_num = b.rst;
+    esp_eth_mac_t* mac = nullptr;
+    esp_eth_phy_t* phy = nullptr;
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+    if (type == kWaveshareS3Eth) {
+        eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(SPI2_HOST, &dev);
+        w5500.int_gpio_num = b.intr;
+        mac = esp_eth_mac_new_w5500(&w5500, &mac_config);
+        phy = esp_eth_phy_new_w5500(&phy_config);
+    }
+#endif
+#if CONFIG_ETH_SPI_ETHERNET_DM9051
+    if (type == kEth01Evo) {
+        eth_dm9051_config_t dm9051 = ETH_DM9051_DEFAULT_CONFIG(SPI2_HOST, &dev);
+        dm9051.int_gpio_num = b.intr;
+        mac = esp_eth_mac_new_dm9051(&dm9051, &mac_config);
+        phy = esp_eth_phy_new_dm9051(&phy_config);
+    }
+#endif
     esp_eth_config_t config = ETH_DEFAULT_CONFIG(mac, phy);
     esp_eth_handle_t handle = nullptr;
     if (!mac || !phy || esp_eth_driver_install(&config, &handle) != ESP_OK) {
@@ -271,7 +294,7 @@ esp_eth_handle_t installW5500() {
         spi_bus_free(SPI2_HOST);
         return nullptr;
     }
-    // The W5500 has no factory MAC; give it the chip's Ethernet MAC.
+    // SPI controllers have no factory MAC to rely on; give them the chip's Ethernet MAC.
     uint8_t ethMac[6];
     esp_read_mac(ethMac, ESP_MAC_ETH);
     esp_eth_ioctl(handle, ETH_CMD_S_MAC_ADDR, ethMac);
@@ -284,8 +307,8 @@ bool initEthernet(int type) {
 #if CONFIG_ETH_USE_ESP32_EMAC
     handle = installRmii(type);
 #endif
-#if CONFIG_ETH_SPI_ETHERNET_W5500
-    if (type == kWaveshareS3Eth) handle = installW5500();
+#if CONFIG_ETH_SPI_ETHERNET_W5500 || CONFIG_ETH_SPI_ETHERNET_DM9051
+    if (type == kWaveshareS3Eth || type == kEth01Evo) handle = installSpiEth(type);
 #endif
     if (!handle) return false;
     esp_netif_config_t cfg = ESP_NETIF_DEFAULT_ETH();
