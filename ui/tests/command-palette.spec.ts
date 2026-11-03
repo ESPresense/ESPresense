@@ -11,7 +11,9 @@ function devicesBody() {
 		devices: [
 			{ id: 'tile:c1d2e3f4a5b6', name: 'Tile', mac: 'c1d2e3f4a5b6', rssi: keysNear ? -44 : -82, distance: keysNear ? 0.2 : 6, vis: true, close: keysNear },
 			{ id: 'sd:0x181a', mac: 'aabbccddeeff', rssi: -70 + wobble, distance: 3.1, vis: true, close: false },
-			{ id: 'apple:1005:9-26', mac: '4a1b2c3d4e5f', rssi: -66 - wobble, distance: 2.4, vis: true, close: false }
+			{ id: 'apple:1005:9-26', mac: '4a1b2c3d4e5f', rssi: -66 - wobble, distance: 2.4, vis: true, close: false },
+			// Configured by MAC with an alias: the node reports the alias as its id.
+			{ id: 'keys:car', name: 'Car Keys', mac: 'd1e2f3a4b5c6', rssi: -75, distance: 5, vis: true, close: false }
 		]
 	};
 }
@@ -27,7 +29,15 @@ async function mockNode(page: Page) {
 			posts.push(r.request().postDataJSON());
 			return r.fulfill({ json: { success: true } });
 		}
-		return r.fulfill({ json: { room: 'office', configs: [{ id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell Phone' }] } });
+		return r.fulfill({
+			json: {
+				room: 'office',
+				configs: [
+					{ id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell Phone', 'rssi@1m': -59 },
+					{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys' }
+				]
+			}
+		});
 	});
 	return posts;
 }
@@ -76,7 +86,32 @@ test.describe('Command palette', () => {
 		await name.fill('Darrell iPhone');
 		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
-		expect(posts).toEqual([{ id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell iPhone' }]);
+		expect(posts).toEqual([{ id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell iPhone', 'rssi@1m': -59 }]);
+	});
+
+	test('renaming an aliased fingerprint saves under its MAC key, not the alias', async ({ page }) => {
+		const posts = await mockNode(page);
+		const configsLoaded = page.waitForResponse('**/json/configs');
+		await open(page, '/fingerprints');
+		await configsLoaded;
+		await page.getByRole('cell', { name: 'keys:car' }).click();
+		await expect(page.getByLabel('ID to report')).toHaveValue('keys:car');
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		await page.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
+		expect(posts).toEqual([{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys (spare)' }]);
+	});
+
+	test('Tab stays inside the palette', async ({ page }) => {
+		await mockNode(page);
+		await open(page, '/');
+		await page.keyboard.press(`${mod}+k`);
+		await page.getByRole('dialog').getByRole('combobox').fill('darrell');
+		await page.keyboard.press('Enter');
+		for (let i = 0; i < 8; i++) {
+			await page.keyboard.press('Tab');
+			expect(await page.evaluate(() => !!document.activeElement?.closest('[role=dialog]'))).toBe(true);
+		}
 	});
 
 	test('warns when a fingerprint ID will not stick', async ({ page }) => {

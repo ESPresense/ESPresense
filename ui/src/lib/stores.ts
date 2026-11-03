@@ -214,13 +214,16 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
 export type PaletteState =
     | { view: 'search' }
     | { view: 'find' }
-    | { view: 'tag'; id: string; name?: string; mac?: string; rssi?: number; alias?: string };
+    | { view: 'tag'; id: string; name?: string; mac?: string; rssi?: number; alias?: string; rssi1m?: number };
 export const palette = writable<PaletteState | null>(null);
 
 /** Open the palette's name step for a seen fingerprint, starting from its config if it has one */
 export function tagFingerprint(d: Device, known: Config[] = []): void {
-    const id = d.id || d.mac;
-    if (!id) return;
-    const cfg = known.find((c) => c.id === id);
-    palette.set({ view: 'tag', id, name: cfg?.name ?? d.name, mac: d.mac, rssi: d.rssi, alias: cfg?.alias });
+    const seen = d.id || d.mac;
+    if (!seen) return;
+    // An aliased fingerprint reports its alias as its id, so match the config by alias and MAC
+    // too, and save under the config's own key: the node deletes any other config holding the
+    // alias being saved, which would be the original one.
+    const cfg = known.find((c) => c.id === seen) ?? known.find((c) => c.alias === seen || (d.mac && c.id === d.mac));
+    palette.set({ view: 'tag', id: cfg?.id ?? seen, name: cfg?.name ?? d.name, mac: d.mac, rssi: d.rssi, alias: cfg?.alias, rssi1m: cfg?.['rssi@1m'] });
 }

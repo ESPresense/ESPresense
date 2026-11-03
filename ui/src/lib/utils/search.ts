@@ -8,7 +8,7 @@ export function fuzzy(query: string, text: string): number | undefined {
     if (!q) return 0;
     const t = text.toLowerCase();
     const at = t.indexOf(q);
-    if (at >= 0) return at;
+    if (at >= 0) return Math.min(at, 99);
     if (q.length < 3) return undefined;
     let ti = 0;
     let gaps = 0;

@@ -5,7 +5,7 @@
     import Icon from "./Icon.svelte";
     import { configs, devices, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
     import type { Config, Device } from "#lib/types.js";
-    import { MIN_HOLD_MS, newStep, rank, record, winner, deviceKey, type Candidate, type Step } from "#lib/utils/find.js";
+    import { MIN_HOLD_MS, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
 
@@ -38,6 +38,12 @@
         { path: "/fingerprints", title: "Fingerprints", icon: "fingerprint", keywords: "ble seen nearby rssi" }
     ];
 
+    // Poll configs while the palette is open (a store subscribes on first read): Find and the
+    // name step both look up the fingerprint's existing config.
+    $effect(() => {
+        if ($palette) void $configs;
+    });
+
     function close() {
         palette.set(null);
     }
@@ -52,7 +58,7 @@
 
     function tagConfig(c: Config) {
         if (!c.id) return;
-        show({ view: "tag", id: c.id, name: c.name, alias: c.alias });
+        show({ view: "tag", id: c.id, name: c.name, alias: c.alias, rssi1m: c["rssi@1m"] });
     }
 
     let items = $derived.by((): Item[] => {
@@ -79,15 +85,15 @@
             }))
         ];
 
-        const seen = ($devices?.devices ?? []).filter((d) => d.vis && deviceKey(d));
+        const seen = ($devices?.devices ?? []).filter((d) => d.vis && rowKey(d));
         seen.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
         for (const d of seen) {
             all.push({
-                key: `fp:${deviceKey(d)}`,
+                key: `fp:${rowKey(d)}`,
                 group: "Fingerprints",
                 icon: "fingerprint",
-                title: d.name || deviceKey(d)!,
-                detail: [d.name ? deviceKey(d) : "", d.distance != null ? `${d.distance.toFixed(1)} m` : "", d.rssi != null ? `${d.rssi} dBm` : ""].filter(Boolean).join(" · "),
+                title: d.name || d.id || d.mac!,
+                detail: [d.name ? d.id : "", d.distance != null ? `${d.distance.toFixed(1)} m` : "", d.rssi != null ? `${d.rssi} dBm` : ""].filter(Boolean).join(" · "),
                 keywords: `${d.id ?? ""} ${d.mac ?? ""}`,
                 run: () => tagFingerprint(d)
             });
@@ -154,7 +160,8 @@
     }
 
     let current = $derived(steps[steps.length - 1]);
-    let completed = $derived(steps.slice(0, -1));
+    // Steps already done: all of them once Find has stopped, else all but the one being held.
+    let completed = $derived(found || gaveUp ? steps : steps.slice(0, -1));
     let ranked = $derived(rank(completed, $devices?.devices ?? []));
     let held = $derived(current ? now - current.startedAt : 0);
 
@@ -227,21 +234,29 @@
     async function saveTag(e?: Event) {
         e?.preventDefault();
         if (!tag || !tagName.trim() || saving) return;
+        const submitted = tag;
         saving = true;
         saveError = "";
+        // Carry the calibration along: the node republishes the whole config, so leaving
+        // rssi@1m out would drop it.
+        const body: Record<string, unknown> = { id: submitted.id, alias: tagAlias.trim() || suggestAlias(tagName, tagType), name: tagName.trim() };
+        if (submitted.rssi1m != null) body["rssi@1m"] = submitted.rssi1m;
+        let ok = false;
         try {
             const r = await fetch("/json/configs", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: tag.id, alias: tagAlias.trim() || suggestAlias(tagName, tagType), name: tagName.trim() })
+                body: JSON.stringify(body)
             });
-            if (!r.ok) throw new Error(`${r.status}`);
-            saved = true;
-        } catch (ex) {
-            saveError = "The node didn't save it. Try again.";
-        } finally {
-            saving = false;
+            ok = r.ok;
+        } catch {
+            ok = false;
         }
+        saving = false;
+        // The palette may have moved on to another tag while this was in flight.
+        if ($palette !== submitted) return;
+        if (ok) saved = true;
+        else saveError = "The node didn't save it. Try again.";
     }
 
     // ---- keys and focus ----
@@ -253,6 +268,22 @@
             return;
         }
         if (!$palette) return;
+        if (e.key === "Tab" && panel) {
+            // Wrap Tab inside the dialog; the page behind it is inert.
+            const els = [...panel.querySelectorAll<HTMLElement>("input, select, button, a[href], [tabindex]:not([tabindex='-1'])")].filter((el) => !(el as HTMLButtonElement).disabled);
+            if (!els.length) return;
+            const first = els[0];
+            const last = els[els.length - 1];
+            const inside = panel.contains(document.activeElement);
+            if (e.shiftKey && (!inside || document.activeElement === first)) {
+                e.preventDefault();
+                last.focus();
+            } else if (!e.shiftKey && (!inside || document.activeElement === last)) {
+                e.preventDefault();
+                first.focus();
+            }
+            return;
+        }
         if (e.key === "Escape") {
             e.preventDefault();
             // Escape steps back to search before it closes.
@@ -366,7 +397,7 @@
                         <div class="rounded-lg border border-green-300 bg-green-50 p-4 dark:border-green-700 dark:bg-green-900/30" data-testid="find-found">
                             <div class="text-sm font-medium text-green-800 dark:text-green-200">Found it</div>
                             <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{found.device.name || found.key}</div>
-                            <div class="text-xs text-gray-600 dark:text-gray-300">{found.key} · {fmtDb(found.score)} each time it came close</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300">{found.device.id ?? found.key} · {fmtDb(found.score)} each time it came close</div>
                         </div>
                     {:else if gaveUp}
                         <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100" data-testid="find-gave-up">
@@ -398,8 +429,8 @@
                                             onclick={() => tagFingerprint(c.device)}
                                         >
                                             <span class="w-14 shrink-0 text-right font-mono text-sm {c.consistent ? 'text-green-700 dark:text-green-400' : 'text-gray-500'}">{fmtDb(c.score)}</span>
-                                            <span class="truncate text-sm text-gray-900 dark:text-gray-100">{c.device.name || c.key}</span>
-                                            {#if c.device.name}<span class="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">{c.key}</span>{/if}
+                                            <span class="truncate text-sm text-gray-900 dark:text-gray-100">{c.device.name || c.device.id || c.key}</span>
+                                            {#if c.device.name && c.device.id}<span class="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">{c.device.id}</span>{/if}
                                         </button>
                                     </li>
                                 {/each}

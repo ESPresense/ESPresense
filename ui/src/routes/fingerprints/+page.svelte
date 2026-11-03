@@ -132,6 +132,10 @@
 
 
     let tableRows = $derived($devices?.devices || []);
+
+    // Poll configs from the start: a store is only subscribed on first read, and a row click
+    // needs them to find the fingerprint's existing config.
+    $effect(() => void $configs);
 </script>
 
 <div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">

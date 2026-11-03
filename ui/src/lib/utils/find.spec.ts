@@ -59,6 +59,28 @@ describe('find', () => {
         expect(s.readings.size).toBe(0);
     });
 
+    it('keeps rows that share an id apart, by MAC', () => {
+        const mover = (r: number) => dev('apple:1005:9-26', r, { mac: 'aa', name: 'Mine' });
+        const still = dev('apple:1005:9-26', -60, { mac: 'bb', name: 'Theirs' });
+        const s = (phase: Phase, r: number) => {
+            const st = newStep(phase, 0);
+            for (let i = 0; i < 4; i++) record(st, [mover(r), still]);
+            return st;
+        };
+        const ranked = rank([s('near', -45), s('far', -80), s('near', -45)], [mover(-45), still]);
+        expect(winner(ranked, 2)?.device.name).toBe('Mine');
+    });
+
+    it('still ranks a device that dropped out of the latest poll', () => {
+        const steps = [step('near', { keys: -45, tv: -70 }), step('far', { keys: -80, tv: -70 }), step('near', { keys: -45, tv: -70 })];
+        expect(winner(rank(steps, [dev('tv', -70)]), 2)?.key).toBe('keys');
+    });
+
+    it('gives no level to a step with fewer than three readings', () => {
+        const steps = [step('near', { blip: -45 }, 1), step('far', { blip: -80 }, 1), step('near', { blip: -45 }, 1)];
+        expect(rank(steps, [dev('blip', -45)])).toEqual([]);
+    });
+
     it('marks a device that moved the wrong way as inconsistent', () => {
         const steps = [
             step('near', { a: -45 }),
@@ -92,5 +114,6 @@ describe('fuzzy', () => {
         expect(fuzzy('xyz', 'Fingerprints')).toBeUndefined();
         expect(fuzzy('', 'anything')).toBe(0);
         expect(fuzzy('da', 'Move it near and away')).toBeUndefined();
+        expect(fuzzy('tv', `${'x'.repeat(150)} tv`)).toBeLessThan(100);
     });
 });

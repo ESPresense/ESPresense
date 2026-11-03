@@ -3,10 +3,10 @@
  *
  * Compressed Size Summary:
  * ui_app_immutable_assets_css: 15,943 bytes
- * ui_app_immutable_js: 89,504 bytes
- * ui_html: 4,781 bytes
+ * ui_app_immutable_js: 89,760 bytes
+ * ui_html: 4,760 bytes
  * ui_svg: 456 bytes
- * Total: 110,684 bytes
+ * Total: 110,919 bytes
  */
 
 #pragma once
@@ -19,7 +19,7 @@
 
 inline void setupRoutes(httpd_handle_t server) {
     HttpWebServer::registerGet(server, "/app/immutable/assets/bundle.CHvk1HHO.css", serveAppImmutableAssetsBundleCHvk1HhoCss);
-    HttpWebServer::registerGet(server, "/app/immutable/bundle.CjnLsBbN.js", serveAppImmutableBundleCjnLsBbNJs);
+    HttpWebServer::registerGet(server, "/app/immutable/bundle.CwsUF_So.js", serveAppImmutableBundleCwsUfSoJs);
     HttpWebServer::registerGet(server, "/favicon.svg", serveFaviconSvg);
     // HTML routes
     HttpWebServer::registerGet(server, "/", serveIndexHtml);

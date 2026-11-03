@@ -15,6 +15,8 @@ export interface Step {
     phase: Phase;
     startedAt: number;
     readings: Map<string, number[]>;
+    /** the last row seen for each key, so a device that drops out can still be ranked */
+    rows: Map<string, Device>;
 }
 
 export interface Candidate {
@@ -28,25 +30,30 @@ export interface Candidate {
     consistent: boolean;
 }
 
-/** readings per step that count towards its level (the tail, after the window caught up) */
+/** readings per step that count towards its level (the tail, after the window caught up); fewer is no level */
 export const TAIL = 3;
 /** dB a boundary must swing to count as following the user's move */
 export const MIN_SWING = 3;
 /** how long to hold a step before the window median has moved (half of the 15 s default) */
 export const MIN_HOLD_MS = 8000;
 
-export function deviceKey(d: Device): string | undefined {
-    return d.id || d.mac || undefined;
+/**
+ * One fingerprint row. The MAC, not the id: ids can be shared (several iPhones are all
+ * "apple:1005:9-26"), and their readings must not mix.
+ */
+export function rowKey(d: Device): string | undefined {
+    return d.mac || d.id || undefined;
 }
 
 export function newStep(phase: Phase, now: number): Step {
-    return { phase, startedAt: now, readings: new Map() };
+    return { phase, startedAt: now, readings: new Map(), rows: new Map() };
 }
 
 export function record(step: Step, devices: Device[]): void {
     for (const d of devices) {
-        const key = deviceKey(d);
+        const key = rowKey(d);
         if (!key || d.rssi == null || !d.vis) continue;
+        step.rows.set(key, d);
         const r = step.readings.get(key);
         if (r) r.push(d.rssi);
         else step.readings.set(key, [d.rssi]);
@@ -62,15 +69,16 @@ function median(xs: number[]): number {
 /** a step's settled level for one device, or undefined if it wasn't seen enough */
 export function level(step: Step, key: string): number | undefined {
     const r = step.readings.get(key);
-    if (!r || r.length === 0) return undefined;
+    if (!r || r.length < TAIL) return undefined;
     return median(r.slice(-TAIL));
 }
 
 export function rank(steps: Step[], devices: Device[]): Candidate[] {
     const byKey = new Map<string, Device>();
+    for (const s of steps) for (const [key, d] of s.rows) byKey.set(key, d);
     for (const d of devices) {
-        const key = deviceKey(d);
-        if (key) byKey.set(key, d);
+        const key = rowKey(d);
+        if (key && byKey.has(key)) byKey.set(key, d);
     }
 
     const out: Candidate[] = [];
