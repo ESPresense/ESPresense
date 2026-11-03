@@ -73,9 +73,8 @@ class BleFingerprint {
     bool report(JsonObject *doc);
 
     bool query();
-    bool queryBatteryIfDue();
 
-    // id/name/discoveredIrk are written from the BLE host task (seen) and the MQTT task
+    // id/name are written from the BLE host task (seen) and the MQTT task
     // (Config) and read from the loop and httpd tasks: every access goes through fieldLock().
     // Reading a std::string mid-assignment on another core was a LoadProhibited on the S3.
     const std::string getId() const { FieldLock l; return id; }
@@ -141,22 +140,18 @@ class BleFingerprint {
 
    private:
     static SemaphoreHandle_t fieldMutex;
-    bool queryBattery();
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, isBatteryQuerying = false, hasBcnUuid = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, hasBcnUuid = false;
     uint16_t bcnCrc = 0;  // CRC-16 of the locked iBeacon UUID; sits in the padding after the flags
     uint64_t nextReportMs = 0;
     ble_addr_t address;
     std::string id, name;
-    std::unique_ptr<std::string> discoveredIrk;  // only the rare device that exposes its IRK pays for it
     short int idType = NO_ID_TYPE;
     float rssi = NO_RSSI, rssiVar = 0;
     rssi1m_t calRssi = NO_RSSI, bcnRssi = NO_RSSI, mdRssi = NO_RSSI, asRssi = NO_RSSI;  // 1 m references
     unsigned int qryAttempts = 0, qryDelayMillis = 0;
     float raw = 0, dist = 0, distVar = 0, lastReported = 0, temp = 0, humidity = 0;
     unsigned long firstSeenMillis, lastSeenMillis = 0, lastQryMillis = 0;
-    uint32_t lastBatteryQueryMillis = 0;
-    uint32_t batteryQueryInterval = 0;
     unsigned long seenCount = 1, lastSeenCount = 0;
     uint16_t mv = 0;
     uint8_t battery = 0xFF;
