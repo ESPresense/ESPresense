@@ -9,7 +9,7 @@ export function fuzzy(query: string, text: string): number | undefined {
     const t = text.toLowerCase();
     const at = t.indexOf(q);
     if (at >= 0) return Math.min(at, 99);
-    if (q.length < 3) return undefined;
+    if (q.replace(/ /g, '').length < 3) return undefined;
     let ti = 0;
     let gaps = 0;
     for (const ch of q) {

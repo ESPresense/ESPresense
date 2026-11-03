@@ -102,6 +102,27 @@ test.describe('Command palette', () => {
 		expect(posts).toEqual([{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys (spare)' }]);
 	});
 
+	test('a row clicked before configs load still saves under the MAC key', async ({ page }) => {
+		const posts = await mockNode(page);
+		let release!: () => void;
+		const loaded = new Promise<void>((r) => (release = r));
+		await page.route('**/json/configs', async (r) => {
+			if (r.request().method() !== 'GET') return r.fallback();
+			await loaded;
+			await r.fulfill({ json: { room: 'office', configs: [{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys', 'rssi@1m': -62 }] } });
+		});
+		await open(page, '/fingerprints');
+		await page.getByRole('cell', { name: 'keys:car' }).click();
+		const configsLoaded = page.waitForResponse('**/json/configs');
+		release();
+		await configsLoaded;
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		await page.getByLabel('ID to report').fill('keys:car');
+		await page.getByRole('button', { name: 'Save' }).click();
+		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
+		expect(posts).toEqual([{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys (spare)', 'rssi@1m': -62 }]);
+	});
+
 	test('Tab stays inside the palette', async ({ page }) => {
 		await mockNode(page);
 		await open(page, '/');

@@ -45,6 +45,15 @@ describe('find', () => {
         expect(winner(rank(steps, [dev('keys', -46), dev('tag', -52)]), 2)).toBeUndefined();
     });
 
+    it('lets a consistent weaker device veto the winner', () => {
+        const steps = [
+            step('near', { keys: -45, weak: -60 }),
+            step('far', { keys: -80, weak: -63 }),
+            step('near', { keys: -46, weak: -60 })
+        ];
+        expect(winner(rank(steps, [dev('keys', -46), dev('weak', -60)]), 2)).toBeUndefined();
+    });
+
     it('counts only the settled tail of a step, not the window catching up', () => {
         const near = newStep('near', 0);
         for (const r of [-80, -80, -70, -60, -50, -46, -45, -45]) record(near, [dev('keys', r)]);
@@ -115,5 +124,6 @@ describe('fuzzy', () => {
         expect(fuzzy('', 'anything')).toBe(0);
         expect(fuzzy('da', 'Move it near and away')).toBeUndefined();
         expect(fuzzy('tv', `${'x'.repeat(150)} tv`)).toBeLessThan(100);
+        expect(fuzzy('a b', 'axxb')).toBeUndefined();
     });
 });

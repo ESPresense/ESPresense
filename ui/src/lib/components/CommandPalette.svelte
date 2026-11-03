@@ -3,7 +3,7 @@
     import { resolve } from "$app/paths";
     import { tick } from "svelte";
     import Icon from "./Icon.svelte";
-    import { configs, devices, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
+    import { configs, devices, findConfig, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
     import type { Config, Device } from "#lib/types.js";
     import { MIN_HOLD_MS, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
@@ -25,7 +25,8 @@
     };
 
     let query = $state("");
-    let active = $state(0);
+    // The cursor follows a row's key, not its index: the lists refresh every poll.
+    let activeKey = $state<string>();
     let input = $state<HTMLInputElement>();
     let list = $state<HTMLElement>();
 
@@ -137,10 +138,12 @@
     });
 
     $effect(() => {
-        // Reset the cursor whenever the results change shape.
+        // A new query starts back at the top.
         void query;
-        active = 0;
+        activeKey = undefined;
     });
+    // ponytail: a row that drops out of the list puts the cursor back at the top
+    let active = $derived(Math.max(0, items.findIndex((i) => i.key === activeKey)));
 
     function scrollActive() {
         tick().then(() => list?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" }));
@@ -215,12 +218,14 @@
     let tagType = $state("");
     let tagName = $state("");
     let tagAlias = $state("");
-    let saving = $state(false);
+    // ids with a save in flight, so a pending save on one tag never blocks or clears another
+    let saving = $state(new Set<string>());
     let saveError = $state("");
     let saved = $state(false);
 
     let tag = $derived($palette?.view === "tag" ? $palette : undefined);
     let tagKey = $derived(tag?.id);
+    let savingTag = $derived(!!tag && saving.has(tag.id));
 
     $effect(() => {
         // A new fingerprint to tag: start from what's already configured for it.
@@ -235,14 +240,17 @@
 
     async function saveTag(e?: Event) {
         e?.preventDefault();
-        if (!tag || !tagName.trim() || saving) return;
+        if (!tag || !tagName.trim() || saving.has(tag.id)) return;
         const submitted = tag;
-        saving = true;
+        saving = new Set(saving).add(submitted.id);
         saveError = "";
-        // Carry the calibration along: the node republishes the whole config, so leaving
-        // rssi@1m out would drop it.
-        const body: Record<string, unknown> = { id: submitted.id, alias: tagAlias.trim() || suggestAlias(tagName, tagType), name: tagName.trim() };
-        if (submitted.rssi1m != null) body["rssi@1m"] = submitted.rssi1m;
+        // Look the config up again: the step may have opened before /json/configs first loaded,
+        // and saving under the reported alias would make a second config (and the node deletes
+        // the original). Carry the calibration along, since the node republishes the whole config.
+        const cfg = findConfig(submitted.id, submitted.mac, $configs?.configs);
+        const rssi1m = cfg?.["rssi@1m"] ?? submitted.rssi1m;
+        const body: Record<string, unknown> = { id: cfg?.id ?? submitted.id, alias: tagAlias.trim() || suggestAlias(tagName, tagType), name: tagName.trim() };
+        if (rssi1m != null) body["rssi@1m"] = rssi1m;
         let ok = false;
         try {
             const r = await fetch("/json/configs", {
@@ -254,7 +262,8 @@
         } catch {
             ok = false;
         }
-        saving = false;
+        saving.delete(submitted.id);
+        saving = new Set(saving);
         // The palette may have moved on to another tag while this was in flight.
         if ($palette !== submitted) return;
         if (ok) saved = true;
@@ -297,11 +306,11 @@
     function onSearchKey(e: KeyboardEvent) {
         if (e.key === "ArrowDown") {
             e.preventDefault();
-            active = Math.min(active + 1, items.length - 1);
+            activeKey = items[Math.min(active + 1, items.length - 1)]?.key;
             scrollActive();
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
-            active = Math.max(active - 1, 0);
+            activeKey = items[Math.max(active - 1, 0)]?.key;
             scrollActive();
         } else if (e.key === "Enter") {
             e.preventDefault();
@@ -374,7 +383,7 @@
                             role="option"
                             aria-selected={i === active}
                             class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 {i === active ? 'bg-blue-600 text-white' : 'text-gray-800 dark:text-gray-200'}"
-                            onpointermove={() => (active = i)}
+                            onpointermove={() => (activeKey = item.key)}
                             onclick={() => item.run()}
                         >
                             <Icon name={item.icon} class_="w-5 h-5 shrink-0" />
@@ -493,7 +502,7 @@
                         {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>{/if}
                         <div class="mt-5 flex justify-end gap-2">
                             <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={() => show({ view: "search" })}>Back</button>
-                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || saving}>{saving ? "Saving…" : "Save"}</button>
+                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag}>{savingTag ? "Saving…" : "Save"}</button>
                         </div>
                     {/if}
                 </form>
