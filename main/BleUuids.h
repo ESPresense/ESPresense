@@ -23,10 +23,6 @@ inline const ble_uuid_any_t meaterService = Ble::uuid128(0xa75cc7fc, 0xc956, 0x4
 
 inline const ble_uuid_any_t genericAccessService = Ble::uuid16(0x1800);
 inline const ble_uuid_any_t nameChar = Ble::uuid16(0x2A00);
-inline const ble_uuid_any_t resolvingKeyChar = Ble::uuid16(0x2B2E);
 
 inline const ble_uuid_any_t deviceInformationService = Ble::uuid16(0x180A);
 inline const ble_uuid_any_t modelChar = Ble::uuid16(0x2A24);
-
-inline const ble_uuid_any_t batteryService = Ble::uuid16(0x180F);
-inline const ble_uuid_any_t batteryLevelChar = Ble::uuid16(0x2A19);
