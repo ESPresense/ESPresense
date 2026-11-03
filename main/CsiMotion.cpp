@@ -110,7 +110,7 @@ namespace CsiMotion
 
     void ConnectToWifi(bool updating)
     {
-        enabled = Settings::checkbox("csi_enable", false, "WiFi CSI movement sensor (experimental)");
+        enabled = Settings::checkbox("csi_enable", true, "WiFi CSI movement sensor (experimental)");
         if (!enabled || updating) { enabled = false; return; }
         window.reset(new (std::nothrow) CsiWindow());
         slot.reset(new (std::nothrow) Slot());
