@@ -1,5 +1,5 @@
 import { readable, writable } from 'svelte/store';
-import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
+import type { ExtraSettings, Config, Configs, Device, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
 // Firmware info store
 export const firmwareInfo = writable<{ ver: string; firm: string }>({ ver: '', firm: '' });
@@ -209,3 +209,18 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
             console.error('Failed to fetch main settings:', ex);
         });
 });
+
+/** The Cmd-K palette: closed (null), searching, running Find, or tagging one fingerprint */
+export type PaletteState =
+    | { view: 'search' }
+    | { view: 'find' }
+    | { view: 'tag'; id: string; name?: string; mac?: string; rssi?: number; alias?: string };
+export const palette = writable<PaletteState | null>(null);
+
+/** Open the palette's name step for a seen fingerprint, starting from its config if it has one */
+export function tagFingerprint(d: Device, known: Config[] = []): void {
+    const id = d.id || d.mac;
+    if (!id) return;
+    const cfg = known.find((c) => c.id === id);
+    palette.set({ view: 'tag', id, name: cfg?.name ?? d.name, mac: d.mac, rssi: d.rssi, alias: cfg?.alias });
+}
