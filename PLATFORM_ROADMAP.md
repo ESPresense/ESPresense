@@ -53,11 +53,11 @@ No Wi-Fi or Bluetooth radio on the SoC at all; it's built to pair with a separat
 
 None of the following are in a release. Don't plan around them yet.
 
-- **ESP32-C5** — a draft PR ([#2450](https://github.com/ESPresense/ESPresense/pull/2450)) adds `esp32c5`/`esp32c5-cdc`/`esp32c5-verbose` envs and has been tested by its author on an ESP32-C5-DevKitC-1. It predates the ESP-IDF rewrite above and still edits the now-deleted `platformio.ini`, so it needs a full rework onto `build.sh`/`envs.cmake`. That's not just a rebase, either: the PR itself notes C5 needs ESP-IDF ≥5.5, and current `main` is pinned to IDF v5.4.4. Closing that gap needs the IDF v6.1 migration below (or an equivalent bump) merged first. (See also [discussion #2501](https://github.com/ESPresense/ESPresense/discussions/2501) on C5 boards with an external antenna connector — same "no ESPresense build target yet" answer applies.) If you've got C5 hardware and want to pick this up, start with the IDF bump.
+- **ESP32-C5** — a draft PR ([#2450](https://github.com/ESPresense/ESPresense/pull/2450)) adds `esp32c5`/`esp32c5-cdc`/`esp32c5-verbose` envs and has been tested by its author on an ESP32-C5-DevKitC-1. Trying it is fine, but it isn't close to feasible yet: the firmware currently needs far more memory than the C5 has, and that needs major memory reduction work before C5 is viable — on top of an ESP-IDF bump. The PR itself notes C5 needs ESP-IDF ≥5.5, and current `main` is pinned to IDF v5.4.4; closing that gap needs the IDF v6.1 migration below (or an equivalent bump) merged first. It also predates the ESP-IDF rewrite above and still edits the now-deleted `platformio.ini`, so it needs a full rework onto `build.sh`/`envs.cmake` regardless. (See also [discussion #2501](https://github.com/ESPresense/ESPresense/discussions/2501) on C5 boards with an external antenna connector — same "no ESPresense build target yet" answer applies.) If you've got C5 hardware and want to help, start with memory reduction — #2450 stays open as the integration point once there's headroom.
 - **ESP-IDF v6.1 migration** — a draft PR ([#2570](https://github.com/ESPresense/ESPresense/pull/2570)) moves every chip from IDF v5.4.4 to v6.1. It's groundwork, not chip-specific, and still a draft.
 - **ESP32-S31** (Espressif's ESP-Mosaico board) — a draft PR ([#2571](https://github.com/ESPresense/ESPresense/pull/2571)) stacked on the IDF v6.1 migration above adds S31 support as an IDF 6 preview target. It can't land before that base migration does.
 
-All three are contributor-driven drafts, not committed work. The IDF v6.1 migration and ESP32-S31 just need a clean rebase against `main` plus hardware to validate against; ESP32-C5 additionally needs that IDF bump merged first before it can even target current `main`. We'll fast-track review on each as soon as it clears that bar.
+All three are drafts, not committed work. The IDF v6.1 migration and ESP32-S31 just need a clean rebase against `main` plus hardware to validate against; ESP32-C5 additionally needs major memory reduction, on top of that IDF bump, before it can even target current `main`. We'll fast-track review on each as soon as it clears that bar.
 
 ## Recurring quality complaints — public position
 
@@ -80,7 +80,7 @@ Closed. The manifest route used to list release assets through the live, unauthe
 ## What this means for contributors
 
 - If you have an open feature request against C2 / H2 / P4 — we will close as `not planned` with a pointer to this discussion. No prejudice; the policy is just clear now.
-- If you want to help land the ESP-IDF v6.1 migration or ESP32-S31 support — the open draft PRs above are the place to start. Rebase onto current `main`, bring hardware to validate against. ESP32-C5 needs the IDF bump merged first, then the same treatment.
+- If you want to help land the ESP-IDF v6.1 migration or ESP32-S31 support — the open draft PRs above are the place to start. Rebase onto current `main`, bring hardware to validate against. ESP32-C5 needs memory reduction first, on top of the IDF bump, before the same treatment applies.
 - If you're debugging an issue on a `help wanted` target, please attach the bootlog, chip variant, flash size, and which build env you used.
 
 This roadmap will be revised as the targets shift.
