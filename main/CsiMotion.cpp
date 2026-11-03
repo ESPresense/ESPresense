@@ -14,23 +14,35 @@
 
 namespace CsiMotion
 {
-    // Sized for the 2-3 frames/s measured on a typical network (see onCsi).
     static const unsigned long kWindowMs = 30000;
     // Below this the channel isn't sampled often enough for a window to mean anything.
     static const uint32_t kMinFrames = 10;
+    // Frames queued between the WiFi task and the loop. Group frames arrive in bursts after each
+    // DTIM beacon; a single slot dropped about half of them on the HIL rack.
+    static const size_t kQueue = 8;
+    // Frame kinds tracked per window (see kindOf). More than this in one window are dropped.
+    static const size_t kKinds = 4;
 
     struct Slot {
         int8_t csi[CsiWindow::kMaxBytes];
         size_t len;
+        uint16_t kind;
+    };
+
+    struct Kind {
+        uint16_t key = 0;
+        CsiWindow window;
     };
 
     static bool enabled = false;
     static bool armed = false;
     static unsigned long windowStart = 0;
     static float fps = 0;
-    static std::unique_ptr<CsiWindow> window;
-    static std::unique_ptr<Slot> slot;
-    static std::atomic<bool> slotFull{false};
+    static std::unique_ptr<Kind[]> kinds;
+    static size_t kindCount = 0;
+    static std::unique_ptr<Slot[]> queue;
+    static std::atomic<uint32_t> head{0}, tail{0};
+    static std::atomic<uint32_t> dropped{0};
     static std::atomic<uint64_t> apMac{0};
 
     static uint64_t packMac(const uint8_t* mac)
@@ -40,22 +52,36 @@ namespace CsiMotion
         return packed;
     }
 
+    // Frames are only compared with frames of the same kind: group or unicast, and the rate and
+    // PHY mode the AP sent them at. Mixing kinds reads as movement (rate adaptation and
+    // beamforming reshape the channel estimate), which is why all-frames-together was noisy.
+    static uint16_t kindOf(const wifi_csi_info_t* info)
+    {
+        uint16_t key = (info->dmac[0] & 1) ? 0x8000 : 0;
+#if !CONFIG_SOC_WIFI_HE_SUPPORT
+        key |= (uint16_t)(info->rx_ctrl.sig_mode & 3) << 8;
+#endif
+        key |= info->rx_ctrl.rate & 0xff;
+        return key;
+    }
+
     // WiFi task context, for every frame: a fixed-size copy and nothing else. Loop does the maths.
-    // A frame that arrives while the last one is unread is dropped; the window copes.
     //
-    // Only the AP's group-addressed frames count. It sends them at a fixed basic rate with no
-    // beamforming, so they compare with each other. Frames unicast to this node vary with rate
-    // adaptation and read noisier on a still bench. Beacons would qualify but don't arrive
-    // here, so the sample rate is however much broadcast and multicast the network carries.
+    // Every frame from the AP counts, group-addressed or unicast to this node. Some APs send no
+    // group frames the CSI path sees (seen 2026-11-02 on a Ubiquiti AP), while the node's own
+    // MQTT traffic arrives on every network, at 10-20 frames/s.
     static void onCsi(void*, wifi_csi_info_t* info)
     {
-        if (!info || !info->buf || !(info->dmac[0] & 1)) return;
+        if (!info || !info->buf) return;
         if (packMac(info->mac) != apMac.load(std::memory_order_relaxed)) return;
-        if (slotFull.load(std::memory_order_acquire)) return;
-        const size_t len = info->len < sizeof(slot->csi) ? info->len : sizeof(slot->csi);
-        memcpy(slot->csi, info->buf, len);
-        slot->len = len;
-        slotFull.store(true, std::memory_order_release);
+        const uint32_t h = head.load(std::memory_order_relaxed);
+        if (h - tail.load(std::memory_order_acquire) >= kQueue) { dropped++; return; }
+        Slot& s = queue[h % kQueue];
+        const size_t len = info->len < sizeof(s.csi) ? info->len : sizeof(s.csi);
+        memcpy(s.csi, info->buf, len);
+        s.len = len;
+        s.kind = kindOf(info);
+        head.store(h + 1, std::memory_order_release);
     }
 
     // L-LTF only: every frame then has the same layout, whatever rate the AP sent it at.
@@ -74,6 +100,12 @@ namespace CsiMotion
             && esp_wifi_set_csi(true) == ESP_OK;
     }
 
+    static void resetKinds()
+    {
+        for (size_t i = 0; i < kindCount; i++) kinds[i].window.reset();
+        kindCount = 0;
+    }
+
     // Follows the AP the node is on. Ethernet nodes have none, so they never start.
     static void trackAp()
     {
@@ -84,17 +116,26 @@ namespace CsiMotion
             return;
         }
         apMac.store(mac, std::memory_order_relaxed);
-        window->reset();  // a different AP is a different channel, not movement
+        resetKinds();  // a different AP is a different channel, not movement
         if (mac) armed = arm();
+    }
+
+    static void add(const Slot& s)
+    {
+        for (size_t i = 0; i < kindCount; i++)
+            if (kinds[i].key == s.kind) return kinds[i].window.add(s.csi, s.len);
+        if (kindCount == kKinds) return;
+        kinds[kindCount].key = s.kind;
+        kinds[kindCount++].window.add(s.csi, s.len);
     }
 
     void ConnectToWifi(bool updating)
     {
         enabled = Settings::checkbox("csi_enable", false, "WiFi CSI movement sensor (experimental)");
         if (!enabled || updating) { enabled = false; return; }
-        window.reset(new (std::nothrow) CsiWindow());
-        slot.reset(new (std::nothrow) Slot());
-        if (!window || !slot) {
+        kinds.reset(new (std::nothrow) Kind[kKinds]);
+        queue.reset(new (std::nothrow) Slot[kQueue]);
+        if (!kinds || !queue) {
             Log.println("CSI: not enough memory");
             enabled = false;
         }
@@ -111,18 +152,29 @@ namespace CsiMotion
     {
         if (!enabled) return;
 
-        if (slotFull.load(std::memory_order_acquire)) {
-            window->add(slot->csi, slot->len);
-            slotFull.store(false, std::memory_order_release);
+        for (uint32_t t = tail.load(std::memory_order_relaxed); t != head.load(std::memory_order_acquire); t++) {
+            add(queue[t % kQueue]);
+            tail.store(t + 1, std::memory_order_release);
         }
 
         if (millis() - windowStart < kWindowMs) return;
         windowStart = millis();
 
-        fps = window->frames() * 1000.0f / kWindowMs;
-        if (window->frames() >= kMinFrames)
-            pub((roomsTopic + "/csi_variance").c_str(), 0, 0, Sprintf("%.2f", window->variance()).c_str());
-        window->reset();
+        // Publish the kind with the most frames: on most networks that is the node's own traffic.
+        const Kind* best = nullptr;
+        std::string summary;
+        for (size_t i = 0; i < kindCount; i++) {
+            const Kind& k = kinds[i];
+            if (!best || k.window.frames() > best->window.frames()) best = &k;
+            summary += Sprintf(" %s/%u/%u:%u=%.1f", (k.key & 0x8000) ? "grp" : "uni", (unsigned)((k.key >> 8) & 3),
+                (unsigned)(k.key & 0xff), (unsigned)k.window.frames(), k.window.variance());
+        }
+        const uint32_t frames = best ? best->window.frames() : 0;
+        fps = frames * 1000.0f / kWindowMs;
+        Log.printf("CSI: window%s dropped=%u\n", summary.c_str(), (unsigned)dropped.exchange(0));
+        if (frames >= kMinFrames)
+            pub((roomsTopic + "/csi_variance").c_str(), 0, 0, Sprintf("%.2f", best->window.variance()).c_str());
+        resetKinds();
         trackAp();
     }
 
