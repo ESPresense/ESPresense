@@ -166,7 +166,9 @@
     let held = $derived(current ? now - current.startedAt : 0);
 
     function advance() {
-        if (!current || found || gaveUp) return;
+        // Checked here, not just on the button: a double click, or a click landing on a timer
+        // tick, would otherwise skip the step that was just started.
+        if (!current || found || gaveUp || Date.now() - current.startedAt < MIN_HOLD_MS) return;
         const done = steps;
         const boundaries = done.length - 1;
         const w = winner(rank(done, $devices?.devices ?? []), boundaries);
@@ -436,7 +438,8 @@
                                 {/each}
                             </ul>
                         </div>
-                    {:else if steps.length === 1}
+                    {:else if !found && !gaveUp}
+                        <!-- Until there are candidates, so the panel doesn't shrink under a second click. -->
                         <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">You'll be asked to move it near and away a few times. Each step takes about {STEP_MS / 1000} s, because the node smooths signal strength over time.</p>
                     {/if}
 

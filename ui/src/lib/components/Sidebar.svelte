@@ -5,7 +5,8 @@
     import Icon from "./Icon.svelte";
     import { firmwareInfo, palette } from "#lib/stores.js";
 
-    const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+    // navigator.platform is deprecated; the user agent names the OS just as well for a key hint.
+    const mac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
 </script>
 
 <div class="h-full w-full flex flex-col">

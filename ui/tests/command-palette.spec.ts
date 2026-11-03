@@ -121,6 +121,17 @@ test.describe('Command palette', () => {
 		await expect(page.getByTestId('unstable-id')).toBeVisible();
 	});
 
+	test('a double click on Next step neither skips a step nor closes the palette', async ({ page }) => {
+		await page.clock.install();
+		await mockNode(page);
+		await open(page, '/fingerprints');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		await page.clock.runFor(9000);
+		await page.getByRole('button', { name: 'Next step' }).dblclick();
+		await expect(page.getByText('Step 2 of up to 6')).toBeVisible();
+		await expect(page.getByTestId('find-step')).toHaveAttribute('data-phase', 'far');
+	});
+
 	test('Find picks out the device that follows near and far, then names it', async ({ page }) => {
 		await page.clock.install();
 		const posts = await mockNode(page);
