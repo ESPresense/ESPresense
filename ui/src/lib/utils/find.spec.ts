@@ -4,101 +4,71 @@ import { suggestAlias, unstableId } from './alias.js';
 import { fuzzy } from './search.js';
 import type { Device } from '../types.js';
 
-const dev = (id: string, rssi: number, extra: Partial<Device> = {}): Device => ({ id, rssi, vis: true, close: false, ...extra });
+const dev = (id: string, close: boolean, extra: Partial<Device> = {}): Device => ({ id, close, vis: true, ...extra });
 
-/** one step of polls: every device at a fixed level for `polls` readings */
-function step(phase: Phase, levels: Record<string, number>, polls = 5): Step {
+/** one step whose last poll had these devices close or not */
+function step(phase: Phase, close: Record<string, boolean>): Step {
     const s = newStep(phase, 0);
-    for (let i = 0; i < polls; i++) record(s, Object.entries(levels).map(([id, r]) => dev(id, r)));
+    record(s, Object.entries(close).map(([id, c]) => dev(id, c)));
     return s;
 }
 
 describe('find', () => {
-    it('picks the one device that follows near/far/near', () => {
+    it('picks the one device that is close when near and away when far', () => {
         const steps = [
-            step('near', { keys: -45, tv: -70, fridge: -80 }),
-            step('far', { keys: -78, tv: -71, fridge: -79 }),
-            step('near', { keys: -47, tv: -69, fridge: -81 })
+            step('near', { keys: true, tv: false, fridge: true }),
+            step('far', { keys: false, tv: false, fridge: true }),
+            step('near', { keys: true, tv: false, fridge: true })
         ];
-        const devices = [dev('keys', -47), dev('tv', -69), dev('fridge', -81)];
-        const ranked = rank(steps, devices);
-        expect(ranked[0].key).toBe('keys');
-        expect(ranked[0].consistent).toBe(true);
-        expect(ranked[0].score).toBeCloseTo(32);
-        expect(winner(ranked, 2)?.key).toBe('keys');
+        const ranked = rank(steps, []);
+        expect(ranked.map((c) => c.key)).toEqual(['keys', 'fridge']);
+        expect(ranked[0].close).toEqual([true, false, true]);
+        expect(winner(ranked, 3)?.key).toBe('keys');
     });
 
-    it('waits for two boundaries before naming a winner', () => {
-        const steps = [step('near', { keys: -45, tv: -70 }), step('far', { keys: -80, tv: -70 })];
-        const ranked = rank(steps, [dev('keys', -80), dev('tv', -70)]);
-        expect(ranked[0].key).toBe('keys');
-        expect(winner(ranked, 1)).toBeUndefined();
+    it('waits for near, far and near again', () => {
+        const steps = [step('near', { keys: true }), step('far', { keys: false })];
+        expect(winner(rank(steps, []), 2)).toBeUndefined();
     });
 
     it("won't choose between two devices that both followed every move", () => {
         // Keys on the same ring as a tag: both move together.
-        const steps = [
-            step('near', { keys: -45, tag: -50 }),
-            step('far', { keys: -80, tag: -82 }),
-            step('near', { keys: -46, tag: -52 })
-        ];
-        expect(winner(rank(steps, [dev('keys', -46), dev('tag', -52)]), 2)).toBeUndefined();
+        const steps = [step('near', { keys: true, tag: true }), step('far', { keys: false, tag: false }), step('near', { keys: true, tag: true })];
+        expect(winner(rank(steps, []), 3)).toBeUndefined();
     });
 
-    it('lets a consistent weaker device veto the winner', () => {
-        const steps = [
-            step('near', { keys: -45, weak: -60 }),
-            step('far', { keys: -80, weak: -63 }),
-            step('near', { keys: -46, weak: -60 })
-        ];
-        expect(winner(rank(steps, [dev('keys', -46), dev('weak', -60)]), 2)).toBeUndefined();
+    it('only lists what was close on a near step', () => {
+        const steps = [step('near', { keys: true, tv: false }), step('far', { keys: false, tv: true })];
+        expect(rank(steps, []).map((c) => c.key)).toEqual(['keys']);
     });
 
-    it('counts only the settled tail of a step, not the window catching up', () => {
-        const near = newStep('near', 0);
-        for (const r of [-80, -80, -70, -60, -50, -46, -45, -45]) record(near, [dev('keys', r)]);
-        const far = step('far', { keys: -80 });
-        const [c] = rank([near, far], [dev('keys', -80)]);
-        expect(c.score).toBeCloseTo(35);
-    });
-
-    it('ignores devices that are not visible or have no RSSI', () => {
+    it('takes the last poll of a step', () => {
         const s = newStep('near', 0);
-        record(s, [dev('gone', -40, { vis: false }), { id: 'quiet', vis: true, close: false }]);
-        expect(s.readings.size).toBe(0);
+        record(s, [dev('keys', false)]);
+        record(s, [dev('keys', true)]);
+        expect(rank([s], []).map((c) => c.key)).toEqual(['keys']);
+    });
+
+    it('ignores devices that are not visible', () => {
+        const s = newStep('near', 0);
+        record(s, [dev('gone', true, { vis: false })]);
+        expect(s.close.size).toBe(0);
     });
 
     it('keeps rows that share an id apart, by MAC', () => {
-        const mover = (r: number) => dev('apple:1005:9-26', r, { mac: 'aa', name: 'Mine' });
-        const still = dev('apple:1005:9-26', -60, { mac: 'bb', name: 'Theirs' });
-        const s = (phase: Phase, r: number) => {
+        const mine = (c: boolean) => dev('apple:1005:9-26', c, { mac: 'aa', name: 'Mine' });
+        const theirs = dev('apple:1005:9-26', true, { mac: 'bb', name: 'Theirs' });
+        const s = (phase: Phase, c: boolean) => {
             const st = newStep(phase, 0);
-            for (let i = 0; i < 4; i++) record(st, [mover(r), still]);
+            record(st, [mine(c), theirs]);
             return st;
         };
-        const ranked = rank([s('near', -45), s('far', -80), s('near', -45)], [mover(-45), still]);
-        expect(winner(ranked, 2)?.device.name).toBe('Mine');
+        expect(winner(rank([s('near', true), s('far', false), s('near', true)], []), 3)?.device.name).toBe('Mine');
     });
 
-    it('still ranks a device that dropped out of the latest poll', () => {
-        const steps = [step('near', { keys: -45, tv: -70 }), step('far', { keys: -80, tv: -70 }), step('near', { keys: -45, tv: -70 })];
-        expect(winner(rank(steps, [dev('tv', -70)]), 2)?.key).toBe('keys');
-    });
-
-    it('gives no level to a step with fewer than three readings', () => {
-        const steps = [step('near', { blip: -45 }, 1), step('far', { blip: -80 }, 1), step('near', { blip: -45 }, 1)];
-        expect(rank(steps, [dev('blip', -45)])).toEqual([]);
-    });
-
-    it('marks a device that moved the wrong way as inconsistent', () => {
-        const steps = [
-            step('near', { a: -45 }),
-            step('far', { a: -80 }),
-            step('near', { a: -82 })
-        ];
-        const [c] = rank(steps, [dev('a', -82)]);
-        expect(c.consistent).toBe(false);
-        expect(winner([c], 2)).toBeUndefined();
+    it('still lists a device that dropped out of the latest poll, as away', () => {
+        const steps = [step('near', { keys: true }), step('far', {}), step('near', { keys: true })];
+        expect(winner(rank(steps, []), 3)?.key).toBe('keys');
     });
 });
 

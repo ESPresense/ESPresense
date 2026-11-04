@@ -1,11 +1,10 @@
-// Find mode: pick out one fingerprint by moving the device near the node and away again.
+// Find mode: pick out one fingerprint by holding the device next to the node and taking it
+// away again.
 //
-// The node reports each fingerprint's RSSI as a median over a sliding window (rssi_window_ms,
-// 15 s by default), so a step has to be held long enough for that median to swing. Each step
-// keeps every poll's reading; a step's level is the median of its last few readings, once the
-// window has caught up. A device scores on every near/far boundary it was seen on both sides
-// of: near level minus far level. The thing being moved gains a few dB on every boundary;
-// everything else drifts both ways and averages out.
+// The node already decides "close" for every fingerprint (its median RSSI over rssi_window_ms,
+// with hysteresis: enter above -40 dBm, leave below -50), so a step only has to record whether
+// each device was close when the step ended. The thing being moved is close on every near
+// step and not on any far step; nothing else is.
 
 import type { Device } from '../types.js';
 
@@ -14,28 +13,23 @@ export type Phase = 'near' | 'far';
 export interface Step {
     phase: Phase;
     startedAt: number;
-    readings: Map<string, number[]>;
-    /** the last row seen for each key, so a device that drops out can still be ranked */
+    /** whether each device was close on the last poll of the step */
+    close: Map<string, boolean>;
+    /** the last row seen for each key, so a device that drops out can still be listed */
     rows: Map<string, Device>;
 }
 
 export interface Candidate {
     key: string;
     device: Device;
-    /** mean dB gained near over far, across boundaries */
-    score: number;
-    /** boundaries this device was seen on both sides of */
-    boundaries: number;
-    /** every boundary went the right way by at least MIN_SWING */
-    consistent: boolean;
+    /** close on each step so far */
+    close: boolean[];
+    /** steps it was where the user had it: close when near, away when far */
+    matched: number;
 }
 
-/** readings per step that count towards its level (the tail, after the window caught up); fewer is no level */
-export const TAIL = 3;
-/** dB a boundary must swing to count as following the user's move */
-export const MIN_SWING = 3;
-/** how long to hold a step before the window median has moved (half of the 15 s default) */
-export const MIN_HOLD_MS = 8000;
+/** how long to hold a step before the node's median RSSI has caught up (rssi_window_ms, 15 s by default) */
+export const MIN_HOLD_MS = 15000;
 
 /**
  * One fingerprint row. The MAC, not the id: ids can be shared (several iPhones are all
@@ -46,33 +40,19 @@ export function rowKey(d: Device): string | undefined {
 }
 
 export function newStep(phase: Phase, now: number): Step {
-    return { phase, startedAt: now, readings: new Map(), rows: new Map() };
+    return { phase, startedAt: now, close: new Map(), rows: new Map() };
 }
 
 export function record(step: Step, devices: Device[]): void {
     for (const d of devices) {
         const key = rowKey(d);
-        if (!key || d.rssi == null || !d.vis) continue;
+        if (!key || !d.vis) continue;
         step.rows.set(key, d);
-        const r = step.readings.get(key);
-        if (r) r.push(d.rssi);
-        else step.readings.set(key, [d.rssi]);
+        step.close.set(key, !!d.close);
     }
 }
 
-function median(xs: number[]): number {
-    const s = [...xs].sort((a, b) => a - b);
-    const m = s.length >> 1;
-    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
-
-/** a step's settled level for one device, or undefined if it wasn't seen enough */
-export function level(step: Step, key: string): number | undefined {
-    const r = step.readings.get(key);
-    if (!r || r.length < TAIL) return undefined;
-    return median(r.slice(-TAIL));
-}
-
+/** everything that was ever close on a near step, best match first */
 export function rank(steps: Step[], devices: Device[]): Candidate[] {
     const byKey = new Map<string, Device>();
     for (const s of steps) for (const [key, d] of s.rows) byKey.set(key, d);
@@ -83,38 +63,17 @@ export function rank(steps: Step[], devices: Device[]): Candidate[] {
 
     const out: Candidate[] = [];
     for (const [key, device] of byKey) {
-        let sum = 0;
-        let boundaries = 0;
-        let consistent = true;
-        for (let i = 1; i < steps.length; i++) {
-            const a = level(steps[i - 1], key);
-            const b = level(steps[i], key);
-            if (a === undefined || b === undefined) continue;
-            const swing = steps[i].phase === 'near' ? b - a : a - b;
-            sum += swing;
-            boundaries++;
-            if (swing < MIN_SWING) consistent = false;
-        }
-        if (boundaries === 0) continue;
-        out.push({ key, device, score: sum / boundaries, boundaries, consistent });
+        const close = steps.map((s) => s.close.get(key) ?? false);
+        if (!steps.some((s, i) => s.phase === 'near' && close[i])) continue;
+        const matched = steps.filter((s, i) => close[i] === (s.phase === 'near')).length;
+        out.push({ key, device, close, matched });
     }
-
-    return out.sort(
-        (a, b) =>
-            Number(b.consistent) - Number(a.consistent) ||
-            b.boundaries - a.boundaries ||
-            b.score - a.score
-    );
+    return out.sort((a, b) => b.matched - a.matched);
 }
 
-/**
- * The winner, once the evidence is in: near-far-near (two boundaries) all the right way, a
- * clear swing, and nothing else that also followed every move.
- */
-export function winner(ranked: Candidate[], boundaries: number): Candidate | undefined {
-    if (boundaries < 2) return undefined;
-    const [top, next] = ranked;
-    if (!top || !top.consistent || top.boundaries < boundaries || top.score < 2 * MIN_SWING) return undefined;
-    if (next && next.consistent && next.boundaries >= boundaries) return undefined;
-    return top;
+/** the one device that was where the user had it on every step, once there's been near, far and near again */
+export function winner(ranked: Candidate[], steps: number): Candidate | undefined {
+    if (steps < 3) return undefined;
+    const followed = ranked.filter((c) => c.matched === steps);
+    return followed.length === 1 ? followed[0] : undefined;
 }

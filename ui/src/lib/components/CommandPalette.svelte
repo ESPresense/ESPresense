@@ -9,10 +9,6 @@
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
 
-    /** how long each Find step runs before it moves on by itself */
-    const STEP_MS = 12000;
-    /** near, far, near, far, near, far: give up after this many */
-    const MAX_STEPS = 6;
 
     type Item = {
         key: string;
@@ -154,34 +150,29 @@
     let steps = $state.raw<Step[]>([]);
     let now = $state(Date.now());
     let found = $state<Candidate | undefined>();
-    let gaveUp = $state(false);
 
     function startFind() {
         steps = [newStep("near", Date.now())];
         found = undefined;
-        gaveUp = false;
     }
 
     let current = $derived(steps[steps.length - 1]);
-    // Steps already done: all of them once Find has stopped, else all but the one being held.
-    let completed = $derived(found || gaveUp ? steps : steps.slice(0, -1));
-    let ranked = $derived(rank(completed, $devices?.devices ?? []));
+    // Live, including the step being held: the list is the feedback.
+    let ranked = $derived(rank(steps, $devices?.devices ?? []));
+    let still = $derived(ranked.filter((c) => c.matched === steps.length).length);
     let held = $derived(current ? now - current.startedAt : 0);
 
+    // Steps end on a click, never on a timer: the far step takes as long as the walk does.
+    // Rounds go on until one device is left.
     function advance() {
-        // Checked here, not just on the button: a double click, or a click landing on a timer
-        // tick, would otherwise skip the step that was just started.
-        if (!current || found || gaveUp || Date.now() - current.startedAt < MIN_HOLD_MS) return;
+        // Checked here, not just on the button: a double click would otherwise skip the step
+        // that was just started.
+        if (!current || found || Date.now() - current.startedAt < MIN_HOLD_MS) return;
         const done = steps;
-        const boundaries = done.length - 1;
-        const w = winner(rank(done, $devices?.devices ?? []), boundaries);
+        const w = winner(rank(done, $devices?.devices ?? []), done.length);
         if (w) {
             steps = [...done];
             found = w;
-            return;
-        }
-        if (done.length >= MAX_STEPS) {
-            gaveUp = true;
             return;
         }
         steps = [...done, newStep(current.phase === "near" ? "far" : "near", Date.now())];
@@ -190,17 +181,14 @@
     $effect(() => {
         // Each poll of /json/devices goes into the step being held.
         const list = $devices?.devices;
-        if ($palette?.view !== "find" || !list || !current || found || gaveUp) return;
+        if ($palette?.view !== "find" || !list || !current || found) return;
         record(current, list);
     });
 
     $effect(() => {
         if ($palette?.view !== "find") return;
         if (steps.length === 0) startFind();
-        const t = setInterval(() => {
-            now = Date.now();
-            if (current && now - current.startedAt >= STEP_MS) advance();
-        }, 250);
+        const t = setInterval(() => (now = Date.now()), 250);
         return () => clearInterval(t);
     });
 
@@ -209,7 +197,6 @@
         if ($palette?.view !== "find" && steps.length) {
             steps = [];
             found = undefined;
-            gaveUp = false;
         }
     });
 
@@ -336,9 +323,6 @@
         });
     });
 
-    function fmtDb(x: number) {
-        return `${x >= 0 ? "+" : ""}${x.toFixed(0)} dB`;
-    }
 </script>
 
 <svelte:window onkeydown={onWindowKey} />
@@ -401,36 +385,37 @@
                 <div class="p-5" onkeydown={onFindKey}>
                     <div class="mb-4 flex items-baseline justify-between">
                         <h2 class="mb-0 text-lg font-semibold text-gray-900 dark:text-white">Find a device</h2>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">Step {steps.length} of up to {MAX_STEPS}</span>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Step {steps.length}</span>
                     </div>
 
                     {#if found}
                         <div class="rounded-lg border border-green-300 bg-green-50 p-4 dark:border-green-700 dark:bg-green-900/30" data-testid="find-found">
                             <div class="text-sm font-medium text-green-800 dark:text-green-200">Found it</div>
                             <div class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{found.device.name || found.key}</div>
-                            <div class="text-xs text-gray-600 dark:text-gray-300">{found.device.id ?? found.key} · {fmtDb(found.score)} each time it came close</div>
-                        </div>
-                    {:else if gaveUp}
-                        <div class="rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-100" data-testid="find-gave-up">
-                            Nothing followed every move clearly enough. Try moving it further away (another room works best), or pick from the list below.
+                            <div class="text-xs text-gray-600 dark:text-gray-300">{found.device.id ?? found.key} · close every time you brought it, away every time you took it</div>
                         </div>
                     {:else if current}
                         <div class="rounded-lg p-4 {current.phase === 'near' ? 'bg-blue-50 dark:bg-blue-900/30' : 'bg-gray-100 dark:bg-gray-700'}" data-testid="find-step" data-phase={current.phase}>
                             <div class="text-base font-semibold text-gray-900 dark:text-white">
-                                {#if current.phase === "near"}Hold it right next to {$roomName ? `the ${$roomName} node` : "this node"}{:else}Take it away, 3 m or more{/if}
+                                {#if current.phase === "near"}Hold it right against {$roomName ? `the ${$roomName} node` : "this node"}{:else}Take it away, as far as you like{/if}
                             </div>
                             <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                {#if current.phase === "near"}A few centimetres away is ideal. Keep it still.{:else}Another room is even better. Keep it there until the bar fills.{/if}
+                                {#if current.phase === "near"}Touching the node is ideal. Keep it still until the bar fills and it shows as close, then click Next step.{:else}Another room is best. No rush: once the bar fills and it shows as away, click Next step, then bring it back.{/if}
                             </div>
                             <div class="mt-3 h-1.5 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-600">
-                                <div class="h-full bg-blue-600 transition-[width] duration-200" style="width: {Math.min(100, (held / STEP_MS) * 100)}%"></div>
+                                <div class="h-full bg-blue-600 transition-[width] duration-200" style="width: {Math.min(100, (held / MIN_HOLD_MS) * 100)}%"></div>
                             </div>
+                            {#if steps.length >= 3}
+                                <div class="mt-2 text-xs text-gray-600 dark:text-gray-300" data-testid="find-progress">
+                                    {#if still === 0}Nothing has followed every move yet. Hold it right against the node, and take it further away.{:else}{still} still following every move. Another round narrows it down, or pick one below.{/if}
+                                </div>
+                            {/if}
                         </div>
                     {/if}
 
                     {#if ranked.length}
                         <div class="mt-4">
-                            <div class="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Followed your moves</div>
+                            <div class="mb-1 flex justify-between text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"><span>{steps.length > 1 ? "Followed your moves" : "Close to the node"}</span><span class="font-mono normal-case tracking-normal">● close · ○ away</span></div>
                             <ul class="divide-y divide-gray-100 dark:divide-gray-700" data-testid="find-candidates">
                                 {#each ranked.slice(0, 5) as c (c.key)}
                                     <li>
@@ -439,24 +424,24 @@
                                             class="flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 {found?.key === c.key ? 'bg-green-100 dark:bg-green-900/40' : ''}"
                                             onclick={() => tagFingerprint(c.device)}
                                         >
-                                            <span class="w-14 shrink-0 text-right font-mono text-sm {c.consistent ? 'text-green-700 dark:text-green-400' : 'text-gray-500'}">{fmtDb(c.score)}</span>
+                                            <span class="shrink-0 font-mono text-sm {c.matched === steps.length ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}">{c.close.map((x) => (x ? "●" : "○")).join(" ")}</span>
                                             <span class="truncate text-sm text-gray-900 dark:text-gray-100">{c.device.name || c.device.id || c.key}</span>
-                                            {#if c.device.name && c.device.id}<span class="ml-auto truncate text-xs text-gray-500 dark:text-gray-400">{c.device.id}</span>{/if}
+                                            <span class="ml-auto shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400">{c.device.rssi != null ? `${c.device.rssi} dBm` : ""}</span>
                                         </button>
                                     </li>
                                 {/each}
                             </ul>
                         </div>
-                    {:else if !found && !gaveUp}
+                    {:else if !found}
                         <!-- Until there are candidates, so the panel doesn't shrink under a second click. -->
-                        <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">You'll be asked to move it near and away a few times. Each step takes about {STEP_MS / 1000} s, because the node smooths signal strength over time.</p>
+                        <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Whatever the node sees as close shows up here once its signal average catches up ({MIN_HOLD_MS / 1000} s). You'll then take it away and bring it back, as many rounds as it takes.</p>
                     {/if}
 
                     <div class="mt-5 flex items-center justify-end gap-2">
                         <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={startFind}>Start over</button>
                         {#if found}
                             <button type="button" data-autofocus class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700" onclick={() => tagFingerprint(found!.device)}>Name it</button>
-                        {:else if !gaveUp}
+                        {:else}
                             <button type="button" data-autofocus class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={held < MIN_HOLD_MS} onclick={advance}>Next step</button>
                         {/if}
                     </div>

@@ -147,9 +147,9 @@ test.describe('Command palette', () => {
 		await mockNode(page);
 		await open(page, '/fingerprints');
 		await page.getByRole('button', { name: 'Find a device' }).click();
-		await page.clock.runFor(9000);
+		await page.clock.runFor(16000);
 		await page.getByRole('button', { name: 'Next step' }).dblclick();
-		await expect(page.getByText('Step 2 of up to 6')).toBeVisible();
+		await expect(page.getByText('Step 2', { exact: true })).toBeVisible();
 		await expect(page.getByTestId('find-step')).toHaveAttribute('data-phase', 'far');
 	});
 
@@ -161,10 +161,11 @@ test.describe('Command palette', () => {
 		await expect(page.getByRole('dialog', { name: 'Find a device' })).toBeVisible();
 
 		const found = page.getByTestId('find-found');
-		for (let s = 0; s < 80 && !(await found.isVisible()); s++) {
+		for (let s = 0; s < 6 && !(await found.isVisible()); s++) {
 			const phase = await page.getByTestId('find-step').getAttribute('data-phase');
 			keysNear = phase === 'near';
-			await page.clock.runFor(1000);
+			await page.clock.runFor(16000);
+			await page.getByRole('button', { name: 'Next step' }).click();
 		}
 		await expect(found).toContainText('tile:c1d2e3f4a5b6');
 		await expect(page.getByTestId('find-candidates').locator('li').first()).toContainText('Tile');
