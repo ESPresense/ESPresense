@@ -149,23 +149,6 @@ test.describe('Device Re-enrollment Functionality', () => {
       await route.fulfill({ json: mockEvents });
     });
 
-    const devicesResponses = [
-      { room: 'Living Room', devices: [] },
-      { room: 'Living Room', devices: [
-        { id: 'device-1', close: true },
-        { id: 'device-2', close: true }
-      ] },
-      { room: 'Living Room', devices: [
-        { id: 'device-2', close: true }
-      ] }
-    ];
-    let deviceCallCount = 0;
-    await page.route('/json/devices?showAll', async route => {
-      const response = devicesResponses[Math.min(deviceCallCount, devicesResponses.length - 1)];
-      deviceCallCount++;
-      await route.fulfill({ json: response });
-    });
-
     await page.goto('/devices');
   });
 
