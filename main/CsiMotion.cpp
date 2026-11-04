@@ -14,7 +14,11 @@
 
 namespace CsiMotion
 {
-    static const unsigned long kWindowMs = 30000;
+    // Short enough to line up with BLE room changes, which happen every few seconds; at the
+    // 7-23 frames/s seen on house networks a window still holds 35-115 frames.
+    static const unsigned long kWindowMs = 5000;
+    // After arming, readings run two orders of magnitude high while the receiver settles.
+    static const unsigned long kSettleMs = 30000;
     // Below this the channel isn't sampled often enough for a window to mean anything.
     static const uint32_t kMinFrames = 10;
     // Frames queued between the WiFi task and the loop. Frames arrive in bursts (group frames after
@@ -37,8 +41,7 @@ namespace CsiMotion
 
     static bool enabled = false;
     static bool armed = false;
-    // The first window after arming reads two orders of magnitude high while the receiver settles.
-    static bool settling = true;
+    static unsigned long armedAt = 0;
     static unsigned long windowStart = 0;
     static float fps = 0;
     static std::unique_ptr<Kind[]> kinds;
@@ -117,13 +120,13 @@ namespace CsiMotion
         wifi_ap_record_t ap;
         const uint64_t mac = esp_wifi_sta_get_ap_info(&ap) == ESP_OK ? packMac(ap.bssid) : 0;
         if (mac == apMac.load(std::memory_order_relaxed)) {
-            if (mac && !armed) settling = armed = arm();
+            if (mac && !armed && (armed = arm())) armedAt = millis();
             return;
         }
         apMac.store(mac, std::memory_order_relaxed);
         resetKinds();  // a different AP is a different channel, not movement
-        settling = true;
-        if (mac) armed = arm();
+        armed = mac && arm();
+        armedAt = millis();
     }
 
     static void add(const Slot& s)
@@ -177,9 +180,9 @@ namespace CsiMotion
         }
         const uint32_t frames = best ? best->window.frames() : 0;
         fps = frames * 1000.0f / kWindowMs;
+        const bool settling = !armed || millis() - armedAt < kSettleMs;
         Log.printf("CSI: window%s dropped=%u%s\n", summary.c_str(), (unsigned)dropped.exchange(0), settling ? " (settling)" : "");
         const bool publish = frames >= kMinFrames && !settling;
-        if (frames) settling = false;
         if (publish)
             pub((roomsTopic + "/csi_variance").c_str(), 0, 0, Sprintf("%.2f", best->window.variance()).c_str());
         resetKinds();
