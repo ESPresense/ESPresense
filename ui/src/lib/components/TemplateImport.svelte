@@ -69,7 +69,7 @@
 
 <section id="board-template" class="space-y-4">
     <h2>
-        <a href="https://espresense.com/configuration/templates" target="_blank">Board Template</a>
+        <a href="https://espresense.com/configuration/templates" target="_blank">Templates</a>
     </h2>
     <p class="text-sm text-gray-600 dark:text-gray-300">
         Paste a board or add-on template to set up this board in one step. A template can change any setting: pins, LEDs,
