@@ -184,6 +184,9 @@
         const list = $devices?.devices;
         if ($palette?.view !== "find" || !list || !current || found) return;
         record(current, list);
+        // Found the moment the pattern completes; no click needed to finish.
+        const w = winner(rank(steps, list));
+        if (w) found = w;
     });
 
     $effect(() => {

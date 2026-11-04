@@ -171,6 +171,9 @@ test.describe('Command palette', () => {
 			const phase = await page.getByTestId('find-step').getAttribute('data-phase');
 			keysNear = phase === 'near' && nearOn(s);
 			await page.clock.runFor(2000);
+			// It can finish mid-step, as soon as the pattern completes: let the poll's render land.
+			await page.waitForTimeout(100);
+			if (await found.isVisible()) break;
 			await page.getByRole('button', { name: 'Next step' }).click();
 		}
 		return found;
@@ -232,13 +235,7 @@ test.describe('Command palette', () => {
 		await page.getByRole('button', { name: 'Find a device' }).click();
 		await expect(page.getByRole('dialog', { name: 'Find a device' })).toBeVisible();
 
-		const found = page.getByTestId('find-found');
-		for (let s = 0; s < 6 && !(await found.isVisible()); s++) {
-			const phase = await page.getByTestId('find-step').getAttribute('data-phase');
-			keysNear = phase === 'near';
-			await page.clock.runFor(2000);
-			await page.getByRole('button', { name: 'Next step' }).click();
-		}
+		const found = await runFind(page, 6);
 		await expect(found).toContainText('tile:c1d2e3f4a5b6');
 		await expect(page.getByTestId('find-candidates').locator('li').first()).toContainText('Tile');
 
