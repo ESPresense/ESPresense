@@ -19,6 +19,11 @@
     let aliasError = $state("");
     // MAC of each id seen close during Find, to match a config keyed by MAC at save time
     let seenMacs: Record<string, string | undefined> = {};
+    let detecting = $state(false);
+    let aliasDetected = $state(false);
+    let detectFailed = $state(false);
+    // Bumped whenever Find starts or ends, so a reply from an earlier run is dropped
+    let aliasSession = 0;
     let sortBy = $state("alias");
     let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
@@ -60,20 +65,32 @@
         }
     }
 
-    async function getCloseDeviceIds(): Promise<string[]> {
+    /** Devices the node sees as close, or null when it couldn't be asked */
+    async function getCloseDevices(): Promise<Device[] | null> {
         try {
             const response = await fetch('/json/devices?showAll');
+            if (!response.ok) return null;
             const data: Devices = await response.json();
-            const close = data.devices.filter((d: Device) => d.close && (d.id || d.mac));
-            for (const d of close) seenMacs[(d.id || d.mac)!] = d.mac;
-            return close.map((d: Device) => (d.id || d.mac)!);
+            return data.devices.filter((d: Device) => d.close && (d.id || d.mac));
         } catch {
-            return [];
+            return null;
         }
     }
 
     async function detect() {
-        const closeIds = await getCloseDeviceIds();
+        // One reading at a time: the step is read after the fetch, so an overlapping click
+        // would apply a near reading as a far one.
+        if (detecting) return;
+        const session = aliasSession;
+        detecting = true;
+        const close = await getCloseDevices();
+        if (session !== aliasSession) return;
+        detecting = false;
+        aliasDetected = true;
+        detectFailed = close == null;
+        if (!close) return;
+        for (const d of close) seenMacs[(d.id || d.mac)!] = d.mac;
+        const closeIds = close.map((d) => (d.id || d.mac)!);
         if (aliasStep === 'near') {
             aliasCandidates = aliasCandidates.length === 0 ? closeIds : aliasCandidates.filter((id) => closeIds.includes(id));
             if (aliasCandidates.length > 1) {
@@ -81,37 +98,42 @@
             }
         } else {
             aliasCandidates = aliasCandidates.filter((id) => !closeIds.includes(id));
-            if (aliasCandidates.length > 1) {
+            // Several left: bring it back. None left (all stayed close): start over from near.
+            if (aliasCandidates.length !== 1) {
                 aliasStep = 'near';
             }
         }
     }
 
-    function openAlias() {
-        showAliasModal = true;
+    function resetFind() {
+        aliasSession++;
         aliasCandidates = [];
         aliasStep = 'near';
+        seenMacs = {};
+        detecting = false;
+        aliasDetected = false;
+        detectFailed = false;
+    }
+
+    function openAlias() {
+        resetFind();
         deviceId = "";
         deviceMac = undefined;
-        seenMacs = {};
+        showAliasModal = true;
     }
 
     function closeAlias() {
         showAliasModal = false;
-        aliasCandidates = [];
-        aliasStep = 'near';
+        resetFind();
         deviceId = "";
         deviceMac = undefined;
-        seenMacs = {};
     }
 
     function useId() {
         const selected = aliasCandidates[0];
         const mac = seenMacs[selected];
         showAliasModal = false;
-        aliasCandidates = [];
-        aliasStep = 'near';
-        seenMacs = {};
+        resetFind();
         deviceId = selected;
         deviceMac = mac;
         // An already configured device starts from its config, so saving keeps its name and alias.
@@ -456,15 +478,18 @@
                             ? 'Bring the device close to this node and click Detect.'
                             : 'Move the device far away and click Detect.'}
                     </p>
-                    {#if aliasCandidates.length > 1}
+                    {#if detectFailed}
+                        <p class="mb-4 text-sm text-red-600">Couldn't read the devices from this node. Try again.</p>
+                    {:else if aliasCandidates.length > 1}
                         <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{aliasCandidates.length} devices remaining</p>
-                    {:else if aliasCandidates.length === 0 && aliasStep !== 'near'}
-                        <p class="mb-4 text-sm text-red-600">No devices detected. Try again.</p>
+                    {:else if aliasCandidates.length === 0 && aliasDetected}
+                        <p class="mb-4 text-sm text-red-600">No matching device found. Try again.</p>
                     {/if}
                     <div class="flex justify-end space-x-2">
                         <button
-                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                             onclick={detect}
+                            disabled={detecting}
                         >
                             Detect
                         </button>

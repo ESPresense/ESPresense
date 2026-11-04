@@ -54,6 +54,9 @@ test.describe('Device Alias Flow', () => {
   // The reply follows the test's steps, not a call count: the layout's command palette also
   // polls /json/devices, so a count-based mock hands the near reply to whoever asks first.
   let devicesReply: Reply = bothClose;
+  let devicesStatus = 200;
+  // While set, /json/devices replies wait for it: a reading the test holds in flight
+  let devicesGate: Promise<void> | null = null;
 
   /** Run Find: Detect with `near` showing, take it away, Detect with `far` showing */
   async function findDevice(page: Page, near: Reply, far: Reply, expected: string) {
@@ -69,6 +72,8 @@ test.describe('Device Alias Flow', () => {
 
   test.beforeEach(async ({ page }) => {
     devicesReply = bothClose;
+    devicesStatus = 200;
+    devicesGate = null;
     await page.addInitScript(() => {
       class MockWebSocket {
         onopen: ((event: Event) => void) | null = null;
@@ -126,7 +131,9 @@ test.describe('Device Alias Flow', () => {
     });
 
     await page.route('/json/devices?showAll', async route => {
-      await route.fulfill({ json: devicesReply });
+      const reply = devicesReply;
+      if (devicesGate) await devicesGate;
+      await route.fulfill({ status: devicesStatus, json: devicesStatus === 200 ? reply : { error: 'busy' } });
     });
 
     await page.goto('/devices');
@@ -167,5 +174,60 @@ test.describe('Device Alias Flow', () => {
     await expect(enrollDialog(page).getByRole('alert')).toHaveText("The node didn't save it. Try again.");
     await expect(page.getByPlaceholder('Enter name')).toHaveValue('Alias Device');
     await expect(idInput(page)).toHaveValue('device-1');
+  });
+
+  test('starts over when every candidate stayed close on the far step', async ({ page }) => {
+    await page.getByRole('button', { name: 'Alias', exact: true }).click();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('Move the device far away')).toBeVisible();
+    // Both still close after being taken away: nothing followed, so it goes back to near.
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('No matching device found. Try again.')).toBeVisible();
+    await expect(page.getByText('Bring the device close to this node')).toBeVisible();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('Move the device far away')).toBeVisible();
+    await expect(page.getByText('2 devices remaining')).toBeVisible();
+  });
+
+  test('says so when the near step finds no close device', async ({ page }) => {
+    devicesReply = { room: 'Living Room', devices: [{ id: 'device-1', close: false }] };
+    await page.getByRole('button', { name: 'Alias', exact: true }).click();
+    await expect(page.getByText('No matching device found')).toBeHidden();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText('No matching device found. Try again.')).toBeVisible();
+    await expect(page.getByText('Bring the device close to this node')).toBeVisible();
+  });
+
+  test('tells a failed device read apart from no device nearby', async ({ page }) => {
+    devicesStatus = 500;
+    await page.getByRole('button', { name: 'Alias', exact: true }).click();
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText("Couldn't read the devices from this node. Try again.")).toBeVisible();
+    devicesStatus = 200;
+    await page.getByRole('button', { name: 'Detect' }).click();
+    await expect(page.getByText("Couldn't read the devices from this node")).toBeHidden();
+    await expect(page.getByText('Move the device far away')).toBeVisible();
+  });
+
+  test('takes one reading at a time and drops a reading from a closed dialog', async ({ page }) => {
+    let release!: () => void;
+    devicesGate = new Promise<void>((r) => (release = r));
+    const detectButton = page.getByRole('button', { name: 'Detect' });
+    await page.getByRole('button', { name: 'Alias', exact: true }).click();
+    await detectButton.click();
+    await expect(detectButton).toBeDisabled();
+
+    // Close and reopen while that reading is still in flight.
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByRole('button', { name: 'Alias', exact: true }).click();
+    await expect(detectButton).toBeEnabled();
+
+    const answered = page.waitForResponse('**/json/devices?showAll');
+    devicesGate = null;
+    release();
+    await answered;
+    await page.waitForTimeout(250);
+    await expect(page.getByText('Bring the device close to this node')).toBeVisible();
+    await expect(page.getByText(/devices remaining|Move the device far away/)).toHaveCount(0);
   });
 });
