@@ -5,7 +5,7 @@
     import Icon from "./Icon.svelte";
     import { configs, devices, findConfig, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
     import type { Config, Device } from "#lib/types.js";
-    import { newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
+    import { FOLLOW, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
 
@@ -158,7 +158,7 @@
     let current = $derived(steps[steps.length - 1]);
     // Live, including the step being held: the list is the feedback.
     let ranked = $derived(rank(steps, $devices?.devices ?? []));
-    let followers = $derived(ranked.filter((c) => c.matched === steps.length));
+    let followers = $derived(ranked.filter((c) => c.streak >= FOLLOW));
     let still = $derived(followers.length);
     // Followers within 2 dB of each other are one radio: a phone advertising under two addresses.
     let oneRadio = $derived(still > 1 && followers.every((c) => c.device.rssi != null && Math.abs(c.device.rssi - followers[0].device.rssi!) < 2));
@@ -169,7 +169,7 @@
         // ponytail: the 500 ms is only so a double click can't skip the step it just started
         if (!current || found || Date.now() - current.startedAt < 500) return;
         const done = steps;
-        const w = winner(rank(done, $devices?.devices ?? []), done.length);
+        const w = winner(rank(done, $devices?.devices ?? []));
         if (w) {
             steps = [...done];
             found = w;
@@ -399,9 +399,9 @@
                             <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
                                 {#if current.phase === "near"}Touching the node is ideal. The node averages signal over ~15 s, so wait until it shows as ● below, then click Next step.{:else}Another room is best. No rush: wait until it shows as ○ below, click Next step, then bring it back.{/if}
                             </div>
-                            {#if steps.length >= 3}
+                            {#if steps.length >= FOLLOW}
                                 <div class="mt-2 text-xs text-gray-600 dark:text-gray-300" data-testid="find-progress">
-                                    {#if still === 0}Nothing has followed every move yet. Hold it right against the node, and take it further away.{:else if oneRadio}{still} following every move at the same signal: probably one device advertising under {still} addresses. Pick the one to name below; the one already named is the better choice.{:else}{still} still following every move. Another round narrows it down, or pick one below.{/if}
+                                    {#if still === 0}Nothing has followed the last {FOLLOW} moves yet. Hold it right against the node, and take it further away.{:else if oneRadio}{still} following at the same signal: probably one device advertising under {still} addresses. Pick the one to name below; the one already named is the better choice.{:else}{still} still following. Another round narrows it down, or pick one below.{/if}
                                 </div>
                             {/if}
                         </div>
@@ -418,7 +418,7 @@
                                             class="flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 {found?.key === c.key ? 'bg-green-100 dark:bg-green-900/40' : ''}"
                                             onclick={() => tagFingerprint(c.device)}
                                         >
-                                            <span class="shrink-0 font-mono text-sm {c.matched === steps.length ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}">{c.close.map((x) => (x ? "●" : "○")).join(" ")}</span>
+                                            <span class="shrink-0 font-mono text-sm {c.streak >= Math.min(FOLLOW, steps.length) ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}">{c.close.map((x) => (x ? "●" : "○")).join(" ")}</span>
                                             <span class="truncate text-sm text-gray-900 dark:text-gray-100">{c.device.name || c.device.id || c.key}</span>
                                             <span class="ml-auto shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400">{c.device.rssi != null ? `${c.device.rssi} dBm` : ""}</span>
                                         </button>

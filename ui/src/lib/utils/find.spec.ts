@@ -23,18 +23,18 @@ describe('find', () => {
         const ranked = rank(steps, []);
         expect(ranked.map((c) => c.key)).toEqual(['keys', 'fridge']);
         expect(ranked[0].close).toEqual([true, false, true]);
-        expect(winner(ranked, 3)?.key).toBe('keys');
+        expect(winner(ranked)?.key).toBe('keys');
     });
 
     it('waits for near, far and near again', () => {
         const steps = [step('near', { keys: true }), step('far', { keys: false })];
-        expect(winner(rank(steps, []), 2)).toBeUndefined();
+        expect(winner(rank(steps, []))).toBeUndefined();
     });
 
     it("won't choose between two devices that both followed every move", () => {
         // Keys on the same ring as a tag: both move together.
         const steps = [step('near', { keys: true, tag: true }), step('far', { keys: false, tag: false }), step('near', { keys: true, tag: true })];
-        expect(winner(rank(steps, []), 3)).toBeUndefined();
+        expect(winner(rank(steps, []))).toBeUndefined();
     });
 
     it('only lists what was close on a near step', () => {
@@ -62,7 +62,20 @@ describe('find', () => {
             record(st, [phone(mac, c)]);
             return st;
         };
-        expect(winner(rank([s('near', 'aa', true), s('far', 'bb', false), s('near', 'bb', true)], []), 3)?.key).toBe('irk:c4be');
+        expect(winner(rank([s('near', 'aa', true), s('far', 'bb', false), s('near', 'bb', true)], []))?.key).toBe('irk:c4be');
+    });
+
+    it('forgives a missed first step once the last three were followed', () => {
+        const steps = [
+            step('near', { tag: false, other: true }),
+            step('far', { tag: false, other: false }),
+            step('near', { tag: true, other: false }),
+            step('far', { tag: false, other: false }),
+            step('near', { tag: true, other: true })
+        ];
+        const ranked = rank(steps, []);
+        expect(ranked[0].streak).toBe(4);
+        expect(winner(ranked)?.key).toBe('tag');
     });
 
     it('ignores devices that are not visible', () => {
@@ -79,12 +92,12 @@ describe('find', () => {
             record(st, [mine(c), theirs]);
             return st;
         };
-        expect(winner(rank([s('near', true), s('far', false), s('near', true)], []), 3)?.device.name).toBe('Mine');
+        expect(winner(rank([s('near', true), s('far', false), s('near', true)], []))?.device.name).toBe('Mine');
     });
 
     it('still lists a device that dropped out of the latest poll, as away', () => {
         const steps = [step('near', { keys: true }), step('far', {}), step('near', { keys: true })];
-        expect(winner(rank(steps, []), 3)?.key).toBe('keys');
+        expect(winner(rank(steps, []))?.key).toBe('keys');
     });
 });
 

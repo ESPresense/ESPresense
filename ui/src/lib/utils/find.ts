@@ -25,8 +25,8 @@ export interface Candidate {
     device: Device;
     /** close on each step so far */
     close: boolean[];
-    /** steps it was where the user had it: close when near, away when far */
-    matched: number;
+    /** trailing steps it was where the user had it: close when near, away when far */
+    streak: number;
 }
 
 /**
@@ -73,15 +73,20 @@ export function rank(steps: Step[], devices: Device[]): Candidate[] {
     for (const [key, device] of byKey) {
         const close = steps.map((s) => s.close.get(key) ?? false);
         if (!steps.some((s, i) => s.phase === 'near' && close[i])) continue;
-        const matched = steps.filter((s, i) => close[i] === (s.phase === 'near')).length;
-        out.push({ key, device, close, matched });
+        // Only the latest run counts: a miss on step 1 (clicked before the node's window
+        // caught up) must not doom the device for the rest of the find.
+        let streak = 0;
+        for (let i = steps.length - 1; i >= 0 && close[i] === (steps[i].phase === 'near'); i--) streak++;
+        out.push({ key, device, close, streak });
     }
-    return out.sort((a, b) => b.matched - a.matched);
+    return out.sort((a, b) => b.streak - a.streak);
 }
 
-/** the one device that was where the user had it on every step, once there's been near, far and near again */
-export function winner(ranked: Candidate[], steps: number): Candidate | undefined {
-    if (steps < 3) return undefined;
-    const followed = ranked.filter((c) => c.matched === steps);
+/** steps in a row (near, far, near) a device must follow to be the one */
+export const FOLLOW = 3;
+
+/** the one device that followed the last FOLLOW steps */
+export function winner(ranked: Candidate[]): Candidate | undefined {
+    const followed = ranked.filter((c) => c.streak >= FOLLOW);
     return followed.length === 1 ? followed[0] : undefined;
 }
