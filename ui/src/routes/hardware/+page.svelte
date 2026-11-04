@@ -154,7 +154,7 @@
     {/if}
 {/snippet}
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
+<div class="content-card p-6">
     {#if $hardwareSettings?.values != null}
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
         <p>
