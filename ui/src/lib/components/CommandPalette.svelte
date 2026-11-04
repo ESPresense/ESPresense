@@ -28,7 +28,7 @@
 
     const pages: Array<{ path: "/network" | "/settings" | "/hardware" | "/templates" | "/devices" | "/fingerprints"; title: string; icon: string; keywords: string }> = [
         { path: "/network", title: "Network", icon: "network", keywords: "wifi ethernet mqtt ntp room" },
-        { path: "/settings", title: "Settings", icon: "contact", keywords: "scanning counting filtering calibration" },
+        { path: "/settings", title: "Scanning", icon: "scan", keywords: "settings counting filtering calibration" },
         { path: "/hardware", title: "Hardware", icon: "hardware", keywords: "gpio pins led sensors battery" },
         { path: "/templates", title: "Templates", icon: "template", keywords: "import board" },
         { path: "/devices", title: "Devices", icon: "device", keywords: "configured aliases enroll pair" },

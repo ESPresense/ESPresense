@@ -27,7 +27,8 @@
             <kbd class="ml-auto hidden md:block rounded border border-gray-300 px-1.5 text-xs dark:border-gray-600">{mac ? "⌘" : "Ctrl "}K</kbd>
         </button>
     </div>
-    <nav class="mt-2 px-6 space-y-1 flex-1">
+    <nav class="mt-3 px-6 flex-1">
+        <p class="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 dark:text-gray-500">Configure</p>
         <SidebarItem
             icon="network"
             title="Network"
@@ -35,8 +36,8 @@
         />
 
         <SidebarItem
-            icon="contact"
-            title="Settings"
+            icon="scan"
+            title="Scanning"
             href={resolve('/settings')}
         />
 
@@ -52,6 +53,7 @@
             href={resolve('/templates')}
         />
 
+        <p class="mt-5 px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-400 dark:text-gray-500">Monitor</p>
         <SidebarItem
             icon="device"
             title="Devices"
