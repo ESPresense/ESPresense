@@ -140,10 +140,7 @@ namespace CsiMotion
 
     void ConnectToWifi(bool updating)
     {
-        // TEMPORARY for ESPA-439 HIL soak evidence only: default flipped true so the [soak]
-        // HIL run exercises CSI for its full 4h instead of sitting idle at the real default.
-        // Revert to false before merge.
-        enabled = Settings::checkbox("csi_enable", true, "WiFi CSI movement sensor (experimental)");
+        enabled = Settings::checkbox("csi_enable", false, "WiFi CSI movement sensor (experimental)");
         if (!enabled || updating) { enabled = false; return; }
         kinds.reset(new (std::nothrow) Kind[kKinds]);
         queue.reset(new (std::nothrow) Slot[kQueue]);
