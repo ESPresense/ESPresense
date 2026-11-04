@@ -5,7 +5,7 @@
     import Icon from "./Icon.svelte";
     import { configs, devices, findConfig, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
     import type { Config, Device } from "#lib/types.js";
-    import { FOLLOW, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
+    import { FOLLOW, follows, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
 
@@ -158,7 +158,8 @@
     let current = $derived(steps[steps.length - 1]);
     // Live, including the step being held: the list is the feedback.
     let ranked = $derived(rank(steps, $devices?.devices ?? []));
-    let followers = $derived(ranked.filter((c) => c.streak >= FOLLOW));
+    // Who's following is judged on finished steps, or it would reset at the start of each one.
+    let followers = $derived(rank(found ? steps : steps.slice(0, -1), $devices?.devices ?? []).filter(follows));
     let still = $derived(followers.length);
     // Followers within 2 dB of each other are one radio: a phone advertising under two addresses.
     let oneRadio = $derived(still > 1 && followers.every((c) => c.device.rssi != null && Math.abs(c.device.rssi - followers[0].device.rssi!) < 2));
@@ -418,7 +419,7 @@
                                             class="flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 {found?.key === c.key ? 'bg-green-100 dark:bg-green-900/40' : ''}"
                                             onclick={() => tagFingerprint(c.device)}
                                         >
-                                            <span class="shrink-0 font-mono text-sm {c.streak >= Math.min(FOLLOW, steps.length) ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}">{c.close.map((x) => (x ? "●" : "○")).join(" ")}</span>
+                                            <span class="shrink-0 font-mono text-sm {followers.some((f) => f.key === c.key) ? 'text-green-700 dark:text-green-400' : 'text-gray-400'}">{c.close.map((x) => (x ? "●" : "○")).join(" ")}</span>
                                             <span class="truncate text-sm text-gray-900 dark:text-gray-100">{c.device.name || c.device.id || c.key}</span>
                                             <span class="ml-auto shrink-0 font-mono text-xs text-gray-500 dark:text-gray-400">{c.device.rssi != null ? `${c.device.rssi} dBm` : ""}</span>
                                         </button>

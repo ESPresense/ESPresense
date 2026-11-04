@@ -78,6 +78,14 @@ describe('find', () => {
         expect(winner(ranked)?.key).toBe('tag');
     });
 
+    it('needs two near steps in the run: far steps alone prove nothing', () => {
+        const steps = [step('near', { tag: false }), step('far', { tag: false }), step('near', { tag: true }), step('far', { tag: false })];
+        const [c] = rank(steps, []);
+        expect(c.streak).toBe(3);
+        expect(winner([c])).toBeUndefined();
+        expect(winner(rank([...steps, step('near', { tag: true })], []))?.key).toBe('tag');
+    });
+
     it('ignores devices that are not visible', () => {
         const s = newStep('near', 0);
         record(s, [dev('gone', true, { vis: false })]);

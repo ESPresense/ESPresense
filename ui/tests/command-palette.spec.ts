@@ -3,13 +3,23 @@ import { test, expect, type Page } from '@playwright/test';
 // The device being looked for, plus two bystanders that drift a little whatever the user does.
 let keysNear = true;
 let tick = 0;
+/** what else the node sees: a twin that moves with the tile, an IRK phone whose MAC rotates, or a tile the node never flags close */
+let variant: 'default' | 'twin' | 'rotate' | 'noflag' = 'default';
 function devicesBody() {
 	tick++;
 	const wobble = tick % 2 ? 1 : -1;
+	const extra =
+		variant === 'twin'
+			? [{ id: 'e5e6de405d6b', mac: 'e5e6de405d6b', rssi: keysNear ? -45 : -81, distance: keysNear ? 0.2 : 6, vis: true, close: keysNear }]
+			: variant === 'rotate'
+				? [{ id: 'irk:c4be', name: 'Phone', mac: tick % 2 ? 'aaaaaaaaaaaa' : 'bbbbbbbbbbbb', rssi: keysNear ? -46 : -80, distance: keysNear ? 0.3 : 6, vis: true, close: keysNear }]
+				: [];
 	return {
 		room: 'office',
 		devices: [
-			{ id: 'tile:c1d2e3f4a5b6', name: 'Tile', mac: 'c1d2e3f4a5b6', rssi: keysNear ? -44 : -82, distance: keysNear ? 0.2 : 6, vis: true, close: keysNear },
+			...extra,
+			// In the rotate variant the tile sits this one out, so only the phone follows.
+			{ id: 'tile:c1d2e3f4a5b6', name: 'Tile', mac: 'c1d2e3f4a5b6', rssi: keysNear && variant !== 'rotate' ? -44 : -82, distance: keysNear ? 0.2 : 6, vis: true, close: variant === 'noflag' || variant === 'rotate' ? false : keysNear },
 			{ id: 'sd:0x181a', mac: 'aabbccddeeff', rssi: -70 + wobble, distance: 3.1, vis: true, close: false },
 			{ id: 'apple:1005:9-26', mac: '4a1b2c3d4e5f', rssi: -66 - wobble, distance: 2.4, vis: true, close: false },
 			// Configured by MAC with an alias: the node reports the alias as its id.
@@ -21,6 +31,7 @@ function devicesBody() {
 async function mockNode(page: Page) {
 	keysNear = true;
 	tick = 0;
+	variant = 'default';
 	const posts: unknown[] = [];
 	await page.route('**/json', (r) => r.fulfill({ json: { room: 'office' } }));
 	await page.route('**/json/devices?showAll', (r) => r.fulfill({ json: devicesBody() }));
@@ -151,6 +162,67 @@ test.describe('Command palette', () => {
 		await page.getByRole('button', { name: 'Next step' }).dblclick();
 		await expect(page.getByText('Step 2', { exact: true })).toBeVisible();
 		await expect(page.getByTestId('find-step')).toHaveAttribute('data-phase', 'far');
+	});
+
+	/** run Find steps with the tile where the step asks, until it's found or `max` steps are done */
+	async function runFind(page: Page, max: number, nearOn: (step: number) => boolean = () => true) {
+		const found = page.getByTestId('find-found');
+		for (let s = 1; s <= max && !(await found.isVisible()); s++) {
+			const phase = await page.getByTestId('find-step').getAttribute('data-phase');
+			keysNear = phase === 'near' && nearOn(s);
+			await page.clock.runFor(2000);
+			await page.getByRole('button', { name: 'Next step' }).click();
+		}
+		return found;
+	}
+
+	test('Find forgives a step 1 clicked before the device showed as close', async ({ page }) => {
+		await page.clock.install();
+		await mockNode(page);
+		await open(page, '/fingerprints');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		const found = await runFind(page, 3, (s) => s !== 1);
+		await expect(found).toHaveCount(0);
+		await expect(page.getByTestId('find-progress')).toContainText('Nothing has followed the last 3 moves yet');
+		await runFind(page, 2);
+		await expect(found).toContainText('tile:c1d2e3f4a5b6');
+		await expect(page.getByText('Step 5', { exact: true })).toBeVisible();
+	});
+
+	test('Find calls two followers at the same signal one radio, and lets you pick', async ({ page }) => {
+		await page.clock.install();
+		await mockNode(page);
+		variant = 'twin';
+		await open(page, '/fingerprints');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		const found = await runFind(page, 4);
+		await expect(found).toHaveCount(0);
+		await expect(page.getByTestId('find-progress')).toContainText('one device advertising under 2 addresses');
+		await expect(page.getByTestId('find-candidates').locator('li')).toHaveCount(2);
+		await page.getByTestId('find-candidates').getByText('Tile').click();
+		await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toHaveValue('Tile');
+	});
+
+	test('Find follows an IRK phone across a MAC rotation', async ({ page }) => {
+		await page.clock.install();
+		await mockNode(page);
+		variant = 'rotate';
+		await open(page, '/fingerprints');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		const found = await runFind(page, 3);
+		await expect(found).toContainText('irk:c4be');
+		// One row, not one per MAC.
+		await expect(page.getByTestId('find-candidates').locator('li')).toHaveCount(1);
+	});
+
+	test('Find counts a device at -50 dBm or louder as close even without the close flag', async ({ page }) => {
+		await page.clock.install();
+		await mockNode(page);
+		variant = 'noflag';
+		await open(page, '/fingerprints');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		const found = await runFind(page, 3);
+		await expect(found).toContainText('tile:c1d2e3f4a5b6');
 	});
 
 	test('Find picks out the device that follows near and far, then names it', async ({ page }) => {
