@@ -618,6 +618,37 @@ test.describe('Hardware lists', () => {
 		expect(JSON.parse(new URLSearchParams(posted).get('power')!)).toEqual({ model: 'cse7766', rx: 20 });
 	});
 
+	test('radar posts one JSON object with its RX pin and baud', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, {}, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.getByLabel('RX pin (radar TX)')).toHaveCount(0);
+		await page.getByLabel('Radar module').selectOption('ld2410');
+		await page.getByLabel('RX pin (radar TX)').selectOption('16');
+		await page.getByLabel('Baud rate').selectOption('115200');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('radar=');
+		expect(JSON.parse(new URLSearchParams(posted).get('radar')!)).toEqual({ model: 'ld2410', rx: 16, baud: 115200 });
+	});
+
+	test('changing radar module resets the baud to its default', async ({ page }) => {
+		let posted = '';
+		await mockSettings(page, { radar: { model: 'ld2410', rx: 16, baud: 115200 } }, (body) => (posted = body));
+		await page.goto('/hardware');
+		await page.waitForSelector('form#hardware');
+
+		await expect(page.getByLabel('Baud rate')).toHaveValue('115200');
+		await page.getByLabel('Radar module').selectOption('c4001');
+		await expect(page.getByLabel('Baud rate')).toHaveValue('9600');
+
+		await page.locator('button[type="submit"]').click();
+		await expect.poll(() => posted).toContain('radar=');
+		expect(JSON.parse(new URLSearchParams(posted).get('radar')!)).toEqual({ model: 'c4001', rx: 16 });
+	});
+
 	test('board is a text field that posts with the form', async ({ page }) => {
 		let posted = '';
 		await mockSettings(page, { board: 'SwitchBot Plug Mini' }, (body) => (posted = body));

@@ -21,6 +21,8 @@ void Left(BleFingerprint *f);
 void Counting(BleFingerprint *f, bool added);
 void Input(int index, const std::string& name, bool on);
 void Motion(bool motion);
+// Radar presence; Motion LEDs light while it or any Motion-role input is active.
+void Radar(bool present);
 void Seen(bool inprogress);
 void Update(unsigned int percent);
 void Connected(bool wifi, bool mqtt);

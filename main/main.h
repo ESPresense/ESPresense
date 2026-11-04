@@ -17,6 +17,7 @@
 #include "Inputs.h"
 #include "Outputs.h"
 #include "PowerMonitor.h"
+#include "Radar.h"
 #include "SerialImprov.h"
 #include "Settings.h"
 #include "Updater.h"

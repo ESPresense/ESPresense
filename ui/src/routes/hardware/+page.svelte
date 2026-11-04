@@ -10,6 +10,10 @@
     ];
     const ledControls = [['mqtt', 'MQTT'], ['status', 'Status'], ['motion', 'Motion'], ['count', 'Count'], ['output', 'Output']];
     const powerModels = [['', 'None'], ['bl0937', 'BL0937'], ['hlw8012', 'HLW8012 / CSE7759'], ['cse7766', 'CSE7766 (serial, e.g. Athom)']];
+    const radarModels = [['', 'None'], ['ld2410', 'HLK-LD2410 / B / C'], ['ld2450', 'HLK-LD2450'], ['c4001', 'DFRobot C4001 (SEN0609 / SEN0610)']];
+    const radarBauds = ['256000', '115200', '57600', '38400', '19200', '9600', '4800'].map((b) => [b, b]);
+    // The module's factory rate; the firmware uses the same when no baud is set.
+    const radarDefaultBaud = (model: unknown) => (model === 'c4001' ? 9600 : 256000);
     // [stored value, label] for the inputs/outputs JSON lists.
     const inputRoles = [['motion', 'Motion'], ['switch', 'Switch'], ['button', 'Button']];
     const inputPinTypes = [
@@ -33,6 +37,17 @@
     const power = $derived(($hardwareSettings?.values['power'] ?? $hardwareSettings?.defaults['power'] ?? {}) as Record<string, unknown>);
     function setPower(field: string, value: unknown): void {
         hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, power: { ...power, [field]: value } } } : s));
+    }
+
+    // The "radar" setting, likewise one JSON object.
+    const radar = $derived(($hardwareSettings?.values['radar'] ?? $hardwareSettings?.defaults['radar'] ?? {}) as Record<string, unknown>);
+    function setRadar(field: string, value: unknown): void {
+        hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, radar: { ...radar, [field]: value } } } : s));
+    }
+    // A new module starts at its own factory baud: drop one chosen for the previous module.
+    function setRadarModel(model: string): void {
+        const { baud: _, ...rest } = radar;
+        hardwareSettings.update((s) => (s ? { ...s, values: { ...s.values, radar: { ...rest, model } } } : s));
     }
 
     const linkedInputs = $derived([
@@ -175,6 +190,22 @@
             <a href="https://espresense.com/configuration/settings#outputs" target="_blank">Outputs</a>
         </h2>
         <JsonList settings={hardwareSettings} key="outputs" title="Output" max={8} blank={() => ({ name: '', pin: -1, type: 'output', power_on: 'off', input: 0 })} item={output} />
+        <h2>
+            <a href="https://espresense.com/configuration/settings#radar" target="_blank">Radar</a>
+        </h2>
+        <input type="hidden" name="radar" value={JSON.stringify(radar)} />
+        {@render choose('Radar module', radar.model ?? '', radarModels, (v) => setRadarModel(v))}
+        {#if radar.model}
+            <div class="flex flex-wrap gap-4">
+                <p>
+                    <label>
+                        RX pin (radar TX):<br />
+                        <PinSelect input value={radar.rx} onchange={(p) => setRadar('rx', p)}/>
+                    </label>
+                </p>
+                {@render choose('Baud rate', radar.baud ?? radarDefaultBaud(radar.model), radarBauds, (v) => setRadar('baud', Number(v)))}
+            </div>
+        {/if}
         <h2>
             <a href="https://espresense.com/configuration/settings#power" target="_blank">Power</a>
         </h2>

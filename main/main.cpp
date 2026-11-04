@@ -52,6 +52,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && pub((roomsTopic + "/count_ids").c_str(), 0, true, BleFingerprintCollection::countIds.c_str())
             && Updater::SendOnline()
             && Inputs::SendOnline()
+            && Radar::SendOnline()
             && Outputs::SendOnline()
             && GUI::SendOnline()
         ) {
@@ -76,6 +77,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
             && Inputs::SendDiscovery()
             && Outputs::SendDiscovery()
             && PowerMonitor::SendDiscovery()
+            && Radar::SendDiscovery()
             && Enrollment::SendDiscovery()
             && Battery::SendDiscovery()
 #ifdef SENSORS
@@ -219,6 +221,7 @@ void setupNetwork() {
     Inputs::ConnectToWifi(updating);
     Outputs::ConnectToWifi(updating);
     PowerMonitor::ConnectToWifi(updating);
+    Radar::ConnectToWifi(updating);
     Battery::ConnectToWifi(updating);
     AXP192::ConnectToWifi(updating);
     BQ27220::ConnectToWifi(updating);
@@ -284,6 +287,7 @@ void setupNetwork() {
     Log.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Inputs::SerialReport();
+    Radar::SerialReport();
     Outputs::SerialReport();
 #ifdef SENSORS
     I2C::SerialReport();
@@ -537,6 +541,7 @@ void setup() {
     Inputs::Setup();
     Outputs::Setup();
     PowerMonitor::Setup();
+    Radar::Setup();
     Battery::Setup();
     NTP::Setup();
 #ifdef SENSORS
@@ -606,6 +611,7 @@ void loop() {
     Inputs::Loop();
     Outputs::Loop();
     PowerMonitor::Loop();
+    Radar::Loop();
     HttpWebServer::Loop();
     SerialImprov::Loop(false);
     NTP::Loop();

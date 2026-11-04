@@ -127,13 +127,29 @@ void Input(int index, const std::string& name, bool on) {
     Log.printf("%u Input  | %d %s: %s\n", xPortGetCoreID(), index, name.c_str(), on ? "on" : "off");
 }
 
+namespace {
+bool inputMotion = false, radarPresent = false;
+}
+
 /**
  * @brief Forward the combined state of the Motion-role inputs to the LEDs.
  *
  * @param motion True while any Motion-role input is active.
  */
 void Motion(bool motion) {
-    LEDs::Motion(motion);
+    inputMotion = motion;
+    LEDs::Motion(inputMotion || radarPresent);
+}
+
+/**
+ * @brief Log a radar presence change and fold it into the Motion LEDs.
+ *
+ * @param present True while the radar reports a moving or still target.
+ */
+void Radar(bool present) {
+    Log.printf("%u Radar  | %s\n", xPortGetCoreID(), present ? "present" : "clear");
+    radarPresent = present;
+    LEDs::Motion(inputMotion || radarPresent);
 }
 
 /**
