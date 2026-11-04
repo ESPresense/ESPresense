@@ -1,7 +1,7 @@
 <script lang="ts">
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
-    import { configs, events, enroll, cancelEnroll, aliasDevice } from "#lib/stores.js";
+    import { configs, events, enroll, cancelEnroll, aliasDevice, findConfig } from "#lib/stores.js";
     import type { Config, Events, Devices, Device } from "#lib/types.js";
     import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
@@ -14,6 +14,11 @@
     let aliasCandidates = $state<string[]>([]);
     let aliasStep = $state<'near' | 'far'>('near');
     let deviceId = $state("");
+    let deviceMac = $state<string | undefined>(undefined);
+    let aliasSaving = $state(false);
+    let aliasError = $state("");
+    // MAC of each id seen close during Find, to match a config keyed by MAC at save time
+    let seenMacs: Record<string, string | undefined> = {};
     let sortBy = $state("alias");
     let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
@@ -40,6 +45,8 @@
         id = "";
         deviceType = "";
         deviceId = "";
+        deviceMac = undefined;
+        aliasError = "";
     }
 
     function handleEnrollOpenChange(event: { open: boolean }) {
@@ -57,10 +64,9 @@
         try {
             const response = await fetch('/json/devices?showAll');
             const data: Devices = await response.json();
-            return data.devices
-                .filter((d: Device) => d.close)
-                .map((d: Device) => d.id || d.mac || '')
-                .filter((id) => id);
+            const close = data.devices.filter((d: Device) => d.close && (d.id || d.mac));
+            for (const d of close) seenMacs[(d.id || d.mac)!] = d.mac;
+            return close.map((d: Device) => (d.id || d.mac)!);
         } catch {
             return [];
         }
@@ -86,6 +92,8 @@
         aliasCandidates = [];
         aliasStep = 'near';
         deviceId = "";
+        deviceMac = undefined;
+        seenMacs = {};
     }
 
     function closeAlias() {
@@ -93,26 +101,44 @@
         aliasCandidates = [];
         aliasStep = 'near';
         deviceId = "";
+        deviceMac = undefined;
+        seenMacs = {};
     }
 
     function useId() {
         const selected = aliasCandidates[0];
+        const mac = seenMacs[selected];
         showAliasModal = false;
         aliasCandidates = [];
         aliasStep = 'near';
+        seenMacs = {};
         deviceId = selected;
-        id = selected;
+        deviceMac = mac;
+        // An already configured device starts from its config, so saving keeps its name and alias.
+        const cfg = findConfig(selected, mac, $configs?.configs);
+        id = cfg?.alias || selected;
+        name = cfg?.name ?? "";
         showModal = true;
     }
 
     async function onEnroll() {
         const alias = id || suggestAlias(name, deviceType);
-        if (deviceId) {
-            await aliasDevice(deviceId, alias, name);
+        if (!deviceId) {
+            enroll(alias, name);
+            return;
+        }
+        if (aliasSaving) return;
+        aliasSaving = true;
+        aliasError = "";
+        try {
+            await aliasDevice(deviceId, deviceMac, alias, name, $configs?.configs);
             showModal = false;
             resetEnrollState();
-        } else {
-            enroll(alias, name);
+        } catch {
+            // Keep the dialog and the form so the user can retry.
+            if (showModal) aliasError = "The node didn't save it. Try again.";
+        } finally {
+            aliasSaving = false;
         }
     }
 
@@ -371,6 +397,9 @@
                                 placeholder={name ? suggestAlias(name, deviceType) : "Enter custom ID or leave empty for auto-generated"}
                             />
                             <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
+                            {#if aliasError}
+                                <p role="alert" class="text-sm text-red-600 dark:text-red-400">{aliasError}</p>
+                            {/if}
                         </div>
                     {/if}
                 {:else}
@@ -382,7 +411,7 @@
                 {#if !($events as Events)?.state?.enrolling && !($events as Events)?.state?.enrolledId}
                     <button
                         onclick={onEnroll}
-                        disabled={!name}
+                        disabled={!name || aliasSaving}
                         class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Enroll

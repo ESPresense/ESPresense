@@ -172,14 +172,24 @@ export function cancelEnroll(): void {
     socket?.send(data);
 }
 
-export async function aliasDevice(id: string, alias: string, name: string): Promise<void> {
-    await fetch('/json/configs', {
+/**
+ * Save an alias for a fingerprint seen as `seen`. An aliased fingerprint reports its alias as its
+ * id, so save under the existing config's own key (found by id, alias or MAC): the node deletes any
+ * other config holding the alias being saved, which would be that original one. The calibration is
+ * carried along, since the node republishes the whole config. Throws if the node doesn't save it.
+ */
+export async function aliasDevice(seen: string, mac: string | undefined, alias: string, name: string, known: Config[] = []): Promise<void> {
+    const cfg = findConfig(seen, mac, known);
+    const body: Record<string, unknown> = { id: cfg?.id ?? seen, alias, name };
+    if (cfg?.['rssi@1m'] != null) body['rssi@1m'] = cfg['rssi@1m'];
+    const response = await fetch('/json/configs', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ id, alias, name })
+        body: JSON.stringify(body)
     });
+    if (!response.ok) throw new Error(`Saving the alias failed: HTTP ${response.status}`);
 }
 
 export const mobileMenuOpen = writable<boolean>(false);
