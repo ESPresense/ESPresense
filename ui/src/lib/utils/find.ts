@@ -7,6 +7,7 @@
 // step and not on any far step; nothing else is.
 
 import type { Device } from '../types.js';
+import { unstableId } from './alias.js';
 
 export type Phase = 'near' | 'far';
 
@@ -28,14 +29,21 @@ export interface Candidate {
     matched: number;
 }
 
+/**
+ * Close enough to be the thing held at the node. The node's own close flag needs -40 dBm,
+ * which a phone touching an Atom S3 (-44) never reaches, so its leave threshold is used here.
+ */
+export const NEAR_DBM = -50;
 /** how long to hold a step before the node's median RSSI has caught up (rssi_window_ms, 15 s by default) */
 export const MIN_HOLD_MS = 15000;
 
 /**
- * One fingerprint row. The MAC, not the id: ids can be shared (several iPhones are all
- * "apple:1005:9-26"), and their readings must not mix.
+ * One fingerprint row. The id when it names one device (an IRK phone keeps its id while its
+ * MAC rotates every few minutes); otherwise the MAC, since shared ids like "apple:1005:9-26"
+ * cover several iPhones whose readings must not mix.
  */
 export function rowKey(d: Device): string | undefined {
+    if (d.id && !unstableId(d.id)) return d.id;
     return d.mac || d.id || undefined;
 }
 
@@ -48,7 +56,7 @@ export function record(step: Step, devices: Device[]): void {
         const key = rowKey(d);
         if (!key || !d.vis) continue;
         step.rows.set(key, d);
-        step.close.set(key, !!d.close);
+        step.close.set(key, !!d.close || (d.rssi ?? -Infinity) >= NEAR_DBM);
     }
 }
 

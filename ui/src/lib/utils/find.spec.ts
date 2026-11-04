@@ -49,6 +49,22 @@ describe('find', () => {
         expect(rank([s], []).map((c) => c.key)).toEqual(['keys']);
     });
 
+    it('counts anything at NEAR_DBM or louder as close, flag or not', () => {
+        const s = newStep('near', 0);
+        record(s, [dev('phone', false, { rssi: -44 }), dev('tv', false, { rssi: -70 })]);
+        expect(rank([s], []).map((c) => c.key)).toEqual(['phone']);
+    });
+
+    it('follows an IRK phone across a MAC rotation', () => {
+        const phone = (mac: string, c: boolean) => dev('irk:c4be', c, { mac });
+        const s = (phase: Phase, mac: string, c: boolean) => {
+            const st = newStep(phase, 0);
+            record(st, [phone(mac, c)]);
+            return st;
+        };
+        expect(winner(rank([s('near', 'aa', true), s('far', 'bb', false), s('near', 'bb', true)], []), 3)?.key).toBe('irk:c4be');
+    });
+
     it('ignores devices that are not visible', () => {
         const s = newStep('near', 0);
         record(s, [dev('gone', true, { vis: false })]);

@@ -5,7 +5,7 @@
     import Icon from "./Icon.svelte";
     import { configs, devices, findConfig, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
     import type { Config, Device } from "#lib/types.js";
-    import { MIN_HOLD_MS, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
+    import { newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
 
@@ -148,7 +148,6 @@
     // ---- Find ----
 
     let steps = $state.raw<Step[]>([]);
-    let now = $state(Date.now());
     let found = $state<Candidate | undefined>();
 
     function startFind() {
@@ -160,14 +159,12 @@
     // Live, including the step being held: the list is the feedback.
     let ranked = $derived(rank(steps, $devices?.devices ?? []));
     let still = $derived(ranked.filter((c) => c.matched === steps.length).length);
-    let held = $derived(current ? now - current.startedAt : 0);
 
     // Steps end on a click, never on a timer: the far step takes as long as the walk does.
     // Rounds go on until one device is left.
     function advance() {
-        // Checked here, not just on the button: a double click would otherwise skip the step
-        // that was just started.
-        if (!current || found || Date.now() - current.startedAt < MIN_HOLD_MS) return;
+        // ponytail: the 500 ms is only so a double click can't skip the step it just started
+        if (!current || found || Date.now() - current.startedAt < 500) return;
         const done = steps;
         const w = winner(rank(done, $devices?.devices ?? []), done.length);
         if (w) {
@@ -186,10 +183,7 @@
     });
 
     $effect(() => {
-        if ($palette?.view !== "find") return;
-        if (steps.length === 0) startFind();
-        const t = setInterval(() => (now = Date.now()), 250);
-        return () => clearInterval(t);
+        if ($palette?.view === "find" && steps.length === 0) startFind();
     });
 
     $effect(() => {
@@ -309,7 +303,7 @@
         if (e.key !== "Enter" || (e.target as HTMLElement).tagName === "BUTTON") return;
         e.preventDefault();
         if (found) tagFingerprint(found.device);
-        else if (held >= MIN_HOLD_MS) advance();
+        else advance();
     }
 
     let panel = $state<HTMLElement>();
@@ -400,10 +394,7 @@
                                 {#if current.phase === "near"}Hold it right against {$roomName ? `the ${$roomName} node` : "this node"}{:else}Take it away, as far as you like{/if}
                             </div>
                             <div class="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                                {#if current.phase === "near"}Touching the node is ideal. Keep it still until the bar fills and it shows as close, then click Next step.{:else}Another room is best. No rush: once the bar fills and it shows as away, click Next step, then bring it back.{/if}
-                            </div>
-                            <div class="mt-3 h-1.5 w-full overflow-hidden rounded bg-gray-200 dark:bg-gray-600">
-                                <div class="h-full bg-blue-600 transition-[width] duration-200" style="width: {Math.min(100, (held / MIN_HOLD_MS) * 100)}%"></div>
+                                {#if current.phase === "near"}Touching the node is ideal. The node averages signal over ~15 s, so wait until it shows as ● below, then click Next step.{:else}Another room is best. No rush: wait until it shows as ○ below, click Next step, then bring it back.{/if}
                             </div>
                             {#if steps.length >= 3}
                                 <div class="mt-2 text-xs text-gray-600 dark:text-gray-300" data-testid="find-progress">
@@ -434,7 +425,7 @@
                         </div>
                     {:else if !found}
                         <!-- Until there are candidates, so the panel doesn't shrink under a second click. -->
-                        <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Whatever the node sees as close shows up here once its signal average catches up ({MIN_HOLD_MS / 1000} s). You'll then take it away and bring it back, as many rounds as it takes.</p>
+                        <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">Whatever is close to the node shows up here once its ~15 s signal average catches up. You'll then take it away and bring it back, as many rounds as it takes.</p>
                     {/if}
 
                     <div class="mt-5 flex items-center justify-end gap-2">
@@ -442,7 +433,7 @@
                         {#if found}
                             <button type="button" data-autofocus class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700" onclick={() => tagFingerprint(found!.device)}>Name it</button>
                         {:else}
-                            <button type="button" data-autofocus class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={held < MIN_HOLD_MS} onclick={advance}>Next step</button>
+                            <button type="button" data-autofocus class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" onclick={advance}>Next step</button>
                         {/if}
                     </div>
                 </div>
