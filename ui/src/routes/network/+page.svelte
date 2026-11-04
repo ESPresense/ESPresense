@@ -71,7 +71,7 @@
     const mainSettingsData = $derived($mainSettings as MainSettings);
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
+<div class="content-card p-6">
     {#if mainSettingsData != null && $mainSettings?.defaults != null && $mainSettings?.values != null}
         <form onsubmit={handleSubmit} class="space-y-6">
             <!-- Room Configuration -->

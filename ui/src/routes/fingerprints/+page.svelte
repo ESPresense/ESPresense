@@ -1,6 +1,6 @@
 <script lang="ts">
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
-    import { devices } from "#lib/stores.js";
+    import { devices, configs, palette, tagFingerprint } from "#lib/stores.js";
     import type { Device } from "#lib/types.js";
 
     let sortBy = $state("distance");
@@ -130,13 +130,27 @@
 
     const rowClass = "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
 
+
     let tableRows = $derived($devices?.devices || []);
+
+    // Poll configs from the start: a store is only subscribed on first read, and a row click
+    // needs them to find the fingerprint's existing config.
+    $effect(() => void $configs);
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+<div class="content-card">
     {#if $devices != null}
         <div class="p-6">
-            <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">Fingerprints</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Fingerprints</h2>
+                <button
+                    type="button"
+                    onclick={() => palette.set({ view: "find" })}
+                    class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                >
+                    Find a device
+                </button>
+            </div>
             <div class="overflow-x-auto">
                 <DataTable
                     {columns}
@@ -144,10 +158,11 @@
                     {sortBy}
                     bind:filterSelections
                     classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
-                    classNameTh="px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider bg-gray-100 dark:bg-gray-700"
+                    classNameTh="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-700/70"
                     classNameTd="px-6 py-4 text-sm text-gray-900 dark:text-gray-300 whitespace-nowrap"
                     rowClass={rowClass}
                     rowClassFn={rowHighlight}
+                    onclickRow={(event) => tagFingerprint(event.row, $configs?.configs)}
                 />
             </div>
         </div>

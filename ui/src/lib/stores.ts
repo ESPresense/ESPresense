@@ -1,5 +1,5 @@
 import { readable, writable } from 'svelte/store';
-import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
+import type { ExtraSettings, Config, Configs, Device, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
 // Firmware info store
 export const firmwareInfo = writable<{ ver: string; firm: string }>({ ver: '', firm: '' });
@@ -209,3 +209,26 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
             console.error('Failed to fetch main settings:', ex);
         });
 });
+
+/** The Cmd-K palette: closed (null), searching, running Find, or tagging one fingerprint */
+export type PaletteState =
+    | { view: 'search' }
+    | { view: 'find' }
+    | { view: 'tag'; id: string; name?: string; mac?: string; rssi?: number; alias?: string; rssi1m?: number };
+export const palette = writable<PaletteState | null>(null);
+
+/** The stored config for a fingerprint that reports `seen` as its id: by key, then by alias or MAC */
+export function findConfig(seen: string, mac: string | undefined, known: Config[] = []): Config | undefined {
+    return known.find((c) => c.id === seen) ?? known.find((c) => c.alias === seen || (mac && c.id === mac));
+}
+
+/** Open the palette's name step for a seen fingerprint, starting from its config if it has one */
+export function tagFingerprint(d: Device, known: Config[] = []): void {
+    const seen = d.id || d.mac;
+    if (!seen) return;
+    // An aliased fingerprint reports its alias as its id, so match the config by alias and MAC
+    // too, and save under the config's own key: the node deletes any other config holding the
+    // alias being saved, which would be the original one.
+    const cfg = findConfig(seen, d.mac, known);
+    palette.set({ view: 'tag', id: cfg?.id ?? seen, name: cfg?.name ?? d.name, mac: d.mac, rssi: d.rssi, alias: cfg?.alias, rssi1m: cfg?.['rssi@1m'] });
+}
