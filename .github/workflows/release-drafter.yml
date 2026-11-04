@@ -24,7 +24,11 @@ jobs:
       # v5.0.0b5 -> v5.0.0b6, v5.0.0 -> v5.0.1b0 (retag the draft when publishing a stable or
       # minor release). Drafts are excluded: `gh release view` finds them, which is how a stray
       # v5.0.0 draft once looked like a shipped release. `from` keeps the notes to the changes
-      # since that release, not since a newer v4 maintenance release.
+      # since that release. Only tags in main's history count: maintenance releases (v4.0.7,
+      # v4.0.8) are tagged on another branch, and a later one could otherwise outrank main's.
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Next beta tag
         id: next
         env:
@@ -32,6 +36,7 @@ jobs:
         run: |
           base=$(gh release list -R "$GITHUB_REPOSITORY" --exclude-drafts --limit 100 --json tagName -q '.[].tagName' |
             grep -E '^v[0-9]+\.[0-9]+\.[0-9]+(b[0-9]+)?$' |
+            while read -r t; do if git merge-base --is-ancestor "refs/tags/$t" HEAD 2>/dev/null; then echo "$t"; fi; done |
             sed -E 's/^(v[0-9.]+)$/\1b999999/' | sort -V | tail -n 1 | sed 's/b999999$//')
           if [[ $base =~ ^v(.+)b([0-9]+)$ ]]; then
             tag="v${BASH_REMATCH[1]}b$((BASH_REMATCH[2] + 1))"
