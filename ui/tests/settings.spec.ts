@@ -423,8 +423,8 @@ test.describe('Settings Page', () => {
 		await page.goto('/settings');
 		await page.waitForSelector('form#extras');
 
-		// Check for consistent Tailwind classes
-		const container = page.locator('.bg-gray-100.dark\\:bg-gray-800.rounded-lg.shadow');
+		// Same content-card surface as the hardware page
+		const container = page.locator('.content-card');
 		await expect(container).toBeVisible();
 
 		// Check submit button styling
