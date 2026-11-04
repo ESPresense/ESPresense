@@ -2,15 +2,31 @@ name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 version-template: '$MAJOR.$MINOR.$PATCH$PRERELEASE'
 categories:
+  # Generated UI header PRs (ui-build.yml) are noise in release notes.
+  - type: 'pre-exclude'
+    when:
+      label: 'automated pr'
+  # Match conventional titles as well as labels: most branches don't follow
+  # the feat/* and fix/* names that pr-labeler.yml keys off.
   - title: 'Features'
-    labels:
-      - 'feature'
-      - 'enhancement'
+    exclusive: true
+    when:
+      - conventional:
+          type: 'feat'
+      - labels:
+          - 'feature'
+          - 'enhancement'
   - title: 'Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bugfix'
-      - 'bug'
+    exclusive: true
+    when:
+      - conventional:
+          type: 'fix'
+      - labels:
+          - 'fix'
+          - 'bugfix'
+          - 'bug'
+  # Everything else.
+  - title: 'Changes'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
@@ -27,6 +43,4 @@ version-resolver:
 prerelease: true
 prerelease-identifier: 'b'
 template: |
-  ## Changes
-
   $CHANGES
