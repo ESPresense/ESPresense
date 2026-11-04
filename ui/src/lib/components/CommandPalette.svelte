@@ -158,7 +158,10 @@
     let current = $derived(steps[steps.length - 1]);
     // Live, including the step being held: the list is the feedback.
     let ranked = $derived(rank(steps, $devices?.devices ?? []));
-    let still = $derived(ranked.filter((c) => c.matched === steps.length).length);
+    let followers = $derived(ranked.filter((c) => c.matched === steps.length));
+    let still = $derived(followers.length);
+    // Followers within 2 dB of each other are one radio: a phone advertising under two addresses.
+    let oneRadio = $derived(still > 1 && followers.every((c) => c.device.rssi != null && Math.abs(c.device.rssi - followers[0].device.rssi!) < 2));
 
     // Steps end on a click, never on a timer: the far step takes as long as the walk does.
     // Rounds go on until one device is left.
@@ -398,7 +401,7 @@
                             </div>
                             {#if steps.length >= 3}
                                 <div class="mt-2 text-xs text-gray-600 dark:text-gray-300" data-testid="find-progress">
-                                    {#if still === 0}Nothing has followed every move yet. Hold it right against the node, and take it further away.{:else}{still} still following every move. Another round narrows it down, or pick one below.{/if}
+                                    {#if still === 0}Nothing has followed every move yet. Hold it right against the node, and take it further away.{:else if oneRadio}{still} following every move at the same signal: probably one device advertising under {still} addresses. Pick the one to name below; the one already named is the better choice.{:else}{still} still following every move. Another round narrows it down, or pick one below.{/if}
                                 </div>
                             {/if}
                         </div>
