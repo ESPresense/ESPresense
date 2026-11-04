@@ -1,8 +1,8 @@
 <script lang="ts">
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
-    import { configs, events, enroll, cancelEnroll, aliasDevice, findConfig } from "#lib/stores.js";
-    import type { Config, Events, Devices, Device } from "#lib/types.js";
+    import { configs, events, enroll, cancelEnroll, palette } from "#lib/stores.js";
+    import type { Config, Events } from "#lib/types.js";
     import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
     let name = $state("");
@@ -10,20 +10,6 @@
     let deviceType = $state("");
     let showModal = $state(false);
     let showEditModal = $state(false);
-    let showAliasModal = $state(false);
-    let aliasCandidates = $state<string[]>([]);
-    let aliasStep = $state<'near' | 'far'>('near');
-    let deviceId = $state("");
-    let deviceMac = $state<string | undefined>(undefined);
-    let aliasSaving = $state(false);
-    let aliasError = $state("");
-    // MAC of each id seen close during Find, to match a config keyed by MAC at save time
-    let seenMacs: Record<string, string | undefined> = {};
-    let detecting = $state(false);
-    let aliasDetected = $state(false);
-    let detectFailed = $state(false);
-    // Bumped whenever Find starts or ends, so a reply from an earlier run is dropped
-    let aliasSession = 0;
     let sortBy = $state("alias");
     let filterSelections = $state<Record<string, any>>({});
     let editingConfig = $state<Config | null>(null);
@@ -49,9 +35,6 @@
         name = "";
         id = "";
         deviceType = "";
-        deviceId = "";
-        deviceMac = undefined;
-        aliasError = "";
     }
 
     function handleEnrollOpenChange(event: { open: boolean }) {
@@ -65,103 +48,8 @@
         }
     }
 
-    /** Devices the node sees as close, or null when it couldn't be asked */
-    async function getCloseDevices(): Promise<Device[] | null> {
-        try {
-            const response = await fetch('/json/devices?showAll');
-            if (!response.ok) return null;
-            const data: Devices = await response.json();
-            return data.devices.filter((d: Device) => d.close && (d.id || d.mac));
-        } catch {
-            return null;
-        }
-    }
-
-    async function detect() {
-        // One reading at a time: the step is read after the fetch, so an overlapping click
-        // would apply a near reading as a far one.
-        if (detecting) return;
-        const session = aliasSession;
-        detecting = true;
-        const close = await getCloseDevices();
-        if (session !== aliasSession) return;
-        detecting = false;
-        aliasDetected = true;
-        detectFailed = close == null;
-        if (!close) return;
-        for (const d of close) seenMacs[(d.id || d.mac)!] = d.mac;
-        const closeIds = close.map((d) => (d.id || d.mac)!);
-        if (aliasStep === 'near') {
-            aliasCandidates = aliasCandidates.length === 0 ? closeIds : aliasCandidates.filter((id) => closeIds.includes(id));
-            if (aliasCandidates.length > 1) {
-                aliasStep = 'far';
-            }
-        } else {
-            aliasCandidates = aliasCandidates.filter((id) => !closeIds.includes(id));
-            // Several left: bring it back. None left (all stayed close): start over from near.
-            if (aliasCandidates.length !== 1) {
-                aliasStep = 'near';
-            }
-        }
-    }
-
-    function resetFind() {
-        aliasSession++;
-        aliasCandidates = [];
-        aliasStep = 'near';
-        seenMacs = {};
-        detecting = false;
-        aliasDetected = false;
-        detectFailed = false;
-    }
-
-    function openAlias() {
-        resetFind();
-        deviceId = "";
-        deviceMac = undefined;
-        showAliasModal = true;
-    }
-
-    function closeAlias() {
-        showAliasModal = false;
-        resetFind();
-        deviceId = "";
-        deviceMac = undefined;
-    }
-
-    function useId() {
-        const selected = aliasCandidates[0];
-        const mac = seenMacs[selected];
-        showAliasModal = false;
-        resetFind();
-        deviceId = selected;
-        deviceMac = mac;
-        // An already configured device starts from its config, so saving keeps its name and alias.
-        const cfg = findConfig(selected, mac, $configs?.configs);
-        id = cfg?.alias || selected;
-        name = cfg?.name ?? "";
-        showModal = true;
-    }
-
-    async function onEnroll() {
-        const alias = id || suggestAlias(name, deviceType);
-        if (!deviceId) {
-            enroll(alias, name);
-            return;
-        }
-        if (aliasSaving) return;
-        aliasSaving = true;
-        aliasError = "";
-        try {
-            await aliasDevice(deviceId, deviceMac, alias, name, $configs?.configs);
-            showModal = false;
-            resetEnrollState();
-        } catch {
-            // Keep the dialog and the form so the user can retry.
-            if (showModal) aliasError = "The node didn't save it. Try again.";
-        } finally {
-            aliasSaving = false;
-        }
+    function onEnroll() {
+        enroll(id || suggestAlias(name, deviceType), name);
     }
 
     function handleEditOpenChange(event: { open: boolean }) {
@@ -325,11 +213,13 @@
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
             <div class="flex space-x-2">
+                <!-- For a device that can't pair: pick it out by moving it, then name it, in the palette -->
                 <button
-                    onclick={openAlias}
+                    type="button"
+                    onclick={() => palette.set({ view: "find" })}
                     class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
                 >
-                    Alias
+                    Find a device
                 </button>
                 <button
                     onclick={() => (showModal = true)}
@@ -419,9 +309,6 @@
                                 placeholder={name ? suggestAlias(name, deviceType) : "Enter custom ID or leave empty for auto-generated"}
                             />
                             <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
-                            {#if aliasError}
-                                <p role="alert" class="text-sm text-red-600 dark:text-red-400">{aliasError}</p>
-                            {/if}
                         </div>
                     {/if}
                 {:else}
@@ -433,7 +320,7 @@
                 {#if !($events as Events)?.state?.enrolling && !($events as Events)?.state?.enrolledId}
                     <button
                         onclick={onEnroll}
-                        disabled={!name || aliasSaving}
+                        disabled={!name}
                         class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         Enroll
@@ -449,62 +336,6 @@
         </Dialog.Content>
     </Dialog.Positioner>
 </Dialog>
-
-{#if showAliasModal}
-    <Dialog open={showAliasModal} onOpenChange={(e) => { if (!e.open) closeAlias(); }} modal={false} preventScroll={true}>
-        <Dialog.Backdrop class="fixed inset-0 z-50 bg-gray-900/50 transition-opacity" />
-        <Dialog.Positioner class="fixed inset-0 z-50 flex items-center justify-center w-full h-full p-4">
-            <Dialog.Content class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6">
-                <Dialog.Title class="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Alias Device</Dialog.Title>
-                {#if aliasCandidates.length === 1}
-                    <p class="mb-4 text-gray-900 dark:text-white">Device identified: {aliasCandidates[0]}</p>
-                    <div class="flex justify-end space-x-2">
-                        <button
-                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-                            onclick={useId}
-                        >
-                            Use ID
-                        </button>
-                        <Dialog.CloseTrigger
-                            type="button"
-                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-                        >
-                            Close
-                        </Dialog.CloseTrigger>
-                    </div>
-                {:else}
-                    <p class="mb-4 text-gray-900 dark:text-white">
-                        {aliasStep === 'near'
-                            ? 'Bring the device close to this node and click Detect.'
-                            : 'Move the device far away and click Detect.'}
-                    </p>
-                    {#if detectFailed}
-                        <p class="mb-4 text-sm text-red-600">Couldn't read the devices from this node. Try again.</p>
-                    {:else if aliasCandidates.length > 1}
-                        <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{aliasCandidates.length} devices remaining</p>
-                    {:else if aliasCandidates.length === 0 && aliasDetected}
-                        <p class="mb-4 text-sm text-red-600">No matching device found. Try again.</p>
-                    {/if}
-                    <div class="flex justify-end space-x-2">
-                        <button
-                            class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 text-center dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                            onclick={detect}
-                            disabled={detecting}
-                        >
-                            Detect
-                        </button>
-                        <Dialog.CloseTrigger
-                            type="button"
-                            class="text-gray-500 bg-white hover:bg-gray-100 focus:ring-4 focus:outline-none focus:ring-blue-300 border border-gray-200 hover:text-gray-900 focus:z-10 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-gray-700"
-                        >
-                            Cancel
-                        </Dialog.CloseTrigger>
-                    </div>
-                {/if}
-            </Dialog.Content>
-        </Dialog.Positioner>
-    </Dialog>
-{/if}
 
 <Dialog open={showEditModal} onOpenChange={handleEditOpenChange} modal={false} preventScroll={true}>
     <Dialog.Backdrop class="fixed inset-0 bg-gray-500/75 transition-opacity" />

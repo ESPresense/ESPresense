@@ -248,4 +248,22 @@ test.describe('Command palette', () => {
 		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
 		expect(posts).toEqual([{ id: 'tile:c1d2e3f4a5b6', alias: 'keys:kitchen', name: 'Kitchen Keys' }]);
 	});
+
+	test('the Devices page opens Find, and the device it finds is named from there', async ({ page }) => {
+		await page.clock.install();
+		const posts = await mockNode(page);
+		await open(page, '/devices');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		await expect(page.getByRole('dialog', { name: 'Find a device' })).toBeVisible();
+
+		const found = await runFind(page, 6);
+		await expect(found).toContainText('tile:c1d2e3f4a5b6');
+
+		await page.getByRole('button', { name: 'Name it' }).click();
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Kitchen Keys');
+		await page.getByLabel('Type').selectOption('keys');
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
+		expect(posts).toEqual([{ id: 'tile:c1d2e3f4a5b6', alias: 'keys:kitchen', name: 'Kitchen Keys' }]);
+	});
 });
