@@ -5,9 +5,9 @@
 #pragma once
 #include "HttpStatic.h"
 
-// app/immutable/bundle.DV7gBJL-.js
-const uint32_t APP_IMMUTABLE_BUNDLE_DV7GBJL__JS_L = 89222;
-const uint8_t APP_IMMUTABLE_BUNDLE_DV7GBJL__JS[] = {
+// app/immutable/bundle.B_ItxOGQ.js
+const uint32_t APP_IMMUTABLE_BUNDLE_B_ITXOGQ_JS_L = 89222;
+const uint8_t APP_IMMUTABLE_BUNDLE_B_ITXOGQ_JS[] = {
   0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x03, 0x94, 0x56, 0x07, 0x7b, 0xe2, 0x38,
   0x13, 0xfe, 0x2b, 0xe6, 0xbe, 0x66, 0x3f, 0x3b, 0x21, 0x24, 0xdb, 0x61, 0x7d, 0x35, 0xdb, 0x7b,
   0x6f, 0x4f, 0x1e, 0x5b, 0xd8, 0x63, 0xac, 0x5b, 0x23, 0xf1, 0x49, 0x63, 0xc0, 0x49, 0xf8, 0xef,
@@ -5587,7 +5587,7 @@ const uint8_t APP_IMMUTABLE_BUNDLE_DV7GBJL__JS[] = {
   0xe9, 0x98, 0x30, 0x57, 0x04, 0x00
 };
 
-inline esp_err_t serveAppImmutableBundleDv7gBjlJs(httpd_req_t* req) {
-  return HttpWebServer::serveStatic(req, "application/javascript", APP_IMMUTABLE_BUNDLE_DV7GBJL__JS, APP_IMMUTABLE_BUNDLE_DV7GBJL__JS_L, true, true);
+inline esp_err_t serveAppImmutableBundleBItxOgqJs(httpd_req_t* req) {
+  return HttpWebServer::serveStatic(req, "application/javascript", APP_IMMUTABLE_BUNDLE_B_ITXOGQ_JS, APP_IMMUTABLE_BUNDLE_B_ITXOGQ_JS_L, true, true);
 }
 
