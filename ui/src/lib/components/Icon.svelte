@@ -14,30 +14,15 @@
   const class_ = (props.class_ as string) ?? "";
 
   const icons: IconDef[] = [
-    {
-      w: 2048,
-      h: 1792,
-      name: "contact",
-      svg: `<path d="M1024 1131q0-64-9-117.5t-29.5-103-60.5-78-97-28.5q-6 4-30 18t-37.5 21.5-35.5 17.5-43 14.5-42 4.5-42-4.5-43-14.5-35.5-17.5-37.5-21.5-30-18q-57 0-97 28.5t-60.5 78-29.5 103-9 117.5 37 106.5 91 42.5h512q54 0 91-42.5t37-106.5zm-157-520q0-94-66.5-160.5t-160.5-66.5-160.5 66.5-66.5 160.5 66.5 160.5 160.5 66.5 160.5-66.5 66.5-160.5zm925 509v-64q0-14-9-23t-23-9h-576q-14 0-23 9t-9 23v64q0 14 9 23t23 9h576q14 0 23-9t9-23zm0-260v-56q0-15-10.5-25.5t-25.5-10.5h-568q-15 0-25.5 10.5t-10.5 25.5v56q0 15 10.5 25.5t25.5 10.5h568q15 0 25.5-10.5t10.5-25.5zm0-252v-64q0-14-9-23t-23-9h-576q-14 0-23 9t-9 23v64q0 14 9 23t23 9h576q14 0 23-9t9-23zm256-320v1216q0 66-47 113t-113 47h-352v-96q0-14-9-23t-23-9h-64q-14 0-23 9t-9 23v96h-768v-96q0-14-9-23t-23-9h-64q-14 0-23 9t-9 23v96h-352q-66 0-113-47t-47-113v-1216q0-66 47-113t113-47h1728q66 0 113 47t47 113z"/>`
-    },
+    { name: "scan", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 12 17 7M12 3.5v2M20.5 12h-2M12 20.5v-2M3.5 12h2"/></g>` },
     {
       w: 32,
       h: 32,
       name: "trash",
       svg: `<path d="M12 12h2v12h-2z" /><path d="M18 12h2v12h-2z" /><path d="M4 6v2h2v20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8h2V6zm4 22V8h16v20z" /><path d="M12 2h8v2h-8z" />`
     },
-    {
-      name: "device",
-      w: 2048,
-      h: 1792,
-      svg: `<path d="M685 483q16 0 27.5-11.5t11.5-27.5-11.5-27.5-27.5-11.5-27 11.5-11 27.5 11 27.5 27 11.5zm422 0q16 0 27-11.5t11-27.5-11-27.5-27-11.5-27.5 11.5-11.5 27.5 11.5 27.5 27.5 11.5zm-812 184q42 0 72 30t30 72v430q0 43-29.5 73t-72.5 30-73-30-30-73v-430q0-42 30-72t73-30zm1060 19v666q0 46-32 78t-77 32h-75v227q0 43-30 73t-73 30-73-30-30-73v-227h-138v227q0 43-30 73t-73 30q-42 0-72-30t-30-73l-1-227h-74q-46 0-78-32t-32-78v-666h918zm-232-405q107 55 171 153.5t64 215.5h-925q0-117 64-215.5t172-153.5l-71-131q-7-13 5-20 13-6 20 6l72 132q95-42 201-42t201 42l72-132q7-12 20-6 12 7 5 20zm477 488v430q0 43-30 73t-73 30q-42 0-72-30t-30-73v-430q0-43 30-72.5t72-29.5q43 0 73 29.5t30 72.5z"/>`
-    },
-    {
-      name: "fingerprint",
-      w: 32,
-      h: 32,
-      svg: `<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="10"><path d="m4.2 27.3.5-1c2-3.8 3-7.9 3-12.1v0c0-4.3 3.4-8 7.9-8.2a8 8 0 0 1 8.4 7.8v4.9c0 1.4.8 2.6 2 3.2h0"/><path d="M3.9 14.6c0-7 5.3-12.6 12-12.6s12 5.6 12 12.6V18"/><path d="m7.3 30 .1-.2a31 31 0 0 0 4.8-16.3v0c0-1.8 1.5-3.4 3.5-3.5 2.1-.1 3.9 1.4 3.9 3.3v0c.4 7.7-3.9 16.6-3.9 16.6"/><path d="m16 14-.2 1.4c-.6 5-1.9 9.9-3.8 14.6h0"/></g>`
-    },
+    { name: "device", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2"/><path d="M10 5h4M11 18.5h2"/></g>` },
+    { name: "fingerprint", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5 12a7 7 0 0 1 14 0v2c0 3-1 5-2 7M8 12a4 4 0 0 1 8 0v3c0 2-.4 3.5-1 5M12 12v3c0 2-.2 4-.8 6M4 16c.2 2 0 3.8-.8 5"/></g>` },
     {
       name: "sun",
       w: 24,
@@ -56,24 +41,9 @@
       h: 24,
       svg: `<path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5zm2 0v9h14V5H5zm4 14h6v2H9v-2z"/>`
     },
-    {
-      name: "network",
-      w: 24,
-      h: 24,
-      svg: `<path d="M17 18a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM7 16a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm10-8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM7 8a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM19.071 7.071l-10 10-1.414-1.414 10-10 1.414 1.414z"/>`
-    },
-    {
-      name: "hardware",
-      w: 24,
-      h: 24,
-      svg: `<path d="M8 6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2H8zM7 2h2v4H7zM11 2h2v4h-2zM15 2h2v4h-2zM7 18h2v4H7zM11 18h2v4h-2zM15 18h2v4h-2zM2 7h4v2H2zM2 11h4v2H2zM2 15h4v2H2zM18 7h4v2h-4zM18 11h4v2h-4zM18 15h4v2h-4zM10 10h4v4h-4z" />`
-    },
-    {
-      name: "template",
-      w: 24,
-      h: 24,
-      svg: `<path d="M5 3h10l4 4v14H5V3zm2 2v14h10V8h-3V5H7zm2 6h6v2H9v-2zm0 4h6v2H9v-2z" />`
-    },
+    { name: "network", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 8.8a15 15 0 0 1 20 0M5 12a10.5 10.5 0 0 1 14 0m-11 3.2a6 6 0 0 1 8 0"/><circle cx="12" cy="19" r=".8" fill="currentColor" stroke="none"/></g>` },
+    { name: "hardware", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M10 10h4v4h-4zM9 2v5m6-5v5m-6 10v5m6-5v5M2 9h5m-5 6h5m10-6h5m-5 6h5"/></g>` },
+    { name: "template", w: 24, h: 24, svg: `<g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M9 12h6m-6 4h6"/></g>` },
     {
       name: "logo",
       w: 210,
