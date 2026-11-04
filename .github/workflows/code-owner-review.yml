@@ -1,0 +1,16 @@
+name: Code owner review
+
+# Reviews have no pull_request_target event, so this only starts a workflow_run of
+# "Code owner approval", which runs the default branch's copy. No permissions, no code.
+
+on:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+
+permissions: {}
+
+jobs:
+  relay:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Review on PR ${{ github.event.pull_request.number }}, Code owner approval re-checks it"
