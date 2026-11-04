@@ -10,6 +10,10 @@ permissions:
   contents: write
   pull-requests: read
 
+# Two merges close together would otherwise both see no draft and create one each.
+concurrency:
+  group: release-drafter
+
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
