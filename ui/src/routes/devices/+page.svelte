@@ -208,7 +208,7 @@
     const rowClass = "cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700";
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow">
+<div class="content-card">
     <div class="p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
@@ -228,7 +228,7 @@
                     {sortBy}
                     bind:filterSelections
                     classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
-                    classNameTh="px-6 py-4 text-left text-xs font-medium text-gray-700 dark:text-gray-200 uppercase tracking-wider bg-gray-100 dark:bg-gray-700"
+                    classNameTh="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-700/70"
                     classNameTd="px-6 py-4 text-sm text-gray-900 dark:text-gray-300 whitespace-nowrap"
                     rowClass={rowClass}
                     onclickRow={(event) => onRowClick(event.row)}
