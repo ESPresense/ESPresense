@@ -3,6 +3,7 @@
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
     import { configs, events, enroll, cancelEnroll } from "#lib/stores.js";
     import type { Config, Events } from "#lib/types.js";
+    import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
     let name = $state("");
     let id = $state("");
@@ -27,18 +28,6 @@
         }
     }
 
-    const deviceTypes = ["watch", "wallet", "ipad", "phone", "airpods", "laptop", "node", "keys", "therm", "flora", "tile"];
-
-    function generateKebabCaseId(name: string, type = "") {
-        const words = name.toLowerCase().split(/\s+/);
-        const filteredWords = words.filter((word) => word !== type.toLowerCase());
-        return filteredWords
-            .join("-")
-            .replace(/[']/g, "")
-            .replace(/[^a-z0-9-]+/g, "-")
-            .replace(/(^-|-$)/g, "");
-    }
-
     let modalTitle = $derived(($events as Events)?.room ? `Enroll Device - ${($events as Events).room}` : "Enroll Device");
     let tableRows = $derived($configs?.configs || []);
 
@@ -60,8 +49,7 @@
     }
 
     function onEnroll() {
-        const generatedId = deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name);
-        enroll(id || generatedId, name);
+        enroll(id || suggestAlias(name, deviceType), name);
     }
 
     function handleEditOpenChange(event: { open: boolean }) {
@@ -308,7 +296,7 @@
                                 class="mt-1 block w-full border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white shadow-sm focus:border-blue-500 focus:ring-blue-500"
                                 type="text"
                                 bind:value={id}
-                                placeholder={name ? (deviceType ? `${deviceType}:${generateKebabCaseId(name, deviceType)}` : generateKebabCaseId(name)) : "Enter custom ID or leave empty for auto-generated"}
+                                placeholder={name ? suggestAlias(name, deviceType) : "Enter custom ID or leave empty for auto-generated"}
                             />
                             <p class="text-sm text-gray-600 dark:text-gray-400">Leave empty to use auto-generated ID</p>
                         </div>
