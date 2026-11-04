@@ -155,6 +155,7 @@
 {/snippet}
 
 <div class="content-card p-6">
+    <h1 class="mb-6 text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">Hardware</h1>
     {#if $hardwareSettings?.values != null}
     <form action="wifi/hardware" method="post" id="hardware" onsubmit={handleSubmit} class="space-y-6">
         <p>

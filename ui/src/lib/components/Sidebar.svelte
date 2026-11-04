@@ -37,7 +37,7 @@
 
         <SidebarItem
             icon="scan"
-            title="Scanning"
+            title="Settings"
             href={resolve('/settings')}
         />
 
