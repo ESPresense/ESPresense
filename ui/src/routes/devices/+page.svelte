@@ -1,7 +1,7 @@
 <script lang="ts">
     import DataTable, { type Column } from "#lib/components/DataTable.svelte";
     import { Dialog } from "@skeletonlabs/skeleton-svelte";
-    import { configs, events, enroll, cancelEnroll } from "#lib/stores.js";
+    import { configs, events, enroll, cancelEnroll, palette } from "#lib/stores.js";
     import type { Config, Events } from "#lib/types.js";
     import { deviceTypes, suggestAlias } from "#lib/utils/alias.js";
 
@@ -212,12 +212,22 @@
     <div class="p-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Devices</h2>
-            <button
-                onclick={() => (showModal = true)}
-                class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
-            >
-                Enroll
-            </button>
+            <div class="flex space-x-2">
+                <!-- For a device that can't pair: pick it out by moving it, then name it, in the palette -->
+                <button
+                    type="button"
+                    onclick={() => palette.set({ view: "find" })}
+                    class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                >
+                    Find a device
+                </button>
+                <button
+                    onclick={() => (showModal = true)}
+                    class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800"
+                >
+                    Enroll
+                </button>
+            </div>
         </div>
 
         {#if $configs != null}
