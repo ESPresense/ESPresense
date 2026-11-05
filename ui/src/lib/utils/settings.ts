@@ -1,5 +1,4 @@
 import type { Writable } from 'svelte/store';
-import type { ExtraSettings } from '#lib/types.js';
 
 /**
  * A settings form as the body the device expects. The device keeps any setting missing from the
@@ -39,10 +38,10 @@ export function formParams(form: HTMLFormElement): URLSearchParams {
  * await saveSettingsWithRetry("/wifi/hardware", form, hardwareSettings);
  * ```
  */
-export async function saveSettingsWithRetry(
+export async function saveSettingsWithRetry<T>(
 	endpoint: string,
 	form: HTMLFormElement,
-	settingsStore: Writable<ExtraSettings | null>
+	settingsStore: Writable<T | null>
 ): Promise<void> {
 	// Save settings to device
 	const response = await fetch(endpoint, { method: 'POST', body: formParams(form) });
@@ -72,9 +71,9 @@ export async function saveSettingsWithRetry(
  * @param retries - Attempts before giving up; the device takes a few seconds to come back
  * @throws Error if settings fail to reload after all retry attempts
  */
-export async function reloadSettingsWithRetry(
+export async function reloadSettingsWithRetry<T>(
 	endpoint: string,
-	settingsStore: Writable<ExtraSettings | null>,
+	settingsStore: Writable<T | null>,
 	retries = 5
 ): Promise<void> {
 	while (retries > 0) {

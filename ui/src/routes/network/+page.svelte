@@ -2,9 +2,10 @@
     import { onMount, onDestroy } from "svelte";
     import { mainSettings } from "#lib/stores.js";
     import type { MainSettings } from "#lib/types.js";
-    import { formParams } from "#lib/utils/settings.js";
+    import { saveSettingsWithRetry } from "#lib/utils/settings.js";
 
     let s = $state(false);
+    let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
     let isDestroyed = false;
@@ -49,35 +50,11 @@
         try {
             event.preventDefault();
             s = true;
-            const form = event.target as HTMLFormElement;
-            await fetch("/wifi/main", { method: "POST", body: formParams(form) });
-
-            try {
-                await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
-            } catch (error) {
-                // often the restart request will fail, so we ignore the error
-            }
-
-            // Reload settings after save, with retries
-            let retries = 5;
-            let data;
-            while (retries > 0) {
-                try {
-                    const response = await fetch("/wifi/main");
-                    data = await response.json();
-                    mainSettings.set(data);
-                    break; // Exit loop on success
-                } catch (error) {
-                    retries--;
-                    if (retries === 0) {
-                        console.error("Failed to reload settings after multiple retries:", error);
-                        // Optionally display an error message to the user
-                        break;
-                    }
-                    // Wait for 1 second before retrying
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-                }
-            }
+            saveError = "";
+            await saveSettingsWithRetry("/wifi/main", event.target as HTMLFormElement, mainSettings);
+        } catch (error) {
+            console.error("Failed to save network settings:", error);
+            saveError = error instanceof Error ? error.message : String(error);
         } finally {
             s = false;
         }
@@ -217,6 +194,23 @@
             <div>
                 <label for="mqtt-port" class="block text-sm font-medium">Port</label>
                 <input id="mqtt-port" type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                {#if $mainSettings.values.mqtt_tls && Number($mainSettings.values.mqtt_port || $mainSettings.defaults.mqtt_port) === 1883}
+                    <p class="text-sm text-gray-600 dark:text-gray-300">TLS brokers usually listen on 8883.</p>
+                {/if}
+            </div>
+
+            <div class="space-y-4">
+                <label for="mqtt-tls" class="flex items-center space-x-2">
+                    <input id="mqtt-tls" type="checkbox" name="mqtt_tls" value="1" bind:checked={$mainSettings.values.mqtt_tls} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span>Use TLS (MQTTS)</span>
+                </label>
+
+                <!-- Hidden, not removed, while TLS is off: the CA stays in the form and is saved unchanged. -->
+                <div class="ml-6" hidden={!$mainSettings.values.mqtt_tls}>
+                    <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
+                    <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
+                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
+                </div>
             </div>
 
             <div>
@@ -276,6 +270,9 @@
                 </div>
             </div>
 
+            {#if saveError}
+                <p role="alert" class="text-red-600 dark:text-red-400">{saveError}</p>
+            {/if}
             <div class="flex justify-end">
                 <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                     {s ? "Saving..." : "Save"}

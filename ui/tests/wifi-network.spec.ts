@@ -192,3 +192,65 @@ test('should display SSID with extended characters', async ({ page }) => {
   await page.getByRole('button', { name: 'Darrell’s iPhone' }).click();
   await expect(ssidInput).toHaveValue('Darrell’s iPhone');
 });
+
+test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ page }) => {
+  let posted: URLSearchParams | undefined;
+  // A function, so TypeScript doesn't narrow posted to undefined after it is reset below.
+  const sent = (key: string) => posted?.get(key);
+  await page.route('/wifi/main', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: false, mqtt_ca: 'KEEP' } } });
+    } else {
+      posted = new URLSearchParams(route.request().postData() ?? '');
+      await route.fulfill({ json: { success: true } });
+    }
+  });
+  await page.route('/wifi/scan', route => route.fulfill({ json: { networks: {} } }));
+  await page.route('/json', route => route.fulfill({ json: { room: 'Living Room' } }));
+  await page.route('/restart', route => route.fulfill({ body: '' }));
+  await page.goto('/network');
+
+  const ca = page.getByLabel('CA certificate (optional)');
+  await expect(ca).toBeHidden();
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+
+  // Hidden, the CA is still posted, and unticked TLS is sent as 0 (a missing key keeps its value).
+  await page.getByRole('button', { name: /save/i }).click();
+  await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
+  expect(sent('mqtt_tls')).toBe('0');
+
+  await page.getByLabel('Use TLS (MQTTS)').check();
+  await expect(ca).toBeVisible();
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeVisible();
+  await page.getByLabel('Port', { exact: true }).fill('8883');
+  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+
+  posted = undefined;
+  await page.getByRole('button', { name: /save/i }).click();
+  await expect.poll(() => sent('mqtt_tls')).toBe('1');
+  expect(sent('mqtt_port')).toBe('8883');
+});
+
+test('a refused save shows the error, restarts nothing and keeps the form', async ({ page }) => {
+  const message = 'Not saved: these settings are over the 8 KB limit.';
+  let restarted = false;
+  await page.route('/wifi/main', async route => {
+    if (route.request().method() === 'GET') {
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: true, mqtt_ca: '' } } });
+    } else {
+      await route.fulfill({ status: 413, body: message });
+    }
+  });
+  await page.route('/wifi/scan', route => route.fulfill({ json: { networks: {} } }));
+  await page.route('/json', route => route.fulfill({ json: { room: 'Living Room' } }));
+  await page.route('/restart', route => { restarted = true; return route.fulfill({ body: '' }); });
+  await page.goto('/network');
+
+  const ca = page.getByLabel('CA certificate (optional)');
+  await ca.fill('-----BEGIN CERTIFICATE-----\nchain\n-----END CERTIFICATE-----');
+  await page.getByRole('button', { name: /save/i }).click();
+
+  await expect(page.getByRole('alert')).toHaveText(message);
+  await expect(ca).toHaveValue(/chain/);
+  expect(restarted).toBe(false);
+});
