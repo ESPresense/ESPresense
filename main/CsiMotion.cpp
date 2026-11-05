@@ -32,6 +32,10 @@ namespace CsiMotion
         int8_t csi[CsiWindow::kMaxBytes];
         size_t len;
         uint16_t kind;
+#ifdef CSI_CAPTURE_DEBUG
+        uint32_t ts;            // millis() at capture; dev builds only, see dumpCapture().
+        bool firstWordInvalid;
+#endif
     };
 
     struct Kind {
@@ -40,6 +44,9 @@ namespace CsiMotion
     };
 
     static bool enabled = false;
+#ifdef CSI_CAPTURE_DEBUG
+    static bool capture = false;
+#endif
     static bool armed = false;
     static unsigned long armedAt = 0;
     static unsigned long windowStart = 0;
@@ -89,18 +96,27 @@ namespace CsiMotion
         memcpy(s.csi, info->buf, len);
         s.len = len;
         s.kind = kindOf(info);
+#ifdef CSI_CAPTURE_DEBUG
+        s.ts = millis();
+        s.firstWordInvalid = info->first_word_invalid;
+#endif
         head.store(h + 1, std::memory_order_release);
     }
 
-    // L-LTF only: every frame then has the same layout, whatever rate the AP sent it at.
+    // HT-LTF, so the subcarrier layout matches ESpectre's 56-live-bin HT20 reference
+    // (github.com/francescopace/espectre, src/cpp/core/csi_format.h). L-LTF stays on as the
+    // fallback for legacy-rate frames, which have no HT-LTF to report.
     static bool arm()
     {
         wifi_csi_config_t cfg = {};
 #if CONFIG_SOC_WIFI_HE_SUPPORT
         cfg.enable = 1;
         cfg.acquire_csi_legacy = 1;
+        cfg.acquire_csi_ht20 = 1;
 #else
         cfg.lltf_en = true;
+        cfg.htltf_en = true;
+        cfg.stbc_htltf2_en = true;
         cfg.channel_filter_en = true;
 #endif
         return esp_wifi_set_csi_rx_cb(&onCsi, nullptr) == ESP_OK
@@ -138,9 +154,37 @@ namespace CsiMotion
         kinds[kindCount++].window.add(s.csi, s.len);
     }
 
+#ifdef CSI_CAPTURE_DEBUG
+    // Dev-only: every subcarrier present in the frame, unsliced. Deliberately not trimmed to
+    // ESpectre's 56 live HT20 bins here - classic-MAC chips (esp32/esp32c3/esp32s3) deliver
+    // CSI in Espressif's native "0..31,-32..-1" bin order (DC at bin 0), while HE chips
+    // (esp32c6) deliver it already centered on DC (bin 32); telling the two apart is an
+    // empirical check on real data (espectre's detect_ht20_bin_layout()), not something to
+    // bake into firmware ahead of a capture. The offline tool does that rotation and the
+    // 56-bin / 12-subcarrier selection from this raw dump.
+    // Not named `s`: Sprintf's expansion declares its own local `s`, which would shadow a
+    // same-named parameter and fail to compile.
+    static void dumpCapture(const Slot& frame)
+    {
+        if (!capture || frame.len < 4) return;
+        const size_t subcarriers = frame.len / 2;
+        std::string line = Sprintf("CSICAP %lu %u %u %u", (unsigned long)frame.ts, frame.kind,
+            (unsigned)frame.firstWordInvalid, (unsigned)subcarriers);
+        for (size_t i = 0; i < subcarriers; i++) {
+            const int imag = frame.csi[i * 2];
+            const int real = frame.csi[i * 2 + 1];
+            line += Sprintf(" %.1f", sqrtf(static_cast<float>(imag * imag + real * real)));
+        }
+        Log.println(line);
+    }
+#endif
+
     void ConnectToWifi(bool updating)
     {
         enabled = Settings::checkbox("csi_enable", false, "WiFi CSI movement sensor (experimental)");
+#ifdef CSI_CAPTURE_DEBUG
+        capture = Settings::checkbox("csi_capture", false, "Dump raw CSI amplitudes to the TCP log (dev build only)");
+#endif
         if (!enabled || updating) { enabled = false; return; }
         kinds.reset(new (std::nothrow) Kind[kKinds]);
         queue.reset(new (std::nothrow) Slot[kQueue]);
@@ -162,6 +206,9 @@ namespace CsiMotion
         if (!enabled) return;
 
         for (uint32_t t = tail.load(std::memory_order_relaxed); t != head.load(std::memory_order_acquire); t++) {
+#ifdef CSI_CAPTURE_DEBUG
+            dumpCapture(queue[t % kQueue]);
+#endif
             add(queue[t % kQueue]);
             tail.store(t + 1, std::memory_order_release);
         }
