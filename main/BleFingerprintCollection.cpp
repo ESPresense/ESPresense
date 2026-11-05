@@ -177,7 +177,7 @@ SemaphoreHandle_t deviceConfigMutex;
 struct FingerprintLock {
     const bool ok;
 
-    FingerprintLock() : ok(xSemaphoreTake(fingerprintMutex, MAX_WAIT) == pdTRUE) {}
+    explicit FingerprintLock(TickType_t wait = MAX_WAIT) : ok(xSemaphoreTake(fingerprintMutex, wait) == pdTRUE) {}
 
     ~FingerprintLock() {
         if (!ok) return;
@@ -592,14 +592,11 @@ void Release(FingerprintLease &lease) {
     if (!lease)
         return;
 
-    FingerprintLock lock;
-    if (!lock) {
-        log_e("Couldn't take fingerprintMutex!");
-        // Leak the lease rather than touch shared state without the mutex —
-        // the slot's refs stays elevated so the fingerprint isn't freed
-        // from under another reader; acceptable trade-off vs corruption.
-        return;
-    }
+    // Wait as long as it takes. A lease that isn't returned pins its slot for good:
+    // cleanup and eviction both skip slots with refs, so the row never ages out and,
+    // one leak at a time, max_fingerprints fills until new devices are dropped (#2620).
+    // Nothing holding fingerprintMutex blocks on I/O or on a lease, so this can't deadlock.
+    FingerprintLock lock(portMAX_DELAY);
 
     if (lease.slot < fingerprints.size()) {
         auto &slot = fingerprints[lease.slot];
