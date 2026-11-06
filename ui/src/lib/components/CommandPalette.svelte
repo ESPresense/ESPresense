@@ -180,9 +180,11 @@
     }
 
     $effect(() => {
-        // Each poll of /json/devices goes into the step being held.
+        // Each poll of /json/devices goes into the step being held. Check the view first: reading
+        // $devices subscribes the store, which would poll on every page with the palette closed.
+        if ($palette?.view !== "find") return;
         const list = $devices?.devices;
-        if ($palette?.view !== "find" || !list || !current || found) return;
+        if (!list || !current || found) return;
         record(current, list);
         // Found the moment the pattern completes; no click needed to finish.
         const w = winner(rank(steps, list));
@@ -214,6 +216,9 @@
     let tag = $derived($palette?.view === "tag" ? $palette : undefined);
     let tagKey = $derived(tag?.id);
     let savingTag = $derived(!!tag && saving.has(tag.id));
+    // Saving before /json/configs has loaded could key the config by the fingerprint's reported
+    // alias, and the node then deletes the original config holding that alias.
+    let configsReady = $derived(!!$configs);
 
     $effect(() => {
         // A new fingerprint to tag: start from what's already configured for it.
@@ -228,7 +233,7 @@
 
     async function saveTag(e?: Event) {
         e?.preventDefault();
-        if (!tag || !tagName.trim() || saving.has(tag.id)) return;
+        if (!tag || !tagName.trim() || !configsReady || saving.has(tag.id)) return;
         const submitted = tag;
         saving = new Set(saving).add(submitted.id);
         saveError = "";
@@ -482,10 +487,11 @@
                                 <input bind:value={tagAlias} class="mt-1 font-mono" placeholder={suggestAlias(tagName, tagType) || "keys:kitchen"} />
                             </label>
                         </div>
-                        {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>{/if}
+                        {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                        {:else if $configs === null}<p class="mt-3 text-sm text-red-600 dark:text-red-400">Can't read this node's devices, so saving is off. Check the connection and try again.</p>{/if}
                         <div class="mt-5 flex justify-end gap-2">
                             <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={() => show({ view: "search" })}>Back</button>
-                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag}>{savingTag ? "Saving…" : "Save"}</button>
+                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag || !configsReady}>{savingTag ? "Saving…" : "Save"}</button>
                         </div>
                     {/if}
                 </form>

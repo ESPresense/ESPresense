@@ -87,10 +87,11 @@ if (typeof window !== 'undefined') {
     });
 }
 
-export const configs = readable<Configs | null>({ room: '', configs: [] }, function start(set) {
+/** undefined until the first /json/configs response lands, null once it keeps failing */
+export const configs = readable<Configs | null | undefined>(undefined, function start(set) {
     let errors = 0;
     let outstanding = false;
-    const interval = setInterval(() => {
+    const poll = () => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/configs")
@@ -105,7 +106,9 @@ export const configs = readable<Configs | null>({ room: '', configs: [] }, funct
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch configs:', ex);
             });
-    }, 1000);
+    };
+    poll();
+    const interval = setInterval(poll, 1000);
 
     return function stop() {
         clearInterval(interval);

@@ -124,6 +124,9 @@ test.describe('Command palette', () => {
 		});
 		await open(page, '/fingerprints');
 		await page.getByRole('cell', { name: 'keys:car' }).click();
+		// Until the configs load, the alias can't be told from a raw ID, so Save waits (#2623).
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 		const configsLoaded = page.waitForResponse('**/json/configs');
 		release();
 		await configsLoaded;
@@ -132,6 +135,20 @@ test.describe('Command palette', () => {
 		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
 		expect(posts).toEqual([{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys (spare)', 'rssi@1m': -62 }]);
+	});
+
+	test('a closed palette does not poll /json/devices', async ({ page }) => {
+		await mockNode(page);
+		let polls = 0;
+		await page.route('**/json/devices?showAll', (r) => {
+			polls++;
+			return r.fulfill({ json: devicesBody() });
+		});
+		await open(page, '/settings');
+		await page.waitForTimeout(2500);
+		expect(polls).toBe(0);
+		await page.keyboard.press(`${mod}+k`);
+		await expect.poll(() => polls).toBeGreaterThan(0);
 	});
 
 	test('Tab stays inside the palette', async ({ page }) => {
