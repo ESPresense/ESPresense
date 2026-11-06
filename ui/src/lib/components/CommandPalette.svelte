@@ -102,7 +102,13 @@
 
         const seen = (deviceList?.devices ?? []).filter((d) => d.vis && rowKey(d));
         seen.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+        // Row keys repeat: the node can list one ID under several MACs (an IRK phone that
+        // rotated). The list is keyed, so a repeat throws each_key_duplicate. Keep the closest.
+        const listed = new Set<string>();
         for (const d of seen) {
+            const k = rowKey(d)!;
+            if (listed.has(k)) continue;
+            listed.add(k);
             all.push({
                 key: `fp:${rowKey(d)}`,
                 group: "Fingerprints",
@@ -114,8 +120,10 @@
             });
         }
 
+        const configured = new Set<string>();
         for (const c of configList?.configs ?? []) {
-            if (!c.id) continue;
+            if (!c.id || configured.has(c.id)) continue;
+            configured.add(c.id);
             all.push({
                 key: `cfg:${c.id}`,
                 group: "Devices",

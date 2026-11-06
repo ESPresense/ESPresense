@@ -181,6 +181,28 @@ test.describe('Command palette', () => {
 		expect(posts).toEqual([]);
 	});
 
+	test('one ID under two MACs lists once and does not throw', async ({ page }) => {
+		await mockNode(page);
+		const errors: string[] = [];
+		page.on('pageerror', (e) => errors.push(e.message));
+		const phone = (mac: string, distance: number) => ({ id: 'irk:c4be', name: 'Phone', mac, rssi: -60, distance, vis: true, close: false });
+		await page.route('**/json/devices?showAll', (r) => r.fulfill({ json: { room: 'office', devices: [phone('aaaaaaaaaaaa', 3), phone('bbbbbbbbbbbb', 1.5)] } }));
+		await page.route('**/json/configs', (r) => {
+			if (r.request().method() !== 'GET') return r.fallback();
+			const c = { id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell Phone' };
+			return r.fulfill({ json: { room: 'office', configs: [c, c] } });
+		});
+		await open(page, '/');
+		await page.keyboard.press(`${mod}+k`);
+		await expect(page.getByRole('option', { name: /Phone/ }).first()).toBeVisible();
+		await page.getByRole('dialog').getByRole('combobox').fill('phone');
+		await expect(page.getByRole('option', { name: /^Phone/ })).toHaveCount(1);
+		await expect(page.getByRole('option', { name: /1\.5 m/ })).toHaveCount(1);
+		await expect(page.getByRole('option', { name: /Darrell Phone/ })).toHaveCount(1);
+		await page.waitForTimeout(1500);
+		expect(errors).toEqual([]);
+	});
+
 	test('Tab stays inside the palette', async ({ page }) => {
 		await mockNode(page);
 		await open(page, '/');
