@@ -155,7 +155,8 @@ async function collectFiles(
       const relFromRoot = relative(rootDir, fullPath).split('\\').join('/');
       const rel = pathPrefix ? `${pathPrefix}/${relFromRoot}` : relFromRoot;
       const ext = (entry.name.split('.').pop() || '').toLowerCase();
-      if (skipExtensions.has(ext)) continue;
+      // app/version.json is SvelteKit's updated.check() target; the only json the firmware serves.
+      if (skipExtensions.has(ext) && rel !== 'app/version.json') continue;
 
       const content = await fs.readFile(fullPath);
       assets.push({
