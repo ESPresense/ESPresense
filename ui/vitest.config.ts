@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['src/setupTests.ts'],
-    include: ['src/**/*.spec.{ts,js}'],
+    include: ['src/**/*.spec.{ts,js}', 'plugins/**/*.spec.ts'],
     css: true,
     pool: 'threads',
     // No spec relies on a fresh module graph; sharing one is faster.

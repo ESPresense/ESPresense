@@ -7,3 +7,4 @@ test('the firmware serves app/version.json', () => {
     const routes = readFileSync(new URL('../../main/ui_routes.h', import.meta.url), 'utf8');
     expect(routes).toContain('registerGet(server, "/app/version.json"');
 });
+
