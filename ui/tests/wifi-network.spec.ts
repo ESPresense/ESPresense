@@ -83,6 +83,10 @@ test.describe('WiFi Network Selection', () => {
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     expect(await row.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
     expect(await row.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe('0px');
+    // ...while a filled button still gets its shadow, so the narrower rule still matches.
+    const save = page.getByRole('button', { name: 'Save', exact: true });
+    await expect(save).toBeVisible();
+    expect(await save.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe('none');
   });
 
   test('should display signal strength indicators', async ({ page }) => {
@@ -265,29 +269,44 @@ test('a refused save shows the error, restarts nothing and keeps the form', asyn
   expect(restarted).toBe(false);
 });
 
-test('scans three times, then waits for Scan again', async ({ page }) => {
+test('scans three times, 5 s apart, then waits for Rescan', async ({ page }) => {
   // Every /wifi/scan is a blocking active scan on the node, so the page must not scan forever.
   let scans = 0;
+  let networks: Record<string, number> = mockWifiNetworks;
   await page.clock.install();
   await page.route('/wifi/main', (r) => r.fulfill({ json: mockMainSettings }));
   await page.route('/json', (r) => r.fulfill({ json: { room: 'Living Room' } }));
   await page.route('/wifi/scan', (r) => {
     scans++;
-    return r.fulfill({ json: { networks: mockWifiNetworks } });
+    return r.fulfill({ json: { networks } });
   });
   await page.goto('/network');
   await expect(page.getByText('HomeNetwork')).toBeVisible();
+  const again = page.getByRole('button', { name: 'Rescan' });
 
-  const again = page.getByRole('button', { name: 'Scan again' });
-  for (let i = 0; i < 4; i++) await page.clock.runFor(6000);
+  /** one scan per 5 s: none before the interval is up, exactly one once it is */
+  async function nextScanAfterInterval(expected: number) {
+    await page.clock.runFor(4000);
+    expect(scans).toBe(expected - 1);
+    await page.clock.runFor(1500);
+    await expect.poll(() => scans).toBe(expected);
+  }
+
+  expect(scans).toBe(1);
+  await nextScanAfterInterval(2);
+  await nextScanAfterInterval(3);
   await expect(again).toBeVisible();
-  expect(scans).toBe(3);
   await page.clock.runFor(30000);
   expect(scans).toBe(3);
 
+  // A network gone from the air drops off once Rescan runs.
+  networks = { HomeNetwork: -45 };
   await again.click();
   await expect.poll(() => scans).toBe(4);
-  for (let i = 0; i < 4; i++) await page.clock.runFor(6000);
+  await expect(page.getByText('OfficeWiFi')).toHaveCount(0);
+  await nextScanAfterInterval(5);
+  await nextScanAfterInterval(6);
   await expect(again).toBeVisible();
+  await page.clock.runFor(30000);
   expect(scans).toBe(6);
 });

@@ -12,6 +12,9 @@
     // and the radio is off BLE meanwhile. So scan a few times for a stable list, then stop until asked.
     const SCANS_PER_ROUND = 3;
     let scansLeft = $state(SCANS_PER_ROUND);
+    // "Rescan" starts from what's on air now: its first result replaces the list, so a
+    // network that has gone away stops being offered. Later scans in the round merge in.
+    let freshRound = false;
     let isDestroyed = false;
     let nextScan: ReturnType<typeof setTimeout> | undefined;
 
@@ -23,9 +26,10 @@
             const response = await fetch("/wifi/scan");
             const data = await response.json();
             if (data.networks) {
-                // Merge, never replace: a network that drops out of one scan keeps its row, so the
+                // Within a round, merge: a network that drops out of one scan keeps its row, so the
                 // list doesn't reorder or resize under the pointer between scans.
-                wifiNetworks = { ...wifiNetworks, ...data.networks };
+                wifiNetworks = freshRound ? { ...data.networks } : { ...wifiNetworks, ...data.networks };
+                freshRound = false;
             } else {
                 console.error("Unexpected response format:", data);
             }
@@ -37,8 +41,9 @@
         }
     }
 
-    function scanAgain() {
+    function rescan() {
         scansLeft = SCANS_PER_ROUND;
+        freshRound = true;
         void fetchWifiNetworks();
     }
 
@@ -108,7 +113,7 @@
                         {#if isScanning}
                             <div class="ios-spinner"></div>
                         {:else if scansLeft <= 0}
-                            <button type="button" onclick={scanAgain} class="rounded-md px-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 focus:ring-2 dark:text-blue-400 dark:hover:text-blue-300">Scan again</button>
+                            <button type="button" onclick={rescan} class="rounded-md px-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 focus:ring-2 dark:text-blue-400 dark:hover:text-blue-300">Rescan</button>
                         {/if}
                     </div>
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-72 overflow-y-auto">
