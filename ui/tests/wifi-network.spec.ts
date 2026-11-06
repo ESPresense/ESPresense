@@ -232,6 +232,8 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
   await page.getByRole('button', { name: /save/i }).click();
   await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
   expect(sent('mqtt_tls')).toBe('0');
+  // The save reloads the settings once it's posted; wait it out, or the reload unticks TLS below.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 
   await page.getByLabel('Use TLS (MQTTS)').check();
   await expect(ca).toBeVisible();
