@@ -87,52 +87,76 @@ if (typeof window !== 'undefined') {
     });
 }
 
-export const configs = readable<Configs | null>({ room: '', configs: [] }, function start(set) {
+function okJson(r: Response) {
+    if (!r.ok) throw new Error(`${r.url}: HTTP ${r.status}`);
+    return r.json();
+}
+
+/** undefined until the first /json/configs response lands, null once it keeps failing */
+export const configs = readable<Configs | null | undefined>(undefined, function start(set) {
+    // A fresh subscriber never sees a list left over from the last time anyone was watching.
+    set(undefined);
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
-    const interval = setInterval(() => {
+    const poll = () => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/configs")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Configs) => {
+                // A low-memory error body has no list; taking it as "no configs" would let a save
+                // key a config by its alias and the node would delete the original (#2623).
+                if (!Array.isArray(r?.configs)) throw new Error('/json/configs: no configs list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch configs:', ex);
             });
-    }, 1000);
+    };
+    poll();
+    const interval = setInterval(poll, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });
 
 export const devices = readable<Devices | null>({ room: '', devices: [] }, function start(set) {
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
     const interval = setInterval(() => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/devices?showAll")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Devices) => {
+                if (!Array.isArray(r?.devices)) throw new Error('/json/devices: no devices list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch devices:', ex);
             });
     }, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });

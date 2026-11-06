@@ -4,7 +4,7 @@
     import { tick } from "svelte";
     import Icon from "./Icon.svelte";
     import { configs, devices, findConfig, palette, roomName, tagFingerprint as tagSeen, type PaletteState } from "#lib/stores.js";
-    import type { Config, Device } from "#lib/types.js";
+    import type { Config, Configs, Device, Devices } from "#lib/types.js";
     import { FOLLOW, follows, newStep, rank, record, winner, rowKey, type Candidate, type Step } from "#lib/utils/find.js";
     import { deviceTypes, suggestAlias, unstableId } from "#lib/utils/alias.js";
     import { fuzzy } from "#lib/utils/search.js";
@@ -35,10 +35,28 @@
         { path: "/fingerprints", title: "Fingerprints", icon: "fingerprint", keywords: "ble seen nearby rssi" }
     ];
 
-    // Poll configs while the palette is open (a store subscribes on first read): Find and the
-    // name step both look up the fingerprint's existing config.
+    // Poll devices and configs only while the palette is open. Auto-subscribing ($store) would
+    // hold the subscription, and the polling, until the layout goes away, long after the palette
+    // closes (#2622). Keyed on open/closed, so moving between views doesn't resubscribe.
+    let open = $derived(!!$palette);
+    let deviceList = $state<Devices | null>();
+    let configList = $state<Configs | null | undefined>();
     $effect(() => {
-        if ($palette) void $configs;
+        if (!open) return;
+        // Skip the value handed over on subscribe: it may be the list from the last time the
+        // palette was open, and Find would record a stale "close" reading from it.
+        let live = false;
+        const stopDevices = devices.subscribe((v) => {
+            if (live) deviceList = v;
+        });
+        live = true;
+        const stopConfigs = configs.subscribe((v) => (configList = v));
+        return () => {
+            stopDevices();
+            stopConfigs();
+            deviceList = undefined;
+            configList = undefined;
+        };
     });
 
     function close() {
@@ -50,7 +68,7 @@
     }
 
     function tagFingerprint(d: Device) {
-        tagSeen(d, $configs?.configs);
+        tagSeen(d, configList?.configs);
     }
 
     function tagConfig(c: Config) {
@@ -82,9 +100,15 @@
             }))
         ];
 
-        const seen = ($devices?.devices ?? []).filter((d) => d.vis && rowKey(d));
+        const seen = (deviceList?.devices ?? []).filter((d) => d.vis && rowKey(d));
         seen.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+        // Row keys repeat: the node can list one ID under several MACs (an IRK phone that
+        // rotated). The list is keyed, so a repeat throws each_key_duplicate. Keep the closest.
+        const listed = new Set<string>();
         for (const d of seen) {
+            const k = rowKey(d)!;
+            if (listed.has(k)) continue;
+            listed.add(k);
             all.push({
                 key: `fp:${rowKey(d)}`,
                 group: "Fingerprints",
@@ -96,8 +120,10 @@
             });
         }
 
-        for (const c of $configs?.configs ?? []) {
-            if (!c.id) continue;
+        const configured = new Set<string>();
+        for (const c of configList?.configs ?? []) {
+            if (!c.id || configured.has(c.id)) continue;
+            configured.add(c.id);
             all.push({
                 key: `cfg:${c.id}`,
                 group: "Devices",
@@ -157,9 +183,9 @@
 
     let current = $derived(steps[steps.length - 1]);
     // Live, including the step being held: the list is the feedback.
-    let ranked = $derived(rank(steps, $devices?.devices ?? []));
+    let ranked = $derived(rank(steps, deviceList?.devices ?? []));
     // Who's following is judged on finished steps, or it would reset at the start of each one.
-    let followers = $derived(rank(found ? steps : steps.slice(0, -1), $devices?.devices ?? []).filter(follows));
+    let followers = $derived(rank(found ? steps : steps.slice(0, -1), deviceList?.devices ?? []).filter(follows));
     let still = $derived(followers.length);
     // Followers within 2 dB of each other are one radio: a phone advertising under two addresses.
     let oneRadio = $derived(still > 1 && followers.every((c) => c.device.rssi != null && Math.abs(c.device.rssi - followers[0].device.rssi!) < 2));
@@ -170,7 +196,7 @@
         // ponytail: the 500 ms is only so a double click can't skip the step it just started
         if (!current || found || Date.now() - current.startedAt < 500) return;
         const done = steps;
-        const w = winner(rank(done, $devices?.devices ?? []));
+        const w = winner(rank(done, deviceList?.devices ?? []));
         if (w) {
             steps = [...done];
             found = w;
@@ -181,8 +207,9 @@
 
     $effect(() => {
         // Each poll of /json/devices goes into the step being held.
-        const list = $devices?.devices;
-        if ($palette?.view !== "find" || !list || !current || found) return;
+        if ($palette?.view !== "find") return;
+        const list = deviceList?.devices;
+        if (!list || !current || found) return;
         record(current, list);
         // Found the moment the pattern completes; no click needed to finish.
         const w = winner(rank(steps, list));
@@ -214,6 +241,9 @@
     let tag = $derived($palette?.view === "tag" ? $palette : undefined);
     let tagKey = $derived(tag?.id);
     let savingTag = $derived(!!tag && saving.has(tag.id));
+    // Saving before /json/configs has loaded could key the config by the fingerprint's reported
+    // alias, and the node then deletes the original config holding that alias.
+    let configsReady = $derived(!!configList);
 
     $effect(() => {
         // A new fingerprint to tag: start from what's already configured for it.
@@ -228,14 +258,14 @@
 
     async function saveTag(e?: Event) {
         e?.preventDefault();
-        if (!tag || !tagName.trim() || saving.has(tag.id)) return;
+        if (!tag || !tagName.trim() || !configsReady || saving.has(tag.id)) return;
         const submitted = tag;
         saving = new Set(saving).add(submitted.id);
         saveError = "";
         // Look the config up again: the step may have opened before /json/configs first loaded,
         // and saving under the reported alias would make a second config (and the node deletes
         // the original). Carry the calibration along, since the node republishes the whole config.
-        const cfg = findConfig(submitted.id, submitted.mac, $configs?.configs);
+        const cfg = findConfig(submitted.id, submitted.mac, configList?.configs);
         const rssi1m = cfg?.["rssi@1m"] ?? submitted.rssi1m;
         const body: Record<string, unknown> = { id: cfg?.id ?? submitted.id, alias: tagAlias.trim() || suggestAlias(tagName, tagType), name: tagName.trim() };
         if (rssi1m != null) body["rssi@1m"] = rssi1m;
@@ -482,10 +512,11 @@
                                 <input bind:value={tagAlias} class="mt-1 font-mono" placeholder={suggestAlias(tagName, tagType) || "keys:kitchen"} />
                             </label>
                         </div>
-                        {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>{/if}
+                        {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
+                        {:else if configList === null}<p class="mt-3 text-sm text-red-600 dark:text-red-400">Can't read this node's devices, so saving is off. Check the connection and try again.</p>{/if}
                         <div class="mt-5 flex justify-end gap-2">
                             <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={() => show({ view: "search" })}>Back</button>
-                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag}>{savingTag ? "Saving…" : "Save"}</button>
+                            <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag || !configsReady}>{savingTag ? "Saving…" : "Save"}</button>
                         </div>
                     {/if}
                 </form>

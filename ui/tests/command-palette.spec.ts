@@ -124,6 +124,9 @@ test.describe('Command palette', () => {
 		});
 		await open(page, '/fingerprints');
 		await page.getByRole('cell', { name: 'keys:car' }).click();
+		// Until the configs load, the alias can't be told from a raw ID, so Save waits (#2623).
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		await expect(page.getByRole('button', { name: 'Save' })).toBeDisabled();
 		const configsLoaded = page.waitForResponse('**/json/configs');
 		release();
 		await configsLoaded;
@@ -132,6 +135,72 @@ test.describe('Command palette', () => {
 		await page.getByRole('button', { name: 'Save' }).click();
 		await expect(page.getByRole('heading', { name: 'Saved' })).toBeVisible();
 		expect(posts).toEqual([{ id: 'd1e2f3a4b5c6', alias: 'keys:car', name: 'Car Keys (spare)', 'rssi@1m': -62 }]);
+	});
+
+	test('a closed palette does not poll /json/devices', async ({ page }) => {
+		await mockNode(page);
+		let polls = 0;
+		await page.route('**/json/devices?showAll', (r) => {
+			polls++;
+			return r.fulfill({ json: devicesBody() });
+		});
+		await open(page, '/settings');
+		await page.waitForTimeout(2500);
+		expect(polls).toBe(0);
+		await page.keyboard.press(`${mod}+k`);
+		await expect.poll(() => polls).toBeGreaterThan(0);
+		// Closing it stops the polling too, not just never having opened it.
+		// Count requests as the page starts them, and let any that began before the close finish.
+		let started = 0;
+		page.on('request', (r) => {
+			if (r.url().includes('/json/devices')) started++;
+		});
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		await page.waitForLoadState('networkidle');
+		const atClose = started;
+		await page.waitForTimeout(2500);
+		expect(started).toBe(atClose);
+	});
+
+	test('an error body from /json/configs keeps Save off', async ({ page }) => {
+		const posts = await mockNode(page);
+		await page.route('**/json/configs', (r) => {
+			if (r.request().method() !== 'GET') return r.fallback();
+			return r.fulfill({ status: 500, json: { error: 'Out of memory' } });
+		});
+		await open(page, '/settings');
+		await page.keyboard.press(`${mod}+k`);
+		await page.getByRole('dialog').getByRole('combobox').fill('keys:car');
+		await page.getByRole('option', { name: /Car Keys/ }).first().click();
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		const save = page.getByRole('button', { name: 'Save' });
+		await expect(save).toBeDisabled();
+		await page.waitForTimeout(2500);
+		await expect(save).toBeDisabled();
+		expect(posts).toEqual([]);
+	});
+
+	test('one ID under two MACs lists once and does not throw', async ({ page }) => {
+		await mockNode(page);
+		const errors: string[] = [];
+		page.on('pageerror', (e) => errors.push(e.message));
+		const phone = (mac: string, distance: number) => ({ id: 'irk:c4be', name: 'Phone', mac, rssi: -60, distance, vis: true, close: false });
+		await page.route('**/json/devices?showAll', (r) => r.fulfill({ json: { room: 'office', devices: [phone('aaaaaaaaaaaa', 3), phone('bbbbbbbbbbbb', 1.5)] } }));
+		await page.route('**/json/configs', (r) => {
+			if (r.request().method() !== 'GET') return r.fallback();
+			const c = { id: 'irk:0011', alias: 'phone:darrell', name: 'Darrell Phone' };
+			return r.fulfill({ json: { room: 'office', configs: [c, c] } });
+		});
+		await open(page, '/');
+		await page.keyboard.press(`${mod}+k`);
+		await expect(page.getByRole('option', { name: /Phone/ }).first()).toBeVisible();
+		await page.getByRole('dialog').getByRole('combobox').fill('phone');
+		await expect(page.getByRole('option', { name: /^Phone/ })).toHaveCount(1);
+		await expect(page.getByRole('option', { name: /1\.5 m/ })).toHaveCount(1);
+		await expect(page.getByRole('option', { name: /Darrell Phone/ })).toHaveCount(1);
+		await page.waitForTimeout(1500);
+		expect(errors).toEqual([]);
 	});
 
 	test('Tab stays inside the palette', async ({ page }) => {
