@@ -158,7 +158,7 @@
                     {sortBy}
                     bind:filterSelections
                     classNameTable="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-auto"
-                    classNameTh="px-6 py-4 text-left text-xs font-semibold text-gray-500 dark:text-gray-300 uppercase tracking-wider bg-gray-50 dark:bg-gray-700/70"
+                    classNameTh="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700"
                     classNameTd="px-6 py-4 text-sm text-gray-900 dark:text-gray-300 whitespace-nowrap"
                     rowClass={rowClass}
                     rowClassFn={rowHighlight}
