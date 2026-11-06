@@ -87,16 +87,26 @@ if (typeof window !== 'undefined') {
     });
 }
 
+function okJson(r: Response) {
+    if (!r.ok) throw new Error(`${r.url}: HTTP ${r.status}`);
+    return r.json();
+}
+
 /** undefined until the first /json/configs response lands, null once it keeps failing */
 export const configs = readable<Configs | null | undefined>(undefined, function start(set) {
+    // A fresh subscriber never sees a list left over from the last time anyone was watching.
+    set(undefined);
     let errors = 0;
     let outstanding = false;
     const poll = () => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/configs")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Configs) => {
+                // A low-memory error body has no list; taking it as "no configs" would let a save
+                // key a config by its alias and the node would delete the original (#2623).
+                if (!Array.isArray(r?.configs)) throw new Error('/json/configs: no configs list');
                 outstanding = false;
                 errors = 0;
                 set(r);
@@ -122,8 +132,9 @@ export const devices = readable<Devices | null>({ room: '', devices: [] }, funct
         if (outstanding) return;
         outstanding = true;
         fetch("/json/devices?showAll")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Devices) => {
+                if (!Array.isArray(r?.devices)) throw new Error('/json/devices: no devices list');
                 outstanding = false;
                 errors = 0;
                 set(r);

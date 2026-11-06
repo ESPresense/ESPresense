@@ -149,6 +149,31 @@ test.describe('Command palette', () => {
 		expect(polls).toBe(0);
 		await page.keyboard.press(`${mod}+k`);
 		await expect.poll(() => polls).toBeGreaterThan(0);
+		// Closing it stops the polling too, not just never having opened it.
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+		await page.waitForTimeout(1200);
+		const atClose = polls;
+		await page.waitForTimeout(2500);
+		expect(polls).toBe(atClose);
+	});
+
+	test('an error body from /json/configs keeps Save off', async ({ page }) => {
+		const posts = await mockNode(page);
+		await page.route('**/json/configs', (r) => {
+			if (r.request().method() !== 'GET') return r.fallback();
+			return r.fulfill({ status: 500, json: { error: 'Out of memory' } });
+		});
+		await open(page, '/settings');
+		await page.keyboard.press(`${mod}+k`);
+		await page.getByRole('dialog').getByRole('combobox').fill('keys:car');
+		await page.getByRole('option', { name: /Car Keys/ }).first().click();
+		await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Car Keys (spare)');
+		const save = page.getByRole('button', { name: 'Save' });
+		await expect(save).toBeDisabled();
+		await page.waitForTimeout(2500);
+		await expect(save).toBeDisabled();
+		expect(posts).toEqual([]);
 	});
 
 	test('Tab stays inside the palette', async ({ page }) => {
