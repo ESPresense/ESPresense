@@ -135,7 +135,7 @@
 
 // Build-time knobs that used to be platformio.ini build flags.
 #define SCAN_TASK_STACK_SIZE 3072
-#define LOOP_TASK_STACK_SIZE 5632
+#define LOOP_TASK_STACK_SIZE 5120  // fleet low-water mark 1,896 left of 5,632 (S3-cdc), Nov 2026
 #define MQTT_MIN_FREE_MEMORY 12192
 // Largest-contiguous-block floor for the low-heap watchdog (#2309): above the 2312 byte
 // allocation that failed in that report, far below a healthy node's ~100KB.

@@ -156,6 +156,7 @@ bool sendTelemetry(unsigned int totalSeen, unsigned int totalFpSeen, unsigned in
     doc["scanStack"] = uxTaskGetStackHighWaterMark(scanTaskHandle);
     doc["loopStack"] = uxTaskGetStackHighWaterMark(nullptr);
     doc["bleStack"] = bleStack;
+    if (auto left = Mqtt::stackLeft()) doc["mqttStack"] = left;
 
     if (pub(teleTopic.c_str(), 0, false, doc)) return true;
 

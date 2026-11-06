@@ -1,5 +1,7 @@
 #pragma once
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <string>
 
@@ -17,6 +19,8 @@ void Setup(const std::string& host, uint16_t port, const std::string& user, cons
            const std::string& clientId, const std::string& willTopic, bool tls, std::string caPem);
 bool connected();
 void reconnect();
+// Least free stack the MQTT task has had, in bytes; 0 before its first event.
+UBaseType_t stackLeft();
 // After discovery: listen to this node's retained discovery configs for 2 s and delete any
 // it didn't just announce (removed inputs/outputs, disabled sensors, pre-v5 entities).
 void PruneStaleDiscovery();
