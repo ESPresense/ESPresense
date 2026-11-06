@@ -167,7 +167,7 @@ test.describe('Fingerprints Page', () => {
 		await page.waitForSelector('table tbody tr');
 
 		// Click Name header to sort
-		await page.locator('th:has-text("Name")').click();
+		await page.locator('th:has-text("Name") button').click();
 
 		// Check sort indicator appears
 		await expect(page.locator('th:has-text("Name") >> span')).toBeVisible({ timeout: 2000 });
@@ -184,11 +184,11 @@ test.describe('Fingerprints Page', () => {
 		const nameHeader = page.locator('th:has-text("Name")');
 
 		// First click - ascending
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 		await expect(nameHeader.locator('text=↑')).toBeVisible({ timeout: 2000 });
 
 		// Second click - descending
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 		await expect(nameHeader.locator('text=↓')).toBeVisible({ timeout: 2000 });
 	});
 
@@ -376,7 +376,7 @@ test.describe('Fingerprints Page', () => {
 
 		// Find the RSSI column header (7th column)
 		const rssiHeader = page.locator('thead tr:first-child th').nth(6);
-		await rssiHeader.click();
+		await rssiHeader.locator("button").click();
 		await expect(rssiHeader.locator('span')).toBeVisible({ timeout: 2000 });
 
 		// Get all RSSI values from the 7th column

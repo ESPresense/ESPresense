@@ -159,18 +159,24 @@
         });
         return opts;
     });
-    let hasFilters: boolean = $derived(Object.keys(filterOptions).length > 0);
 </script>
 
 <table class={classNameTable}>
     <thead>
         <tr>
             {#each columns as column}
-                <th class:cursor-pointer={column.sortable} class={classNameTh}>
+                <th
+                    class:cursor-pointer={column.sortable}
+                    class="{classNameTh} align-top"
+                    onclick={(e) => {
+                        // The whole cell sorts; the button and the filter select handle their own clicks.
+                        if (column.sortable && !(e.target as Element).closest("button, select")) handleSort(column);
+                    }}
+                >
                     {#if column.sortable}
                         <button
                             type="button"
-                            class="flex items-center gap-1 w-full text-left"
+                            class="flex items-center gap-1 w-full text-left p-0 rounded-none [font:inherit] [letter-spacing:inherit] [text-transform:inherit] focus:ring-0"
                             onclick={() => handleSort(column)}
                         >
                             {column.title}
@@ -181,29 +187,21 @@
                     {:else}
                         {column.title}
                     {/if}
+                    {#if filterOptions[column.key]}
+                        <select
+                            bind:value={filterSelections[column.key]}
+                            class="mt-2 w-full min-w-24 max-w-48 rounded-md border border-gray-300 bg-transparent py-1 pl-2 pr-6 text-xs font-normal normal-case tracking-normal text-gray-700 bg-[length:0.875rem] bg-[position:right_0.35rem_center] dark:border-gray-600 dark:bg-transparent dark:text-gray-300"
+                            data-prevent-row-click
+                        >
+                            <option value="">All</option>
+                            {#each filterOptions[column.key] as opt}
+                                <option value={opt.value}>{opt.name}</option>
+                            {/each}
+                        </select>
+                    {/if}
                 </th>
             {/each}
         </tr>
-        {#if hasFilters}
-            <tr>
-                {#each columns as column}
-                    <th class={classNameTh}>
-                        {#if filterOptions[column.key]}
-                            <select
-                                bind:value={filterSelections[column.key]}
-                                class="w-full border border-gray-300 dark:border-gray-600 rounded px-2 py-1 bg-white dark:bg-gray-800 text-xs"
-                                data-prevent-row-click
-                            >
-                                <option value="">All</option>
-                                {#each filterOptions[column.key] as opt}
-                                    <option value={opt.value}>{opt.name}</option>
-                                {/each}
-                            </select>
-                        {/if}
-                    </th>
-                {/each}
-            </tr>
-        {/if}
     </thead>
     <tbody>
         {#each sortedRows as row}
