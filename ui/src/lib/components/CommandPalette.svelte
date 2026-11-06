@@ -43,7 +43,13 @@
     let configList = $state<Configs | null | undefined>();
     $effect(() => {
         if (!open) return;
-        const stopDevices = devices.subscribe((v) => (deviceList = v));
+        // Skip the value handed over on subscribe: it may be the list from the last time the
+        // palette was open, and Find would record a stale "close" reading from it.
+        let live = false;
+        const stopDevices = devices.subscribe((v) => {
+            if (live) deviceList = v;
+        });
+        live = true;
         const stopConfigs = configs.subscribe((v) => (configList = v));
         return () => {
             stopDevices();

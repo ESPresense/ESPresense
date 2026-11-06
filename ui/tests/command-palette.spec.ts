@@ -150,12 +150,17 @@ test.describe('Command palette', () => {
 		await page.keyboard.press(`${mod}+k`);
 		await expect.poll(() => polls).toBeGreaterThan(0);
 		// Closing it stops the polling too, not just never having opened it.
+		// Count requests as the page starts them, and let any that began before the close finish.
+		let started = 0;
+		page.on('request', (r) => {
+			if (r.url().includes('/json/devices')) started++;
+		});
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('dialog')).toHaveCount(0);
-		await page.waitForTimeout(1200);
-		const atClose = polls;
+		await page.waitForLoadState('networkidle');
+		const atClose = started;
 		await page.waitForTimeout(2500);
-		expect(polls).toBe(atClose);
+		expect(started).toBe(atClose);
 	});
 
 	test('an error body from /json/configs keeps Save off', async ({ page }) => {
