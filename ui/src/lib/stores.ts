@@ -97,6 +97,8 @@ export const configs = readable<Configs | null | undefined>(undefined, function 
     // A fresh subscriber never sees a list left over from the last time anyone was watching.
     set(undefined);
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
     const poll = () => {
         if (outstanding) return;
@@ -108,11 +110,13 @@ export const configs = readable<Configs | null | undefined>(undefined, function 
                 // key a config by its alias and the node would delete the original (#2623).
                 if (!Array.isArray(r?.configs)) throw new Error('/json/configs: no configs list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch configs:', ex);
             });
@@ -121,12 +125,15 @@ export const configs = readable<Configs | null | undefined>(undefined, function 
     const interval = setInterval(poll, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });
 
 export const devices = readable<Devices | null>({ room: '', devices: [] }, function start(set) {
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
     const interval = setInterval(() => {
         if (outstanding) return;
@@ -136,17 +143,20 @@ export const devices = readable<Devices | null>({ room: '', devices: [] }, funct
             .then((r: Devices) => {
                 if (!Array.isArray(r?.devices)) throw new Error('/json/devices: no devices list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch devices:', ex);
             });
     }, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });
