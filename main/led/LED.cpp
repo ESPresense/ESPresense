@@ -165,19 +165,20 @@ const std::string LED::getStateFilename() {
 }
 
 const std::string LED::getStateString() {
-    // Format: BBRGGBBWW (B=brightness, R=red, G=green, B=blue, W=white)
-    char stateStr[11];
-    sprintf(stateStr, "%02X%02X%02X%02X%02X",
-            brightness,
-            color.red,
-            color.green,
-            color.blue,
-            color.white);
+    // Format: BBRRGGBBWWS (B=brightness, R=red, G=green, B=blue, W=white, S=on/off 1/0)
+    char stateStr[12];
+    snprintf(stateStr, sizeof(stateStr), "%02X%02X%02X%02X%02X%c",
+             brightness,
+             color.red,
+             color.green,
+             color.blue,
+             color.white,
+             state ? '1' : '0');
     return std::string(stateStr);
 }
 
 void LED::setStateString(const std::string& encoded) {
-    if (encoded.length() == 10) {
+    if (encoded.length() >= 10) {
         // Parse hex values - each value is 2 hex digits
         uint8_t const brightness = strtol(encoded.substr(0, 2).c_str(), NULL, 16);
         uint8_t const r = strtol(encoded.substr(2, 2).c_str(), NULL, 16);
@@ -192,5 +193,8 @@ void LED::setStateString(const std::string& encoded) {
         }
 
         setBrightness(brightness);
+
+        // Older saves had no on/off flag (10 chars): those stay on, as before.
+        if (encoded.length() >= 11 && controlType == Control_Type_MQTT) setState(encoded[10] != '0');
     }
 }
