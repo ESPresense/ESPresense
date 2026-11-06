@@ -70,21 +70,13 @@
     @apply px-6 py-3 text-base font-medium rounded-xl transition-all duration-200 focus:ring-4 focus:outline-none cursor-pointer;
   }
 
-  /* Primary buttons (blue) */
-  button.bg-blue-600,
-  button[class*="bg-blue"] {
-    @apply shadow-sm hover:shadow-md;
-  }
-
-  /* Secondary buttons (gray/white) */
-  button.bg-white,
-  button[class*="bg-gray"] {
-    @apply shadow-sm hover:shadow-md;
-  }
-
-  /* Danger buttons (red) */
-  button.bg-red-600,
-  button[class*="bg-red"] {
+  /* Filled buttons get a shadow. Match a bare bg-* class at the start of the list or after a
+     space: a plain [class*="bg-gray"] also caught hover:bg-gray-100 on list-row buttons, which
+     floated every WiFi network row as its own card in light mode. */
+  button.bg-white, button.bg-blue-600, button.bg-red-600,
+  button[class^="bg-blue"], button[class*=" bg-blue"],
+  button[class^="bg-gray"], button[class*=" bg-gray"],
+  button[class^="bg-red"], button[class*=" bg-red"] {
     @apply shadow-sm hover:shadow-md;
   }
 }

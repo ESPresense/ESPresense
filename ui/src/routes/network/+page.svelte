@@ -8,10 +8,16 @@
     let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
+    // Each /wifi/scan is a blocking active scan on the node: every channel, with probe requests,
+    // and the radio is off BLE meanwhile. So scan a few times for a stable list, then stop until asked.
+    const SCANS_PER_ROUND = 3;
+    let scansLeft = $state(SCANS_PER_ROUND);
     let isDestroyed = false;
+    let nextScan: ReturnType<typeof setTimeout> | undefined;
 
     async function fetchWifiNetworks() {
-        if (isScanning || isDestroyed) return; // Prevent concurrent scans and post-destroy scans
+        if (isScanning || isDestroyed || scansLeft <= 0) return; // no concurrent or post-destroy scans
+        scansLeft--;
         try {
             isScanning = true;
             const response = await fetch("/wifi/scan");
@@ -27,23 +33,22 @@
             console.error("Failed to fetch Wi-Fi networks:", error);
         } finally {
             isScanning = false;
-            // Schedule next scan after 5 seconds
-            if (!isDestroyed) {
-                setTimeout(fetchWifiNetworks, 5000);
-            }
+            if (!isDestroyed && scansLeft > 0) nextScan = setTimeout(fetchWifiNetworks, 5000);
         }
     }
 
-    function startScanCycle() {
-        requestAnimationFrame(fetchWifiNetworks);
+    function scanAgain() {
+        scansLeft = SCANS_PER_ROUND;
+        void fetchWifiNetworks();
     }
 
     onMount(() => {
-        startScanCycle();
+        requestAnimationFrame(fetchWifiNetworks);
     });
 
     onDestroy(() => {
         isDestroyed = true;
+        clearTimeout(nextScan);
     });
 
     async function handleSubmit(event: SubmitEvent) {
@@ -102,6 +107,8 @@
                         <div class="text-base font-medium dark:text-white">Available Networks</div>
                         {#if isScanning}
                             <div class="ios-spinner"></div>
+                        {:else if scansLeft <= 0}
+                            <button type="button" onclick={scanAgain} class="rounded-md px-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 focus:ring-2 dark:text-blue-400 dark:hover:text-blue-300">Scan again</button>
                         {/if}
                     </div>
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-72 overflow-y-auto">
@@ -110,7 +117,7 @@
                                 <button
                                     type="button"
                                     onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
-                                    class="w-full flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 bg-transparent"
+                                    class="w-full flex items-center cursor-pointer rounded-none px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 bg-transparent"
                                 >
                                 <div class="grow">
                                     <div class="text-base dark:text-white">{ssid}</div>

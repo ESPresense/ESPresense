@@ -75,6 +75,16 @@ test.describe('WiFi Network Selection', () => {
     await expect(page.getByText('GuestNetwork')).toBeVisible();
   });
 
+  test('network rows are flat list rows in light mode, not floating cards', async ({ page }) => {
+    // The default color scheme is light. A row's hover:bg-gray-100 used to match the
+    // [class*="bg-gray"] filled-button rule and give every row a shadow.
+    const row = page.getByRole('button', { name: /HomeNetwork/ });
+    await expect(row).toBeVisible();
+    await expect(page.locator('html')).not.toHaveClass(/dark/);
+    expect(await row.evaluate((el) => getComputedStyle(el).boxShadow)).toBe('none');
+    expect(await row.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe('0px');
+  });
+
   test('should display signal strength indicators', async ({ page }) => {
     // Wait for networks to load
     await expect(page.getByText('HomeNetwork')).toBeVisible();
@@ -253,4 +263,31 @@ test('a refused save shows the error, restarts nothing and keeps the form', asyn
   await expect(page.getByRole('alert')).toHaveText(message);
   await expect(ca).toHaveValue(/chain/);
   expect(restarted).toBe(false);
+});
+
+test('scans three times, then waits for Scan again', async ({ page }) => {
+  // Every /wifi/scan is a blocking active scan on the node, so the page must not scan forever.
+  let scans = 0;
+  await page.clock.install();
+  await page.route('/wifi/main', (r) => r.fulfill({ json: mockMainSettings }));
+  await page.route('/json', (r) => r.fulfill({ json: { room: 'Living Room' } }));
+  await page.route('/wifi/scan', (r) => {
+    scans++;
+    return r.fulfill({ json: { networks: mockWifiNetworks } });
+  });
+  await page.goto('/network');
+  await expect(page.getByText('HomeNetwork')).toBeVisible();
+
+  const again = page.getByRole('button', { name: 'Scan again' });
+  for (let i = 0; i < 4; i++) await page.clock.runFor(6000);
+  await expect(again).toBeVisible();
+  expect(scans).toBe(3);
+  await page.clock.runFor(30000);
+  expect(scans).toBe(3);
+
+  await again.click();
+  await expect.poll(() => scans).toBe(4);
+  for (let i = 0; i < 4; i++) await page.clock.runFor(6000);
+  await expect(again).toBeVisible();
+  expect(scans).toBe(6);
 });
