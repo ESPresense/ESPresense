@@ -2,9 +2,8 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { execSync } from 'child_process';
 import { cppPlugin } from './plugins/cpp';
-import { uiSourceVersion } from './plugins/version';
-import { fileURLToPath } from 'url';
 import strip from '@rollup/plugin-strip';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -36,9 +35,8 @@ export default defineConfig({
             // client runtime chunk").
             output: { bundleStrategy: 'single' },
             paths: { base: '' },
-            // Name changes only when the UI sources do; the firmware serves it at
-            // /app/version.json so an open page notices an OTA (see plugins/version.ts).
-            version: { name: uiSourceVersion(fileURLToPath(new URL('.', import.meta.url))), pollInterval: 0 }
+            // git's hash of ui/: changes only when the UI does, so the committed headers don't churn.
+            version: { name: execSync('git rev-parse --short=12 HEAD:ui').toString().trim(), pollInterval: 0 }
         }),
         tailwindcss(),
         strip({
