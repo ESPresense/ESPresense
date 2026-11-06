@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <cstring>
 
 #include "BleFingerprintCollection.h"
 #include "BleUuids.h"
@@ -240,6 +241,10 @@ void BleFingerprint::fingerprintServiceAdvertisements(const Ble::Advert *adverti
             asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
             return;
+        } else if (Ble::uuidEq(uuid, milwaukeeUUID)) {
+            asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
+            setId("milwaukee:" + getMac(), ID_TYPE_MILWAUKEE);
+            return;
         } else if (Ble::uuidEq(uuid, itagUUID)) {
             asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : ITAG_TX);
             setId("itag:" + getMac(), ID_TYPE_ITAG);
@@ -346,6 +351,10 @@ void BleFingerprint::fingerprintServiceData(const Ble::Advert *advertisedDevice,
 
 // Beacon payload (iBeacon and AltBeacon share the layout after the 4-byte prefix):
 // [4..19] uuid big-endian, [20..21] major, [22..23] minor, [24] rssi@1m.
+// Milwaukee ONE-KEY trackers send this iBeacon with major/minor 0 and rssi@1m -120 dBm (#2610).
+static const uint8_t milwaukeeBeaconUuid[16] = {0xf3, 0x4e, 0xba, 0xc4, 0x7c, 0xd7, 0x40, 0x27,
+                                                0x87, 0x8e, 0x55, 0xf4, 0xe7, 0x1d, 0x03, 0x09};
+
 static std::string beaconUuid(const uint8_t *d) {
     return Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
                    d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], d[16], d[17], d[18], d[19]);
@@ -363,7 +372,10 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
 
         if (manuf == "004c")  // Apple
         {
-            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
+            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15 && !memcmp(d + 4, milwaukeeBeaconUuid, 16)) {
+                // Shared by every ONE-KEY tag and its rssi@1m is bogus: key by MAC, keep the default 1 m reference.
+                setId("milwaukee:" + getMac(), ID_TYPE_MILWAUKEE);
+            } else if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
                 if (setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST) && bcnRssi != 3) {

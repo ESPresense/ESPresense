@@ -38,6 +38,7 @@
 #define ID_TYPE_SONOS short(105)
 #define ID_TYPE_GARMIN short(107)
 #define ID_TYPE_MIKROTIK short(108)
+#define ID_TYPE_MILWAUKEE short(109)
 #define ID_TYPE_MITHERM short(110)
 #define ID_TYPE_MIFIT short(115)
 #define ID_TYPE_EXPOSURE short(120)
