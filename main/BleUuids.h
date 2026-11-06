@@ -15,7 +15,7 @@ inline const ble_uuid_any_t dexaUUID = Ble::uuid16(0xFEBC);
 inline const ble_uuid_any_t vanmoofUUID = Ble::uuid128(0x6acc5540, 0xe631, 0x4069, 0x944db8ca7598ad50);
 inline const ble_uuid_any_t tractiveUUID = Ble::uuid128(0x20130001, 0x0719, 0x4b6e, 0xbe5d158ab92fa5a4);
 // Milwaukee ONE-KEY tracker frame (#2610)
-inline const ble_uuid_any_t milwaukeeUUID = Ble::uuid128(0xa3e68a83, 0x4c4d, 0x4778, 0xbd0a829fb434a7a1);
+inline const ble_uuid_any_t oneKeyUUID = Ble::uuid128(0xa3e68a83, 0x4c4d, 0x4778, 0xbd0a829fb434a7a1);
 inline const ble_uuid_any_t espresenseUUID = Ble::uuid128(0xe5ca1ade, 0xf007, 0xba11, 0x0000000000000000);
 
 inline const ble_uuid_any_t nutUUID = Ble::uuid16(0x1803);

@@ -38,7 +38,6 @@
 #define ID_TYPE_SONOS short(105)
 #define ID_TYPE_GARMIN short(107)
 #define ID_TYPE_MIKROTIK short(108)
-#define ID_TYPE_MILWAUKEE short(109)
 #define ID_TYPE_MITHERM short(110)
 #define ID_TYPE_MIFIT short(115)
 #define ID_TYPE_EXPOSURE short(120)
@@ -60,6 +59,7 @@
 #define ID_TYPE_EBEACON short(170)
 #define ID_TYPE_ABEACON short(175)
 #define ID_TYPE_IBEACON short(180)
+#define ID_TYPE_ONEKEY short(185)  // above iBeacon: upgrades a tag keyed as iBeacon before its ONE-KEY frame was heard
 #define ID_TYPE_KNOWN_IRK short(200)
 #define ID_TYPE_KNOWN_MAC short(210)
 #define ID_TYPE_ALIAS short(250)
@@ -142,7 +142,7 @@ class BleFingerprint {
    private:
     static SemaphoreHandle_t fieldMutex;
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, hasBcnUuid = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, hasBcnUuid = false, oneKey = false;
     uint16_t bcnCrc = 0;  // CRC-16 of the locked iBeacon UUID; sits in the padding after the flags
     uint64_t nextReportMs = 0;
     ble_addr_t address;
