@@ -149,6 +149,64 @@ static void i2c_conversion_runs_once() {
     TEST_ASSERT_EQUAL_STRING("", at(s, "BME280_I2c_Bus").c_str());
 }
 
+// MQTT broker as one URL (#2647). A put of "" deletes, as Settings::spurt does.
+static Store runMqtt(Store s, bool failWrites = false) {
+    migrateMqttUrl([&](const std::string& k) { auto i = s.find(k); return i == s.end() ? std::string() : i->second; },
+                   [&](const std::string& k, const std::string& v) {
+                       if (failWrites) return false;
+                       if (v.empty()) s.erase(k); else s[k] = v;
+                       return true;
+                   },
+                   "mqtt.z13.org");
+    return s;
+}
+
+static void mqtt_port_and_tls_fold_into_the_url() {
+    Store s = runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_port", "8883"}, {"mqtt_tls", "1"}});
+    TEST_ASSERT_EQUAL_STRING("mqtts://broker.lan", at(s, "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL(1, s.size());  // mqtt_port and mqtt_tls deleted
+    TEST_ASSERT_EQUAL_STRING("mqtt://broker.lan:1884", at(runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_port", "1884"}}), "mqtt_host").c_str());
+    // TLS left on the old default port 1883 keeps it.
+    TEST_ASSERT_EQUAL_STRING("mqtts://broker.lan:1883", at(runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_tls", "1"}}), "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtts://broker.lan:9883", at(runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_port", "9883"}, {"mqtt_tls", "1"}}), "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtt://[fd00::5]:1884", at(runMqtt({{"mqtt_host", "fd00::5"}, {"mqtt_port", "1884"}}), "mqtt_host").c_str());
+}
+
+static void mqtt_default_broker_stays_a_bare_host() {
+    Store s = runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_port", "1883"}, {"mqtt_tls", "0"}});
+    TEST_ASSERT_EQUAL_STRING("broker.lan", at(s, "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL(1, s.size());
+    TEST_ASSERT_EQUAL(0, runMqtt({{"mqtt_port", "1883"}}).size());  // default server, default port: nothing stored
+    TEST_ASSERT_EQUAL_STRING("mqtt://mqtt.z13.org:1884", at(runMqtt({{"mqtt_port", "1884"}}), "mqtt_host").c_str());
+}
+
+static void mqtt_stored_url_wins() {
+    Store s = runMqtt({{"mqtt_host", "mqtts://broker.lan"}, {"mqtt_port", "1883"}, {"mqtt_tls", "0"}});
+    TEST_ASSERT_EQUAL_STRING("mqtts://broker.lan", at(s, "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL(1, s.size());
+    Store none = runMqtt({{"mqtt_host", "broker.lan"}});
+    TEST_ASSERT_EQUAL_STRING("broker.lan", at(none, "mqtt_host").c_str());
+}
+
+static void mqtt_failed_write_keeps_the_old_keys() {
+    Store s = runMqtt({{"mqtt_host", "broker.lan"}, {"mqtt_port", "8883"}, {"mqtt_tls", "1"}}, true);
+    TEST_ASSERT_EQUAL_STRING("broker.lan", at(s, "mqtt_host").c_str());
+    TEST_ASSERT_EQUAL_STRING("8883", at(s, "mqtt_port").c_str());
+    TEST_ASSERT_EQUAL_STRING("1", at(s, "mqtt_tls").c_str());
+}
+
+static void mqtt_url_helpers() {
+    TEST_ASSERT_EQUAL_STRING("mqtt://broker.lan", MqttUrl::uri("broker.lan").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtt://[fd00::5]", MqttUrl::uri("fd00::5").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtts://b:9883", MqttUrl::uri("mqtts://b:9883").c_str());
+    TEST_ASSERT_TRUE(MqttUrl::tls("mqtts://b"));
+    TEST_ASSERT_TRUE(MqttUrl::tls("MQTTS://b"));
+    TEST_ASSERT_FALSE(MqttUrl::tls("mqtt://b"));
+    TEST_ASSERT_FALSE(MqttUrl::supported("http://b"));
+    TEST_ASSERT_FALSE(MqttUrl::supported("wss://b"));  // WebSocket is compiled out
+    TEST_ASSERT_TRUE(MqttUrl::supported(MqttUrl::uri("broker.lan")));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
@@ -165,5 +223,10 @@ int main(int, char**) {
     RUN_TEST(v4_leds_become_the_list);
     RUN_TEST(v4_inputs_become_the_list);
     RUN_TEST(v4_i2c_defaults_come_back_for_sensors_on_bus_1);
+    RUN_TEST(mqtt_port_and_tls_fold_into_the_url);
+    RUN_TEST(mqtt_default_broker_stays_a_bare_host);
+    RUN_TEST(mqtt_stored_url_wins);
+    RUN_TEST(mqtt_failed_write_keeps_the_old_keys);
+    RUN_TEST(mqtt_url_helpers);
     return UNITY_END();
 }

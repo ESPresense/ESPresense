@@ -194,11 +194,12 @@ void setupNetwork() {
 
     NTP::ConnectToWifi();
 
-    mqttHost = Settings::string("mqtt_host", DEFAULT_MQTT_HOST, "Server");
-    mqttPort = Settings::integer("mqtt_port", DEFAULT_MQTT_PORT, "Port");
+    // A URL (mqtts://broker:8883) or a bare hostname (mqtt://, port 1883): MqttUrl.h.
+    mqttUri = MqttUrl::uri(Settings::string("mqtt_host", DEFAULT_MQTT_HOST, "Server"));
     mqttUser = Settings::pstring("mqtt_user", DEFAULT_MQTT_USER, "Username");
     mqttPass = Settings::pstring("mqtt_pass", DEFAULT_MQTT_PASSWORD, "Password");
-    mqttTls = Settings::checkbox("mqtt_tls", false, "Use TLS (MQTTS)");
+    bool mqttTls = MqttUrl::tls(mqttUri);
+    if (!MqttUrl::supported(mqttUri)) Log.printf("MQTT server %s: only mqtt:// and mqtts:// are supported\n", mqttUri.c_str());
     mqttCa = Settings::file("mqtt_ca", "CA certificate (PEM); empty = public CAs");
     if (mqttCa.find("-----BEGIN") == std::string::npos) {  // blank or junk: use the public CAs
         if (mqttTls && mqttCa.find_first_not_of(" \t\r\n") != std::string::npos) Log.println("MQTT CA certificate isn't PEM (no -----BEGIN); using the public CAs");
@@ -287,7 +288,7 @@ void setupNetwork() {
     Log.println(Network::hostname());
     Log.print("Room:         ");
     Log.println(room);
-    Log.printf("Mqtt server:  %s:%d%s\n", mqttHost.c_str(), mqttPort, mqttTls ? (mqttCa.empty() ? " (TLS)" : " (TLS, own CA)") : "");
+    Log.printf("Mqtt server:  %s%s\n", mqttUri.c_str(), MqttUrl::tls(mqttUri) && !mqttCa.empty() ? " (own CA)" : "");
     Log.printf("Max Distance: %.2f\n", BleFingerprintCollection::maxDistance);
     GUI::SerialReport();
     Inputs::SerialReport();
@@ -393,7 +394,7 @@ void reconnect(TimerHandle_t) {
 }
 
 void connectToMqtt() {
-    Mqtt::Setup(mqttHost, mqttPort, mqttUser, mqttPass, Network::hostname(), statusTopic, mqttTls, std::move(mqttCa));
+    Mqtt::Setup(mqttUri, mqttUser, mqttPass, Network::hostname(), statusTopic, std::move(mqttCa));
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     xTimerStart(reconnectTimer, 0);
 }
@@ -533,6 +534,11 @@ void setup() {
              [](const std::string& key) { return Settings::slurp("/" + key); },
              [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); }))
         Log.printf("I2C settings converted: %s\n", change.c_str());
+    for (auto& change : migrateMqttUrl(
+             [](const std::string& key) { return Settings::slurp("/" + key); },
+             [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); },
+             DEFAULT_MQTT_HOST))
+        Log.printf("MQTT settings converted: %s\n", change.c_str());
     Network::Setup();
 
     GUI::Setup(true);

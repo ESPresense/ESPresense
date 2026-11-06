@@ -62,8 +62,6 @@ bool sentDiscovery = false;  // Have we successfully sent discovery
 UBaseType_t bleStack = 0;
 
 int ethernetType = 0;
-std::string mqttHost, mqttUser, mqttPass, mqttCa;
-uint16_t mqttPort;
-bool mqttTls;
+std::string mqttUri, mqttUser, mqttPass, mqttCa;
 
 bool discovery, publishTele, publishDevices;

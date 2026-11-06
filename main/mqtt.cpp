@@ -5,6 +5,7 @@
 
 #include "BleFingerprintCollection.h"
 #include "GUI.h"
+#include "MqttUrl.h"
 #include "Network.h"
 #include "defaults.h"
 #include "esp_chip_info.h"
@@ -136,13 +137,12 @@ void PruneStaleDiscovery() {
     pruneSubscribeId = esp_mqtt_client_subscribe(client, ownDiscoveryFilter.c_str(), 0);
 }
 
-void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
-           const std::string& clientId, const std::string& willTopic, bool tls, std::string caPem) {
-    static std::string sHost = host, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic, sCa = std::move(caPem);
+void Setup(const std::string& uri, const std::string& user, const std::string& pass,
+           const std::string& clientId, const std::string& willTopic, std::string caPem) {
+    static std::string sUri = uri, sUser = user, sPass = pass, sClient = clientId, sWill = willTopic, sCa = std::move(caPem);
+    bool tls = MqttUrl::tls(sUri);
     esp_mqtt_client_config_t cfg = {};
-    cfg.broker.address.hostname = sHost.c_str();
-    cfg.broker.address.port = port;
-    cfg.broker.address.transport = tls ? MQTT_TRANSPORT_OVER_SSL : MQTT_TRANSPORT_OVER_TCP;
+    cfg.broker.address.uri = sUri.c_str();  // esp-mqtt takes the transport and default port from the scheme
     if (tls && !sCa.empty())
         cfg.broker.verification.certificate = sCa.c_str();  // Kept, not copied: esp-tls parses it on every connect
     else if (tls)
@@ -159,6 +159,10 @@ void Setup(const std::string& host, uint16_t port, const std::string& user, cons
     cfg.buffer.size = 1024;
     cfg.task.stack_size = tls ? 6144 : 5120;  // the TLS handshake runs on this task
     client = esp_mqtt_client_init(&cfg);
+    if (!client) {  // e.g. a URL esp-mqtt can't parse; the reconnect timer restarts the node
+        Log.printf("MQTT: can't use server %s\n", sUri.c_str());
+        return;
+    }
     esp_mqtt_client_register_event(client, (esp_mqtt_event_id_t)ESP_EVENT_ANY_ID, onEvent, nullptr);
     esp_mqtt_client_start(client);
 }

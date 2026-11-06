@@ -16,7 +16,6 @@ const mockMainSettings = {
     wifi_timeout: 30,
     portal_timeout: 180,
     mqtt_host: 'mqtt.local',
-    mqtt_port: 1883,
     discovery_prefix: 'homeassistant'
   },
   values: {
@@ -27,7 +26,6 @@ const mockMainSettings = {
     portal_timeout: 180,
     eth: 0,
     mqtt_host: 'mqtt.local',
-    mqtt_port: 1883,
     mqtt_user: '',
     mqtt_pass: '',
     discovery: true,
@@ -207,13 +205,13 @@ test('should display SSID with extended characters', async ({ page }) => {
   await expect(ssidInput).toHaveValue('Darrell’s iPhone');
 });
 
-test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ page }) => {
+test('MQTT TLS: CA field shows only for an mqtts:// server, and is always saved', async ({ page }) => {
   let posted: URLSearchParams | undefined;
   // A function, so TypeScript doesn't narrow posted to undefined after it is reset below.
   const sent = (key: string) => posted?.get(key);
   await page.route('/wifi/main', async route => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: false, mqtt_ca: 'KEEP' } } });
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_ca: 'KEEP' } } });
     } else {
       posted = new URLSearchParams(route.request().postData() ?? '');
       await route.fulfill({ json: { success: true } });
@@ -226,23 +224,22 @@ test('MQTT TLS: CA field shows only with TLS on, and is always saved', async ({ 
 
   const ca = page.getByLabel('CA certificate (optional)');
   await expect(ca).toBeHidden();
-  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
+  // One box: no separate port or TLS fields.
+  await expect(page.getByLabel('Port', { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Use TLS (MQTTS)')).toHaveCount(0);
 
-  // Hidden, the CA is still posted, and unticked TLS is sent as 0 (a missing key keeps its value).
+  // Hidden, the CA is still posted.
   await page.getByRole('button', { name: /save/i }).click();
   await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
-  expect(sent('mqtt_tls')).toBe('0');
+  expect(sent('mqtt_port')).toBeNull();
+  expect(sent('mqtt_tls')).toBeNull();
 
-  await page.getByLabel('Use TLS (MQTTS)').check();
+  await page.getByLabel('Server').fill('MQTTS://mqtt.local:9883');
   await expect(ca).toBeVisible();
-  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeVisible();
-  await page.getByLabel('Port', { exact: true }).fill('8883');
-  await expect(page.getByText('TLS brokers usually listen on 8883.')).toBeHidden();
 
   posted = undefined;
   await page.getByRole('button', { name: /save/i }).click();
-  await expect.poll(() => sent('mqtt_tls')).toBe('1');
-  expect(sent('mqtt_port')).toBe('8883');
+  await expect.poll(() => sent('mqtt_host')).toBe('MQTTS://mqtt.local:9883');
 });
 
 test('a refused save shows the error, restarts nothing and keeps the form', async ({ page }) => {
@@ -250,7 +247,7 @@ test('a refused save shows the error, restarts nothing and keeps the form', asyn
   let restarted = false;
   await page.route('/wifi/main', async route => {
     if (route.request().method() === 'GET') {
-      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_tls: true, mqtt_ca: '' } } });
+      await route.fulfill({ json: { ...mockMainSettings, values: { ...mockMainSettings.values, mqtt_host: 'mqtts://mqtt.local', mqtt_ca: '' } } });
     } else {
       await route.fulfill({ status: 413, body: message });
     }
