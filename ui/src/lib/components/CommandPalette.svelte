@@ -425,9 +425,12 @@
             {:else if $palette.view === "find"}
                 <!-- svelte-ignore a11y_no_static_element_interactions -->
                 <div class="p-5" onkeydown={onFindKey}>
-                    <div class="mb-4 flex items-baseline justify-between">
+                    <div class="mb-4 flex items-center justify-between gap-3">
                         <h2 class="mb-0 text-lg font-semibold text-gray-900 dark:text-white">Find a device</h2>
-                        <span class="text-xs text-gray-500 dark:text-gray-400">Step {steps.length}</span>
+                        <div class="flex items-center gap-3">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Step {steps.length}</span>
+                            <button type="button" class="-m-1 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200" aria-label="Close" title="Close (Esc)" onclick={close}><svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" /></svg></button>
+                        </div>
                     </div>
 
                     {#if found}
@@ -487,7 +490,10 @@
                 </div>
             {:else if tag}
                 <form class="p-5" onsubmit={saveTag}>
-                    <h2 class="mb-1 text-lg font-semibold text-gray-900 dark:text-white">{saved ? "Saved" : "Name this device"}</h2>
+                    <div class="mb-1 flex items-center justify-between gap-3">
+                        <h2 class="mb-0 text-lg font-semibold text-gray-900 dark:text-white">{saved ? "Saved" : "Name this device"}</h2>
+                        <button type="button" class="-m-1 rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200" aria-label="Close" title="Close (Esc)" onclick={close}><svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" /></svg></button>
+                    </div>
                     <p class="mb-4 break-all font-mono text-xs text-gray-500 dark:text-gray-400">{[tag.id, tag.mac !== tag.id ? tag.mac : "", tag.rssi != null ? `${tag.rssi} dBm` : ""].filter(Boolean).join(" · ")}</p>
 
                     {#if saved}
