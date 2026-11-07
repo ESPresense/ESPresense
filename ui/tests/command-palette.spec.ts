@@ -93,6 +93,23 @@ test.describe('Command palette', () => {
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 	});
 
+	test('the close button shuts Find and the name form without a keyboard', async ({ page }) => {
+		await mockNode(page);
+		await open(page, '/devices');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		const dialog = page.getByRole('dialog', { name: 'Find a device' });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Close' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+
+		await page.goto('/fingerprints');
+		await page.getByRole('row', { name: /c1d2e3f4a5b6/ }).click();
+		const form = page.getByRole('dialog', { name: 'Name this device' });
+		await expect(form).toBeVisible();
+		await form.getByRole('button', { name: 'Close' }).click();
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	});
+
 	test('Escape from Find reached through Search steps back to Search, then closes', async ({ page }) => {
 		await mockNode(page);
 		await open(page, '/');
