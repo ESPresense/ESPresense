@@ -6,6 +6,11 @@ if(FW_ENV MATCHES "-verbose$")
   list(APPEND FW_DEFS LOG_LEVEL_DEBUG)
 endif()
 
+# Dev-only raw CSI capture (ESPA-483): never built into a normal env, see CsiMotion.cpp.
+if(FW_ENV MATCHES "-csicap$")
+  list(APPEND FW_DEFS CSI_CAPTURE_DEBUG)
+endif()
+
 if(FW_ENV MATCHES "^esp32c3")
   list(APPEND FW_DEFS ESP32C3)
 elseif(FW_ENV MATCHES "^esp32c6")
