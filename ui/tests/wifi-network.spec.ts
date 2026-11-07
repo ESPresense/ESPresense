@@ -205,7 +205,7 @@ test('should display SSID with extended characters', async ({ page }) => {
   await expect(ssidInput).toHaveValue('Darrell’s iPhone');
 });
 
-test('MQTT TLS: CA field shows only for an mqtts:// server, and is always saved', async ({ page }) => {
+test('MQTT TLS: CA field always shows, and is always saved', async ({ page }) => {
   let posted: URLSearchParams | undefined;
   // A function, so TypeScript doesn't narrow posted to undefined after it is reset below.
   const sent = (key: string) => posted?.get(key);
@@ -223,19 +223,20 @@ test('MQTT TLS: CA field shows only for an mqtts:// server, and is always saved'
   await page.goto('/network');
 
   const ca = page.getByLabel('CA certificate (optional)');
-  await expect(ca).toBeHidden();
+  await expect(ca).toBeVisible();
   // One box: no separate port or TLS fields.
   await expect(page.getByLabel('Port', { exact: true })).toHaveCount(0);
   await expect(page.getByLabel('Use TLS (MQTTS)')).toHaveCount(0);
 
-  // Hidden, the CA is still posted.
+  // With a plain mqtt:// server, the CA is still posted unchanged.
   await page.getByRole('button', { name: /save/i }).click();
   await expect.poll(() => sent('mqtt_ca')).toBe('KEEP');
   expect(sent('mqtt_port')).toBeNull();
   expect(sent('mqtt_tls')).toBeNull();
+  // The save reloads the settings once it's posted; wait it out, or the reload undoes the edit below.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 
   await page.getByLabel('Server').fill('MQTTS://mqtt.local:9883');
-  await expect(ca).toBeVisible();
 
   posted = undefined;
   await page.getByRole('button', { name: /save/i }).click();

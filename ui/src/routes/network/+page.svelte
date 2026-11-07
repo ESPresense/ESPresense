@@ -7,8 +7,6 @@
     let s = $state(false);
     let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
-    // The firmware's rule (MqttUrl.h): mqtts:// is TLS; a bare hostname is mqtt://.
-    let mqttTls = $derived(/^mqtts:\/\//i.test(($mainSettings?.values.mqtt_host || $mainSettings?.defaults.mqtt_host || "")));
     let isScanning = $state(false);
     // Each /wifi/scan is a blocking active scan on the node: every channel, with probe requests,
     // and the radio is off BLE meanwhile. So scan a few times for a stable list, then stop until asked.
@@ -206,11 +204,10 @@
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">A hostname or IP (port 1883), or a URL: <code>mqtts://broker</code> for TLS on 8883, <code>mqtt://broker:1884</code> for another port.</p>
             </div>
 
-            <!-- Hidden, not removed, unless the server is mqtts://: the CA stays in the form and is saved unchanged. -->
-            <div hidden={!mqttTls}>
+            <div>
                 <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
                 <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Used only for an <code>mqtts://</code> server. Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
             </div>
 
             <div>
