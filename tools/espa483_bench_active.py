@@ -21,13 +21,21 @@ import serial
 
 IP_PATTERN = re.compile(r"IP address:\s*(\d+\.\d+\.\d+\.\d+)")
 BLE_PATTERN = re.compile(r"^\d+ (New|Del) ")
+ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
 BOOT_TIMEOUT_SECS = 90
+
+
+def strip_ansi(line):
+    # Del lines come out color-coded (tools/Logger.h); the leading escape defeats
+    # BLE_PATTERN's ^\d+ anchor and silently drops every one -- confirmed by comparing
+    # against a raw sample where "New" was never colored but "Del" always was.
+    return ANSI_PATTERN.sub("", line)
 
 
 def wait_for_ip(ser, timeout=BOOT_TIMEOUT_SECS):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        line = ser.readline().decode("utf-8", "replace").strip()
+        line = strip_ansi(ser.readline().decode("utf-8", "replace").strip())
         if not line:
             continue
         print(f"  serial: {line}", file=sys.stderr)
@@ -72,7 +80,7 @@ def count_adverts(ser, duration):
     other_lines = 0
     deadline = time.monotonic() + duration
     while time.monotonic() < deadline:
-        line = ser.readline().decode("utf-8", "replace").strip()
+        line = strip_ansi(ser.readline().decode("utf-8", "replace").strip())
         if not line:
             continue
         m = BLE_PATTERN.match(line)
