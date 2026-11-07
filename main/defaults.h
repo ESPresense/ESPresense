@@ -33,11 +33,8 @@
 // Define the base topic for room detection. Usually "espresense"
 #define CHANNEL "espresense"
 
-// Replace with your MQTT Broker address
+// Replace with your MQTT Broker: a hostname (mqtt://, port 1883) or a URL like mqtts://host:8883
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
-
-// Replace with your MQTT Broker port
-#define DEFAULT_MQTT_PORT 1883
 
 // Replace with your MQTT Broker user
 #define DEFAULT_MQTT_USER ""

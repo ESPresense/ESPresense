@@ -4,6 +4,11 @@
     import type { MainSettings } from "#lib/types.js";
     import { saveSettingsWithRetry } from "#lib/utils/settings.js";
 
+    // What the firmware takes (MqttUrl.h): an optional mqtt:// or mqtts://, then a host with an
+    // optional port 1-65535, a [bracketed] IPv6 with an optional port, or a bare IPv6 address.
+    const port = String.raw`(?::(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3}))?`;
+    const serverPattern = String.raw`(?:[Mm][Qq][Tt][Tt][Ss]?:\/\/)?(?:(?:\[[0-9A-Fa-f:.]+\]|[^:\/\[\]]+)${port}|[0-9A-Fa-f.]*:[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*)`;
+
     let s = $state(false);
     let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
@@ -200,29 +205,14 @@
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>
                 <label for="mqtt-host" class="block text-sm font-medium">Server</label>
-                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} spellcheck="false" autocapitalize="off" pattern={serverPattern} title="A hostname or IP, host:port, or an mqtt:// or mqtts:// URL" class="mt-1 block w-full rounded-md" />
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">A hostname or IP (port 1883), or a URL: <code>mqtts://broker</code> for TLS on 8883, <code>mqtt://broker:1884</code> for another port.</p>
             </div>
 
             <div>
-                <label for="mqtt-port" class="block text-sm font-medium">Port</label>
-                <input id="mqtt-port" type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
-                {#if $mainSettings.values.mqtt_tls && Number($mainSettings.values.mqtt_port || $mainSettings.defaults.mqtt_port) === 1883}
-                    <p class="text-sm text-gray-600 dark:text-gray-300">TLS brokers usually listen on 8883.</p>
-                {/if}
-            </div>
-
-            <div class="space-y-4">
-                <label for="mqtt-tls" class="flex items-center space-x-2">
-                    <input id="mqtt-tls" type="checkbox" name="mqtt_tls" value="1" bind:checked={$mainSettings.values.mqtt_tls} class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span>Use TLS (MQTTS)</span>
-                </label>
-
-                <!-- Hidden, not removed, while TLS is off: the CA stays in the form and is saved unchanged. -->
-                <div class="ml-6" hidden={!$mainSettings.values.mqtt_tls}>
-                    <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
-                    <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
-                    <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty for a broker with a publicly trusted certificate. The certificate must name the server as entered above, hostname or IP.</p>
-                </div>
+                <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
+                <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Used only for an <code>mqtts://</code> server. Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty if your broker's certificate chains to a common public CA; if it doesn't verify, paste that CA here. The broker's certificate must name the hostname or IP from the Server URL (without <code>mqtts://</code> or the port).</p>
             </div>
 
             <div>

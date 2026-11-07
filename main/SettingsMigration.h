@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "MqttUrl.h"
+
 struct MigrationDefaults {
     int legacyRxAdjRssi;     // the old rx_adj_rssi default for this chip
     int v4I2cSda, v4I2cScl;  // v4's default bus 1 pins for this chip, -1 if v4 had none
@@ -185,5 +187,31 @@ std::vector<std::string> migrateI2cBus(Get get, Put put) {
     }
     if (ok && put("i2c_bus_migrated", "1")) return done;
     done.push_back("a write failed; converting again next boot");
+    return done;
+}
+
+// MQTT broker as one URL (#2647). mqtt_port and mqtt_tls (v5.0.0b7) fold into mqtt_host as
+// mqtt[s]://host[:port], then are deleted (put(key, "") deletes). No marker file: it runs while
+// either key is stored, writes the URL before deleting them, and a stored URL wins, so a failed
+// write just finishes on the next boot. defaultHost is mqtt_host's default, for a node that set a
+// port or TLS but kept the default server.
+template <class Get, class Put>
+std::vector<std::string> migrateMqttUrl(Get get, Put put, const std::string& defaultHost) {
+    std::vector<std::string> done;
+    std::string port = get("mqtt_port"), tls = get("mqtt_tls");
+    if (port.empty() && tls.empty()) return done;
+    std::string host = get("mqtt_host");
+    bool useTls = strtol(tls.c_str(), nullptr, 10) != 0;
+    if (!MqttUrl::isUrl(host)) {
+        std::string url = MqttUrl::fromParts(host.empty() ? defaultHost : host, port, useTls);
+        if (url != MqttUrl::uri(host.empty() ? defaultHost : host)) {  // a bare host still means the same broker
+            if (!put("mqtt_host", url)) return {"a write failed; converting again next boot"};
+            done.push_back("mqtt_host=" + url);
+        }
+    }
+    bool ok = true;
+    if (!port.empty()) ok = put("mqtt_port", "") && ok;
+    if (!tls.empty()) ok = put("mqtt_tls", "") && ok;
+    if (!ok) done.push_back("couldn't delete mqtt_port/mqtt_tls; trying again next boot");
     return done;
 }
