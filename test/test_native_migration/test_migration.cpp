@@ -210,16 +210,12 @@ static void mqtt_url_helpers() {
 }
 
 static void mqtt_url_set_refusals() {
-    const std::string own = "espresense/rooms/office/mqtt-url/set";
-    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet(own, own, false, "mqtts://broker", "mqtt://broker").c_str());
-    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet(own, own, false, "MQTTS://broker:9883", "mqtt://broker").c_str());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("espresense/rooms/*/mqtt-url/set", own, false, "mqtts://broker", "mqtt://broker").size());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, true, "mqtts://broker", "mqtt://broker").size());  // retained
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "", "mqtt://broker").size());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "broker.lan", "mqtt://broker").size());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "wss://broker", "mqtt://broker").size());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "mqtts://", "mqtt://broker").size());
-    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "mqtt://broker", "mqtt://broker").size());
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet("mqtts://broker").c_str());
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet("MQTTS://broker:9883").c_str());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("broker.lan").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("wss://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("mqtts://").size());
 }
 
 int main(int, char**) {
