@@ -6,7 +6,6 @@
 #include <stdint.h>
 
 #include <algorithm>
-#include <cstring>
 
 #include "BleFingerprintCollection.h"
 #include "BleUuids.h"
@@ -242,8 +241,10 @@ void BleFingerprint::fingerprintServiceAdvertisements(const Ble::Advert *adverti
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
             return;
         } else if (Ble::uuidEq(uuid, oneKeyUUID)) {
-            // The id comes from this tag's iBeacon frame; this just marks the MAC as a ONE-KEY tag.
+            // Its iBeacon frame (UUID not tag-specific, rssi@1m bogus -120 dBm) is ignored; key by MAC and use the default 1 m reference.
             oneKey = true;
+            bcnRssi = NO_RSSI;
+            setId("onekey:" + getMac(), ID_TYPE_ONEKEY);
             return;
         } else if (Ble::uuidEq(uuid, itagUUID)) {
             asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : ITAG_TX);
@@ -351,11 +352,6 @@ void BleFingerprint::fingerprintServiceData(const Ble::Advert *advertisedDevice,
 
 // Beacon payload (iBeacon and AltBeacon share the layout after the 4-byte prefix):
 // [4..19] uuid big-endian, [20..21] major, [22..23] minor, [24] rssi@1m.
-// Milwaukee ONE-KEY trackers send an iBeacon with major/minor 0 and rssi@1m -120 dBm (#2610).
-// This is the UUID seen on one tag; other tags are also caught via their ONE-KEY service frame.
-static const uint8_t oneKeyBeaconUuid[16] = {0xf3, 0x4e, 0xba, 0xc4, 0x7c, 0xd7, 0x40, 0x27,
-                                                0x87, 0x8e, 0x55, 0xf4, 0xe7, 0x1d, 0x03, 0x09};
-
 static std::string beaconUuid(const uint8_t *d) {
     return Sprintf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
                    d[4], d[5], d[6], d[7], d[8], d[9], d[10], d[11], d[12], d[13], d[14], d[15], d[16], d[17], d[18], d[19]);
@@ -373,10 +369,8 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
 
         if (manuf == "004c")  // Apple
         {
-            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15 && (oneKey || !memcmp(d + 4, oneKeyBeaconUuid, 16))) {
-                // Key by UUID only (major/minor are 0); its rssi@1m is bogus, so drop it and use the default 1 m reference.
-                bcnRssi = NO_RSSI;
-                setId("onekey:" + beaconUuid(d), ID_TYPE_ONEKEY);
+            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15 && oneKey) {
+                bcnRssi = NO_RSSI;  // ONE-KEY tag: ignore its iBeacon identity and bogus rssi@1m (see service UUID branch)
             } else if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
