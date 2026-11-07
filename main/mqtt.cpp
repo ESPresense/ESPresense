@@ -60,7 +60,12 @@ void stopPruning(void*) {
     if (!ownDiscoveryFilter.empty() && client) pruneUnsubscribeId = esp_mqtt_client_unsubscribe(client, ownDiscoveryFilter.c_str());
 }
 
+// The client's task, for its stack high-water mark. The client is never destroyed, so the
+// handle stays valid once the first event has run on it.
+TaskHandle_t mqttTask = nullptr;
+
 void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
+    if (!mqttTask) mqttTask = xTaskGetCurrentTaskHandle();
     auto* ev = (esp_mqtt_event_handle_t)data;
     switch ((esp_mqtt_event_id_t)id) {
         case MQTT_EVENT_CONNECTED:
@@ -157,7 +162,9 @@ void Setup(const std::string& uri, const std::string& user, const std::string& p
     cfg.network.reconnect_timeout_ms = 3000;
     cfg.network.timeout_ms = 10000;
     cfg.buffer.size = 1024;
-    cfg.task.stack_size = tls ? 6144 : 5120;  // the TLS handshake runs on this task
+    // The TLS handshake runs on this task. Measured (#2595, ESP32): ~1,124 bytes used plain,
+    // ~3,080 with TLS (P-256). Telemetry reports what's left as mqttStack.
+    cfg.task.stack_size = tls ? 5632 : 4608;
     client = esp_mqtt_client_init(&cfg);
     if (!client) {  // e.g. a URL esp-mqtt can't parse; the node stays up so it can be fixed
         Log.printf("MQTT: can't use server %s\n", sUri.c_str());
@@ -173,6 +180,8 @@ bool configured() { return client != nullptr; }
 void reconnect() {
     if (client && !isConnected) esp_mqtt_client_reconnect(client);
 }
+
+UBaseType_t stackLeft() { return mqttTask ? uxTaskGetStackHighWaterMark(mqttTask) : 0; }
 }  // namespace Mqtt
 
 bool pub(const char* topic, uint8_t qos, bool retain, const char* payload, size_t length) {
