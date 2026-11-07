@@ -142,7 +142,7 @@ class BleFingerprint {
    private:
     static SemaphoreHandle_t fieldMutex;
 
-    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, hasBcnUuid = false, oneKey = false;
+    bool added = false, close = false, reported = false, ignore = false, allowQuery = false, isQuerying = false, hidden = false, connectable = false, countable = false, counting = false, isNode = false, hasBcnUuid = false;
     uint16_t bcnCrc = 0;  // CRC-16 of the locked iBeacon UUID; sits in the padding after the flags
     uint64_t nextReportMs = 0;
     ble_addr_t address;
