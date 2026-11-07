@@ -8,6 +8,7 @@
 
 #include "CsiWindow.h"
 #include "Settings.h"
+#include "esp_timer.h"
 #include "esp_wifi.h"
 #include "globals.h"
 #include "mqtt.h"
@@ -46,6 +47,13 @@ namespace CsiMotion
     static bool enabled = false;
 #ifdef CSI_CAPTURE_DEBUG
     static bool capture = false;
+    // ESPA-483 active-sensing trial: null-data frames to the AP at a fixed rate, to see whether
+    // they induce denser CSI soundings than whatever traffic the AP already carries. Capped at
+    // ESpectre's own ceiling (100pps) even though the trial rates DT asked for are 20 and 50;
+    // 0 keeps the node fully passive.
+    static long activePps = 0;
+    static esp_timer_handle_t activeTimer = nullptr;
+    static uint8_t staMac[6] = {0};
 #endif
     static bool armed = false;
     static unsigned long armedAt = 0;
@@ -177,6 +185,23 @@ namespace CsiMotion
         }
         Log.println(line);
     }
+
+    // One non-QoS Null Data frame (24 bytes, no payload) to the AP this node is already
+    // associated with -- a standard STA keep-alive primitive, not traffic to a device the user
+    // didn't pick. en_sys_seq=true leaves sequencing to the driver; FCS is appended by the radio.
+    // Duration left at 0: the on-air time of a frame this short is negligible either way.
+    static void sendNullFrame(void*)
+    {
+        const uint64_t mac = apMac.load(std::memory_order_relaxed);
+        if (!mac) return;
+        uint8_t bssid[6];
+        memcpy(bssid, &mac, 6);
+        uint8_t frame[24] = {0x48, 0x01, 0x00, 0x00};
+        memcpy(frame + 4, bssid, 6);   // Addr1: RA = BSSID
+        memcpy(frame + 10, staMac, 6); // Addr2: TA = us
+        memcpy(frame + 16, bssid, 6);  // Addr3: BSSID
+        esp_wifi_80211_tx(WIFI_IF_STA, frame, sizeof(frame), true);
+    }
 #endif
 
     void ConnectToWifi(bool updating)
@@ -184,6 +209,8 @@ namespace CsiMotion
         enabled = Settings::checkbox("csi_enable", false, "WiFi CSI movement sensor (experimental)");
 #ifdef CSI_CAPTURE_DEBUG
         capture = Settings::checkbox("csi_capture", false, "Dump raw CSI amplitudes to the TCP log (dev build only)");
+        activePps = Settings::integer("csi_active_pps", 0, 100, 0,
+            "Null-data frames/sec sent to the AP to induce denser CSI soundings (dev build only, 0 = passive)");
 #endif
         if (!enabled || updating) { enabled = false; return; }
         kinds.reset(new (std::nothrow) Kind[kKinds]);
@@ -192,6 +219,18 @@ namespace CsiMotion
             Log.println("CSI: not enough memory");
             enabled = false;
         }
+#ifdef CSI_CAPTURE_DEBUG
+        if (enabled && activePps > 0) {
+            esp_wifi_get_mac(WIFI_IF_STA, staMac);
+            if (!activeTimer) {
+                esp_timer_create_args_t targs = {};
+                targs.callback = &sendNullFrame;
+                targs.name = "csiActiveTx";
+                esp_timer_create(&targs, &activeTimer);
+            }
+            if (activeTimer) esp_timer_start_periodic(activeTimer, 1000000 / activePps);
+        }
+#endif
     }
 
     void SerialReport()
