@@ -159,7 +159,7 @@ void Setup(const std::string& uri, const std::string& user, const std::string& p
     cfg.buffer.size = 1024;
     cfg.task.stack_size = tls ? 6144 : 5120;  // the TLS handshake runs on this task
     client = esp_mqtt_client_init(&cfg);
-    if (!client) {  // e.g. a URL esp-mqtt can't parse; the reconnect timer restarts the node
+    if (!client) {  // e.g. a URL esp-mqtt can't parse; the node stays up so it can be fixed
         Log.printf("MQTT: can't use server %s\n", sUri.c_str());
         return;
     }
@@ -168,6 +168,7 @@ void Setup(const std::string& uri, const std::string& user, const std::string& p
 }
 
 bool connected() { return isConnected; }
+bool configured() { return client != nullptr; }
 
 void reconnect() {
     if (client && !isConnected) esp_mqtt_client_reconnect(client);

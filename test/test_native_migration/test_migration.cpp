@@ -198,6 +198,8 @@ static void mqtt_failed_write_keeps_the_old_keys() {
 static void mqtt_url_helpers() {
     TEST_ASSERT_EQUAL_STRING("mqtt://broker.lan", MqttUrl::uri("broker.lan").c_str());
     TEST_ASSERT_EQUAL_STRING("mqtt://[fd00::5]", MqttUrl::uri("fd00::5").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtt://broker.lan:1884", MqttUrl::uri("broker.lan:1884").c_str());
+    TEST_ASSERT_EQUAL_STRING("mqtt://10.0.0.5:1884", MqttUrl::uri("10.0.0.5:1884").c_str());
     TEST_ASSERT_EQUAL_STRING("mqtts://b:9883", MqttUrl::uri("mqtts://b:9883").c_str());
     TEST_ASSERT_TRUE(MqttUrl::tls("mqtts://b"));
     TEST_ASSERT_TRUE(MqttUrl::tls("MQTTS://b"));

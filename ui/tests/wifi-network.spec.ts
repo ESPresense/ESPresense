@@ -236,7 +236,14 @@ test('MQTT TLS: CA field always shows, and is always saved', async ({ page }) =>
   // The save reloads the settings once it's posted; wait it out, or the reload undoes the edit below.
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
 
+  // WebSocket isn't built in, so the field refuses it; host:port is fine.
+  const server = page.getByLabel('Server');
+  await server.fill('ws://mqtt.local');
+  expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(false);
+  await server.fill('mqtt.local:1884');
+  expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
   await page.getByLabel('Server').fill('MQTTS://mqtt.local:9883');
+  expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
 
   posted = undefined;
   await page.getByRole('button', { name: /save/i }).click();

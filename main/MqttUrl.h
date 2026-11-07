@@ -10,9 +10,11 @@
 
 namespace MqttUrl {
 
-// A bare IPv6 address needs brackets in a URL.
+// A bare IPv6 address needs brackets in a URL. One colon is host:port, so it's left alone.
 inline std::string bracketed(const std::string& host) {
-    return !host.empty() && host.front() != '[' && host.find(':') != std::string::npos ? "[" + host + "]" : host;
+    auto first = host.find(':');
+    bool ipv6 = first != std::string::npos && host.find(':', first + 1) != std::string::npos;
+    return !host.empty() && host.front() != '[' && ipv6 ? "[" + host + "]" : host;
 }
 
 inline bool isUrl(const std::string& server) { return server.find("://") != std::string::npos; }

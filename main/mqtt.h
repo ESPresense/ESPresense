@@ -17,6 +17,8 @@ namespace Mqtt {
 void Setup(const std::string& uri, const std::string& user, const std::string& pass,
            const std::string& clientId, const std::string& willTopic, std::string caPem);
 bool connected();
+// False when there's no client: the server setting couldn't be used, so reconnecting won't help.
+bool configured();
 void reconnect();
 // After discovery: listen to this node's retained discovery configs for 2 s and delete any
 // it didn't just announce (removed inputs/outputs, disabled sensors, pre-v5 entities).

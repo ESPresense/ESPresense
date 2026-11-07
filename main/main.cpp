@@ -375,7 +375,8 @@ void onMqttMessage(const char *topic, const char *payload) {
 // Every 3 s: bring the network back if it dropped, kick MQTT, and give up (restart) after 50
 // tries. esp_mqtt reconnects on its own once the network is up; this is the backstop.
 void reconnect(TimerHandle_t) {
-    if (Network::isOnline() && Mqtt::connected()) {
+    // No client means the server setting is unusable (e.g. ws://); restarting wouldn't fix it.
+    if (Network::isOnline() && (Mqtt::connected() || !Mqtt::configured())) {
         reconnectTries = 0;
         return;
     }
@@ -394,6 +395,7 @@ void reconnect(TimerHandle_t) {
 }
 
 void connectToMqtt() {
+    if (!MqttUrl::supported(mqttUri)) return;  // logged at setup; no client, so the UI stays up to fix it
     Mqtt::Setup(mqttUri, mqttUser, mqttPass, Network::hostname(), statusTopic, std::move(mqttCa));
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     xTimerStart(reconnectTimer, 0);
