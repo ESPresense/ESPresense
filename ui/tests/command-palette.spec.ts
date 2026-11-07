@@ -84,6 +84,28 @@ test.describe('Command palette', () => {
 		await expect(page.getByRole('dialog')).toHaveCount(0);
 	});
 
+	test('Escape from Find opened by the Devices page closes it in one press', async ({ page }) => {
+		await mockNode(page);
+		await open(page, '/devices');
+		await page.getByRole('button', { name: 'Find a device' }).click();
+		await expect(page.getByRole('dialog', { name: 'Find a device' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	});
+
+	test('Escape from Find reached through Search steps back to Search, then closes', async ({ page }) => {
+		await mockNode(page);
+		await open(page, '/');
+		await page.keyboard.press(`${mod}+k`);
+		await page.getByRole('dialog').getByRole('combobox').fill('find');
+		await page.keyboard.press('Enter');
+		await expect(page.getByRole('dialog', { name: 'Find a device' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog', { name: 'Search' })).toBeVisible();
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('dialog')).toHaveCount(0);
+	});
+
 	test('finds configured devices and saves a new name', async ({ page }) => {
 		const posts = await mockNode(page);
 		await open(page, '/');

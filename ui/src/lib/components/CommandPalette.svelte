@@ -67,6 +67,19 @@
         palette.set(next);
     }
 
+    // Whether this opening of the palette passed through Search. Find and Tag step back to
+    // Search only then; opened straight from a page button, they close instead.
+    let fromSearch = $state(false);
+    $effect(() => {
+        if (!$palette) fromSearch = false;
+        else if ($palette.view === "search") fromSearch = true;
+    });
+
+    function back() {
+        if ($palette?.view !== "search" && fromSearch) show({ view: "search" });
+        else close();
+    }
+
     function tagFingerprint(d: Device) {
         tagSeen(d, configList?.configs);
     }
@@ -315,9 +328,7 @@
         }
         if (e.key === "Escape") {
             e.preventDefault();
-            // Escape steps back to search before it closes.
-            if ($palette.view === "search") close();
-            else show({ view: "search" });
+            back();
         }
     }
 
@@ -515,7 +526,7 @@
                         {#if saveError}<p class="mt-3 text-sm text-red-600 dark:text-red-400">{saveError}</p>
                         {:else if configList === null}<p class="mt-3 text-sm text-red-600 dark:text-red-400">Can't read this node's devices, so saving is off. Check the connection and try again.</p>{/if}
                         <div class="mt-5 flex justify-end gap-2">
-                            <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={() => show({ view: "search" })}>Back</button>
+                            <button type="button" class="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" onclick={back}>{fromSearch ? "Back" : "Cancel"}</button>
                             <button type="submit" class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={!tagName.trim() || savingTag || !configsReady}>{savingTag ? "Saving…" : "Save"}</button>
                         </div>
                     {/if}
