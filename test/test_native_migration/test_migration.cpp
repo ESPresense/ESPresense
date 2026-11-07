@@ -209,6 +209,15 @@ static void mqtt_url_helpers() {
     TEST_ASSERT_TRUE(MqttUrl::supported(MqttUrl::uri("broker.lan")));
 }
 
+static void mqtt_url_set_refusals() {
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet("mqtts://broker").c_str());
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet("MQTTS://broker:9883").c_str());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("broker.lan").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("wss://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("mqtts://").size());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
@@ -230,5 +239,6 @@ int main(int, char**) {
     RUN_TEST(mqtt_stored_url_wins);
     RUN_TEST(mqtt_failed_write_keeps_the_old_keys);
     RUN_TEST(mqtt_url_helpers);
+    RUN_TEST(mqtt_url_set_refusals);
     return UNITY_END();
 }

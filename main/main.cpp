@@ -330,6 +330,24 @@ void setupNetwork() {
     Updater::MarkOtaSuccess();
 }
 
+// mqtt-url/set: move to another broker, then restart. Works from the wildcard topic and retained
+// messages, so one retained publish moves the fleet; the URL already in use is a no-op, so the
+// retained message doesn't restart the node again.
+static void setMqttUrl(const std::string &url) {
+    if (url == mqttUri) return;
+    auto why = MqttUrl::refuseSet(url);
+    if (!why.empty()) {
+        Log.printf("MQTT server %s refused: %s\n", url.c_str(), why.c_str());
+        return;
+    }
+    if (!spurt("/mqtt_host", url)) {
+        Log.println("MQTT server change not saved (write failed)");
+        return;
+    }
+    Log.printf("MQTT server changing to %s; restarting\n", url.c_str());
+    esp_restart();
+}
+
 void onMqttMessage(const char *topic, const char *payload) {
     std::string const top = topic;
     std::string pay = payload;
@@ -353,6 +371,8 @@ void onMqttMessage(const char *topic, const char *payload) {
             esp_restart();
         else if (command == "wifi-ssid" || command == "wifi-password")
             spurt("/" + command, pay);
+        else if (command == "mqtt-url")
+            setMqttUrl(pay);
         else if (command == "name")
             spurt("/room", pay.empty() ? ESPMAC : pay);
         else if (GUI::Command(command, pay))

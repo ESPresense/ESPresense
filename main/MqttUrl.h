@@ -49,4 +49,12 @@ inline std::string fromParts(const std::string& host, const std::string& port, b
     return url;
 }
 
+// Why an mqtt-url/set value is refused, or "" to use it.
+inline std::string refuseSet(const std::string& url) {
+    if (!isUrl(url)) return "needs a URL, like mqtts://broker";
+    if (!supported(url)) return "only mqtt:// and mqtts:// are supported";
+    if (url.size() <= scheme(url).size() + 3) return "no host";
+    return "";
+}
+
 }  // namespace MqttUrl
