@@ -16,7 +16,7 @@
 #include "string_utils.h"
 
 // Defined in main.cpp: full-message dispatch and the online and discovery flags.
-void onMqttMessage(const char* topic, const char* payload);
+void onMqttMessage(const char* topic, const char* payload, bool retained);
 extern bool online, sentDiscovery;
 extern int reconnectTries;
 extern std::string setTopic, configTopic;
@@ -29,6 +29,7 @@ namespace {
 esp_mqtt_client_handle_t client = nullptr;
 bool isConnected = false;
 std::string topicBuffer, payloadBuffer;
+bool retainedMessage = false;  // only the first chunk carries the flag
 
 std::string ownDiscoveryFilter;  // <prefix>/+/espresense_<chip>/+/config while subscribed
 esp_timer_handle_t pruneTimer = nullptr;
@@ -102,12 +103,13 @@ void onEvent(void*, esp_event_base_t, int32_t id, void* data) {
             // Large messages arrive in chunks; the topic only comes with the first one.
             if (ev->current_data_offset == 0) {
                 topicBuffer.assign(ev->topic, ev->topic_len);
+                retainedMessage = ev->retain;
                 payloadBuffer.clear();
                 payloadBuffer.reserve(ev->total_data_len);
             }
             payloadBuffer.append(ev->data, ev->data_len);
             if (ev->current_data_offset + ev->data_len >= ev->total_data_len) {
-                onMqttMessage(topicBuffer.c_str(), payloadBuffer.c_str());
+                onMqttMessage(topicBuffer.c_str(), payloadBuffer.c_str(), retainedMessage);
                 payloadBuffer.clear();
                 payloadBuffer.shrink_to_fit();
             }
