@@ -209,6 +209,19 @@ static void mqtt_url_helpers() {
     TEST_ASSERT_TRUE(MqttUrl::supported(MqttUrl::uri("broker.lan")));
 }
 
+static void mqtt_url_set_refusals() {
+    const std::string own = "espresense/rooms/office/mqtt-url/set";
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet(own, own, false, "mqtts://broker", "mqtt://broker").c_str());
+    TEST_ASSERT_EQUAL_STRING("", MqttUrl::refuseSet(own, own, false, "MQTTS://broker:9883", "mqtt://broker").c_str());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet("espresense/rooms/*/mqtt-url/set", own, false, "mqtts://broker", "mqtt://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, true, "mqtts://broker", "mqtt://broker").size());  // retained
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "", "mqtt://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "broker.lan", "mqtt://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "wss://broker", "mqtt://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "mqtts://", "mqtt://broker").size());
+    TEST_ASSERT_NOT_EQUAL(0, MqttUrl::refuseSet(own, own, false, "mqtt://broker", "mqtt://broker").size());
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(fresh_install_only_marks_itself);
@@ -230,5 +243,6 @@ int main(int, char**) {
     RUN_TEST(mqtt_stored_url_wins);
     RUN_TEST(mqtt_failed_write_keeps_the_old_keys);
     RUN_TEST(mqtt_url_helpers);
+    RUN_TEST(mqtt_url_set_refusals);
     return UNITY_END();
 }

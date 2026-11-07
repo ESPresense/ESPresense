@@ -49,4 +49,17 @@ inline std::string fromParts(const std::string& host, const std::string& port, b
     return url;
 }
 
+// Why mqtt-url/set is refused, or "" to go ahead. Only this node's own topic, never a retained
+// message, so one stray publish can't move the whole fleet.
+inline std::string refuseSet(const std::string& topic, const std::string& ownTopic, bool retained,
+                             const std::string& url, const std::string& currentUri) {
+    if (topic != ownTopic) return "only on this node's own topic, not a wildcard";
+    if (retained) return "not from a retained message";
+    if (!isUrl(url)) return "needs a URL, like mqtts://broker";
+    if (!supported(url)) return "only mqtt:// and mqtts:// are supported";
+    if (url.size() <= scheme(url).size() + 3) return "no host";
+    if (url == currentUri) return "already the server";
+    return "";
+}
+
 }  // namespace MqttUrl

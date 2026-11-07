@@ -4,15 +4,7 @@
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 
-#include "MqttUrlChange.h"
 #include "SettingsMigration.h"
-
-static std::string getSetting(const std::string &key) { return Settings::slurp("/" + key); }
-static bool putSetting(const std::string &key, const std::string &value) { return Settings::spurt("/" + key, value); }
-
-// A broker change sent over MQTT (MqttUrlChange.h): on trial until it connects.
-static bool mqttTrial = false;
-static std::string mqttFailed;  // a broker change that was rolled back, not yet reported
 
 // app0 size tells a Tasmota v11 layout (0x1D0000, left by SwitchbOTA) apart from ESPresense's own (0x1E0000)
 static const esp_partition_t *app0Partition() {
@@ -338,21 +330,18 @@ void setupNetwork() {
     Updater::MarkOtaSuccess();
 }
 
-// mqtt-url/set: move to another broker, on trial. Restarts to use it.
+// mqtt-url/set: move to another broker. Restarts to use it.
 static void setMqttUrl(const std::string &topic, const std::string &url, bool retained) {
-    auto why = MqttUrlChange::refuse(topic, roomsTopic + "/mqtt-url/set", retained, url, mqttUri);
+    auto why = MqttUrl::refuseSet(topic, roomsTopic + "/mqtt-url/set", retained, url, mqttUri);
     if (!why.empty()) {
-        Log.printf("MQTT server %s refused: %s\n", MqttUrlChange::redact(url).c_str(), why.c_str());
+        Log.printf("MQTT server %s refused: %s\n", url.c_str(), why.c_str());
         return;
     }
-    if (!MqttUrlChange::apply(putSetting, mqttUri, url)) {
-        // mqtt_host may be half written: put the current server back, which is the same broker.
-        putSetting(MqttUrlChange::kHost, mqttUri);
-        MqttUrlChange::clear(putSetting);
+    if (!spurt("/mqtt_host", url)) {
         Log.println("MQTT server change not saved (write failed)");
         return;
     }
-    Log.printf("MQTT server changing to %s; restarting\n", MqttUrlChange::redact(url).c_str());
+    Log.printf("MQTT server changing to %s; restarting\n", url.c_str());
     esp_restart();
 }
 
@@ -397,34 +386,6 @@ void onMqttMessage(const char *topic, const char *payload, bool retained) {
     } else {
     skip:
         Log.printf("%u Unknown| %s to %s\n", (unsigned)xPortGetCoreID(), topic, payload);
-    }
-}
-
-// Keeps a broker change once it connects, or goes back to the old broker; then reports a
-// change that was rolled back, retained, so it's there to find later.
-static void mqttUrlLoop() {
-    static MqttUrlChange::Clock clock;
-    if (mqttTrial) {
-        switch (MqttUrlChange::step(Mqtt::connected(), Network::isOnline(), millis(), clock)) {
-            case MqttUrlChange::Step::Commit:
-                mqttTrial = false;
-                Log.println(MqttUrlChange::clear(putSetting) ? "MQTT server change kept" : "MQTT server change: couldn't save; on trial again next boot");
-                pub((roomsTopic + "/mqtt-url-failed").c_str(), 1, true, "");
-                break;
-            case MqttUrlChange::Step::Rollback:
-                Log.printf("MQTT server %s didn't connect within %lu s; going back to %s\n", MqttUrlChange::redact(getSetting(MqttUrlChange::kTrial)).c_str(),
-                           MqttUrlChange::trialMs / 1000, MqttUrlChange::redact(getSetting(MqttUrlChange::kPrev)).c_str());
-                if (!MqttUrlChange::rollback(getSetting, putSetting)) Log.println("MQTT server rollback: a write failed; trying again next boot");
-                esp_restart();
-                break;
-            case MqttUrlChange::Step::Wait:
-                break;
-        }
-    }
-    if (!mqttFailed.empty() && Mqtt::connected() &&
-        pub((roomsTopic + "/mqtt-url-failed").c_str(), 1, true, MqttUrlChange::redact(mqttFailed).c_str())) {
-        putSetting(MqttUrlChange::kFailed, "");
-        mqttFailed.clear();
     }
 }
 
@@ -608,19 +569,6 @@ void setup() {
              [](const std::string& key, const std::string& value) { return Settings::spurt("/" + key, value); },
              DEFAULT_MQTT_HOST))
         Log.printf("MQTT settings converted: %s\n", change.c_str());
-    switch (MqttUrlChange::atBoot(getSetting)) {
-        case MqttUrlChange::Boot::Trial:
-            mqttTrial = true;
-            Log.printf("MQTT server %s on trial; back to %s if it doesn't connect\n", MqttUrlChange::redact(getSetting(MqttUrlChange::kTrial)).c_str(),
-                       MqttUrlChange::redact(getSetting(MqttUrlChange::kPrev)).c_str());
-            break;
-        case MqttUrlChange::Boot::Stale:
-            MqttUrlChange::clear(putSetting);
-            break;
-        case MqttUrlChange::Boot::None:
-            break;
-    }
-    mqttFailed = getSetting(MqttUrlChange::kFailed);
     Network::Setup();
 
     GUI::Setup(true);
@@ -668,7 +616,6 @@ void setup() {
  */
 void loop() {
     reportLoop();
-    mqttUrlLoop();
     static unsigned long lastSlowLoop = 0;
     if (millis() - lastSlowLoop > 5000) {
         lastSlowLoop = millis();
