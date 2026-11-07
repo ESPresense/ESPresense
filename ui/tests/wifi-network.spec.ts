@@ -238,10 +238,11 @@ test('MQTT TLS: CA field always shows, and is always saved', async ({ page }) =>
 
   // WebSocket isn't built in, so the field refuses it; host:port is fine.
   const server = page.getByLabel('Server');
-  await server.fill('ws://mqtt.local');
-  expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(false);
-  await server.fill('mqtt.local:1884');
-  expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
+  const valid = async (value: string) => { await server.fill(value); return server.evaluate((el: HTMLInputElement) => el.validity.valid); };
+  for (const ok of ['mqtt.local', 'mqtt.local:1884', '10.0.0.5:65535', 'mqtts://b', 'MQTT://b:1', 'fd00::5', '[fd00::5]:1884', 'mqtts://[fd00::5]'])
+    expect(await valid(ok), ok).toBe(true);
+  for (const bad of ['ws://mqtt.local', 'wss://b', 'mqtt.local:abc', 'mqtts://broker:65536', 'b:0', 'mqtt://b/path', 'b:'])
+    expect(await valid(bad), bad).toBe(false);
   await page.getByLabel('Server').fill('MQTTS://mqtt.local:9883');
   expect(await server.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(true);
 

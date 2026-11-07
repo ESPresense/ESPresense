@@ -372,12 +372,23 @@ void onMqttMessage(const char *topic, const char *payload) {
     }
 }
 
+// An unsupported scheme (logged at startup) gets no client, so the node and its UI stay up to fix it.
+void setupMqtt() {
+    if (MqttUrl::supported(mqttUri)) Mqtt::Setup(mqttUri, mqttUser, mqttPass, Network::hostname(), statusTopic, mqttCa);
+}
+
 // Every 3 s: bring the network back if it dropped, kick MQTT, and give up (restart) after 50
 // tries. esp_mqtt reconnects on its own once the network is up; this is the backstop.
 void reconnect(TimerHandle_t) {
-    // No client means the server setting is unusable (e.g. ws://); restarting wouldn't fix it.
-    if (Network::isOnline() && (Mqtt::connected() || !Mqtt::configured())) {
+    if (Network::isOnline() && Mqtt::connected()) {
         reconnectTries = 0;
+        return;
+    }
+    // No client: the server setting is unusable (ws://, a bad port) or setup ran short of memory.
+    // Retry setup, which recovers the latter; a restart wouldn't fix a bad setting.
+    if (Network::isOnline() && !Mqtt::configured()) {
+        reconnectTries = 0;
+        setupMqtt();
         return;
     }
     Log.printf("%u Reconnect timer\n", (unsigned)xPortGetCoreID());
@@ -395,8 +406,8 @@ void reconnect(TimerHandle_t) {
 }
 
 void connectToMqtt() {
-    if (!MqttUrl::supported(mqttUri)) return;  // logged at setup; no client, so the UI stays up to fix it
-    Mqtt::Setup(mqttUri, mqttUser, mqttPass, Network::hostname(), statusTopic, std::move(mqttCa));
+    setupMqtt();
+    // Always started: besides MQTT, it brings the network back.
     reconnectTimer = xTimerCreate("reconnectionTimer", pdMS_TO_TICKS(3000), pdTRUE, (void *)nullptr, reconnect);
     xTimerStart(reconnectTimer, 0);
 }

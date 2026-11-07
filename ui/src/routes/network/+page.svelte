@@ -4,6 +4,11 @@
     import type { MainSettings } from "#lib/types.js";
     import { saveSettingsWithRetry } from "#lib/utils/settings.js";
 
+    // What the firmware takes (MqttUrl.h): an optional mqtt:// or mqtts://, then a host with an
+    // optional port 1-65535, a [bracketed] IPv6 with an optional port, or a bare IPv6 address.
+    const port = String.raw`(?::(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3}))?`;
+    const serverPattern = String.raw`(?:[Mm][Qq][Tt][Tt][Ss]?:\/\/)?(?:(?:\[[0-9A-Fa-f:.]+\]|[^:\/\[\]]+)${port}|[0-9A-Fa-f.]*:[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*)`;
+
     let s = $state(false);
     let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
@@ -200,7 +205,7 @@
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>
                 <label for="mqtt-host" class="block text-sm font-medium">Server</label>
-                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} spellcheck="false" autocapitalize="off" pattern="(?:[Mm][Qq][Tt][Tt][Ss]?:\/\/)?[^\/]+" title="A hostname or IP, host:port, or an mqtt:// or mqtts:// URL" class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} spellcheck="false" autocapitalize="off" pattern={serverPattern} title="A hostname or IP, host:port, or an mqtt:// or mqtts:// URL" class="mt-1 block w-full rounded-md" />
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">A hostname or IP (port 1883), or a URL: <code>mqtts://broker</code> for TLS on 8883, <code>mqtt://broker:1884</code> for another port.</p>
             </div>
 
