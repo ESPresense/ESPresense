@@ -12,8 +12,8 @@ case "$ENV" in
   *)        TARGET=esp32 ;;
 esac
 DEFAULTS="sdkconfig.defaults"
-case "$ENV" in *-cdc)     DEFAULTS="$DEFAULTS;sdkconfig.cdc" ;; esac
-case "$ENV" in *-verbose) DEFAULTS="$DEFAULTS;sdkconfig.verbose" ;; esac
+case "$ENV" in *-cdc|*-cdc-*)     DEFAULTS="$DEFAULTS;sdkconfig.cdc" ;; esac
+case "$ENV" in *-verbose|*-verbose-*) DEFAULTS="$DEFAULTS;sdkconfig.verbose" ;; esac
 [ $# -eq 0 ] && set -- build
 # The env var wins over any IDF_TARGET a CI image pre-set (esp-idf-ci-action defaults to esp32).
 export IDF_TARGET="$TARGET"
