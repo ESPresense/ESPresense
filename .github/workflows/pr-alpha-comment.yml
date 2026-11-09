@@ -75,6 +75,6 @@ jobs:
             ✅ CI build completed.
 
             Please test this PR build here:
-            https://espresense.com/alpha/?pr=${{ steps.pr.outputs.number }}
+            https://espresense.com/alpha/?pr=${{ steps.pr.outputs.number }}&sha=${{ github.event.workflow_run.head_sha }}
 
             If you spot regressions or improvements, reply here with results.

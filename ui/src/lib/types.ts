@@ -73,9 +73,9 @@ export interface MainSettings {
         eth: string;
         ntp_host: string;
         mqtt_host: string;
-        mqtt_port: number;
         mqtt_user: string;
         mqtt_pass: string;
+        mqtt_ca: string;
         discovery: boolean;
         discovery_prefix: string;
         pub_tele: boolean;
@@ -95,7 +95,6 @@ export interface MainSettings {
         eth: string;
         ntp_host: string;
         mqtt_host: string;
-        mqtt_port: number;
         discovery: boolean;
         discovery_prefix: string;
         pub_tele: boolean;

@@ -124,7 +124,7 @@ test.describe('DataTable - Devices Page', () => {
 
 		// Click Name header to sort
 		const nameHeader = page.locator('th:has-text("Name")');
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 
 		let afterFirstSort = initialFirst;
 		await expect(async () => {
@@ -133,7 +133,7 @@ test.describe('DataTable - Devices Page', () => {
 		}).toPass({ timeout: 2000 });
 
 		// Click again to reverse sort
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 		let afterSecondSort = afterFirstSort;
 		await expect(async () => {
 			afterSecondSort = await getFirstRowName();
@@ -150,11 +150,11 @@ test.describe('DataTable - Devices Page', () => {
 
 		// Click RSSI header to sort
 		const rssiHeader = page.locator('th:has-text("RSSI")');
-		await rssiHeader.click();
+		await rssiHeader.locator("button").click();
 		await expect(rssiHeader.locator('text=↑')).toBeVisible({ timeout: 2000 });
 
 		// Click again to reverse
-		await rssiHeader.click();
+		await rssiHeader.locator("button").click();
 		await expect(rssiHeader.locator('text=↓')).toBeVisible({ timeout: 2000 });
 	});
 
@@ -283,7 +283,7 @@ test.describe('DataTable - Fingerprints Page', () => {
 		const nameHeader = page.locator('th:has-text("Name")');
 
 		// Click to sort ascending by name
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 		await expect(async () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 2000 });
@@ -305,7 +305,7 @@ test.describe('DataTable - Fingerprints Page', () => {
 		expect(names[2]).toContain('Charlie');
 
 		// Click again to reverse
-		await nameHeader.click();
+		await nameHeader.locator("button").click();
 		await expect(async () => {
 			expect(await page.locator('table tbody tr').count()).toBeGreaterThan(0);
 		}).toPass({ timeout: 2000 });
@@ -411,7 +411,7 @@ test.describe('DataTable - Component Functionality', () => {
 		await page.waitForSelector('table');
 
 		// Sort by Name
-		await page.locator('th:has-text("Name")').click();
+		await page.locator('th:has-text("Name") button').click();
 		await expect(page.locator('th:has-text("Name") >> text=↑')).toBeVisible({ timeout: 2000 });
 
 		// Sort indicator should still be there after data refresh
@@ -440,7 +440,7 @@ test.describe('DataTable - Component Functionality', () => {
 		}).toPass({ timeout: 5000 });
 
 		// Sort by RSSI@1m (numeric)
-		await page.locator('th:has-text("RSSI@1m")').click();
+		await page.locator('th:has-text("RSSI@1m") button').click();
 
 		const rows = page.locator('table tbody tr');
 		const count = await rows.count();
@@ -522,9 +522,9 @@ test.describe('DataTable - Component Functionality', () => {
 		expect(initialRowCount).toBeGreaterThan(0);
 
 		// Sort by multiple columns in sequence (using actual columns: Alias, ID, Name, RSSI@1m)
-		await page.locator('th:has-text("Name")').click();
-		await page.locator('th:has-text("Alias")').click();
-		await page.locator('th:has-text("RSSI@1m")').click();
+		await page.locator('th:has-text("Name") button').click();
+		await page.locator('th:has-text("Alias") button').click();
+		await page.locator('th:has-text("RSSI@1m") button').click();
 
 		// Table should still be functional and retain all rows after sorting
 		const postSortRowCount = await rows.count();

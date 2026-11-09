@@ -33,11 +33,8 @@
 // Define the base topic for room detection. Usually "espresense"
 #define CHANNEL "espresense"
 
-// Replace with your MQTT Broker address
+// Replace with your MQTT Broker: a hostname (mqtt://, port 1883) or a URL like mqtts://host:8883
 #define DEFAULT_MQTT_HOST "mqtt.z13.org"
-
-// Replace with your MQTT Broker port
-#define DEFAULT_MQTT_PORT 1883
 
 // Replace with your MQTT Broker user
 #define DEFAULT_MQTT_USER ""
@@ -135,7 +132,7 @@
 
 // Build-time knobs that used to be platformio.ini build flags.
 #define SCAN_TASK_STACK_SIZE 3072
-#define LOOP_TASK_STACK_SIZE 5632
+#define LOOP_TASK_STACK_SIZE 5120  // fleet low-water mark 1,896 left of 5,632 (S3-cdc), Nov 2026
 #define MQTT_MIN_FREE_MEMORY 12192
 // Largest-contiguous-block floor for the low-heap watchdog (#2309): above the 2312 byte
 // allocation that failed in that report, far below a healthy node's ~100KB.

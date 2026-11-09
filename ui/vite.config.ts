@@ -2,6 +2,7 @@ import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { execSync } from 'child_process';
 import { cppPlugin } from './plugins/cpp';
 import strip from '@rollup/plugin-strip';
 import tailwindcss from '@tailwindcss/vite';
@@ -34,7 +35,8 @@ export default defineConfig({
             // client runtime chunk").
             output: { bundleStrategy: 'single' },
             paths: { base: '' },
-            version: { name: '', pollInterval: 0 }
+            // git's hash of ui/: changes only when the UI does, so the committed headers don't churn.
+            version: { name: execSync('git rev-parse --short=12 HEAD:ui').toString().trim(), pollInterval: 0 }
         }),
         tailwindcss(),
         strip({

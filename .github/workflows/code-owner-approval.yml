@@ -1,0 +1,31 @@
+name: Code owner approval
+
+# Required status "Code owner approval": a code owner's own PR passes; anyone else's needs a code
+# owner to approve. Replaces branch protection's "Require review from Code Owners", which has no
+# exemption for the author. See https://github.com/DTTerastar/code-owner-approval
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+  workflow_run:
+    workflows: [Code owner review]
+    types: [completed]
+  workflow_dispatch: # re-checks every open PR
+  schedule:
+    - cron: '*/30 * * * *' # backstop if a review's relay didn't run
+
+# One run at a time per commit, so an older evaluation can't publish over a newer one. A queued
+# run is replaced by a newer one for the same commit, which is fine: each run reads the reviews fresh.
+concurrency:
+  group: code-owner-approval-${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || 'all' }}
+
+permissions:
+  statuses: write
+  pull-requests: read
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: DTTerastar/code-owner-approval@v1

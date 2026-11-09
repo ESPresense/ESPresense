@@ -1,5 +1,7 @@
 #pragma once
 #include <ArduinoJson.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include <string>
 
@@ -12,10 +14,16 @@ const char* const EC_NONE = "";
 static const char* const DEVICE_CLASS_NONE = "";
 
 namespace Mqtt {
-void Setup(const std::string& host, uint16_t port, const std::string& user, const std::string& pass,
-           const std::string& clientId, const std::string& willTopic);
+// uri: mqtt:// or mqtts://host[:port]. Over mqtts:// the broker is
+// verified against caPem, or against the built-in public CA bundle when it's empty.
+void Setup(const std::string& uri, const std::string& user, const std::string& pass,
+           const std::string& clientId, const std::string& willTopic, std::string caPem);
 bool connected();
+// False when there's no client: the server setting couldn't be used, so reconnecting won't help.
+bool configured();
 void reconnect();
+// Least free stack the MQTT task has had, in bytes; 0 before its first event.
+UBaseType_t stackLeft();
 // After discovery: listen to this node's retained discovery configs for 2 s and delete any
 // it didn't just announce (removed inputs/outputs, disabled sensors, pre-v5 entities).
 void PruneStaleDiscovery();

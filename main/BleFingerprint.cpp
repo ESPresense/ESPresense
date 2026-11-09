@@ -240,6 +240,11 @@ void BleFingerprint::fingerprintServiceAdvertisements(const Ble::Advert *adverti
             asRssi = haveTxPower ? BleFingerprintCollection::rxRefRssi + txPower : NO_RSSI;
             setId("sonos:" + getMac(), ID_TYPE_SONOS);
             return;
+        } else if (Ble::uuidEq(uuid, oneKeyUUID)) {
+            // Its iBeacon frame (UUID not tag-specific, rssi@1m bogus -120 dBm) is ignored; key by MAC and use the default 1 m reference.
+            bcnRssi = NO_RSSI;
+            setId("onekey:" + getMac(), ID_TYPE_ONEKEY);
+            return;
         } else if (Ble::uuidEq(uuid, itagUUID)) {
             asRssi = BleFingerprintCollection::rxRefRssi + (haveTxPower ? txPower : ITAG_TX);
             setId("itag:" + getMac(), ID_TYPE_ITAG);
@@ -363,7 +368,9 @@ void BleFingerprint::fingerprintManufactureData(const Ble::Advert *advertisedDev
 
         if (manuf == "004c")  // Apple
         {
-            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
+            if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15 && idType == ID_TYPE_ONEKEY) {
+                bcnRssi = NO_RSSI;  // ONE-KEY tag: ignore its iBeacon identity and bogus rssi@1m (see service UUID branch)
+            } else if (strManufacturerData.length() == 25 && d[2] == 0x02 && d[3] == 0x15) {
                 bcnRssi = (int8_t)d[24];
                 unsigned major = (d[20] << 8) | d[21], minor = (d[22] << 8) | d[23];
                 if (setId(Sprintf("iBeacon:%s-%u-%u", beaconUuid(d).c_str(), major, minor), bcnRssi != 3 ? ID_TYPE_IBEACON : ID_TYPE_ECHO_LOST) && bcnRssi != 3) {

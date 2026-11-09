@@ -1,5 +1,5 @@
 import { readable, writable } from 'svelte/store';
-import type { ExtraSettings, Configs, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
+import type { ExtraSettings, Config, Configs, Device, Devices, WebSocketCommand, StartFunction, MainSettings } from './types';
 
 // Firmware info store
 export const firmwareInfo = writable<{ ver: string; firm: string }>({ ver: '', firm: '' });
@@ -87,52 +87,76 @@ if (typeof window !== 'undefined') {
     });
 }
 
-export const configs = readable<Configs | null>({ room: '', configs: [] }, function start(set) {
+function okJson(r: Response) {
+    if (!r.ok) throw new Error(`${r.url}: HTTP ${r.status}`);
+    return r.json();
+}
+
+/** undefined until the first /json/configs response lands, null once it keeps failing */
+export const configs = readable<Configs | null | undefined>(undefined, function start(set) {
+    // A fresh subscriber never sees a list left over from the last time anyone was watching.
+    set(undefined);
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
-    const interval = setInterval(() => {
+    const poll = () => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/configs")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Configs) => {
+                // A low-memory error body has no list; taking it as "no configs" would let a save
+                // key a config by its alias and the node would delete the original (#2623).
+                if (!Array.isArray(r?.configs)) throw new Error('/json/configs: no configs list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch configs:', ex);
             });
-    }, 1000);
+    };
+    poll();
+    const interval = setInterval(poll, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });
 
 export const devices = readable<Devices | null>({ room: '', devices: [] }, function start(set) {
     let errors = 0;
+    // A GET still in flight when the last subscriber left must not land in the next session.
+    let stopped = false;
     let outstanding = false;
     const interval = setInterval(() => {
         if (outstanding) return;
         outstanding = true;
         fetch("/json/devices?showAll")
-            .then(d => d.json())
+            .then(okJson)
             .then((r: Devices) => {
+                if (!Array.isArray(r?.devices)) throw new Error('/json/devices: no devices list');
                 outstanding = false;
+                if (stopped) return;
                 errors = 0;
                 set(r);
             })
             .catch((ex) => {
                 outstanding = false;
+                if (stopped) return;
                 if (errors++ > 5) set(null);
                 console.error('Failed to fetch devices:', ex);
             });
     }, 1000);
 
     return function stop() {
+        stopped = true;
         clearInterval(interval);
     };
 });
@@ -209,3 +233,26 @@ export const mainSettings = writable<MainSettings | null>(null, function start(s
             console.error('Failed to fetch main settings:', ex);
         });
 });
+
+/** The Cmd-K palette: closed (null), searching, running Find, or tagging one fingerprint */
+export type PaletteState =
+    | { view: 'search' }
+    | { view: 'find' }
+    | { view: 'tag'; id: string; name?: string; mac?: string; rssi?: number; alias?: string; rssi1m?: number };
+export const palette = writable<PaletteState | null>(null);
+
+/** The stored config for a fingerprint that reports `seen` as its id: by key, then by alias or MAC */
+export function findConfig(seen: string, mac: string | undefined, known: Config[] = []): Config | undefined {
+    return known.find((c) => c.id === seen) ?? known.find((c) => c.alias === seen || (mac && c.id === mac));
+}
+
+/** Open the palette's name step for a seen fingerprint, starting from its config if it has one */
+export function tagFingerprint(d: Device, known: Config[] = []): void {
+    const seen = d.id || d.mac;
+    if (!seen) return;
+    // An aliased fingerprint reports its alias as its id, so match the config by alias and MAC
+    // too, and save under the config's own key: the node deletes any other config holding the
+    // alias being saved, which would be the original one.
+    const cfg = findConfig(seen, d.mac, known);
+    palette.set({ view: 'tag', id: cfg?.id ?? seen, name: cfg?.name ?? d.name, mac: d.mac, rssi: d.rssi, alias: cfg?.alias, rssi1m: cfg?.['rssi@1m'] });
+}

@@ -16,6 +16,8 @@ void begin();  // mount SPIFFS (formats on first use); snapshot the chip's GPIOs
 
 std::string string(const std::string& name, const std::string& init = "", const char* label = "");
 std::string pstring(const std::string& name, const std::string& init = "", const char* label = "");
+// A large free-text setting: stays in its file, and the only copy in RAM is the one returned here.
+std::string file(const std::string& name, const char* label = "");
 long dropdown(const std::string& name, const std::vector<std::string>& options, long init = 0, const char* label = "");
 long integer(const std::string& name, long init = 0, const char* label = "");
 long integer(const std::string& name, long min, long max, long init = 0, const char* label = "");

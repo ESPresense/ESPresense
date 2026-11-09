@@ -2,23 +2,39 @@
     import { onMount, onDestroy } from "svelte";
     import { mainSettings } from "#lib/stores.js";
     import type { MainSettings } from "#lib/types.js";
-    import { formParams } from "#lib/utils/settings.js";
+    import { saveSettingsWithRetry } from "#lib/utils/settings.js";
+
+    // What the firmware takes (MqttUrl.h): an optional mqtt:// or mqtts://, then a host with an
+    // optional port 1-65535, a [bracketed] IPv6 with an optional port, or a bare IPv6 address.
+    const port = String.raw`(?::(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{0,3}))?`;
+    const serverPattern = String.raw`(?:[Mm][Qq][Tt][Tt][Ss]?:\/\/)?(?:(?:\[[0-9A-Fa-f:.]+\]|[^:\/\[\]]+)${port}|[0-9A-Fa-f.]*:[0-9A-Fa-f:.]*:[0-9A-Fa-f:.]*)`;
 
     let s = $state(false);
+    let saveError = $state<string>("");
     let wifiNetworks: Record<string, number> = $state({});
     let isScanning = $state(false);
+    // Each /wifi/scan is a blocking active scan on the node: every channel, with probe requests,
+    // and the radio is off BLE meanwhile. So scan a few times for a stable list, then stop until asked.
+    const SCANS_PER_ROUND = 3;
+    let scansLeft = $state(SCANS_PER_ROUND);
+    // "Rescan" starts from what's on air now: its first result replaces the list, so a
+    // network that has gone away stops being offered. Later scans in the round merge in.
+    let freshRound = false;
     let isDestroyed = false;
+    let nextScan: ReturnType<typeof setTimeout> | undefined;
 
     async function fetchWifiNetworks() {
-        if (isScanning || isDestroyed) return; // Prevent concurrent scans and post-destroy scans
+        if (isScanning || isDestroyed || scansLeft <= 0) return; // no concurrent or post-destroy scans
+        scansLeft--;
         try {
             isScanning = true;
             const response = await fetch("/wifi/scan");
             const data = await response.json();
             if (data.networks) {
-                // Merge, never replace: a network that drops out of one scan keeps its row, so the
+                // Within a round, merge: a network that drops out of one scan keeps its row, so the
                 // list doesn't reorder or resize under the pointer between scans.
-                wifiNetworks = { ...wifiNetworks, ...data.networks };
+                wifiNetworks = freshRound ? { ...data.networks } : { ...wifiNetworks, ...data.networks };
+                freshRound = false;
             } else {
                 console.error("Unexpected response format:", data);
             }
@@ -26,58 +42,34 @@
             console.error("Failed to fetch Wi-Fi networks:", error);
         } finally {
             isScanning = false;
-            // Schedule next scan after 5 seconds
-            if (!isDestroyed) {
-                setTimeout(fetchWifiNetworks, 5000);
-            }
+            if (!isDestroyed && scansLeft > 0) nextScan = setTimeout(fetchWifiNetworks, 5000);
         }
     }
 
-    function startScanCycle() {
-        requestAnimationFrame(fetchWifiNetworks);
+    function rescan() {
+        scansLeft = SCANS_PER_ROUND;
+        freshRound = true;
+        void fetchWifiNetworks();
     }
 
     onMount(() => {
-        startScanCycle();
+        requestAnimationFrame(fetchWifiNetworks);
     });
 
     onDestroy(() => {
         isDestroyed = true;
+        clearTimeout(nextScan);
     });
 
     async function handleSubmit(event: SubmitEvent) {
         try {
             event.preventDefault();
             s = true;
-            const form = event.target as HTMLFormElement;
-            await fetch("/wifi/main", { method: "POST", body: formParams(form) });
-
-            try {
-                await fetch("/restart", { method: "POST", signal: AbortSignal.timeout(1000)});
-            } catch (error) {
-                // often the restart request will fail, so we ignore the error
-            }
-
-            // Reload settings after save, with retries
-            let retries = 5;
-            let data;
-            while (retries > 0) {
-                try {
-                    const response = await fetch("/wifi/main");
-                    data = await response.json();
-                    mainSettings.set(data);
-                    break; // Exit loop on success
-                } catch (error) {
-                    retries--;
-                    if (retries === 0) {
-                        console.error("Failed to reload settings after multiple retries:", error);
-                        // Optionally display an error message to the user
-                        break;
-                    }
-                    // Wait for 1 second before retrying
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-                }
-            }
+            saveError = "";
+            await saveSettingsWithRetry("/wifi/main", event.target as HTMLFormElement, mainSettings);
+        } catch (error) {
+            console.error("Failed to save network settings:", error);
+            saveError = error instanceof Error ? error.message : String(error);
         } finally {
             s = false;
         }
@@ -94,7 +86,7 @@
     const mainSettingsData = $derived($mainSettings as MainSettings);
 </script>
 
-<div class="bg-gray-100 dark:bg-gray-800 rounded-lg shadow p-6">
+<div class="content-card p-6">
     {#if mainSettingsData != null && $mainSettings?.defaults != null && $mainSettings?.values != null}
         <form onsubmit={handleSubmit} class="space-y-6">
             <!-- Room Configuration -->
@@ -125,6 +117,8 @@
                         <div class="text-base font-medium dark:text-white">Available Networks</div>
                         {#if isScanning}
                             <div class="ios-spinner"></div>
+                        {:else if scansLeft <= 0}
+                            <button type="button" onclick={rescan} class="rounded-md px-2 py-1 text-sm font-medium text-blue-600 hover:text-blue-700 focus:ring-2 dark:text-blue-400 dark:hover:text-blue-300">Rescan</button>
                         {/if}
                     </div>
                     <ul class="divide-y divide-gray-200 dark:divide-gray-700 max-h-72 overflow-y-auto">
@@ -133,7 +127,7 @@
                                 <button
                                     type="button"
                                     onclick={() => {$mainSettings.values["wifi-ssid"] = ssid}}
-                                    class="w-full flex items-center cursor-pointer px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 bg-transparent"
+                                    class="w-full flex items-center cursor-pointer rounded-none px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left border-0 bg-transparent"
                                 >
                                 <div class="grow">
                                     <div class="text-base dark:text-white">{ssid}</div>
@@ -212,12 +206,14 @@
             <h2 class="text-xl font-semibold">MQTT Configuration</h2>
             <div>
                 <label for="mqtt-host" class="block text-sm font-medium">Server</label>
-                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} class="mt-1 block w-full rounded-md" />
+                <input id="mqtt-host" type="text" name="mqtt_host" bind:value={$mainSettings.values.mqtt_host} placeholder={$mainSettings.defaults.mqtt_host} spellcheck="false" autocapitalize="off" pattern={serverPattern} title="A hostname or IP, host:port, or an mqtt:// or mqtts:// URL" class="mt-1 block w-full rounded-md" />
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">A hostname or IP (port 1883), or a URL: <code>mqtts://broker</code> for TLS on 8883, <code>mqtt://broker:1884</code> for another port.</p>
             </div>
 
             <div>
-                <label for="mqtt-port" class="block text-sm font-medium">Port</label>
-                <input id="mqtt-port" type="number" name="mqtt_port" bind:value={$mainSettings.values.mqtt_port} placeholder={String($mainSettings.defaults.mqtt_port)} step="1" min="-2147483648" max="2147483647" class="mt-1 block w-full rounded-md" />
+                <label for="mqtt-ca" class="block text-sm font-medium">CA certificate (optional)</label>
+                <textarea id="mqtt-ca" name="mqtt_ca" rows="8" spellcheck="false" bind:value={$mainSettings.values.mqtt_ca} placeholder="-----BEGIN CERTIFICATE-----" class="mt-1 block w-full rounded-md font-mono text-xs"></textarea>
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">Used only for an <code>mqtts://</code> server. Paste the PEM of the CA that signed your broker's certificate (e.g. a self-signed Mosquitto). Leave empty if your broker's certificate chains to a common public CA; if it doesn't verify, paste that CA here. The broker's certificate must name the hostname or IP from the Server URL (without <code>mqtts://</code> or the port).</p>
             </div>
 
             <div>
@@ -277,6 +273,9 @@
                 </div>
             </div>
 
+            {#if saveError}
+                <p role="alert" class="text-red-600 dark:text-red-400">{saveError}</p>
+            {/if}
             <div class="flex justify-end">
                 <button type="submit" class="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-600 dark:focus:ring-blue-800">
                     {s ? "Saving..." : "Save"}
