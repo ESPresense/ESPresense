@@ -47,6 +47,8 @@ steps:
         cp -r . /tmp/reference-src && cd /tmp/reference-src
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
         git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
+        export FW_VERSION="$(git rev-parse --short=7 HEAD)"
+        export FW_BRANCH=bench/csi-reference-family-master
         python3 tools/prepare_csi_reference.py
         # Acquire flood before device: ordinary HIL holds its flood while
         # waiting for the device lock. Reversing that order would deadlock.
@@ -57,7 +59,7 @@ steps:
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
           ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --flood-ready /flood/ready --out /tmp/reference-pilot.json
+          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --expected-version "$FW_VERSION" --flood-ready /flood/ready --out /tmp/reference-pilot.json
         '
 
   - name: ble-reference-flood-stop

@@ -39,6 +39,19 @@ def wait_boot(ser):
     raise RuntimeError("No post-reset IP in serial log")
 
 
+def verify_build(ip, expected):
+    conn = http.client.HTTPConnection(ip, timeout=10)
+    try:
+        conn.request("GET", "/json")
+        response = conn.getresponse()
+        data = json.loads(response.read())
+        if response.status != 200 or data.get("ver") != expected or data.get("firm") != "esp32c3-csiref":
+            raise RuntimeError(f"Unexpected bench firmware: {data}")
+        print("BENCH metadata " + json.dumps(data, sort_keys=True), flush=True)
+    finally:
+        conn.close()
+
+
 def measure(ser, seconds, mode, flood_ready=None):
     samples = []
     faults = []
@@ -90,6 +103,7 @@ def main():
     parser.add_argument("--port", required=True)
     parser.add_argument("--seconds", type=int, default=120)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--expected-version", required=True)
     parser.add_argument("--flood-ready", help="Required live marker throughout each controlled measurement")
     args = parser.parse_args()
     results = []
@@ -99,6 +113,7 @@ def main():
         time.sleep(0.1)
         ser.rts = False
         ip = wait_boot(ser)
+        verify_build(ip, args.expected_version)
         post(ip, "/wifi", {"auto_update": "0"})
         try:
             for mode in (0, 1, 2, 0):
@@ -107,6 +122,7 @@ def main():
                      "csi_reference_until": str(int(time.time() + 900))})
                 post(ip, "/restart", {})
                 ip = wait_boot(ser)
+                verify_build(ip, args.expected_version)
                 results.append(measure(ser, args.seconds, mode, args.flood_ready))
         finally:
             post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0", "csi_reference_until": "0"})
