@@ -1,0 +1,29 @@
+name: Home Assistant discovery documentation
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      docs_ref:
+        description: Documentation ref to compare (branch, tag, or SHA)
+        required: false
+        default: main
+permissions:
+  contents: read
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: firmware
+      - uses: actions/checkout@v4
+        with:
+          repository: ESPresense/ESPresense.com
+          ref: ${{ inputs.docs_ref || 'main' }}
+          path: docs
+      - name: Test the checker
+        run: python3 -m unittest discover -s docs/tests -p 'test_ha_discovery.py' -v
+      - name: Compare firmware and documentation
+        run: python3 docs/tools/check_ha_discovery.py --firmware firmware --docs docs
