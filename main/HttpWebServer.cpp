@@ -119,7 +119,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
     for (size_t capacity = all ? 6144 : 4096; ; capacity *= 2) {
         DynamicJsonDocument doc(capacity);
         JsonObject root = doc.to<JsonObject>();
-        if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
+        if (doc.capacity() == 0 || root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
         if (!board.empty()) root["name"] = board;
         root["chip"] = CONFIG_IDF_TARGET;
 #ifdef FIRMWARE
@@ -192,7 +192,7 @@ esp_err_t postTemplate(httpd_req_t* req) {
     for (auto& c : changes) strings += c.value.size() + 1;
     DynamicJsonDocument out(JSON_OBJECT_SIZE(4) + JSON_ARRAY_SIZE(changes.size()) + changes.size() * (JSON_OBJECT_SIZE(4) + 32) + 2 * strings + 256);
     JsonObject root = out.to<JsonObject>();
-    if (root.isNull()) return sendTemplateError(req, "429 Too Many Requests", "low memory");
+    if (out.capacity() == 0 || root.isNull()) return sendTemplateError(req, "429 Too Many Requests", "low memory");
     root["restart"] = false;  // claimed before the diff can use up the document
     JsonArray diff = root.createNestedArray("changes");
     size_t changed = 0;
