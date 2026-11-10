@@ -10,6 +10,8 @@
 #include "SettingsTemplate.h"
 #include "esp_http_server.h"
 
+class SettingsSnapshot;
+
 namespace Settings {
 // `label` describes a setting for whoever reads the code; it isn't stored (the UI has its own).
 void begin();  // mount SPIFFS (formats on first use); snapshot the chip's GPIOs (pins())
@@ -51,7 +53,8 @@ std::optional<SettingSpec> spec(const std::string& key);
 // (room, WiFi, MQTT) stays out so exported templates are safe to share. With all: a backup of
 // every setting (#2493) except passwords, the WiFi SSID and the one-shot update URL, read from
 // flash, plus the room even at its default.
-void serialize(JsonObject out, bool all);
+// False if an on-flash value could not be read; callers must discard the partial export.
+bool serialize(JsonObject out, bool all, SettingsSnapshot& snapshot);
 // Partial apply: only the given keys are touched (as with the /wifi/<endpoint> form POST). Values must already be validated (parseTemplate).
 // Appends {key, from, to} for each value that differs (as far as diff has room) and counts
 // them in changed; dryRun stops there. False on a flash write error.

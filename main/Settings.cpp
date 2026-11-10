@@ -1,10 +1,12 @@
 #include "Settings.h"
+#include "SettingsStorage.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
 
 #include <climits>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 
@@ -22,6 +24,8 @@ namespace Settings {
 namespace {
 
 constexpr const char* BASE = "/spiffs";
+SettingsStorage storage;
+bool storageMounted = false;
 constexpr const char* MASKED_PASSWORD = "***###***";
 constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
@@ -54,10 +58,11 @@ struct Param {
     void fill() { value = slurp(filename()); }
     bool store() const { return spurt(filename(), value); }
 
-    void set(const std::string& v) {
+    enum class SetResult { Ok, InvalidJson, LowMemory };
+    SetResult set(const std::string& v) {
         switch (type) {
             case Type::Password:
-                if (v == MASKED_PASSWORD) return;
+                if (v == MASKED_PASSWORD) return SetResult::Ok;
                 value = v;
                 break;
             case Type::Bool:
@@ -66,16 +71,18 @@ struct Param {
                 break;
             case Type::Json: {
                 // Sent to the UI unquoted, so only a valid array or object may be stored.
+                if (v.empty()) { value.clear(); break; }
                 DynamicJsonDocument d(v.size() * 2 + 64);
-                if (v.empty() || (!deserializeJson(d, v) && (d.is<JsonArray>() || d.is<JsonObject>())))
-                    value = v;
-                else
-                    Log.printf("%s: not a JSON array or object, kept the old value\n", name.c_str());
+                auto error = deserializeJson(d, v);
+                if (error == DeserializationError::NoMemory) return SetResult::LowMemory;
+                if (error || (!d.is<JsonArray>() && !d.is<JsonObject>())) return SetResult::InvalidJson;
+                value = v;
                 break;
             }
             default:
                 value = v;
         }
+        return SetResult::Ok;
     }
 
     std::string json(const std::string& v) const {
@@ -119,6 +126,28 @@ struct Param {
                 break;
             default:
                 dst.set(v);
+        }
+    }
+    // Snapshot strings are linked, so their storage must outlive the JSON document's use.
+    template <class Dst>
+    void putSnapshot(Dst dst, const char* v, size_t length) const {
+        switch (type) {
+            case Type::Int:
+            case Type::Dropdown: dst.set(strtol(v, nullptr, 10)); break;
+            case Type::Float: dst.set(strtod(v, nullptr)); break;
+            case Type::Bool: dst.set(strtol(v, nullptr, 10) != 0); break;
+            case Type::Password: dst.set(MASKED_PASSWORD); break;
+            case Type::Json: dst.set(serialized(v, length)); break;
+            default: dst.set(JsonString(v, length, JsonString::Linked)); break;
+        }
+    }
+    bool sameSnapshot(const char* v, size_t length) const {
+        switch (type) {
+            case Type::Float: return strtod(v, nullptr) == strtod(init.c_str(), nullptr);
+            case Type::Int:
+            case Type::Dropdown:
+            case Type::Bool: return strtol(v, nullptr, 10) == toInt(init);
+            default: return length == init.size() && memcmp(v, init.data(), length) == 0;
         }
     }
     // Equal once parsed: "0.50" and "0.5", or "05" and "5", are not a change.
@@ -338,7 +367,9 @@ esp_err_t postHandler(httpd_req_t* req) {
     bool ok = true;
     for (auto* prm : endpoints[idx].params) {
         if (!formValue(body, prm->name, v)) continue;
-        prm->set(v);
+        auto result = prm->set(v);
+        if (result == Param::SetResult::LowMemory) return sendText(req, "429 Too Many Requests", "Insufficient memory to validate setting");
+        if (result == Param::SetResult::InvalidJson) return sendText(req, "400 Bad Request", "Expected a JSON array or object");
         if (!prm->store()) ok = false;
     }
     if (!ok) {
@@ -378,27 +409,19 @@ void begin() {
     conf.max_files = 4;
     conf.format_if_mount_failed = true;
     esp_err_t err = esp_vfs_spiffs_register(&conf);
-    if (err != ESP_OK) Log.printf("SPIFFS mount failed: %s\n", esp_err_to_name(err));
+    storageMounted = err == ESP_OK;
+    if (!storageMounted) Log.printf("SPIFFS mount failed: %s\n", esp_err_to_name(err));
 }
 
 std::string slurp(const std::string& fn) {
-    FILE* f = fopen(path(fn).c_str(), "r");
-    if (!f) return "";
-    std::string r;
-    char buf[128];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) r.append(buf, n);
-    fclose(f);
-    return r;
+    std::string value;
+    if (!storageMounted || storage.read(path(fn), value) == SettingsStorage::ReadResult::Error)
+        Log.printf("Failed to read setting %s\n", fn.c_str());
+    return value;
 }
 
 bool spurt(const std::string& fn, const std::string& content) {
-    if (content.empty()) return exists(fn) ? remove(fn) : true;
-    FILE* f = fopen(path(fn).c_str(), "w");
-    if (!f) return false;
-    size_t w = fwrite(content.data(), 1, content.size(), f);
-    fclose(f);
-    return w == content.size();
+    return storageMounted && storage.write(path(fn), content);
 }
 
 bool exists(const std::string& fn) {
@@ -406,7 +429,7 @@ bool exists(const std::string& fn) {
     return stat(path(fn).c_str(), &st) == 0;
 }
 
-bool remove(const std::string& fn) { return unlink(path(fn).c_str()) == 0; }
+bool remove(const std::string& fn) { return storageMounted && storage.remove(path(fn)); }
 
 std::string string(const std::string& name, const std::string& init, const char* /*label*/) {
     auto* p = add(Type::String, name, init);
@@ -489,7 +512,7 @@ std::optional<SettingSpec> spec(const std::string& key) {
     return p->spec();
 }
 
-void serialize(JsonObject out, bool all) {
+bool serialize(JsonObject out, bool all, SettingsSnapshot& snapshot) {
     for (auto& e : endpoints)
         for (auto* p : e.params) {
             if (!templatable(p)) continue;
@@ -503,13 +526,24 @@ void serialize(JsonObject out, bool all) {
             // unsaved setting -- clobbering it there blanks that setting in /wifi until reboot.
             // Read into a local instead, and only on the backup path, so routine board-template
             // export (the common case) does no flash I/O at all.
-            std::string onFlash = all ? slurp(p->filename()) : p->value;
-            std::string effective = onFlash.empty() ? p->init : onFlash;
-            // Defaults stay out of shared templates. A backup keeps the room: its default is this
-            // node's MAC, and the replacement should take over the same room and topics.
-            if (p->same(effective, p->init) && !(all && p->name == "room")) continue;
-            p->put(out[p->name.c_str()], effective);   // names live forever: stored by pointer
+            if (all) {
+                const char* onFlash = nullptr;
+                size_t length = 0;
+                if (!storageMounted || storage.readSnapshot(path(p->filename()), snapshot, onFlash, length) == SettingsStorage::ReadResult::Error) {
+                    Log.printf("Failed to read setting %s for backup\n", p->name.c_str());
+                    return false;
+                }
+                const char* effective = length ? onFlash : p->init.c_str();
+                size_t effectiveLength = length ? length : p->init.size();
+                if (p->sameSnapshot(effective, effectiveLength) && p->name != "room") continue;
+                p->putSnapshot(out[p->name.c_str()], effective, effectiveLength);
+            } else {
+                const std::string& effective = p->value.empty() ? p->init : p->value;
+                if (p->same(effective, p->init)) continue;
+                p->put(out[p->name.c_str()], effective);
+            }
         }
+    return true;
 }
 
 bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed) {

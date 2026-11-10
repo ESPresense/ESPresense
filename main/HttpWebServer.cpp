@@ -10,6 +10,7 @@
 #include "HttpStatic.h"
 #include "Network.h"
 #include "Settings.h"
+#include "SettingsStorage.h"
 #include "TeleJson.h"
 #include "defaults.h"
 #include "globals.h"
@@ -106,28 +107,39 @@ esp_err_t serveTele(httpd_req_t* req) {
 // and restarts if anything changed. POST ?dry validates and returns the changes without saving.
 // A template may set any configuration setting, not just /wifi/hardware (e.g. Ethernet type).
 constexpr const char* TEMPLATE_SECTION = "settings";
-constexpr size_t TEMPLATE_DOC_SIZE = 6144;
-// More than the export's document: it holds keys by pointer and the UI pretty-prints the file, so
-// a backup that fits the document must still be accepted when it comes back.
-constexpr size_t TEMPLATE_MAX_BODY = 8192;
+// The import UI compacts JSON before posting it. Allow room for multiple large settings,
+// while bounding heap use on small devices. Allocation failure is reported without applying it.
+constexpr size_t TEMPLATE_MAX_BODY = 32768;
+constexpr size_t TEMPLATE_MAX_DOCUMENT = 65536;
 
 esp_err_t serveTemplate(httpd_req_t* req) {
     std::string dummy;
     bool all = queryParam(req, "all", dummy);
-    DynamicJsonDocument doc(all ? TEMPLATE_DOC_SIZE : 4096);
-    JsonObject root = doc.to<JsonObject>();
-    if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
-    if (!board.empty()) root["name"] = board;
-    root["chip"] = CONFIG_IDF_TARGET;
+    // Grow only when needed. Most backups remain small, while a single large JSON setting
+    // does not exhaust the old fixed-size pool. Stop at a bounded size on constrained nodes.
+    for (size_t capacity = all ? 6144 : 4096; ; capacity *= 2) {
+        DynamicJsonDocument doc(capacity);
+        JsonObject root = doc.to<JsonObject>();
+        if (doc.capacity() == 0 || root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
+        if (!board.empty()) root["name"] = board;
+        root["chip"] = CONFIG_IDF_TARGET;
 #ifdef FIRMWARE
-    root["firmware"] = FIRMWARE;
+        root["firmware"] = FIRMWARE;
 #endif
 #ifdef VERSION
-    root["version"] = VERSION;
+        root["version"] = VERSION;
 #endif
-    Settings::serialize(root.createNestedObject(TEMPLATE_SECTION), all);
-    if (doc.overflowed()) return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
-    return sendJsonDoc(req, doc);
+        SettingsSnapshot snapshot;
+        if (!Settings::serialize(root.createNestedObject(TEMPLATE_SECTION), all, snapshot))
+            return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"settings read failed\"}");
+        if (!doc.overflowed()) {
+            if (all && measureJson(doc) > TEMPLATE_MAX_BODY)
+                return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"backup exceeds restore limit\"}");
+            return sendJsonDoc(req, doc);
+        }
+        if (!all || capacity >= TEMPLATE_MAX_DOCUMENT / 2)
+            return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
+    }
 }
 
 esp_err_t sendTemplateError(httpd_req_t* req, const char* status, const std::string& msg) {
@@ -141,23 +153,35 @@ esp_err_t sendTemplateError(httpd_req_t* req, const char* status, const std::str
 esp_err_t postTemplate(httpd_req_t* req) {
     std::string dummy;
     bool dryRun = queryParam(req, "dry", dummy);
+    if (req->content_len > TEMPLATE_MAX_BODY) return sendTemplateError(req, "413 Payload Too Large", "Template too large");
+    // std::string uses the normal heap; avoid asking it for more than the largest block.
+    if (req->content_len + 1 > maxAllocHeap()) return sendTemplateError(req, "429 Too Many Requests", "low memory");
     std::string body;
-    if (!readBody(req, body, TEMPLATE_MAX_BODY)) return sendTemplateError(req, "413 Payload Too Large", "Template too large");
+    if (!readBody(req, body, TEMPLATE_MAX_BODY)) return sendTemplateError(req, "400 Bad Request", "Could not read template");
     std::vector<SettingChange> changes;
     std::string name;
     {
-        // Keys and strings are copied out of body, so body.size() bounds them; 160 slots covers
-        // every registered setting. Scoped so it is freed before the reply is built.
-        DynamicJsonDocument doc(JSON_OBJECT_SIZE(160) + body.size());
-        if (doc.capacity() == 0) return sendTemplateError(req, "429 Too Many Requests", "low memory");
-        DeserializationError e = deserializeJson(doc, body);
-        if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
-        std::string err;
-        upgradeTemplateKeys(doc[TEMPLATE_SECTION].as<JsonObject>());
-        auto lookup = [](const char* key) { return Settings::spec(key); };
-        if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_SECTION, lookup, Settings::pins(), changes, err))
-            return sendTemplateError(req, "400 Bad Request", err);
-        name = doc["name"] | "";
+        // Nested arrays can need more slots than their text size. Retry on pool exhaustion,
+        // with a hard ceiling; an allocation failure leaves all settings untouched.
+        size_t capacity = JSON_OBJECT_SIZE(160) + body.size();
+        for (;;) {
+            DynamicJsonDocument doc(capacity);
+            if (doc.capacity() == 0) return sendTemplateError(req, "429 Too Many Requests", "low memory");
+            DeserializationError e = deserializeJson(doc, body);
+            if (e == DeserializationError::NoMemory) {
+                if (capacity >= 131072 / 2) return sendTemplateError(req, "429 Too Many Requests", "template needs too much memory");
+                capacity *= 2;
+                continue;
+            }
+            if (e) return sendTemplateError(req, "400 Bad Request", std::string("Invalid JSON: ") + e.c_str());
+            std::string err;
+            upgradeTemplateKeys(doc[TEMPLATE_SECTION].as<JsonObject>());
+            auto lookup = [](const char* key) { return Settings::spec(key); };
+            if (!parseTemplate(doc.as<JsonObjectConst>(), CONFIG_IDF_TARGET, TEMPLATE_SECTION, lookup, Settings::pins(), changes, err))
+                return sendTemplateError(req, "400 Bad Request", err);
+            name = doc["name"] | "";
+            break;
+        }
     }
     // The template's name says what the board is; keep it unless the template sets board itself.
     if (!name.empty() && std::none_of(changes.begin(), changes.end(), [](const SettingChange& c) { return c.key == "board"; }))
@@ -170,6 +194,7 @@ esp_err_t postTemplate(httpd_req_t* req) {
     for (auto& c : changes) strings += c.value.size() + 1;
     DynamicJsonDocument out(JSON_OBJECT_SIZE(4) + JSON_ARRAY_SIZE(changes.size()) + changes.size() * (JSON_OBJECT_SIZE(4) + 32) + 2 * strings + 256);
     JsonObject root = out.to<JsonObject>();
+    if (out.capacity() == 0 || root.isNull()) return sendTemplateError(req, "429 Too Many Requests", "low memory");
     root["restart"] = false;  // claimed before the diff can use up the document
     JsonArray diff = root.createNestedArray("changes");
     size_t changed = 0;

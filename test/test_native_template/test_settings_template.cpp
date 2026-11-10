@@ -183,6 +183,24 @@ void test_pins_checked_against_the_chip(void) {
     TEST_ASSERT_TRUE(parse(R"({"chip":"esp32","settings":{"led_1_pin":-1}})", "esp32", p).ok);
 }
 
+void test_large_json_pin_list_validates_every_entry(void) {
+    static const PinFields outputPins = {{"pin", PinUse::Output}};
+    SettingSpec spec{SettingType::Json, LONG_MIN, LONG_MAX, 0, PinUse::None, &outputPins};
+    std::string list = "[";
+    for (int i = 0; i < 600; ++i) {
+        if (i) list += ",";
+        list += "{\"pin\":-1}";
+    }
+    list += "]";
+    bool setsPin = false;
+    TEST_ASSERT_EQUAL_STRING("", checkPins("outputs", spec, list, esp32Pins(), setsPin).c_str());
+    TEST_ASSERT_FALSE(setsPin);
+    list.replace(list.rfind("-1"), 2, "6");
+    std::string error = checkPins("outputs", spec, list, esp32Pins(), setsPin);
+    TEST_ASSERT_NOT_NULL(strstr(error.c_str(), "outputs[599].pin"));
+    TEST_ASSERT_TRUE(setsPin);
+}
+
 void test_pins_in_lists_and_objects_checked(void) {
     PinRules p = esp32Pins();
     Result r = parse(R"({"chip":"esp32","settings":{"outputs":[{"pin":5},{"pin":36}]}})", "esp32", p);
@@ -320,6 +338,7 @@ int main(int, char**) {
     RUN_TEST(test_null_chip_is_not_a_missing_chip);
     RUN_TEST(test_pins_checked_against_the_chip);
     RUN_TEST(test_pins_in_lists_and_objects_checked);
+    RUN_TEST(test_large_json_pin_list_validates_every_entry);
     RUN_TEST(test_check_pins_on_stored_values);
     RUN_TEST(test_template_rx_adj_rssi_becomes_rx_offset_rssi);
     RUN_TEST(test_missing_or_empty_settings_rejected);
