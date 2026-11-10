@@ -467,6 +467,8 @@ bool queryParam(httpd_req_t* req, const char* key, std::string& value) {
     return false;
 }
 
+// Start the HTTP server once, registering API, settings, UI and fallback routes.
+// When captive is true, unknown GET requests for another host redirect to this node.
 void Init(bool captive) {
     if (server) return;
     captivePortal = captive;
@@ -490,8 +492,9 @@ void Init(bool captive) {
     // connection and changes. Client text frames accept {command, payload?}: enroll or
     // cancelEnroll (see Enrollment::Command); payload defaults to an empty string.
     // Empty, oversized (>512 bytes), non-text and invalid frames are ignored. During an
-    // update the handler fails while WebSockets are disabled; no application error status
-    // is explicitly set. The upgrade itself uses the HTTP server's WebSocket handshake.
+    // update, new connections fail in the handshake handler and broadcasts are suppressed;
+    // existing clients can still send commands. No application error status is explicitly
+    // set. The upgrade itself uses the HTTP server's WebSocket handshake.
     on("/ws", HTTP_GET, wsHandler);
     {
         httpd_uri_t u = {};
@@ -517,6 +520,8 @@ void Init(bool captive) {
     // POST /json*: /json/configs accepts JSON {id, alias?, name?, rssi@1m?} (2048-byte
     // limit); alias defaults to id, name to empty. Success: {success:true}; 400 for invalid
     // JSON or missing id, 413 if the body cannot be read, 500 if MQTT publication fails.
+    // The parser has a 1024-byte document; even a valid body below 2048 bytes can return
+    // 400 "Invalid JSON" if it exceeds that capacity.
     // /json/template accepts {settings, chip?, name?} (6144-byte limit); chip is required
     // when setting pins. ?dry (value ignored) validates and previews without writing.
     // Success: {restart, changes:[{key, from, to}]}; a changed non-dry import restarts.
