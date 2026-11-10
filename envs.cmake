@@ -11,6 +11,10 @@ if(FW_ENV MATCHES "-csicap$")
   list(APPEND FW_DEFS CSI_CAPTURE_DEBUG)
 endif()
 
+if(FW_ENV MATCHES "-csiref$")
+  list(APPEND FW_DEFS CSI_REFERENCE)
+endif()
+
 if(FW_ENV MATCHES "^esp32c3")
   list(APPEND FW_DEFS ESP32C3)
 elseif(FW_ENV MATCHES "^esp32c6")

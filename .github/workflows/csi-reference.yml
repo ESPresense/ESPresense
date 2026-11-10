@@ -1,0 +1,40 @@
+name: CSI Reference Benchmark
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/csi-reference.yml'
+      - 'tools/prepare_csi_reference.py'
+      - 'main/CsiReference.cpp'
+      - 'main/CMakeLists.txt'
+      - 'CMakeLists.txt'
+      - 'envs.cmake'
+
+jobs:
+  reference-c3:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare pinned upstream SDK
+        run: python3 tools/prepare_csi_reference.py
+      - name: Build isolated reference firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.6
+          command: FW_VERSION="${{ github.event.pull_request.head.sha || github.sha }}" FW_BRANCH="${{ github.head_ref || github.ref_name }}" FW_RUN_ID="${{ github.run_id }}" ./build.sh esp32c3-csiref
+      - name: Enforce existing OTA image limit
+        run: |
+          test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
+          cp build/esp32c3-csiref/espresense.bin esp32c3-csiref.bin
+          cp .reference/espectre/reference-source.json reference-source.json
+          cp build/esp32c3-csiref/sdkconfig reference-sdkconfig.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: esp32c3-csiref.bin
+          path: esp32c3-csiref.bin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: reference-provenance
+          path: |
+            reference-source.json
+            reference-sdkconfig.txt

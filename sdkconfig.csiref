@@ -1,0 +1,9 @@
+# Isolated reference benchmark. Match upstream radio prerequisites without
+# changing the ESP-IDF version or power policy of any production firmware.
+CONFIG_ESP_WIFI_CSI_ENABLED=y
+CONFIG_ESP_WIFI_AMPDU_RX_ENABLED=n
+CONFIG_ESP_WIFI_AMPDU_TX_ENABLED=n
+CONFIG_ESP_WIFI_STA_DISCONNECTED_PM_ENABLE=n
+CONFIG_PM_ENABLE=n
+CONFIG_FREERTOS_HZ=1000
+CONFIG_LWIP_MULTICAST_PING=y
