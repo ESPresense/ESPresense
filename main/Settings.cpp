@@ -6,6 +6,7 @@
 
 #include <climits>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <optional>
 
@@ -122,6 +123,28 @@ struct Param {
                 break;
             default:
                 dst.set(v);
+        }
+    }
+    // Snapshot strings are linked, so their storage must outlive the JSON document's use.
+    template <class Dst>
+    void putSnapshot(Dst dst, const char* v, size_t length) const {
+        switch (type) {
+            case Type::Int:
+            case Type::Dropdown: dst.set(strtol(v, nullptr, 10)); break;
+            case Type::Float: dst.set(strtod(v, nullptr)); break;
+            case Type::Bool: dst.set(strtol(v, nullptr, 10) != 0); break;
+            case Type::Password: dst.set(MASKED_PASSWORD); break;
+            case Type::Json: dst.set(serialized(v, length)); break;
+            default: dst.set(JsonString(v, length, JsonString::Linked)); break;
+        }
+    }
+    bool sameSnapshot(const char* v, size_t length) const {
+        switch (type) {
+            case Type::Float: return strtod(v, nullptr) == strtod(init.c_str(), nullptr);
+            case Type::Int:
+            case Type::Dropdown:
+            case Type::Bool: return strtol(v, nullptr, 10) == toInt(init);
+            default: return length == init.size() && memcmp(v, init.data(), length) == 0;
         }
     }
     // Equal once parsed: "0.50" and "0.5", or "05" and "5", are not a change.
@@ -484,7 +507,7 @@ std::optional<SettingSpec> spec(const std::string& key) {
     return p->spec();
 }
 
-bool serialize(JsonObject out, bool all) {
+bool serialize(JsonObject out, bool all, SettingsSnapshot& snapshot) {
     for (auto& e : endpoints)
         for (auto* p : e.params) {
             if (!templatable(p)) continue;
@@ -498,16 +521,22 @@ bool serialize(JsonObject out, bool all) {
             // unsaved setting -- clobbering it there blanks that setting in /wifi until reboot.
             // Read into a local instead, and only on the backup path, so routine board-template
             // export (the common case) does no flash I/O at all.
-            std::string onFlash = p->value;
-            if (all && (!storageMounted || storage.read(path(p->filename()), onFlash) == SettingsStorage::ReadResult::Error)) {
-                Log.printf("Failed to read setting %s for backup\n", p->name.c_str());
-                return false;
+            if (all) {
+                const char* onFlash = nullptr;
+                size_t length = 0;
+                if (!storageMounted || storage.readSnapshot(path(p->filename()), snapshot, onFlash, length) == SettingsStorage::ReadResult::Error) {
+                    Log.printf("Failed to read setting %s for backup\n", p->name.c_str());
+                    return false;
+                }
+                const char* effective = length ? onFlash : p->init.c_str();
+                size_t effectiveLength = length ? length : p->init.size();
+                if (p->sameSnapshot(effective, effectiveLength) && p->name != "room") continue;
+                p->putSnapshot(out[p->name.c_str()], effective, effectiveLength);
+            } else {
+                const std::string& effective = p->value.empty() ? p->init : p->value;
+                if (p->same(effective, p->init)) continue;
+                p->put(out[p->name.c_str()], effective);
             }
-            std::string effective = onFlash.empty() ? p->init : onFlash;
-            // Defaults stay out of shared templates. A backup keeps the room: its default is this
-            // node's MAC, and the replacement should take over the same room and topics.
-            if (p->same(effective, p->init) && !(all && p->name == "room")) continue;
-            p->put(out[p->name.c_str()], effective);   // names live forever: stored by pointer
         }
     return true;
 }

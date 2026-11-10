@@ -10,6 +10,7 @@
 #include "HttpStatic.h"
 #include "Network.h"
 #include "Settings.h"
+#include "SettingsStorage.h"
 #include "TeleJson.h"
 #include "defaults.h"
 #include "globals.h"
@@ -128,7 +129,8 @@ esp_err_t serveTemplate(httpd_req_t* req) {
 #ifdef VERSION
         root["version"] = VERSION;
 #endif
-        if (!Settings::serialize(root.createNestedObject(TEMPLATE_SECTION), all))
+        SettingsSnapshot snapshot;
+        if (!Settings::serialize(root.createNestedObject(TEMPLATE_SECTION), all, snapshot))
             return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"settings read failed\"}");
         if (!doc.overflowed()) {
             if (all && measureJson(doc) > TEMPLATE_MAX_BODY)
