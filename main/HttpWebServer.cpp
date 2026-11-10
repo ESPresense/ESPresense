@@ -467,6 +467,8 @@ bool queryParam(httpd_req_t* req, const char* key, std::string& value) {
     return false;
 }
 
+// Start the HTTP server once, registering API, settings, UI and fallback routes.
+// When captive is true, unknown GET requests for another host redirect to this node.
 void Init(bool captive) {
     if (server) return;
     captivePortal = captive;
@@ -484,6 +486,15 @@ void Init(bool captive) {
     }
     httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, notFound);
 
+    // GET /ws: WebSocket upgrade; no query parameters or HTTP body. After the handshake,
+    // text frames contain {room, board?, ver?, firm?, state:{enrolling, enrolledId?, remain?}};
+    // board/version fields and state fields marked ? are conditional. State is sent on
+    // connection and changes. Client text frames accept {command, payload?}: enroll or
+    // cancelEnroll (see Enrollment::Command); payload defaults to an empty string.
+    // Empty, oversized (>512 bytes), non-text and invalid frames are ignored. During an
+    // update, new connections fail in the handshake handler and broadcasts are suppressed;
+    // existing clients can still send commands. No application error status is explicitly
+    // set. The upgrade itself uses the HTTP server's WebSocket handshake.
     on("/ws", HTTP_GET, wsHandler);
     {
         httpd_uri_t u = {};
@@ -494,14 +505,45 @@ void Init(bool captive) {
         httpd_unregister_uri_handler(server, "/ws", HTTP_GET);
         httpd_register_uri_handler(server, &u);
     }
+    // GET /json*: no body. /json returns {room, board?, ver?, firm?}; /json/devices
+    // adds devices[], and /json/configs adds configs[]. Paths containing both words add
+    // both arrays. Device entries come from BleFingerprint::fill; configs have id, alias,
+    // name and optional rssi@1m. ?showAll (value ignored) includes invisible devices and
+    // marks visible entries with vis:true. Other paths without either word return the info
+    // object, except for the two exact paths below.
+    // /json/tele returns {room, freeHeap, maxHeap, fingerprints} (500 if it won't fit).
+    // /json/template returns {chip, settings, name?, firmware?, version?}; 429 on low
+    // memory, 500 if the template won't fit. Other JSON GETs return 429 on low memory or
+    // while a streamed JSON response is in progress; the latter body is the non-JSON text
+    // "Too Many Requests" despite its application/json content type.
     on("/json*", HTTP_GET, serveJson);
+    // POST /json*: /json/configs accepts JSON {id, alias?, name?, rssi@1m?} (2048-byte
+    // limit); alias defaults to id, name to empty. Success: {success:true}; 400 for invalid
+    // JSON or missing id, 413 if the body cannot be read, 500 if MQTT publication fails.
+    // The parser has a 1024-byte document; even a valid body below 2048 bytes can return
+    // 400 "Invalid JSON" if it exceeds that capacity.
+    // /json/template accepts {settings, chip?, name?} (6144-byte limit); chip is required
+    // when setting pins. ?dry (value ignored) validates and previews without writing.
+    // Success: {restart, changes:[{key, from, to}]}; a changed non-dry import restarts.
+    // Template errors: 400 invalid JSON/template, 413 body read failure, 429 low memory,
+    // 500 flash write failure. Errors have {error}. Other paths without "configs": 404.
     on("/json*", HTTP_POST, postJson);
+    // DELETE /json*: paths containing "configs" accept the required ?id query parameter;
+    // no body. Success: {success:true}; {error} with 400 if id is missing, 500 if MQTT
+    // publication fails, or 404 for paths without "configs".
     on("/json*", HTTP_DELETE, deleteJson);
+    // POST /restart: no parameters or body; 200 text/plain "Restarting...", then restart.
     on("/restart", HTTP_POST, onRestart);
+    // POST /reboot: alias for /restart; no parameters or body, same response and restart.
     on("/reboot", HTTP_POST, onRestart);
+    // OPTIONS /*: CORS preflight for any path; no parameters or body, 200 with empty body
+    // and Access-Control-Allow-* and Access-Control-Max-Age headers.
     on("/*", HTTP_OPTIONS, onOptions);
     Settings::registerHttp(server);
     setupRoutes(server);  // from ui_routes.h
+    // GET /*: fallback after the settings and static UI routes; no parameters or body.
+    // 404 text/plain "404", or 302 with an empty body and Location pointing to this node
+    // when the captive portal is active and Host differs from its IP.
     on("/*", HTTP_GET, catchAllGet);
 }
 
