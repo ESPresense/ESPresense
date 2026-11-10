@@ -2,6 +2,7 @@
 // calibration, weights, hit filtering, and radio policy; no detector is reimplemented.
 #if defined(SENSORS) && defined(CSI_REFERENCE)
 #include "CsiMotion.h"
+#include "CsiReferenceFormat.h"
 #include "Settings.h"
 #include "globals.h"
 #include "espectre_sdk.h"
@@ -32,13 +33,14 @@ int64_t monotonicExpiry = 0;
 std::atomic<uint32_t> receivedAdverts{0};
 
 void expire() {
-    // Persist disarm before restarting. Reboot restores the ordinary WiFi and
-    // coexistence policy, not just the SDK's detector state. A later reboot
-    // cannot extend a capture's absolute deadline.
-    if (!Settings::spurt("/csi_reference_mode", "0")) {
-        Log.println("CSIREF fault: cannot persist disarm; absolute deadline remains expired");
-    }
     runtime.shutdown();
+    // Arming was durably consumed before setup. Reboot restores the ordinary
+    // radio policy without a flash write at expiry or a possible reboot loop.
+    if (!attempted) {
+        mode = 0;
+        Log.println("CSIREF finished: deadline expired before arming");
+        return;
+    }
     Log.println("CSIREF finished: deadline reached; restoring normal radio by reboot");
     esp_restart();
 }
@@ -53,14 +55,17 @@ void NoteAdvert() {
 void ConnectToWifi(bool updating) {
     mode = Settings::dropdown("csi_reference_mode", {"Off", "Lightweight", "High Accuracy"}, 0,
                               "Dev-only pinned upstream reference detector");
+    const bool arm = Settings::checkbox("csi_reference_arm", false, "One-shot reference trial arming");
     const auto deadline = Settings::string("csi_reference_until", "0", "Absolute UTC expiry (Unix seconds)");
     expires = static_cast<std::time_t>(std::strtoll(deadline.c_str(), nullptr, 10));
-    if (updating || mode < 1 || mode > 2 || expires <= 0) mode = 0;
+    if (updating || !arm || mode < 1 || mode > 2 || expires <= 0) mode = 0;
 }
 
 void SerialReport() {
-    Log.printf("CSIREF mode=%ld until=%lld sdk=%s upstream=3edc7bdb4262e01b868c3d589fea59cfd0e8f555\n",
-               mode, static_cast<long long>(expires), espectre::espectre_sdk_version());
+    char deadline[21];
+    Log.printf("CSIREF mode=%ld until=%s sdk=%s upstream=3edc7bdb4262e01b868c3d589fea59cfd0e8f555\n",
+               mode, csiReferenceDecimal(expires > 0 ? static_cast<uint64_t>(expires) : 0, deadline),
+               espectre::espectre_sdk_version());
 }
 
 void Loop() {
@@ -68,8 +73,10 @@ void Loop() {
         const int64_t tick = esp_timer_get_time();
         if (tick - lastReport >= 1000000) {
             lastReport = tick;
-            Log.printf("CSIREF {\"t_us\":%lld,\"utc\":%lld,\"detector\":\"off\",\"ready\":false,\"adverts\":%lu}\n",
-                       static_cast<long long>(tick), static_cast<long long>(std::time(nullptr)),
+            char timestamp[21], utc[21];
+            Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,\"adverts\":%lu}\n",
+                       csiReferenceDecimal(static_cast<uint64_t>(tick), timestamp),
+                       csiReferenceDecimal(static_cast<uint64_t>(std::time(nullptr)), utc),
                        static_cast<unsigned long>(receivedAdverts.load(std::memory_order_relaxed)));
         }
         return;
@@ -83,11 +90,17 @@ void Loop() {
     if (now < 1700000000) return;
     if (now >= expires) { expired = true; expire(); return; }
     if (!attempted) {
-        attempted = true;
         if (expires - now > 48 * 60 * 60) {
             Log.println("CSIREF fault: deadline exceeds 48-hour experiment limit");
+            mode = 0;
             return;
         }
+        if (!Settings::spurt("/csi_reference_arm", "0")) {
+            Log.println("CSIREF fault: cannot consume one-shot arm; sensing remains off");
+            mode = 0;
+            return;
+        }
+        attempted = true;
         monotonicExpiry = esp_timer_get_time() + static_cast<int64_t>(expires - now) * 1000000;
         espectre::RuntimeConfig config;
         config.device_id = espectre::derive_runtime_device_id();
@@ -111,20 +124,22 @@ void Loop() {
     lastReport = tick;
     const auto& s = runtime.snapshot();
     const auto d = runtime.diagnostics();
-    Log.printf("CSIREF {\"t_us\":%lld,\"utc\":%lld,\"detector\":\"%s\",\"ready\":%s,"
+    char timestamp[21], utc[21], accepted[21], admitted[21], drops[21];
+    Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
                "\"motion\":%s,\"score\":%.6f,\"threshold\":%.6f,\"calibrating\":%s,"
-               "\"accepted\":%llu,\"admitted\":%llu,\"slots\":%lu,\"window_slots\":%lu,"
-               "\"queue_drops\":%llu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu}\n",
-               static_cast<long long>(tick), static_cast<long long>(now), s.detector_name,
+               "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
+               "\"queue_drops\":%s,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu}\n",
+               csiReferenceDecimal(static_cast<uint64_t>(tick), timestamp),
+               csiReferenceDecimal(static_cast<uint64_t>(now), utc), s.detector_name,
                s.ready_to_publish ? "true" : "false",
                s.motion_state == espectre::MotionState::MOTION ? "true" : "false",
                static_cast<double>(s.movement_metric), static_cast<double>(s.threshold),
                s.calibrating ? "true" : "false",
-               static_cast<unsigned long long>(d.csi.accepted_total),
-               static_cast<unsigned long long>(d.csi.admitted_total),
+               csiReferenceDecimal(d.csi.accepted_total, accepted),
+               csiReferenceDecimal(d.csi.admitted_total, admitted),
                static_cast<unsigned long>(d.csi.occupancy_slots),
                static_cast<unsigned long>(d.csi.window_slots),
-               static_cast<unsigned long long>(d.csi.pending_frame_drops_total),
+               csiReferenceDecimal(d.csi.pending_frame_drops_total, drops),
                static_cast<unsigned long>(d.traffic.tx_packets_total),
                static_cast<unsigned long>(d.traffic.rx_packets_total),
                static_cast<unsigned long>(d.platform.free_memory_bytes),

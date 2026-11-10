@@ -6,6 +6,8 @@ on:
       - '.github/workflows/csi-reference.yml'
       - 'tools/prepare_csi_reference.py'
       - 'main/CsiReference.cpp'
+      - 'main/CsiReferenceFormat.h'
+      - 'test/test_native_csi_reference_format/**'
       - 'main/CMakeLists.txt'
       - 'CMakeLists.txt'
       - 'envs.cmake'

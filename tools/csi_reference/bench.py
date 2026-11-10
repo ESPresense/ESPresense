@@ -103,12 +103,13 @@ def main():
         try:
             for mode in (0, 1, 2, 0):
                 post(ip, "/wifi/hardware", {"csi_reference_mode": str(mode),
+                     "csi_reference_arm": "1" if mode else "0",
                      "csi_reference_until": str(int(time.time() + 900))})
                 post(ip, "/restart", {})
                 ip = wait_boot(ser)
                 results.append(measure(ser, args.seconds, mode, args.flood_ready))
         finally:
-            post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_until": "0"})
+            post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0", "csi_reference_until": "0"})
             post(ip, "/restart", {})
     with open(args.out, "w") as output:
         json.dump(results, output, indent=2)
