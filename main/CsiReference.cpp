@@ -10,6 +10,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <cstdio>
+#include <atomic>
 
 namespace CsiMotion {
 namespace {
@@ -28,6 +29,7 @@ bool running = false;
 bool expired = false;
 int64_t lastReport = 0;
 int64_t monotonicExpiry = 0;
+std::atomic<uint32_t> receivedAdverts{0};
 
 void expire() {
     // Persist disarm before restarting. Reboot restores the ordinary WiFi and
@@ -40,6 +42,12 @@ void expire() {
     Log.println("CSIREF finished: deadline reached; restoring normal radio by reboot");
     esp_restart();
 }
+}
+
+void NoteAdvert() {
+    // Count callbacks delivered by BLE to the application, before fingerprint
+    // filtering. A fingerprint New/Del event is a different measurement.
+    receivedAdverts.fetch_add(1, std::memory_order_relaxed);
 }
 
 void ConnectToWifi(bool updating) {
@@ -56,7 +64,16 @@ void SerialReport() {
 }
 
 void Loop() {
-    if (!mode || expired) return;
+    if (!mode || expired) {
+        const int64_t tick = esp_timer_get_time();
+        if (tick - lastReport >= 1000000) {
+            lastReport = tick;
+            Log.printf("CSIREF {\"t_us\":%lld,\"utc\":%lld,\"detector\":\"off\",\"ready\":false,\"adverts\":%lu}\n",
+                       static_cast<long long>(tick), static_cast<long long>(std::time(nullptr)),
+                       static_cast<unsigned long>(receivedAdverts.load(std::memory_order_relaxed)));
+        }
+        return;
+    }
     if (monotonicExpiry && esp_timer_get_time() >= monotonicExpiry) {
         expired = true; expire(); return;
     }
@@ -97,7 +114,7 @@ void Loop() {
     Log.printf("CSIREF {\"t_us\":%lld,\"utc\":%lld,\"detector\":\"%s\",\"ready\":%s,"
                "\"motion\":%s,\"score\":%.6f,\"threshold\":%.6f,\"calibrating\":%s,"
                "\"accepted\":%llu,\"admitted\":%llu,\"slots\":%lu,\"window_slots\":%lu,"
-               "\"queue_drops\":%llu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu}\n",
+               "\"queue_drops\":%llu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu}\n",
                static_cast<long long>(tick), static_cast<long long>(now), s.detector_name,
                s.ready_to_publish ? "true" : "false",
                s.motion_state == espectre::MotionState::MOTION ? "true" : "false",
@@ -111,7 +128,8 @@ void Loop() {
                static_cast<unsigned long>(d.traffic.tx_packets_total),
                static_cast<unsigned long>(d.traffic.rx_packets_total),
                static_cast<unsigned long>(d.platform.free_memory_bytes),
-               static_cast<unsigned long>(d.platform.largest_free_memory_block_bytes));
+               static_cast<unsigned long>(d.platform.largest_free_memory_block_bytes),
+               static_cast<unsigned long>(receivedAdverts.load(std::memory_order_relaxed)));
 }
 
 // Research output stays on the TCP log. It must not drive household automations

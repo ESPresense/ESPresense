@@ -1,6 +1,6 @@
 file(GLOB_RECURSE APP_SRCS *.cpp)
 set(REFERENCE_REQUIRES "")
-if(FW_ENV MATCHES "-csiref$")
+if("$ENV{ESPRESENSE_CSI_REFERENCE}" STREQUAL "1")
     list(APPEND REFERENCE_REQUIRES espectre)
 endif()
 idf_component_register(SRCS ${APP_SRCS}

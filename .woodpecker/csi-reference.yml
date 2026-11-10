@@ -1,0 +1,68 @@
+# Explicit manual benchmark. No house node is addressed from this pipeline.
+when:
+  - event: manual
+    branch: bench/csi-reference-family-master
+
+labels:
+  backend: docker
+  platform: linux/amd64
+
+steps:
+  - name: ble-reference-flood
+    image: ghcr.io/espresense/ble-loadgen:2
+    pull: true
+    privileged: true
+    network_mode: host
+    depends_on: []
+    volumes:
+      - /var/lock/woodpecker:/lock
+    temp_volumes:
+      - reference-flood:/flood
+    commands:
+      - flock -w 1800 /lock/ble-flood.lock python3 tools/csi_reference/flood_ready.py --index 0 --rate 40 --pool 1024 --until /flood/done --seconds 2400
+
+  - name: reference-esp32c3
+    image: espressif/idf:v5.5.6
+    pull: true
+    privileged: true
+    depends_on: []
+    volumes:
+      - cache_volume:/cache
+      - /dev/esp32c3:/dev/esp32c3
+      - /var/lock/woodpecker:/lock
+    temp_volumes:
+      - reference-flood:/flood
+    environment:
+      GITHUB_TOKEN:
+        from_secret: github_token
+      WIFI_SSID:
+        from_secret: wifi_ssid
+      WIFI_PASSWORD:
+        from_secret: wifi_password
+      IDF_CCACHE_ENABLE: '1'
+      CCACHE_DIR: /cache/ccache-idf
+    commands:
+      - |
+        . $IDF_PATH/export.sh
+        cp -r . /tmp/reference-src && cd /tmp/reference-src
+        git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
+        git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
+        python3 tools/prepare_csi_reference.py
+        flock -w 1800 /lock/esp32c3.lock bash -c '
+          set -e
+          ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
+          test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
+          python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
+          python3 -c "import pathlib,time; end=time.monotonic()+1800; ready=pathlib.Path(\"/flood/ready\"); exec(\"while not ready.exists() and time.monotonic()<end: time.sleep(1)\"); assert ready.exists(), \"Controlled BLE flood did not become ready\"; print(ready.read_text())"
+          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --out /tmp/reference-pilot.json
+        '
+
+  - name: ble-reference-flood-stop
+    image: alpine:3.22
+    depends_on: [reference-esp32c3]
+    when:
+      - status: [success, failure]
+    temp_volumes:
+      - reference-flood:/flood
+    commands:
+      - touch /flood/done

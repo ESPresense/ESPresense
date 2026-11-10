@@ -513,6 +513,9 @@ void reportLoop() {
 }
 
 void onAdvert(const Ble::Advert &advert) {
+#ifdef CSI_REFERENCE
+    CsiMotion::NoteAdvert();
+#endif
     bleStack = uxTaskGetStackHighWaterMark(nullptr);
     BleFingerprintCollection::Seen(&advert);
 }

@@ -18,6 +18,10 @@ case "$ENV" in *-csiref) DEFAULTS="$DEFAULTS;sdkconfig.csiref" ;; esac
 [ $# -eq 0 ] && set -- build
 # The env var wins over any IDF_TARGET a CI image pre-set (esp-idf-ci-action defaults to esp32).
 export IDF_TARGET="$TARGET"
+# Component requirements are also expanded in an IDF subprocess where CMake
+# cache variables are unavailable; carry this explicit variant gate through it.
+export ESPRESENSE_CSI_REFERENCE=0
+case "$ENV" in *-csiref) export ESPRESENSE_CSI_REFERENCE=1 ;; esac
 exec idf.py -B "build/$ENV" -DSDKCONFIG="build/$ENV/sdkconfig" \
   -DSDKCONFIG_DEFAULTS="$DEFAULTS" -DFW_ENV="$ENV" \
   ${FW_VERSION:+-DFW_VERSION="$FW_VERSION"} ${FW_BRANCH:+-DFW_BRANCH="$FW_BRANCH"} \
