@@ -85,34 +85,44 @@ inline std::string checkPins(const std::string& key, const SettingSpec& s, const
         return why.empty() ? "" : key + ": " + why;
     }
     if (!s.pinFields || s.pinFields->empty() || value.empty()) return "";
-    DynamicJsonDocument doc(value.size() * 2 + 128);
-    auto error = deserializeJson(doc, value);
-    if (error == DeserializationError::NoMemory) return key + ": insufficient memory to validate GPIOs";
-    if (error) return "";  // Malformed form JSON is ignored by Param::set().
-    auto check = [&](JsonObjectConst o, const std::string& where) -> std::string {
-        for (auto& f : *s.pinFields) {
-            JsonVariantConst v = o[f.first];
-            if (!v.is<long>()) continue;  // absent or not a number: the firmware treats it as unset
-            long pin = v.as<long>();
-            if (pin >= 0) setsPin = true;
-            std::string why = pinProblem(pin, f.second, r);
-            if (!why.empty()) return where + "." + f.first + ": " + why;
+    // Arrays of small objects can require many more slots than their serialized byte count.
+    // Retry on pool exhaustion, releasing the old pool first and bounding memory use.
+    size_t capacity = value.size() * 2 + 128;
+    for (;;) {
+        DynamicJsonDocument doc(capacity);
+        if (doc.capacity() == 0) return key + ": insufficient memory to validate GPIOs";
+        auto error = deserializeJson(doc, value);
+        if (error == DeserializationError::NoMemory) {
+            if (capacity >= 131072 / 2) return key + ": insufficient memory to validate GPIOs";
+            capacity *= 2;
+            continue;
         }
-        return "";
-    };
-    if (doc.is<JsonArrayConst>()) {
-        size_t i = 0;
-        for (JsonVariantConst e : doc.as<JsonArrayConst>()) {
-            if (e.is<JsonObjectConst>()) {
-                std::string err = check(e.as<JsonObjectConst>(), key + "[" + std::to_string(i) + "]");
-                if (!err.empty()) return err;
+        if (error) return "";  // Malformed form JSON is ignored by Param::set().
+        auto check = [&](JsonObjectConst o, const std::string& where) -> std::string {
+            for (auto& f : *s.pinFields) {
+                JsonVariantConst v = o[f.first];
+                if (!v.is<long>()) continue;  // absent or not a number: the firmware treats it as unset
+                long pin = v.as<long>();
+                if (pin >= 0) setsPin = true;
+                std::string why = pinProblem(pin, f.second, r);
+                if (!why.empty()) return where + "." + f.first + ": " + why;
             }
-            i++;
+            return "";
+        };
+        if (doc.is<JsonArrayConst>()) {
+            size_t i = 0;
+            for (JsonVariantConst e : doc.as<JsonArrayConst>()) {
+                if (e.is<JsonObjectConst>()) {
+                    std::string err = check(e.as<JsonObjectConst>(), key + "[" + std::to_string(i) + "]");
+                    if (!err.empty()) return err;
+                }
+                i++;
+            }
+            return "";
         }
+        if (doc.is<JsonObjectConst>()) return check(doc.as<JsonObjectConst>(), key);
         return "";
     }
-    if (doc.is<JsonObjectConst>()) return check(doc.as<JsonObjectConst>(), key);
-    return "";
 }
 
 // JSON value -> stored string for a setting of this type. False with err set when the value has
