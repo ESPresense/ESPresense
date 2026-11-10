@@ -4,10 +4,14 @@ from pathlib import Path
 import subprocess
 import sys
 
-with subprocess.Popen([sys.executable, "-u", "/app/ble_flood.py", *sys.argv[1:]],
-                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as child:
-    for line in child.stdout:
-        print(line, end="", flush=True)
-        if "[flood] hci0 claimed, rotating at 40.0/s" in line:
-            Path("/flood/ready").write_text(line)
-    raise SystemExit(child.wait())
+ready = Path("/flood/ready")
+try:
+    with subprocess.Popen([sys.executable, "-u", "/app/ble_flood.py", *sys.argv[1:]],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True) as child:
+        for line in child.stdout:
+            print(line, end="", flush=True)
+            if "[flood] hci0 claimed, rotating at 40.0/s" in line:
+                ready.write_text(line)
+        raise SystemExit(child.wait())
+finally:
+    ready.unlink(missing_ok=True)

@@ -21,7 +21,7 @@ jobs:
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.5.6
-          command: FW_VERSION="${{ github.event.pull_request.head.sha || github.sha }}" FW_BRANCH="${{ github.head_ref || github.ref_name }}" FW_RUN_ID="${{ github.run_id }}" ./build.sh esp32c3-csiref
+          command: FW_VERSION="$(printf %.7s '${{ github.event.pull_request.head.sha || github.sha }}')" FW_BRANCH="${{ github.head_ref || github.ref_name }}" FW_RUN_ID="${{ github.run_id }}" ./build.sh esp32c3-csiref
       - name: Enforce existing OTA image limit
         run: |
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080

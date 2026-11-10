@@ -48,13 +48,16 @@ steps:
         git clone -q --depth 1 https://github.com/ESPresense/firmware-tester /tmp/firmware-tester
         git config --global url."https://$GITHUB_TOKEN@github.com/".insteadOf "https://github.com/"
         python3 tools/prepare_csi_reference.py
+        # Acquire flood before device: ordinary HIL holds its flood while
+        # waiting for the device lock. Reversing that order would deadlock.
+        python3 -c 'import pathlib,time; end=time.monotonic()+1800; ready=pathlib.Path("/flood/ready"); exec("while not ready.exists() and time.monotonic()<end: time.sleep(1)"); assert ready.exists(), "Controlled BLE flood did not become ready"; print(ready.read_text())'
         flock -w 1800 /lock/esp32c3.lock bash -c '
           set -e
-          ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
+          ./build.sh esp32c3-csiref
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
+          ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 -c "import pathlib,time; end=time.monotonic()+1800; ready=pathlib.Path(\"/flood/ready\"); exec(\"while not ready.exists() and time.monotonic()<end: time.sleep(1)\"); assert ready.exists(), \"Controlled BLE flood did not become ready\"; print(ready.read_text())"
-          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --out /tmp/reference-pilot.json
+          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --flood-ready /flood/ready --out /tmp/reference-pilot.json
         '
 
   - name: ble-reference-flood-stop

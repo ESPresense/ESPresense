@@ -6,6 +6,7 @@ import json
 import re
 import time
 import urllib.parse
+from pathlib import Path
 import serial
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -38,11 +39,13 @@ def wait_boot(ser):
     raise RuntimeError("No post-reset IP in serial log")
 
 
-def measure(ser, seconds, mode):
+def measure(ser, seconds, mode, flood_ready=None):
     samples = []
     faults = []
     stop = time.monotonic() + seconds
     while time.monotonic() < stop:
+        if flood_ready and not Path(flood_ready).exists():
+            raise RuntimeError("Controlled BLE flood stopped during measurement")
         line = ANSI.sub("", ser.readline().decode("utf-8", "replace").strip())
         if line.startswith("CSIREF {"):
             samples.append(json.loads(line[7:]))
@@ -61,10 +64,15 @@ def measure(ser, seconds, mode):
     elapsed = (last["t_us"] - first["t_us"]) / 1e6
     if elapsed <= 0 or last["adverts"] < first["adverts"]:
         raise RuntimeError("Counter epoch changed during measurement")
-    ready = [s for s in measured if s.get("ready")]
+    intervals = [(a, (b["t_us"] - a["t_us"]) / 1e6)
+                 for a, b in zip(measured, measured[1:])]
+    ready_seconds = sum(dt for sample, dt in intervals if 0 < dt <= 1 and sample.get("ready"))
+    unknown_seconds = sum(dt for _, dt in intervals if dt > 1)
     result = {"mode": mode, "seconds": elapsed,
               "adverts_per_minute": (last["adverts"] - first["adverts"]) * 60 / elapsed,
-              "ready_fraction": len(ready) / len(measured),
+              "ready_fraction": ready_seconds / elapsed,
+              "unobserved_seconds": unknown_seconds,
+              "max_sample_gap_seconds": max(dt for _, dt in intervals),
               "slot_coverage_mean": (sum(s.get("slots", 0) / max(1, s.get("window_slots", 0))
                                          for s in measured) / len(measured)),
               "heap_min": min((s["heap"] for s in measured if "heap" in s), default=None),
@@ -82,6 +90,7 @@ def main():
     parser.add_argument("--port", required=True)
     parser.add_argument("--seconds", type=int, default=120)
     parser.add_argument("--out", required=True)
+    parser.add_argument("--flood-ready", help="Required live marker throughout each controlled measurement")
     args = parser.parse_args()
     results = []
     with serial.Serial(args.port, 115200, timeout=1) as ser:
@@ -97,7 +106,7 @@ def main():
                      "csi_reference_until": str(int(time.time() + 900))})
                 post(ip, "/restart", {})
                 ip = wait_boot(ser)
-                results.append(measure(ser, args.seconds, mode))
+                results.append(measure(ser, args.seconds, mode, args.flood_ready))
         finally:
             post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_until": "0"})
             post(ip, "/restart", {})

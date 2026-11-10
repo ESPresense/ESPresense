@@ -139,6 +139,9 @@ class Recorder:
                         task.result()  # A dead recorder must fail visibly, not claim coverage.
                         raise RuntimeError("A recording task ended unexpectedly")
                 await asyncio.sleep(min(5, max(0, self.args.until - time.time())))
+        except BaseException:
+            self.stop_reason = "failed"
+            raise
         finally:
             for task in tasks:
                 task.cancel()
