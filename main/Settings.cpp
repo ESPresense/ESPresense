@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include "SettingsStorage.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -22,6 +23,8 @@ namespace Settings {
 namespace {
 
 constexpr const char* BASE = "/spiffs";
+SettingsStorage storage;
+bool storageMounted = false;
 constexpr const char* MASKED_PASSWORD = "***###***";
 constexpr const char* CONTENT_JSON = "application/json; charset=utf-8";
 
@@ -378,27 +381,19 @@ void begin() {
     conf.max_files = 4;
     conf.format_if_mount_failed = true;
     esp_err_t err = esp_vfs_spiffs_register(&conf);
-    if (err != ESP_OK) Log.printf("SPIFFS mount failed: %s\n", esp_err_to_name(err));
+    storageMounted = err == ESP_OK;
+    if (!storageMounted) Log.printf("SPIFFS mount failed: %s\n", esp_err_to_name(err));
 }
 
 std::string slurp(const std::string& fn) {
-    FILE* f = fopen(path(fn).c_str(), "r");
-    if (!f) return "";
-    std::string r;
-    char buf[128];
-    size_t n;
-    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) r.append(buf, n);
-    fclose(f);
-    return r;
+    std::string value;
+    if (!storageMounted || storage.read(path(fn), value) == SettingsStorage::ReadResult::Error)
+        Log.printf("Failed to read setting %s\n", fn.c_str());
+    return value;
 }
 
 bool spurt(const std::string& fn, const std::string& content) {
-    if (content.empty()) return exists(fn) ? remove(fn) : true;
-    FILE* f = fopen(path(fn).c_str(), "w");
-    if (!f) return false;
-    size_t w = fwrite(content.data(), 1, content.size(), f);
-    fclose(f);
-    return w == content.size();
+    return storageMounted && storage.write(path(fn), content);
 }
 
 bool exists(const std::string& fn) {
@@ -406,7 +401,7 @@ bool exists(const std::string& fn) {
     return stat(path(fn).c_str(), &st) == 0;
 }
 
-bool remove(const std::string& fn) { return unlink(path(fn).c_str()) == 0; }
+bool remove(const std::string& fn) { return storageMounted && storage.remove(path(fn)); }
 
 std::string string(const std::string& name, const std::string& init, const char* /*label*/) {
     auto* p = add(Type::String, name, init);
@@ -489,7 +484,7 @@ std::optional<SettingSpec> spec(const std::string& key) {
     return p->spec();
 }
 
-void serialize(JsonObject out, bool all) {
+bool serialize(JsonObject out, bool all) {
     for (auto& e : endpoints)
         for (auto* p : e.params) {
             if (!templatable(p)) continue;
@@ -503,13 +498,18 @@ void serialize(JsonObject out, bool all) {
             // unsaved setting -- clobbering it there blanks that setting in /wifi until reboot.
             // Read into a local instead, and only on the backup path, so routine board-template
             // export (the common case) does no flash I/O at all.
-            std::string onFlash = all ? slurp(p->filename()) : p->value;
+            std::string onFlash = p->value;
+            if (all && (!storageMounted || storage.read(path(p->filename()), onFlash) == SettingsStorage::ReadResult::Error)) {
+                Log.printf("Failed to read setting %s for backup\n", p->name.c_str());
+                return false;
+            }
             std::string effective = onFlash.empty() ? p->init : onFlash;
             // Defaults stay out of shared templates. A backup keeps the room: its default is this
             // node's MAC, and the replacement should take over the same room and topics.
             if (p->same(effective, p->init) && !(all && p->name == "room")) continue;
             p->put(out[p->name.c_str()], effective);   // names live forever: stored by pointer
         }
+    return true;
 }
 
 bool apply(const std::vector<SettingChange>& changes, bool dryRun, JsonArray diff, size_t& changed) {
