@@ -58,10 +58,11 @@ struct Param {
     void fill() { value = slurp(filename()); }
     bool store() const { return spurt(filename(), value); }
 
-    void set(const std::string& v) {
+    enum class SetResult { Ok, InvalidJson, LowMemory };
+    SetResult set(const std::string& v) {
         switch (type) {
             case Type::Password:
-                if (v == MASKED_PASSWORD) return;
+                if (v == MASKED_PASSWORD) return SetResult::Ok;
                 value = v;
                 break;
             case Type::Bool:
@@ -70,16 +71,18 @@ struct Param {
                 break;
             case Type::Json: {
                 // Sent to the UI unquoted, so only a valid array or object may be stored.
+                if (v.empty()) { value.clear(); break; }
                 DynamicJsonDocument d(v.size() * 2 + 64);
-                if (v.empty() || (!deserializeJson(d, v) && (d.is<JsonArray>() || d.is<JsonObject>())))
-                    value = v;
-                else
-                    Log.printf("%s: not a JSON array or object, kept the old value\n", name.c_str());
+                auto error = deserializeJson(d, v);
+                if (error == DeserializationError::NoMemory) return SetResult::LowMemory;
+                if (error || (!d.is<JsonArray>() && !d.is<JsonObject>())) return SetResult::InvalidJson;
+                value = v;
                 break;
             }
             default:
                 value = v;
         }
+        return SetResult::Ok;
     }
 
     std::string json(const std::string& v) const {
@@ -364,7 +367,9 @@ esp_err_t postHandler(httpd_req_t* req) {
     bool ok = true;
     for (auto* prm : endpoints[idx].params) {
         if (!formValue(body, prm->name, v)) continue;
-        prm->set(v);
+        auto result = prm->set(v);
+        if (result == Param::SetResult::LowMemory) return sendText(req, "429 Too Many Requests", "Insufficient memory to validate setting");
+        if (result == Param::SetResult::InvalidJson) return sendText(req, "400 Bad Request", "Expected a JSON array or object");
         if (!prm->store()) ok = false;
     }
     if (!ok) {
