@@ -12,6 +12,7 @@ namespace CsiMotion
 #ifdef CSI_REFERENCE
     void NoteAdvert();
     bool BleScanEnabled();  // Explicit benchmark control; defaults to true.
+    unsigned RequestedBleScanWindowUnits();  // Armed diagnostic; otherwise full.
 #endif
     void ConnectToWifi(bool updating);
     void SerialReport();

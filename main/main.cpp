@@ -547,6 +547,13 @@ void scanTask(void *parameter) {
 
         Enrollment::Loop();
 
+#ifdef CSI_REFERENCE
+        if (Ble::IsScanning() && Ble::ConfiguredScanWindowUnits() != CsiMotion::RequestedBleScanWindowUnits()) {
+            Ble::StopScan();
+            delay(100);  // Let the controller complete cancellation before restarting.
+            continue;
+        }
+#endif
         if (!Ble::IsScanning()) {
             if (!Ble::StartScan())
                 log_e("Error re-starting continuous ble scan");

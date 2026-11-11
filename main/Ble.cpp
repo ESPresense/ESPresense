@@ -6,6 +6,10 @@
 
 #include "Logger.h"
 #include "defaults.h"
+#if defined(SENSORS) && defined(CSI_REFERENCE)
+#include "CsiMotion.h"
+#include <atomic>
+#endif
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "host/ble_att.h"
@@ -22,6 +26,10 @@
 extern "C" void ble_store_config_init(void);
 
 namespace Ble {
+#if defined(SENSORS) && defined(CSI_REFERENCE)
+static std::atomic<unsigned> acceptedScanWindow{0};
+unsigned ConfiguredScanWindowUnits() { return acceptedScanWindow.load(std::memory_order_relaxed); }
+#endif
 
 // --- advertisement parsing -----------------------------------------------------------------------
 
@@ -432,8 +440,14 @@ bool StartScan() {
     p.filter_duplicates = 0;
     p.itvl = BLE_SCAN_INTERVAL;
     p.window = BLE_SCAN_WINDOW;
+#if defined(SENSORS) && defined(CSI_REFERENCE)
+    p.window = CsiMotion::RequestedBleScanWindowUnits();
+#endif
     p.filter_policy = BLE_HCI_SCAN_FILT_NO_WL;
     int rc = ble_gap_disc(ownAddrType, BLE_HS_FOREVER, &p, gapEvent, nullptr);
+#if defined(SENSORS) && defined(CSI_REFERENCE)
+    if (rc == 0) acceptedScanWindow.store(p.window, std::memory_order_relaxed);
+#endif
     scanning = rc == 0 || rc == BLE_HS_EALREADY;
     return scanning;
 }

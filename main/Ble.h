@@ -55,6 +55,9 @@ void DeleteAllBonds();
 bool StartScan();
 void StopScan();
 bool IsScanning();
+#ifdef CSI_REFERENCE
+unsigned ConfiguredScanWindowUnits();  // Last controller-accepted passive scan parameters.
+#endif
 
 std::string uuidStr(const ble_uuid_any_t& u);  // ble_uuid_to_str format (same as NimBLE-Arduino)
 std::string addrStr(const ble_addr_t& a);

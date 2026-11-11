@@ -3,6 +3,9 @@
 #if defined(SENSORS) && defined(CSI_REFERENCE)
 #include "CsiMotion.h"
 #include "CsiReferenceFormat.h"
+#include "CsiReferenceScan.h"
+#include "Ble.h"
+#include "defaults.h"
 #include "Settings.h"
 #include "globals.h"
 #include "espectre_sdk.h"
@@ -37,6 +40,9 @@ int64_t monotonicExpiry = 0;
 std::atomic<uint32_t> receivedAdverts{0};
 bool bleScanEnabled = true;  // Loaded before scanTask starts; reboot to change.
 bool externalHost = false;  // Explicit diagnostic; PING remains the default.
+long scanProfile = 0;
+bool trialRequested = false;
+std::atomic<bool> trialStarted{false};
 
 // The SDK has one owner, independent of serial/MQTT and the ordinary loop's
 // per-fingerprint yields. Match the pinned native frontend: 8 KiB, priority 5,
@@ -47,6 +53,9 @@ struct ReferenceReport {
     int64_t tick = 0;
     uint64_t utc = 0;
     uint32_t adverts = 0;
+    unsigned scanWindow = 0;
+    unsigned requestedWindow = 0;
+    bool trialActive = false;
     uint32_t sequence = 0;
     uint32_t telemetryOverwrites = 0;
     uint32_t workerLoops = 0;
@@ -73,7 +82,7 @@ void expire() {
     runtime.shutdown();
     // Arming was durably consumed before setup. Reboot restores the ordinary
     // radio policy without a flash write at expiry or a possible reboot loop.
-    if (!attempted) {
+    if (!trialStarted.load(std::memory_order_acquire)) {
         mode = 0;
         return;
     }
@@ -89,18 +98,25 @@ void NoteAdvert() {
 }
 
 bool BleScanEnabled() { return bleScanEnabled; }
+unsigned RequestedBleScanWindowUnits() {
+    return csiReferenceScanWindowUnits(scanProfile, trialStarted.load(std::memory_order_acquire), BLE_SCAN_WINDOW);
+}
 
 void ConnectToWifi(bool updating) {
     bleScanEnabled = Settings::checkbox("csi_reference_ble_scan", true,
                                        "Reference control: retain ordinary BLE scanning");
     externalHost = Settings::checkbox("csi_reference_external_host", false,
                                       "Reference control: external unicast UDP traffic");
+    scanProfile = Settings::dropdown("csi_reference_scan_profile", {"Full", "Quarter", "Eighth"}, 0,
+                                     "Armed bench scan-window cost diagnostic; resets to full after reboot");
     mode = Settings::dropdown("csi_reference_mode", {"Off", "Lightweight", "High Accuracy"}, 0,
                               "Dev-only pinned upstream reference detector");
     const bool arm = Settings::checkbox("csi_reference_arm", false, "One-shot reference trial arming");
     const auto deadline = Settings::string("csi_reference_until", "0", "Absolute UTC expiry (Unix seconds)");
     expires = static_cast<std::time_t>(std::strtoll(deadline.c_str(), nullptr, 10));
-    if (updating || !arm || mode < 1 || mode > 2 || expires <= 0) mode = 0;
+    trialRequested = !updating && arm && mode >= 0 && mode <= 2 && expires > 0
+                     && (mode > 0 || (scanProfile >= 1 && scanProfile <= 2));
+    if (!trialRequested) mode = 0;
 }
 
 void SerialReport() {
@@ -112,7 +128,7 @@ void SerialReport() {
 
 namespace {
 void serviceRuntime() {
-    if (!mode || expired) return;
+    if (expired || (!trialRequested && !trialStarted.load(std::memory_order_acquire))) return;
     if (monotonicExpiry && esp_timer_get_time() >= monotonicExpiry) {
         expired = true; expire(); return;
     }
@@ -121,19 +137,26 @@ void serviceRuntime() {
     // implausible deadlines never arm the reference radio.
     if (now < 1700000000) return;
     if (now >= expires) { expired = true; expire(); return; }
-    if (!attempted) {
+    if (!trialStarted.load(std::memory_order_acquire)) {
         if (expires - now > 48 * 60 * 60) {
             fault("deadline exceeds 48-hour experiment limit");
             mode = 0;
+            trialRequested = false;
             return;
         }
         if (!Settings::spurt("/csi_reference_arm", "0")) {
             fault("cannot consume one-shot arm; sensing remains off");
             mode = 0;
+            trialRequested = false;
             return;
         }
-        attempted = true;
         monotonicExpiry = esp_timer_get_time() + static_cast<int64_t>(expires - now) * 1000000;
+        trialStarted.store(true, std::memory_order_release);
+    }
+    // Reduced BLE-only baselines share the same persistent/monotonic expiry.
+    if (!mode) return;
+    if (!attempted) {
+        attempted = true;
         espectre::RuntimeConfig config;
         config.device_id = espectre::derive_runtime_device_id();
         config.detection_algorithm = mode == 1 ? espectre::DetectionAlgorithm::LIGHTWEIGHT
@@ -173,6 +196,9 @@ void referenceWorker(void*) {
             pending.tick = tick;
             pending.utc = static_cast<uint64_t>(std::time(nullptr));
             pending.adverts = receivedAdverts.load(std::memory_order_relaxed);
+            pending.scanWindow = Ble::ConfiguredScanWindowUnits();
+            pending.requestedWindow = RequestedBleScanWindowUnits();
+            pending.trialActive = trialStarted.load(std::memory_order_acquire);
             pending.active = active;
             pending.attempted = attempted;
             pending.running = running;
@@ -226,11 +252,17 @@ void Loop() {
     char timestamp[21], utc[21], accepted[21], admitted[21], drops[21];
     char callbacks[21], filtered[21], provenance[21], invalidFirst[21];
     char missing[21], excess[21], stale[21], outOfOrder[21];
+    char scanCondition[192];
+    std::snprintf(scanCondition, sizeof(scanCondition),
+                  "\"scan_profile\":%ld,\"scan_window_units\":%u,\"scan_interval_units\":%u,"
+                  "\"scan_requested_units\":%u,\"trial_active\":%s",
+                  scanProfile, report.scanWindow, unsigned(BLE_SCAN_INTERVAL), report.requestedWindow,
+                  report.trialActive ? "true" : "false");
     if (!report.active) {
         Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,"
                    "\"adverts\":%lu,\"heap\":%lu,\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,"
                    "\"worker_stack_free\":%lu,\"report_seq\":%lu,\"telemetry_overwrites\":%lu,"
-                   "\"ble_scan\":%s,\"software_reset\":%s,\"source\":\"%s\"}\n",
+                   "\"ble_scan\":%s,\"software_reset\":%s,\"source\":\"%s\",%s}\n",
                    csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
                    csiReferenceDecimal(report.utc, utc),
                    static_cast<unsigned long>(report.adverts),
@@ -242,7 +274,7 @@ void Loop() {
                    static_cast<unsigned long>(report.telemetryOverwrites),
                    bleScanEnabled ? "true" : "false",
                    esp_reset_reason() == ESP_RST_SW ? "true" : "false",
-                   externalHost ? "external_host" : "ping");
+                   externalHost ? "external_host" : "ping", scanCondition);
         return;
     }
     Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
@@ -250,7 +282,7 @@ void Loop() {
                "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
                "\"queue_drops\":%s,\"generated\":%lu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
                "\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,\"worker_stack_free\":%lu,"
-               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,\"source\":\"%s\","
+               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,\"source\":\"%s\",%s,"
                "\"callbacks\":%s,\"filtered\":%s,\"provenance_rejected\":%s,\"invalid_first_word\":%s,"
                "\"missing_slots\":%s,\"excess\":%s,\"stale\":%s,\"out_of_order\":%s}\n",
                csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
@@ -276,7 +308,7 @@ void Loop() {
                static_cast<unsigned long>(report.sequence),
                static_cast<unsigned long>(report.telemetryOverwrites),
                bleScanEnabled ? "true" : "false",
-               externalHost ? "external_host" : "ping",
+               externalHost ? "external_host" : "ping", scanCondition,
                csiReferenceDecimal(d.csi.callbacks_total, callbacks),
                csiReferenceDecimal(d.csi.filtered_total, filtered),
                csiReferenceDecimal(d.csi.provenance_rejected_total, provenance),

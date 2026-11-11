@@ -69,3 +69,32 @@ Verify the sensor histories and underlying definitions before assigning labels. 
 Use the user's existing room `_occupancy` entities as the operational reference after tracing their input definitions for BLE dependence. Save the actual HA histories, including expiry attributes and input-health flags. Aggregate occupancy can retain a person after raw motion clears; preserve that retention policy when measuring departure latency. A repository snapshot of the template can differ from deployed timing, so cross-check it against the live output and do not reconstruct reference labels from an older source file.
 
 Report motion detection and occupancy as different outcomes. Score arrivals, retained occupancy while still, departures, a person without a tracked device, and activity in neighboring rooms. Compare CSI plus BLE with BLE alone on the same evaluation intervals. Report per-room recall, precision, arrival/departure latency, false occupancy episodes/hour, false occupancy duration, missed occupancy duration, room flapping, and the fraction of time with valid labels and ready input. AUC and false-positive windows/hour alone cannot establish useful occupancy. Preserve a reproducible negative result if neither detector helps; green CI or a merge does not satisfy the outcome.
+
+## Bounded scan-window cost diagnostic
+
+Pilot 2023 confirmed the missing coexistence call in the old SDK object, then
+confirmed the call and include path in the corrected build. Both detectors still
+had zero ready time with continuous BLE scanning. Both scan-off controls were
+ready. This fixes a real build omission without establishing a viable room sensor.
+
+`REFERENCE_SCAN_SWEEP=true` selects a complete PING-only ten-phase bench run.
+The passive scan interval stays 128 units (80 ms); windows are 128, 32 and 16
+units (80, 20 and 10 ms). Full-window BLE-only baselines bracket the run. Each
+shorter window has off/Lightweight/High Accuracy/off blocks under the same
+64-identity workload when explicitly selected. Measure application callbacks,
+heap, readiness and temporal coverage together; requested listening fraction is
+not a measurement of the controller's RF allocation. The pinned SDK source,
+100 pps target, admission, weights and calibration remain unchanged.
+
+The reference-only `csi_reference_scan_profile` defaults to full. A reduced
+window requires the existing one-shot arm and a valid deadline, even with the
+SDK off. The worker durably consumes the arm before enabling that profile and
+enforces wall-clock and monotonic expiry for BLE-only baselines too. Reboot or
+expiry returns to full scanning despite a saved reduced profile. Telemetry
+records the requested window and the last window accepted by the controller.
+The host waits for that condition before measuring, rejects later changes, and
+checks full-window restoration after cleanup. Safety probes exercise reboot and
+expiry with reduced scanning, including a separate SDK-off expiry probe. A
+scan-window sweep cannot be combined with an external sender, partial phase
+continuation or scan-off controls. It is a cost diagnostic; a ready detector at
+the expense of BLE reception does not automatically pass the house gate.

@@ -133,7 +133,7 @@ def verify_build(ip, expected):
     raise RuntimeError(f"Bench metadata unavailable after boot: {last_error}")
 
 
-def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None):
+def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None, scan_profile=None):
     samples = []
     faults = []
     tainted_after = set()
@@ -166,6 +166,8 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
                 expected = "external_host" if traffic_source == "external" else "ping"
                 if sample.get("source") != expected or sample.get("ble_scan") is not ble_scan:
                     raise RuntimeError("Live traffic source/scanning condition differs from requested phase")
+            if scan_profile is not None:
+                verify_scan_condition(sample, ble_scan, scan_profile, bool(mode or scan_profile))
             samples.append(sample)
         elif IP.search(line) or line.startswith("ESP-ROM:"):
             raise RuntimeError("Device rebooted during the measurement")
@@ -199,7 +201,9 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
     generated = [s.get("generated") for s in measured]
     generator_epoch_valid = (all(value is not None for value in generated)
                              and all(b >= a for a, b in zip(generated, generated[1:])))
-    result = {"mode": mode, "ble_scan": ble_scan,
+    result = {"mode": mode, "ble_scan": ble_scan, "scan_profile": scan_profile,
+              "scan_window_units": first.get("scan_window_units"),
+              "scan_interval_units": first.get("scan_interval_units"),
               "condition": "BLE coexistence" if ble_scan else "No-scan diagnostic control",
               "seconds": elapsed,
               "adverts_per_minute": (last["adverts"] - first["adverts"]) * 60 / elapsed,
@@ -224,11 +228,12 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
     return result
 
 
-def restart_phase(ser, ip, expected, mode, until, ble_scan, external_host=False):
+def restart_phase(ser, ip, expected, mode, until, ble_scan, external_host=False, scan_profile=0):
     post(ip, "/wifi/hardware", {"csi_reference_mode": str(mode),
-         "csi_reference_arm": "1" if mode else "0", "csi_reference_until": str(until),
+         "csi_reference_arm": "1" if mode or scan_profile else "0", "csi_reference_until": str(until),
          "csi_reference_ble_scan": "1" if ble_scan else "0",
-         "csi_reference_external_host": "1" if external_host else "0"})
+         "csi_reference_external_host": "1" if external_host else "0",
+         "csi_reference_scan_profile": str(scan_profile)})
     return restart_and_verify(ser, ip, expected)
 
 
@@ -275,6 +280,39 @@ def requested_phases(no_scan_control, phase_start, safety):
     return phases[phase_start:]
 
 
+def scan_window_phases(no_scan_control, phase_start, traffic_source):
+    if no_scan_control or phase_start or traffic_source != "ping":
+        raise ValueError("Scan-window sweep requires a complete PING run without scan-off controls")
+    return [(0, True, 0)] + [(mode, True, profile) for profile in (1, 2)
+                            for mode in (0, 1, 2, 0)] + [(0, True, 0)]
+
+
+def verify_scan_condition(sample, ble_scan, profile, trial_active):
+    window = (128, 32, 16)[profile] if trial_active else 128
+    if (sample.get("ble_scan") is not ble_scan or sample.get("scan_profile") != profile
+            or sample.get("scan_interval_units") != 128
+            or sample.get("scan_requested_units") != window
+            or sample.get("trial_active") is not trial_active
+            or (ble_scan and sample.get("scan_window_units") != window)):
+        raise RuntimeError("Live scan-window condition differs from the armed phase")
+
+
+def wait_scan_condition(ser, detector, ble_scan, profile, trial_active, flood_ready, timeout=45):
+    # Settings and initial boot output precede NTP, durable arm consumption, and
+    # asynchronous controller scan cancellation/restart. Do not measure them.
+    stop = time.monotonic() + timeout
+    while time.monotonic() < stop:
+        sample = next_reference(ser, max(1, stop - time.monotonic()), flood_ready)
+        if sample.get("detector") != detector:
+            continue
+        try:
+            verify_scan_condition(sample, ble_scan, profile, trial_active)
+        except RuntimeError:
+            continue
+        return sample
+    raise RuntimeError("Controller did not apply the requested scan-window condition")
+
+
 def next_reference(ser, timeout, flood_ready):
     stop = time.monotonic() + timeout
     while time.monotonic() < stop:
@@ -300,16 +338,19 @@ def wait_detector(ser, detector, flood_ready, timeout=45):
 def safety_checks(ser, ip, args, save):
     # These checks stay inside the pipeline's device flock. They establish
     # arming/expiry behavior, independently of the detector's input readiness.
+    profile = 2 if args.scan_window_sweep else 0
+    scanning = args.scan_window_sweep
     deadline = int(time.time() + 180)
-    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False,
-                       args.traffic_source == "external")
-    active = wait_detector(ser, "high_accuracy", args.flood_ready)
+    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, scanning,
+                       args.traffic_source == "external", profile)
+    active = wait_scan_condition(ser, "high_accuracy", scanning, profile, True, args.flood_ready)
     ip = restart_and_verify(ser, ip, args.expected_version)
-    off = wait_detector(ser, "off", args.flood_ready)
+    off = wait_scan_condition(ser, "off", scanning, profile, False, args.flood_ready)
     values = hardware(ip)
     if (values.get("csi_reference_arm") is not False
             or str(values.get("csi_reference_mode")) != "2"
             or str(values.get("csi_reference_until")) != str(deadline)
+            or str(values.get("csi_reference_scan_profile")) != str(profile)
             or time.time() >= deadline):
         raise RuntimeError("One-shot consumption not proven before the saved deadline")
     result = {"check": "one_shot_reboot", "passed": True,
@@ -318,9 +359,9 @@ def safety_checks(ser, ip, args, save):
     save(result)
 
     deadline = int(time.time() + 90)
-    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False,
-                       args.traffic_source == "external")
-    active = wait_detector(ser, "high_accuracy", args.flood_ready)
+    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, scanning,
+                       args.traffic_source == "external", profile)
+    active = wait_scan_condition(ser, "high_accuracy", scanning, profile, True, args.flood_ready)
     last_active = active
     stop = time.monotonic() + max(0, deadline - time.time()) + 40
     while time.monotonic() < stop:
@@ -331,14 +372,15 @@ def safety_checks(ser, ip, args, save):
         if (time.time() < deadline - 2 or not sample.get("software_reset")
                 or sample["t_us"] >= last_active["t_us"]):
             raise RuntimeError("Unexpected disarm/reboot before the expiry proof")
-        off = sample
+        off = wait_scan_condition(ser, "off", scanning, profile, False, args.flood_ready)
         break
     else:
         raise RuntimeError("Persistent expiry did not reboot into detector-off state")
     verify_build(ip, args.expected_version)
     values = hardware(ip)
     if (values.get("csi_reference_arm") is not False
-            or str(values.get("csi_reference_until")) != str(deadline)):
+            or str(values.get("csi_reference_until")) != str(deadline)
+            or str(values.get("csi_reference_scan_profile")) != str(profile)):
         raise RuntimeError("Expiry did not preserve consumed arming and saved deadline")
     # Repeated expiry reboots must not masquerade as a successful disarm.
     previous = off
@@ -347,28 +389,73 @@ def safety_checks(ser, ip, args, save):
         sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
         if sample.get("detector") != "off" or sample["t_us"] <= previous["t_us"]:
             raise RuntimeError("Sensing resumed or the expired node rebooted repeatedly")
+        verify_scan_condition(sample, scanning, profile, False)
         previous = sample
     result = {"check": "persistent_expiry", "passed": True, "saved_deadline": deadline,
               "active": active, "last_active": last_active,
               "after_expiry": off, "stable_off": previous}
     print("CSI_REFERENCE_SAFETY " + json.dumps(result, sort_keys=True), flush=True)
     save(result)
+    if args.scan_window_sweep:
+        # Critical extra case: no SDK is running, but reduced BLE scanning must
+        # still expire without the host, reboot once, and return to full scan.
+        deadline = int(time.time() + 60)
+        ip = restart_phase(ser, ip, args.expected_version, 0, deadline, True, False, profile)
+        active = wait_scan_condition(ser, "off", True, profile, True, args.flood_ready)
+        last_active = active
+        stop = time.monotonic() + max(0, deadline - time.time()) + 45
+        while time.monotonic() < stop:
+            sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
+            if sample.get("trial_active"):
+                verify_scan_condition(sample, True, profile, True)
+                last_active = sample
+                continue
+            if (time.time() < deadline - 2 or not sample.get("software_reset")
+                    or sample["t_us"] >= last_active["t_us"]):
+                raise RuntimeError("BLE-only scan profile did not expire with a fresh software boot")
+            # Controller may not have started yet at the first postboot report.
+            off = wait_scan_condition(ser, "off", True, profile, False, args.flood_ready)
+            break
+        else:
+            raise RuntimeError("BLE-only reduced scan did not expire")
+        verify_build(ip, args.expected_version)
+        values = hardware(ip)
+        if (values.get("csi_reference_arm") is not False
+                or str(values.get("csi_reference_mode")) != "0"
+                or str(values.get("csi_reference_until")) != str(deadline)
+                or str(values.get("csi_reference_scan_profile")) != str(profile)):
+            raise RuntimeError("BLE-only expiry did not retain consumed arm and saved settings")
+        previous = off
+        stop = time.monotonic() + 15
+        while time.monotonic() < stop:
+            sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
+            verify_scan_condition(sample, True, profile, False)
+            if sample.get("detector") != "off" or sample["t_us"] <= previous["t_us"]:
+                raise RuntimeError("BLE-only expiry rebooted repeatedly or resumed sensing")
+            previous = sample
+        result = {"check": "ble_only_profile_expiry", "passed": True, "saved_deadline": deadline,
+                  "active": active, "last_active": last_active,
+                  "after_expiry": off, "stable_off": previous}
+        print("CSI_REFERENCE_SAFETY " + json.dumps(result, sort_keys=True), flush=True)
+        save(result)
     return ip
 
 
 def cleanup(ser, ip, expected):
     post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0",
-         "csi_reference_until": "0", "csi_reference_ble_scan": "1", "csi_reference_external_host": "0"})
+         "csi_reference_until": "0", "csi_reference_ble_scan": "1", "csi_reference_external_host": "0",
+         "csi_reference_scan_profile": "0"})
     ip = restart_and_verify(ser, ip, expected)
     values = hardware(ip)
     if (str(values.get("csi_reference_mode")) != "0"
             or values.get("csi_reference_arm") is not False
             or str(values.get("csi_reference_until")) != "0"
             or values.get("csi_reference_ble_scan") is not True
-            or values.get("csi_reference_external_host") is not False):
+            or values.get("csi_reference_external_host") is not False
+            or str(values.get("csi_reference_scan_profile")) != "0"):
         raise RuntimeError("Bench cleanup settings were not restored")
-    wait_detector(ser, "off", None)
-    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true, external=false", flush=True)
+    wait_scan_condition(ser, "off", True, 0, False, None)
+    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true, external=false, full_window=128", flush=True)
 
 
 def main():
@@ -380,6 +467,8 @@ def main():
     parser.add_argument("--flood-ready", help="Required live marker throughout each controlled measurement")
     parser.add_argument("--no-scan-control", action="store_true",
                         help="Also measure both detectors with BLE scanning explicitly disabled")
+    parser.add_argument("--scan-window-sweep", action="store_true",
+                        help="Full/quarter/eighth BLE window tradeoff, matched baselines, no SDK changes")
     parser.add_argument("--safety-checks", action="store_true",
                         help="Verify one-shot reboot and automatic persistent expiry under the same lock")
     parser.add_argument("--phase-start", type=int, default=0,
@@ -389,7 +478,12 @@ def main():
     args = parser.parse_args()
     if args.traffic_source == "external" and not 0 < args.seconds <= 290:
         parser.error("External-host phases must fit the sender's300-second hard expiry")
-    phases = requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)
+    try:
+        phases = (scan_window_phases(args.no_scan_control, args.phase_start, args.traffic_source)
+                  if args.scan_window_sweep else [(m, b, 0) for m, b in
+                      requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)])
+    except ValueError as error:
+        parser.error(str(error))
     results = []
     safety = []
     traffic_feeds = []
@@ -399,7 +493,8 @@ def main():
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps({"phases": results, "safety": safety,
             "source_version": args.expected_version, "phase_start": args.phase_start,
-            "traffic_source": args.traffic_source, "external_feeds": traffic_feeds}, indent=2))
+            "traffic_source": args.traffic_source, "scan_window_sweep": args.scan_window_sweep,
+            "external_feeds": traffic_feeds}, indent=2))
         temporary.replace(path)
 
     def save_safety(result):
@@ -418,18 +513,22 @@ def main():
             post(ip, "/wifi", {"auto_update": "0"})
             try:
                 print(f"BENCH phase_start={args.phase_start} phases={phases}", flush=True)
-                for mode, ble_scan in phases:
+                for mode, ble_scan, scan_profile in phases:
                     ip = restart_phase(ser, ip, args.expected_version, mode,
-                                       int(time.time() + 900), ble_scan, args.traffic_source == "external")
+                                       int(time.time() + 900), ble_scan, args.traffic_source == "external", scan_profile)
                     values = hardware(ip)
                     if values.get("csi_reference_ble_scan") is not ble_scan:
                         raise RuntimeError("Saved BLE scanning condition does not match requested phase")
                     if values.get("csi_reference_external_host") is not (args.traffic_source == "external"):
                         raise RuntimeError("Saved traffic source does not match requested phase")
+                    if str(values.get("csi_reference_scan_profile")) != str(scan_profile):
+                        raise RuntimeError("Saved scan-window profile differs from requested phase")
+                    wait_scan_condition(ser, ("off", "lightweight", "high_accuracy")[mode],
+                                        ble_scan, scan_profile, bool(mode or scan_profile), args.flood_ready)
                     feed = (ExternalFeed(ip, args.seconds + 10) if mode and args.traffic_source == "external"
                             else contextlib.nullcontext(None))
                     with feed as sender:
-                        result = measure(ser, args.seconds, mode, args.flood_ready, ble_scan, args.traffic_source)
+                        result = measure(ser, args.seconds, mode, args.flood_ready, ble_scan, args.traffic_source, scan_profile)
                     if sender is not None:
                         result["external_feed"] = sender.stats()
                         traffic_feeds.append({"mode": mode, "ble_scan": ble_scan, **sender.stats()})

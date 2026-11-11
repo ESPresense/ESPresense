@@ -24,6 +24,57 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_scan_sweep_keeps_matched_baselines_and_cannot_mix_conditions(self):
+        phases = bench.scan_window_phases(False, 0, "ping")
+        self.assertEqual(phases[0], (0, True, 0))
+        self.assertEqual(phases[-1], (0, True, 0))
+        for profile in (1, 2):
+            self.assertEqual([m for m, scanning, p in phases if p == profile and scanning], [0, 1, 2, 0])
+        for controls, start, source in [(True, 0, "ping"), (False, 1, "ping"), (False, 0, "external")]:
+            with self.assertRaises(ValueError):
+                bench.scan_window_phases(controls, start, source)
+
+    def test_ble_only_reduced_baseline_consumes_the_same_arm_and_deadline(self):
+        with patch.object(bench, "post") as post, patch.object(bench, "restart_and_verify"):
+            bench.restart_phase("serial", "192.0.2.1", "expected", 0, 123456, True, scan_profile=2)
+        values = post.call_args.args[2]
+        self.assertEqual(values["csi_reference_mode"], "0")
+        self.assertEqual(values["csi_reference_arm"], "1")
+        self.assertEqual(values["csi_reference_until"], "123456")
+        self.assertEqual(values["csi_reference_scan_profile"], "2")
+
+    def test_requested_profile_cannot_masquerade_as_applied_controller_window(self):
+        sample = {"ble_scan": True, "scan_profile": 2, "scan_interval_units": 128,
+                  "scan_requested_units": 16, "scan_window_units": 128, "trial_active": True}
+        with self.assertRaisesRegex(RuntimeError, "scan-window condition"):
+            bench.verify_scan_condition(sample, True, 2, True)
+        sample["scan_window_units"] = 16
+        bench.verify_scan_condition(sample, True, 2, True)
+        # Consumed arm on a later boot must return to full, despite saved profile2.
+        with self.assertRaisesRegex(RuntimeError, "scan-window condition"):
+            bench.verify_scan_condition(sample, True, 2, False)
+        sample.update(scan_window_units=128, scan_requested_units=128, trial_active=False)
+        bench.verify_scan_condition(sample, True, 2, False)
+
+    def test_settling_wait_excludes_pre_ntp_and_scan_restart_output(self):
+        base = {"detector": "off", "ble_scan": True, "scan_profile": 1,
+                "scan_interval_units": 128, "scan_requested_units": 128,
+                "scan_window_units": 128, "trial_active": False}
+        armed = dict(base, scan_requested_units=32, trial_active=True)
+        applied = dict(armed, scan_window_units=32)
+        with patch.object(bench, "next_reference", side_effect=[base, armed, applied]) as read:
+            self.assertEqual(bench.wait_scan_condition("serial", "off", True, 1, True, None), applied)
+        self.assertEqual(read.call_count, 3)
+
+    def test_phase_faults_if_applied_scan_window_changes_after_settling(self):
+        sample = {"source": "ping", "ble_scan": True, "scan_profile": 1,
+                  "scan_interval_units": 128, "scan_requested_units": 32,
+                  "scan_window_units": 128, "trial_active": True}
+        ser = Mock()
+        ser.readline.return_value = ("CSIREF " + json.dumps(sample) + "\n").encode()
+        with self.assertRaisesRegex(RuntimeError, "scan-window condition"):
+            bench.measure(ser, 60, 0, traffic_source="ping", scan_profile=1)
+
     def test_external_phase_rejects_live_ping_output(self):
         ser = Mock()
         ser.readline.return_value = b'CSIREF {"source":"ping","ble_scan":true}\n'
