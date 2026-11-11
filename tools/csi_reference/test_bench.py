@@ -19,7 +19,8 @@ class TimedSerial:
 
     def readline(self):
         self.now += self.interval
-        return ("CSIREF " + json.dumps(next(self.samples)) + "\n").encode()
+        sample = next(self.samples)
+        return sample if isinstance(sample, bytes) else ("CSIREF " + json.dumps(sample) + "\n").encode()
 
 
 class BenchValidityTests(unittest.TestCase):
@@ -135,11 +136,21 @@ class BenchValidityTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "queue overflow"):
                 capture.readline()
 
-    def test_newline_terminated_malformed_record_still_fails(self):
-        ser = Mock()
-        ser.readline.return_value = b'CSIREF {"t_us":1,"detector":"high_accuracy}\n'
-        with self.assertRaises(json.JSONDecodeError):
-            bench.measure(ser, 60, 2)
+    def test_corrupt_record_invalidates_phase_and_marks_short_interval_unknown(self):
+        for mode in (0, 1):
+            samples = [{"t_us": 10_000_000 + i * 500_000, "adverts": i * 25,
+                        "ready": True, "slots": 100, "window_slots": 100} for i in range(130)]
+            samples[60] = b'CSIREF {"detector":"resident_person_name}\n'
+            ser = TimedSerial(samples, 0.5)
+            with self.subTest(mode=mode), \
+                    patch.object(bench.time, "monotonic", side_effect=lambda: ser.now), \
+                    contextlib.redirect_stdout(io.StringIO()):
+                result = bench.measure(ser, 65, mode)
+            self.assertFalse(result["valid_input"])
+            self.assertEqual(result["malformed_reference_records"], 1)
+            self.assertEqual(result["unobserved_seconds"], 1.0)
+            self.assertLess(result["ready_fraction"], 1.0)
+            self.assertNotIn("resident_person_name", json.dumps(result))
 
     def test_timeout_fragment_is_not_parsed_as_a_complete_json_record(self):
         record = b'CSIREF {"t_us":23456789,"utc":1794426907,"detector":"high_accuracy"}\n'

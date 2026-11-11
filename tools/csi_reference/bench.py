@@ -2,6 +2,7 @@
 """Controlled-load C3 pilot on the already-provisioned HIL board, never house nodes."""
 import argparse
 import contextlib
+import hashlib
 import http.client
 import json
 import queue
@@ -135,13 +136,32 @@ def verify_build(ip, expected):
 def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None):
     samples = []
     faults = []
+    tainted_after = set()
+    malformed = 0
     stop = time.monotonic() + seconds
     while time.monotonic() < stop:
         if flood_ready and not Path(flood_ready).exists():
             raise RuntimeError("Controlled BLE flood stopped during measurement")
         line = ANSI.sub("", ser.readline().decode("utf-8", "replace").strip())
         if line.startswith("CSIREF {"):
-            sample = json.loads(line[7:])
+            try:
+                sample = json.loads(line[7:])
+            except json.JSONDecodeError as error:
+                malformed += 1
+                if samples:
+                    tainted_after.add(samples[-1]["t_us"])
+                # Preserve a diagnostic without exporting names/MACs if another
+                # log writer interleaved text. Every such phase remains invalid.
+                text = line[7:][max(0, error.pos - 35):error.pos + 45]
+                shape = "".join("0" if c.isdigit() else "a" if c.isalnum()
+                                else c if c in '{}[]":,._- ' else "?" for c in text)
+                fault = {"kind": "malformed_reference", "length": len(line),
+                         "position": error.pos, "sha256": hashlib.sha256(line.encode()).hexdigest(),
+                         "redacted_shape": shape}
+                if malformed <= 15:
+                    faults.append(fault)
+                    print("CSI_REFERENCE_TRANSPORT_FAULT " + json.dumps(fault, sort_keys=True), flush=True)
+                continue
             if traffic_source is not None:
                 expected = "external_host" if traffic_source == "external" else "ping"
                 if sample.get("source") != expected or sample.get("ble_scan") is not ble_scan:
@@ -172,8 +192,10 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
     # Off reports are nominally 1 Hz, active reports 4 Hz. Allow cadence jitter
     # before calling an interval unobserved; a 1.01s off interval is not a gap.
     gap_limit = 1.0 if mode else 2.0
-    ready_seconds = sum(dt for sample, dt in intervals if 0 < dt <= gap_limit and sample.get("ready"))
-    unknown_seconds = sum(dt for _, dt in intervals if dt > gap_limit)
+    def observed(sample, dt):
+        return 0 < dt <= gap_limit and sample["t_us"] not in tainted_after
+    ready_seconds = sum(dt for sample, dt in intervals if observed(sample, dt) and sample.get("ready"))
+    unknown_seconds = sum(dt for sample, dt in intervals if not observed(sample, dt))
     generated = [s.get("generated") for s in measured]
     generator_epoch_valid = (all(value is not None for value in generated)
                              and all(b >= a for a, b in zip(generated, generated[1:])))
@@ -187,11 +209,12 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
               "unobserved_seconds": unknown_seconds,
               "max_sample_gap_seconds": max(dt for _, dt in intervals),
               "slot_coverage_mean": (sum(dt * s.get("slots", 0) / max(1, s.get("window_slots", 0))
-                                         for s, dt in intervals if 0 < dt <= gap_limit) / elapsed),
+                                         for s, dt in intervals if observed(s, dt)) / elapsed),
               "coverage_method": "time weighted; telemetry gaps remain unknown",
               "heap_min": min((s["heap"] for s in measured if "heap" in s), default=None),
-              "first": first, "last": last, "faults": faults}
-    if mode and (faults or result["ready_fraction"] < 0.5 or result["slot_coverage_mean"] < 0.7):
+              "first": first, "last": last, "faults": faults,
+              "malformed_reference_records": malformed}
+    if faults or (mode and (result["ready_fraction"] < 0.5 or result["slot_coverage_mean"] < 0.7)):
         result["valid_input"] = False
     else:
         result["valid_input"] = True

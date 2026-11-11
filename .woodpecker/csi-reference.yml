@@ -14,6 +14,10 @@ variables:
     description: Explicit acquisition control; SDK and100pps cadence remain unchanged
     options: ['ping', 'external']
     default: 'ping'
+  REFERENCE_BLE_POOL:
+    description: BLE identity pool at the same requested40 rotations/s;64 is a separate workload diagnostic
+    options: ['64', '1024']
+    default: '1024'
 
 labels:
   backend: docker
@@ -25,13 +29,15 @@ steps:
     pull: true
     privileged: true
     network_mode: host
+    environment:
+      REFERENCE_BLE_POOL: ${REFERENCE_BLE_POOL:-1024}
     depends_on: []
     volumes:
       - /var/lock/woodpecker:/lock
     temp_volumes:
       - reference-flood:/flood
     commands:
-      - flock -w 1800 /lock/ble-flood.lock python3 tools/csi_reference/flood_ready.py --index 0 --rate 40 --pool 1024 --until /flood/done --seconds 2400
+      - flock -w 1800 /lock/ble-flood.lock python3 tools/csi_reference/flood_ready.py --index 0 --rate 40 --pool "$REFERENCE_BLE_POOL" --until /flood/done --seconds 2400
 
   - name: reference-esp32c3
     image: espressif/idf:v5.5.6
@@ -55,6 +61,7 @@ steps:
       CCACHE_DIR: /cache/ccache-idf
       REFERENCE_PHASE_START: ${REFERENCE_PHASE_START:-0}
       REFERENCE_TRAFFIC_SOURCE: ${REFERENCE_TRAFFIC_SOURCE:-ping}
+      REFERENCE_BLE_POOL: ${REFERENCE_BLE_POOL:-1024}
     commands:
       - |
         . $IDF_PATH/export.sh
@@ -65,6 +72,7 @@ steps:
         export FW_BRANCH="$CI_COMMIT_BRANCH"
         python3 tools/prepare_csi_reference.py
         python3 -m unittest discover -s tools/csi_reference -p test_bench.py -v
+        echo "BENCH workload requested_rotations_per_second=40 identity_pool=$REFERENCE_BLE_POOL"
         # Acquire flood before device: ordinary HIL holds its flood while
         # waiting for the device lock. Reversing that order would deadlock.
         python3 -c 'import pathlib,time; end=time.monotonic()+1800; ready=pathlib.Path("/flood/ready"); exec("while not ready.exists() and time.monotonic()<end: time.sleep(1)"); assert ready.exists(), "Controlled BLE flood did not become ready"; print(ready.read_text())'
