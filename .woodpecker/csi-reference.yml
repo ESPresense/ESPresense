@@ -23,8 +23,8 @@ variables:
     options: ['false', 'true']
     default: 'false'
   REFERENCE_SCAN_SWEEP:
-    description: Bench-only full/quarter/eighth scan windows with matched BLE baselines
-    options: ['false', 'true']
+    description: Bench-only scan-window measurements or targeted safety-only continuation
+    options: ['false', 'true', 'safety-only']
     default: 'false'
 
 labels:
@@ -99,8 +99,12 @@ steps:
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
           ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          SCAN_PLAN=--no-scan-control
-          if [ "$REFERENCE_SCAN_SWEEP" = true ]; then SCAN_PLAN=--scan-window-sweep; fi
+          case "$REFERENCE_SCAN_SWEEP" in
+            false) SCAN_PLAN=--no-scan-control ;;
+            true) SCAN_PLAN=--scan-window-sweep ;;
+            safety-only) SCAN_PLAN=--scan-window-safety-only ;;
+            *) exit 1 ;;
+          esac
           python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --expected-version "$FW_VERSION" --flood-ready /flood/ready $SCAN_PLAN --safety-checks --phase-start "$REFERENCE_PHASE_START" --traffic-source "$REFERENCE_TRAFFIC_SOURCE" --out /tmp/reference-pilot.json
         '
 

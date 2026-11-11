@@ -11,6 +11,8 @@
 #include "espectre_sdk.h"
 #include "esp_system.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
+#include <cstring>
 #include <ctime>
 #include <cstdlib>
 #include <cstdio>
@@ -61,6 +63,8 @@ struct ReferenceReport {
     uint32_t workerLoops = 0;
     uint32_t loopGapMaxUs = 0;
     uint32_t stackFree = 0;
+    int wifiPs = -1;
+    int wifiPsGetError = -1;
     uint32_t faultSequence = 0;
     char fault[160] = {};
     bool active = false;
@@ -69,6 +73,28 @@ struct ReferenceReport {
 };
 static_assert(std::is_trivially_copyable<ReferenceReport>::value,
               "FreeRTOS mailbox requires a value-only snapshot");
+struct PolicyWarning {
+    char message[192] = {};
+    int line = 0;
+    unsigned level = 0;
+    bool truncated = false;
+};
+QueueHandle_t policyWarnings = nullptr;
+std::atomic<uint32_t> policyWarningDrops{0};
+bool policyLogEnabled(void*, espectre::LogLevel level, const char* tag) {
+    return tag && std::strcmp(tag, "WiFiLifecycle") == 0
+           && static_cast<unsigned>(level) <= static_cast<unsigned>(espectre::LogLevel::WARNING);
+}
+void policyLogWrite(void*, espectre::LogLevel level, const char*, int line, const char* format, va_list args) {
+    PolicyWarning warning;
+    warning.line = line;
+    warning.level = static_cast<unsigned>(level);
+    const int n = std::vsnprintf(warning.message, sizeof(warning.message), format, args);
+    warning.truncated = n < 0 || static_cast<size_t>(n) >= sizeof(warning.message);
+    // SDK/event tasks never wait for a console or network consumer.
+    if (xQueueSend(policyWarnings, &warning, 0) != pdTRUE)
+        policyWarningDrops.fetch_add(1, std::memory_order_relaxed);
+}
 QueueHandle_t reports = nullptr;
 bool workerStartAttempted = false;  // Main-loop owned.
 ReferenceReport pending;           // Worker owned.
@@ -168,6 +194,9 @@ void serviceRuntime() {
         // Deliberately retain upstream AUTO capture, 1s window, calibration,
         // weights, thresholds, temporal admission, and 4/3 motion hits.
         running = runtime.set_config(config) && runtime.setup(&listener);
+        wifi_ps_type_t powerSave;
+        pending.wifiPsGetError = esp_wifi_get_ps(&powerSave);
+        if (pending.wifiPsGetError == ESP_OK) pending.wifiPs = static_cast<int>(powerSave);
         if (!running) fault("SDK setup failed");
     }
     if (listener.fault[0]) {
@@ -228,12 +257,26 @@ void Loop() {
     if (!workerStartAttempted) {
         workerStartAttempted = true;
         reports = xQueueCreate(1, sizeof(ReferenceReport));
-        if (!reports || xTaskCreate(referenceWorker, "csiref", 8192, nullptr, 5, nullptr) != pdPASS) {
+        policyWarnings = xQueueCreate(8, sizeof(PolicyWarning));
+        if (!reports || !policyWarnings
+            || !espectre::set_log_sink({nullptr, policyLogEnabled, policyLogWrite})
+            || xTaskCreate(referenceWorker, "csiref", 8192, nullptr, 5, nullptr) != pdPASS) {
+            espectre::clear_log_sink();
+            if (policyWarnings) vQueueDelete(policyWarnings);
+            policyWarnings = nullptr;
             if (reports) vQueueDelete(reports);
             reports = nullptr;
             Log.println("CSIREF fault: cannot start reference worker; sensing remains off");
             return;
         }
+    }
+    PolicyWarning warning;
+    for (unsigned i = 0; i < 8 && policyWarnings && xQueueReceive(policyWarnings, &warning, 0) == pdTRUE; ++i) {
+        // Inspected WiFiLifecycle warning templates contain policy/error data,
+        // not household tag identifiers. Bounded queue loss stays visible.
+        Log.printf("CSIREF sdk_policy level=%u line=%d truncated=%s queue_drops=%lu message=%s\n",
+                   warning.level, warning.line, warning.truncated ? "true" : "false",
+                   static_cast<unsigned long>(policyWarningDrops.load(std::memory_order_relaxed)), warning.message);
     }
     ReferenceReport report;
     if (!reports || xQueueReceive(reports, &report, 0) != pdTRUE) return;
@@ -245,7 +288,9 @@ void Loop() {
     static bool setupLogged = false;
     if (report.attempted && !setupLogged) {
         setupLogged = true;
-        Log.printf("CSIREF setup=%s\n", report.running ? "ok" : "failed");
+        Log.printf("CSIREF setup=%s wifi_ps_at_setup=%d wifi_ps_get_error=%d policy_warning_drops=%lu\n",
+                   report.running ? "ok" : "failed", report.wifiPs, report.wifiPsGetError,
+                   static_cast<unsigned long>(policyWarningDrops.load(std::memory_order_relaxed)));
     }
     const auto& s = report.snapshot;
     const auto& d = report.diagnostics;

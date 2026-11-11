@@ -313,7 +313,19 @@ def wait_scan_condition(ser, detector, ble_scan, profile, trial_active, flood_re
     raise RuntimeError("Controller did not apply the requested scan-window condition")
 
 
-def next_reference(ser, timeout, flood_ready):
+def safety_only_phases(no_scan_control, sweep, phase_start, safety, traffic_source):
+    if no_scan_control or sweep or phase_start or not safety or traffic_source != "ping":
+        raise ValueError("Scan-window safety-only requires PING, safety checks, and no measurement/partial flags")
+    return []
+
+
+def verify_expiry_reset(sample, last_active, deadline):
+    if (time.time() < deadline - 2 or not sample.get("software_reset")
+            or sample.get("detector") != "off" or sample["t_us"] >= last_active["t_us"]):
+        raise RuntimeError("Unexpected disarm/reboot before the expiry proof")
+
+
+def next_reference(ser, timeout, flood_ready, reset_boundaries=None):
     stop = time.monotonic() + timeout
     while time.monotonic() < stop:
         if flood_ready and not Path(flood_ready).exists():
@@ -322,7 +334,26 @@ def next_reference(ser, timeout, flood_ready):
         if "panic" in line.lower() or line.startswith("CSIREF fault"):
             raise RuntimeError(line)
         if line.startswith("CSIREF {"):
-            return json.loads(line[7:])
+            try:
+                return json.loads(line[7:])
+            except json.JSONDecodeError as error:
+                text = line[7:][max(0, error.pos - 35):error.pos + 45]
+                fault = {"kind": "malformed_safety_reference", "length": len(line),
+                         "position": error.pos, "sha256": hashlib.sha256(line.encode()).hexdigest(),
+                         "redacted_shape": "".join("0" if c.isdigit() else "a" if c.isalnum()
+                             else c if c in '{}[]":,._- ' else "?" for c in text),
+                         "has_c3_rom_reset_marker": "ESP-ROM:esp32c3-" in line}
+                # A deliberate esp_restart can cut a physically transmitting
+                # UART line. Accept only this explicit framing boundary during
+                # one expected expiry, then still require fresh off boot proof,
+                # deadline, uptime reset, saved settings and stable full scan.
+                if (reset_boundaries is not None and not reset_boundaries
+                        and fault["has_c3_rom_reset_marker"]):
+                    reset_boundaries.append(fault)
+                    print("CSI_REFERENCE_RESET_BOUNDARY " + json.dumps(fault, sort_keys=True), flush=True)
+                    continue
+                print("CSI_REFERENCE_SAFETY_TRANSPORT_FAULT " + json.dumps(fault, sort_keys=True), flush=True)
+                raise RuntimeError("Malformed safety telemetry without an allowed planned reset boundary") from error
     raise RuntimeError("No reference telemetry during safety probe")
 
 
@@ -338,8 +369,9 @@ def wait_detector(ser, detector, flood_ready, timeout=45):
 def safety_checks(ser, ip, args, save):
     # These checks stay inside the pipeline's device flock. They establish
     # arming/expiry behavior, independently of the detector's input readiness.
-    profile = 2 if args.scan_window_sweep else 0
-    scanning = args.scan_window_sweep
+    reduced_scan = args.scan_window_sweep or args.scan_window_safety_only
+    profile = 2 if reduced_scan else 0
+    scanning = reduced_scan
     deadline = int(time.time() + 180)
     ip = restart_phase(ser, ip, args.expected_version, 2, deadline, scanning,
                        args.traffic_source == "external", profile)
@@ -363,15 +395,14 @@ def safety_checks(ser, ip, args, save):
                        args.traffic_source == "external", profile)
     active = wait_scan_condition(ser, "high_accuracy", scanning, profile, True, args.flood_ready)
     last_active = active
+    reset_boundaries = []
     stop = time.monotonic() + max(0, deadline - time.time()) + 40
     while time.monotonic() < stop:
-        sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
+        sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready, reset_boundaries)
         if sample.get("detector") != "off":
             last_active = sample
             continue
-        if (time.time() < deadline - 2 or not sample.get("software_reset")
-                or sample["t_us"] >= last_active["t_us"]):
-            raise RuntimeError("Unexpected disarm/reboot before the expiry proof")
+        verify_expiry_reset(sample, last_active, deadline)
         off = wait_scan_condition(ser, "off", scanning, profile, False, args.flood_ready)
         break
     else:
@@ -384,7 +415,7 @@ def safety_checks(ser, ip, args, save):
         raise RuntimeError("Expiry did not preserve consumed arming and saved deadline")
     # Repeated expiry reboots must not masquerade as a successful disarm.
     previous = off
-    stop = time.monotonic() + 15
+    stop = time.monotonic() + 35
     while time.monotonic() < stop:
         sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
         if sample.get("detector") != "off" or sample["t_us"] <= previous["t_us"]:
@@ -393,26 +424,25 @@ def safety_checks(ser, ip, args, save):
         previous = sample
     result = {"check": "persistent_expiry", "passed": True, "saved_deadline": deadline,
               "active": active, "last_active": last_active,
-              "after_expiry": off, "stable_off": previous}
+              "after_expiry": off, "stable_off": previous, "reset_boundaries": reset_boundaries}
     print("CSI_REFERENCE_SAFETY " + json.dumps(result, sort_keys=True), flush=True)
     save(result)
-    if args.scan_window_sweep:
+    if reduced_scan:
         # Critical extra case: no SDK is running, but reduced BLE scanning must
         # still expire without the host, reboot once, and return to full scan.
         deadline = int(time.time() + 60)
         ip = restart_phase(ser, ip, args.expected_version, 0, deadline, True, False, profile)
         active = wait_scan_condition(ser, "off", True, profile, True, args.flood_ready)
         last_active = active
+        reset_boundaries = []
         stop = time.monotonic() + max(0, deadline - time.time()) + 45
         while time.monotonic() < stop:
-            sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
+            sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready, reset_boundaries)
             if sample.get("trial_active"):
                 verify_scan_condition(sample, True, profile, True)
                 last_active = sample
                 continue
-            if (time.time() < deadline - 2 or not sample.get("software_reset")
-                    or sample["t_us"] >= last_active["t_us"]):
-                raise RuntimeError("BLE-only scan profile did not expire with a fresh software boot")
+            verify_expiry_reset(sample, last_active, deadline)
             # Controller may not have started yet at the first postboot report.
             off = wait_scan_condition(ser, "off", True, profile, False, args.flood_ready)
             break
@@ -426,7 +456,7 @@ def safety_checks(ser, ip, args, save):
                 or str(values.get("csi_reference_scan_profile")) != str(profile)):
             raise RuntimeError("BLE-only expiry did not retain consumed arm and saved settings")
         previous = off
-        stop = time.monotonic() + 15
+        stop = time.monotonic() + 35
         while time.monotonic() < stop:
             sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
             verify_scan_condition(sample, True, profile, False)
@@ -435,7 +465,7 @@ def safety_checks(ser, ip, args, save):
             previous = sample
         result = {"check": "ble_only_profile_expiry", "passed": True, "saved_deadline": deadline,
                   "active": active, "last_active": last_active,
-                  "after_expiry": off, "stable_off": previous}
+                  "after_expiry": off, "stable_off": previous, "reset_boundaries": reset_boundaries}
         print("CSI_REFERENCE_SAFETY " + json.dumps(result, sort_keys=True), flush=True)
         save(result)
     return ip
@@ -469,6 +499,8 @@ def main():
                         help="Also measure both detectors with BLE scanning explicitly disabled")
     parser.add_argument("--scan-window-sweep", action="store_true",
                         help="Full/quarter/eighth BLE window tradeoff, matched baselines, no SDK changes")
+    parser.add_argument("--scan-window-safety-only", action="store_true",
+                        help="Resume reduced-window reboot/expiry checks; run no measurement phases")
     parser.add_argument("--safety-checks", action="store_true",
                         help="Verify one-shot reboot and automatic persistent expiry under the same lock")
     parser.add_argument("--phase-start", type=int, default=0,
@@ -479,9 +511,13 @@ def main():
     if args.traffic_source == "external" and not 0 < args.seconds <= 290:
         parser.error("External-host phases must fit the sender's300-second hard expiry")
     try:
-        phases = (scan_window_phases(args.no_scan_control, args.phase_start, args.traffic_source)
-                  if args.scan_window_sweep else [(m, b, 0) for m, b in
-                      requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)])
+        if args.scan_window_safety_only:
+            phases = safety_only_phases(args.no_scan_control, args.scan_window_sweep, args.phase_start,
+                                        args.safety_checks, args.traffic_source)
+        else:
+            phases = (scan_window_phases(args.no_scan_control, args.phase_start, args.traffic_source)
+                      if args.scan_window_sweep else [(m, b, 0) for m, b in
+                          requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)])
     except ValueError as error:
         parser.error(str(error))
     results = []
@@ -494,6 +530,7 @@ def main():
         temporary.write_text(json.dumps({"phases": results, "safety": safety,
             "source_version": args.expected_version, "phase_start": args.phase_start,
             "traffic_source": args.traffic_source, "scan_window_sweep": args.scan_window_sweep,
+            "scan_window_safety_only": args.scan_window_safety_only,
             "external_feeds": traffic_feeds}, indent=2))
         temporary.replace(path)
 
@@ -554,8 +591,8 @@ def main():
                         raise
     if not all(result["valid_input"] for result in results):
         raise SystemExit("Reference acquisition/readiness failed; do not score this as detector accuracy")
-    if args.phase_start:
-        print("CSI_REFERENCE_GATE not evaluated: partial diagnostic continuation", flush=True)
+    if args.phase_start or args.scan_window_safety_only:
+        print("CSI_REFERENCE_GATE not evaluated: partial/safety-only diagnostic continuation", flush=True)
 
 
 if __name__ == "__main__":

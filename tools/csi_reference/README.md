@@ -40,7 +40,7 @@ Pilot 2021 supplied external traffic at 100.001 successful sends/s with no sende
 
 Pilot 2022 completed all six measurement phases without malformed reference records. With 64 identities, both BLE-on detectors still had zero ready time, despite about 90 successful sends/s and 43% temporal slot coverage. Both scan-off controls passed. One-shot reboot passed, but a serial JSON error interrupted the persistent-expiry probe; cleanup was verified. Reducing identity/reporting load alone did not resolve acquisition.
 
-The next build audits a possible dependency gap before another measurement. The SDK wraps its native Wi-Fi coexistence preference in a header-availability guard, while ESP-IDF's Wi-Fi component lists `esp_coex` as a private dependency. The reference-only wrapper forwards the unchanged upstream CMake and Kconfig and supplies `esp_coex` through the SDK's supported `ESPECTRE_SDK_ADDITIONAL_REQUIRES` hook, including IDF's separate requirements process. `REFERENCE_COEX_AUDIT=true` first compiles a comparison without that extra dependency, then recompiles with it. The audit records the SDK object's undefined-symbol reference to `esp_coex_preference_set`, header include visibility and software-coexistence configuration. Only the build with all three checks passes the pre-flash gate. The comparison establishes whether the call was previously omitted; until those object results exist, this remains a hypothesis. Compiled call presence does not by itself prove runtime API success or useful occupancy.
+Pilot 2023 audited and confirmed a build dependency gap before measurement. The SDK wraps its native Wi-Fi coexistence preference in a header-availability guard, while ESP-IDF's Wi-Fi component lists `esp_coex` as a private dependency. The reference-only wrapper forwards the unchanged upstream CMake and Kconfig and supplies `esp_coex` through the SDK's supported `ESPECTRE_SDK_ADDITIONAL_REQUIRES` hook, including IDF's separate requirements process. `REFERENCE_COEX_AUDIT=true` first compiles a comparison without that extra dependency, then recompiles with it. The audit records the SDK object's undefined-symbol reference to `esp_coex_preference_set`, header include visibility and software-coexistence configuration. Only the build with all three checks passes the pre-flash gate. The comparison confirmed the call was previously omitted and present after the dependency fix. Both detectors still had zero ready time with continuous scanning. Compiled call presence does not by itself prove runtime API success or useful occupancy.
 
 The separate `REFERENCE_TRAFFIC_SOURCE=external` acquisition diagnostic uses the SDK's existing `EXTERNAL_HOST` mode, with multicast disabled and the unchanged 100 pps temporal grid. PING remains the default. `csi_reference_external_host` is off by default, takes effect on reboot and is cleared by bench cleanup. Telemetry names the selected source; the client rejects a mismatched live source or scan condition. The external sender targets only the verified C3 fixture at `192.168.129.243:5555`, using the pinned SDK's four-byte marker. It sends no baseline traffic, starts after build/settings verification for each active phase, never catches up a missed deadline with a burst, and records successful sends, errors, skipped deadlines and pacing lateness. Its nonblocking thread has an independent hard expiry of at most 300 seconds and stops at context exit, including failures; safety probes share one bounded 300 second feed. Receiver counters still establish actual CSI input; a successful UDP send alone does not prove delivery. Both scan-on and scan-off phases remain separately identified. This diagnostic tests whether changing traffic ownership can supply valid input alongside BLE; it cannot replace the failed PING result or establish room accuracy. SDK sources, coefficients, thresholds and temporal admission remain unchanged.
 
@@ -98,3 +98,33 @@ expiry with reduced scanning, including a separate SDK-off expiry probe. A
 scan-window sweep cannot be combined with an external sender, partial phase
 continuation or scan-off controls. It is a cost diagnostic; a ready detector at
 the expense of BLE reception does not automatically pass the house gate.
+
+Pilot 2024 completed all ten measurement phases with no malformed reference
+records or unknown telemetry intervals. Full-window baselines were 3,500 and
+3,525 callbacks/minute. Quarter-window baselines averaged 989/minute and
+eighth-window baselines 499/minute, about 28% and 14% of full scanning.
+Both SDKs remained zero-ready at both reduced windows, with approximately
+40–42% slot coverage despite 92–94 successful generator sends/s. CSI reduced
+callbacks a further 18–20% relative to the matching reduced-window baselines.
+This is a negative acquisition/cost result; it does not justify a house OTA.
+One-shot reboot restored full scanning. A malformed UART record interrupted
+persistent expiry; cleanup was verified and BLE-only expiry was not reached.
+
+`REFERENCE_SCAN_SWEEP=safety-only` resumes only the three reduced-window
+safety probes, preserving the measurement run. No acquisition or house gate is
+evaluated. During the explicitly expected expiry wait, the reader may fence
+one truncated reference line only when it contains the C3 ROM reset marker.
+All other malformed safety records remain fatal and produce bounded redacted
+diagnostics. The deadline, lower post-reset uptime, software reset, persisted
+consumed arm/deadline/profile, and stable detector-off/full-window state remain
+mandatory. Post-expiry observation lasts 35 seconds so the separate TCP
+recorder can also reconnect; its gaps remain recorded.
+
+The reference integration registers the SDK's supported log sink before setup.
+Only WiFiLifecycle warnings/errors enter an eight-entry nonblocking queue;
+formatting is bounded, and truncation/drop counts remain visible. Main-loop
+logging cannot block SDK/event tasks through this sink. Previously no sink was
+registered, which hid SDK warnings independently of ESP-IDF's console level.
+A setup-time `esp_wifi_get_ps` result is also recorded, with its error code;
+it is a point-in-time observation, not proof that a coexistence API succeeded.
+The SDK and detector parameters remain unchanged.

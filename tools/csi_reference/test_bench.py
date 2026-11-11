@@ -24,6 +24,57 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_safety_only_cannot_repeat_or_mix_measurement_conditions(self):
+        self.assertEqual(bench.safety_only_phases(False, False, 0, True, "ping"), [])
+        for values in [(True, False, 0, True, "ping"), (False, True, 0, True, "ping"),
+                       (False, False, 1, True, "ping"), (False, False, 0, False, "ping"),
+                       (False, False, 0, True, "external")]:
+            with self.assertRaises(ValueError):
+                bench.safety_only_phases(*values)
+
+    def test_expiry_can_fence_one_line_cut_by_an_explicit_c3_rom_reset(self):
+        broken = b'CSIREF {"detector":"high_accuESP-ROM:esp32c3-api1-20210207\n'
+        after = {"detector": "off", "software_reset": True, "t_us": 5_000_000}
+        serial = TimedSerial([broken, after])
+        boundaries = []
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(bench.next_reference(serial, 5, None, boundaries), after)
+        self.assertEqual(len(boundaries), 1)
+        self.assertTrue(boundaries[0]["has_c3_rom_reset_marker"])
+        self.assertIn("sha256", boundaries[0])
+
+    def test_rom_reset_truncation_is_not_accepted_outside_expected_expiry(self):
+        serial = TimedSerial([b'CSIREF {"broken":"ESP-ROM:esp32c3-api1-20210207\n'])
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "planned reset boundary"):
+            bench.next_reference(serial, 5, None)
+
+    def test_arbitrary_corruption_remains_fatal_during_expected_expiry_and_private(self):
+        serial = TimedSerial([b'CSIREF {"broken":"resident_person_name\n'])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaisesRegex(RuntimeError, "planned reset boundary"):
+            bench.next_reference(serial, 5, None, [])
+        self.assertNotIn("resident_person_name", output.getvalue())
+        self.assertIn("has_c3_rom_reset_marker", output.getvalue())
+
+    def test_repeated_reset_boundaries_cannot_hide_a_reboot_loop(self):
+        broken = b'CSIREF {"broken":"ESP-ROM:esp32c3-api1-20210207\n'
+        serial = TimedSerial([broken, broken])
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaisesRegex(RuntimeError, "planned reset boundary"):
+            bench.next_reference(serial, 5, None, [])
+
+    def test_expiry_still_requires_deadline_off_and_lower_reset_uptime(self):
+        for previous_detector in ("off", "high_accuracy"):
+            previous = {"detector": previous_detector, "t_us": 65_000_000}
+            off = {"detector": "off", "software_reset": True, "t_us": 5_000_000}
+            with patch.object(bench.time, "time", return_value=100):
+                bench.verify_expiry_reset(off, previous, 100)
+                for invalid in [dict(off, software_reset=False), dict(off, t_us=70_000_000),
+                                dict(off, detector="high_accuracy")]:
+                    with self.assertRaisesRegex(RuntimeError, "expiry proof"):
+                        bench.verify_expiry_reset(invalid, previous, 100)
+            with patch.object(bench.time, "time", return_value=95), self.assertRaisesRegex(RuntimeError, "expiry proof"):
+                bench.verify_expiry_reset(off, previous, 100)
+
     def test_scan_sweep_keeps_matched_baselines_and_cannot_mix_conditions(self):
         phases = bench.scan_window_phases(False, 0, "ping")
         self.assertEqual(phases[0], (0, True, 0))
