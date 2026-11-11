@@ -1,7 +1,15 @@
 # Explicit manual benchmark. No house node is addressed from this pipeline.
 when:
   - event: manual
-    branch: bench/csi-reference-family-master
+    branch: [bench/csi-reference-family-master, bench/csi-reference-controls-resume]
+
+# Crow accepts manual inputs only when the selected workflow declares them.
+# https://crowci.dev/v6-6/usage/pipelines/#declaring-variables
+variables:
+  REFERENCE_PHASE_START:
+    description: First phase index; partial continuations cannot pass the house gate
+    options: ['0', '1', '2', '3', '4', '5', '6']
+    default: '0'
 
 labels:
   backend: docker
