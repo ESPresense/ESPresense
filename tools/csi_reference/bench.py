@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Controlled-load C3 pilot on the already-provisioned HIL board, never house nodes."""
 import argparse
+import contextlib
 import http.client
 import json
 import queue
@@ -11,6 +12,7 @@ import time
 import urllib.parse
 from pathlib import Path
 import serial
+from external_feed import ExternalFeed
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 IP = re.compile(r"IP address:\s*(\d+\.\d+\.\d+\.\d+)")
@@ -130,7 +132,7 @@ def verify_build(ip, expected):
     raise RuntimeError(f"Bench metadata unavailable after boot: {last_error}")
 
 
-def measure(ser, seconds, mode, flood_ready=None, ble_scan=True):
+def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None):
     samples = []
     faults = []
     stop = time.monotonic() + seconds
@@ -139,7 +141,12 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True):
             raise RuntimeError("Controlled BLE flood stopped during measurement")
         line = ANSI.sub("", ser.readline().decode("utf-8", "replace").strip())
         if line.startswith("CSIREF {"):
-            samples.append(json.loads(line[7:]))
+            sample = json.loads(line[7:])
+            if traffic_source is not None:
+                expected = "external_host" if traffic_source == "external" else "ping"
+                if sample.get("source") != expected or sample.get("ble_scan") is not ble_scan:
+                    raise RuntimeError("Live traffic source/scanning condition differs from requested phase")
+            samples.append(sample)
         elif IP.search(line) or line.startswith("ESP-ROM:"):
             raise RuntimeError("Device rebooted during the measurement")
         elif line.startswith("CSIREF fault") or "panic" in line.lower():
@@ -194,10 +201,11 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True):
     return result
 
 
-def restart_phase(ser, ip, expected, mode, until, ble_scan):
+def restart_phase(ser, ip, expected, mode, until, ble_scan, external_host=False):
     post(ip, "/wifi/hardware", {"csi_reference_mode": str(mode),
          "csi_reference_arm": "1" if mode else "0", "csi_reference_until": str(until),
-         "csi_reference_ble_scan": "1" if ble_scan else "0"})
+         "csi_reference_ble_scan": "1" if ble_scan else "0",
+         "csi_reference_external_host": "1" if external_host else "0"})
     return restart_and_verify(ser, ip, expected)
 
 
@@ -270,7 +278,8 @@ def safety_checks(ser, ip, args, save):
     # These checks stay inside the pipeline's device flock. They establish
     # arming/expiry behavior, independently of the detector's input readiness.
     deadline = int(time.time() + 180)
-    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False)
+    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False,
+                       args.traffic_source == "external")
     active = wait_detector(ser, "high_accuracy", args.flood_ready)
     ip = restart_and_verify(ser, ip, args.expected_version)
     off = wait_detector(ser, "off", args.flood_ready)
@@ -286,7 +295,8 @@ def safety_checks(ser, ip, args, save):
     save(result)
 
     deadline = int(time.time() + 90)
-    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False)
+    ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False,
+                       args.traffic_source == "external")
     active = wait_detector(ser, "high_accuracy", args.flood_ready)
     last_active = active
     stop = time.monotonic() + max(0, deadline - time.time()) + 40
@@ -325,16 +335,17 @@ def safety_checks(ser, ip, args, save):
 
 def cleanup(ser, ip, expected):
     post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0",
-         "csi_reference_until": "0", "csi_reference_ble_scan": "1"})
+         "csi_reference_until": "0", "csi_reference_ble_scan": "1", "csi_reference_external_host": "0"})
     ip = restart_and_verify(ser, ip, expected)
     values = hardware(ip)
     if (str(values.get("csi_reference_mode")) != "0"
             or values.get("csi_reference_arm") is not False
             or str(values.get("csi_reference_until")) != "0"
-            or values.get("csi_reference_ble_scan") is not True):
+            or values.get("csi_reference_ble_scan") is not True
+            or values.get("csi_reference_external_host") is not False):
         raise RuntimeError("Bench cleanup settings were not restored")
     wait_detector(ser, "off", None)
-    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true", flush=True)
+    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true, external=false", flush=True)
 
 
 def main():
@@ -350,16 +361,22 @@ def main():
                         help="Verify one-shot reboot and automatic persistent expiry under the same lock")
     parser.add_argument("--phase-start", type=int, default=0,
                         help="Skip already preserved phases; a partial run cannot pass the house gate")
+    parser.add_argument("--traffic-source", choices=("ping", "external"), default="ping",
+                        help="Explicit external-host acquisition diagnostic; target and SDK cadence stay100pps")
     args = parser.parse_args()
+    if args.traffic_source == "external" and not 0 < args.seconds <= 290:
+        parser.error("External-host phases must fit the sender's300-second hard expiry")
     phases = requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)
     results = []
     safety = []
+    traffic_feeds = []
 
     def save():
         path = Path(args.out)
         temporary = path.with_suffix(path.suffix + ".tmp")
         temporary.write_text(json.dumps({"phases": results, "safety": safety,
-            "source_version": args.expected_version, "phase_start": args.phase_start}, indent=2))
+            "source_version": args.expected_version, "phase_start": args.phase_start,
+            "traffic_source": args.traffic_source, "external_feeds": traffic_feeds}, indent=2))
         temporary.replace(path)
 
     def save_safety(result):
@@ -380,14 +397,31 @@ def main():
                 print(f"BENCH phase_start={args.phase_start} phases={phases}", flush=True)
                 for mode, ble_scan in phases:
                     ip = restart_phase(ser, ip, args.expected_version, mode,
-                                       int(time.time() + 900), ble_scan)
+                                       int(time.time() + 900), ble_scan, args.traffic_source == "external")
                     values = hardware(ip)
                     if values.get("csi_reference_ble_scan") is not ble_scan:
                         raise RuntimeError("Saved BLE scanning condition does not match requested phase")
-                    results.append(measure(ser, args.seconds, mode, args.flood_ready, ble_scan))
+                    if values.get("csi_reference_external_host") is not (args.traffic_source == "external"):
+                        raise RuntimeError("Saved traffic source does not match requested phase")
+                    feed = (ExternalFeed(ip, args.seconds + 10) if mode and args.traffic_source == "external"
+                            else contextlib.nullcontext(None))
+                    with feed as sender:
+                        result = measure(ser, args.seconds, mode, args.flood_ready, ble_scan, args.traffic_source)
+                    if sender is not None:
+                        result["external_feed"] = sender.stats()
+                        traffic_feeds.append({"mode": mode, "ble_scan": ble_scan, **sender.stats()})
+                        print("CSI_REFERENCE_EXTERNAL_FEED " + json.dumps(traffic_feeds[-1], sort_keys=True), flush=True)
+                    results.append(result)
                     save()  # Preserve completed phases even if a later phase fails.
                 if args.safety_checks:
-                    ip = safety_checks(ser, ip, args, save_safety)
+                    feed = (ExternalFeed(ip, 300) if args.traffic_source == "external"
+                            else contextlib.nullcontext(None))
+                    with feed as sender:
+                        ip = safety_checks(ser, ip, args, save_safety)
+                    if sender is not None:
+                        traffic_feeds.append({"phase": "safety", **sender.stats()})
+                        print("CSI_REFERENCE_EXTERNAL_FEED " + json.dumps(traffic_feeds[-1], sort_keys=True), flush=True)
+                        save()
             finally:
                 original_error = sys.exc_info()[0] is not None
                 try:

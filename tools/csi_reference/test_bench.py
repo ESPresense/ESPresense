@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 import bench
+import external_feed
 
 
 class TimedSerial:
@@ -22,6 +23,41 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_external_phase_rejects_live_ping_output(self):
+        ser = Mock()
+        ser.readline.return_value = b'CSIREF {"source":"ping","ble_scan":true}\n'
+        with self.assertRaisesRegex(RuntimeError, "Live traffic source/scanning condition"):
+            bench.measure(ser, 60, 1, ble_scan=True, traffic_source="external")
+
+    def test_external_feed_rejects_other_nodes_and_unbounded_duration(self):
+        for ip, seconds in [("192.168.129.169", 120), ("192.168.129.191", 120),
+                            (external_feed.BENCH_IP, 301), (external_feed.BENCH_IP, 0)]:
+            with self.subTest(ip=ip, seconds=seconds), self.assertRaises(ValueError):
+                external_feed.ExternalFeed(ip, seconds)
+
+    def test_external_feed_skips_missed_deadlines_without_catchup_bursts(self):
+        deadline, skipped = external_feed.following_deadline(1.0, 1.055)
+        self.assertEqual(skipped, 5)
+        self.assertAlmostEqual(deadline, 1.06)
+        deadline, skipped = external_feed.following_deadline(1.0, 1.001)
+        self.assertEqual(skipped, 0)
+        self.assertAlmostEqual(deadline, 1.01)
+
+    def test_external_sender_expires_without_consumer_cleanup(self):
+        channel = Mock()
+        context = Mock()
+        context.__enter__ = Mock(return_value=channel)
+        context.__exit__ = Mock(return_value=False)
+        with patch.object(external_feed.socket, "socket", return_value=context):
+            with external_feed.ExternalFeed(external_feed.BENCH_IP, 0.035) as sender:
+                sender.thread.join(timeout=1)  # No stop request: its own deadline must end it.
+                self.assertFalse(sender.thread.is_alive())
+                self.assertGreaterEqual(sender.sent, 1)
+                self.assertLessEqual(sender.sent, 4)
+        for call in channel.sendto.call_args_list:
+            self.assertEqual(call.args, (bytes.fromhex("f09f91bb"), (external_feed.BENCH_IP, 5555)))
+        channel.setblocking.assert_called_once_with(False)
+
     def test_hardware_transport_failure_retries_but_bad_schema_does_not(self):
         first, second = Mock(), Mock()
         first.getresponse.side_effect = TimeoutError("server temporarily busy")

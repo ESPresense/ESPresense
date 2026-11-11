@@ -36,6 +36,7 @@ int64_t lastReport = 0;
 int64_t monotonicExpiry = 0;
 std::atomic<uint32_t> receivedAdverts{0};
 bool bleScanEnabled = true;  // Loaded before scanTask starts; reboot to change.
+bool externalHost = false;  // Explicit diagnostic; PING remains the default.
 
 // The SDK has one owner, independent of serial/MQTT and the ordinary loop's
 // per-fingerprint yields. Match the pinned native frontend: 8 KiB, priority 5,
@@ -92,6 +93,8 @@ bool BleScanEnabled() { return bleScanEnabled; }
 void ConnectToWifi(bool updating) {
     bleScanEnabled = Settings::checkbox("csi_reference_ble_scan", true,
                                        "Reference control: retain ordinary BLE scanning");
+    externalHost = Settings::checkbox("csi_reference_external_host", false,
+                                      "Reference control: external unicast UDP traffic");
     mode = Settings::dropdown("csi_reference_mode", {"Off", "Lightweight", "High Accuracy"}, 0,
                               "Dev-only pinned upstream reference detector");
     const bool arm = Settings::checkbox("csi_reference_arm", false, "One-shot reference trial arming");
@@ -136,7 +139,9 @@ void serviceRuntime() {
         config.detection_algorithm = mode == 1 ? espectre::DetectionAlgorithm::LIGHTWEIGHT
                                                : espectre::DetectionAlgorithm::HIGH_ACCURACY;
         config.csi_target_pps = 100;
-        config.traffic_generator_mode = espectre::TrafficGeneratorMode::PING;
+        config.traffic_generator_mode = externalHost ? espectre::TrafficGeneratorMode::EXTERNAL_HOST
+                                                     : espectre::TrafficGeneratorMode::PING;
+        if (externalHost) config.csi_traffic_multicast_group.clear();  // Unicast only, no group join.
         // Deliberately retain upstream AUTO capture, 1s window, calibration,
         // weights, thresholds, temporal admission, and 4/3 motion hits.
         running = runtime.set_config(config) && runtime.setup(&listener);
@@ -225,7 +230,7 @@ void Loop() {
         Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,"
                    "\"adverts\":%lu,\"heap\":%lu,\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,"
                    "\"worker_stack_free\":%lu,\"report_seq\":%lu,\"telemetry_overwrites\":%lu,"
-                   "\"ble_scan\":%s,\"software_reset\":%s}\n",
+                   "\"ble_scan\":%s,\"software_reset\":%s,\"source\":\"%s\"}\n",
                    csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
                    csiReferenceDecimal(report.utc, utc),
                    static_cast<unsigned long>(report.adverts),
@@ -236,7 +241,8 @@ void Loop() {
                    static_cast<unsigned long>(report.sequence),
                    static_cast<unsigned long>(report.telemetryOverwrites),
                    bleScanEnabled ? "true" : "false",
-                   esp_reset_reason() == ESP_RST_SW ? "true" : "false");
+                   esp_reset_reason() == ESP_RST_SW ? "true" : "false",
+                   externalHost ? "external_host" : "ping");
         return;
     }
     Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
@@ -244,7 +250,7 @@ void Loop() {
                "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
                "\"queue_drops\":%s,\"generated\":%lu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
                "\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,\"worker_stack_free\":%lu,"
-               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,"
+               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,\"source\":\"%s\","
                "\"callbacks\":%s,\"filtered\":%s,\"provenance_rejected\":%s,\"invalid_first_word\":%s,"
                "\"missing_slots\":%s,\"excess\":%s,\"stale\":%s,\"out_of_order\":%s}\n",
                csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
@@ -270,6 +276,7 @@ void Loop() {
                static_cast<unsigned long>(report.sequence),
                static_cast<unsigned long>(report.telemetryOverwrites),
                bleScanEnabled ? "true" : "false",
+               externalHost ? "external_host" : "ping",
                csiReferenceDecimal(d.csi.callbacks_total, callbacks),
                csiReferenceDecimal(d.csi.filtered_total, filtered),
                csiReferenceDecimal(d.csi.provenance_rejected_total, provenance),

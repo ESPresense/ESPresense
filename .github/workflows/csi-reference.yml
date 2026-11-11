@@ -9,6 +9,7 @@ on:
       - 'main/CsiReferenceFormat.h'
       - 'test/test_native_csi_reference_format/**'
       - 'tools/csi_reference/bench.py'
+      - 'tools/csi_reference/external_feed.py'
       - 'tools/csi_reference/test_bench.py'
       - 'tools/csi_reference/requirements.txt'
       - 'main/CMakeLists.txt'
