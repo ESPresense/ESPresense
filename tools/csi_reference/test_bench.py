@@ -24,6 +24,30 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_sdk_events_survive_consumers_ignoring_non_json_lines(self):
+        capture = bench.SerialCapture(Mock())
+        line = (b'CSIREF sdk_policy level=2 line=336 truncated=false queue_drops=0 '
+                b'message=Failed to bias Wi-Fi/BT coexistence toward Wi-Fi: ESP_ERR_NOT_SUPPORTED\n')
+        capture.lines.put(line)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(capture.readline(), line)
+        event = json.loads(output.getvalue().split(' ', 1)[1])
+        self.assertEqual(event["kind"], "coex_bias_failure")
+        self.assertEqual(event["error"], "ESP_ERR_NOT_SUPPORTED")
+        self.assertEqual(event["queue_drops"], 0)
+        setup = bench.sdk_policy_event(b'CSIREF setup=ok wifi_ps_at_setup=0 wifi_ps_get_error=0 policy_warning_drops=0\n')
+        self.assertEqual(setup["wifi_ps_at_setup"], 0)
+        self.assertEqual(setup["kind"], "runtime_setup")
+
+    def test_interleaved_sdk_diagnostic_never_exports_raw_household_names(self):
+        for line in [b'CSIREF sdk_policy level=2 line=336 truncated=false queue_drops=0 message=resident_person_name\n',
+                     b'CSIREF setup=ok resident_person_name\n']:
+            event = bench.sdk_policy_event(line)
+            self.assertNotIn("resident_person_name", json.dumps(event))
+            self.assertIn("sha256", event)
+            self.assertNotEqual(event["kind"], "coex_bias_failure")
+
     def test_safety_only_cannot_repeat_or_mix_measurement_conditions(self):
         self.assertEqual(bench.safety_only_phases(False, False, 0, True, "ping"), [])
         for values in [(True, False, 0, True, "ping"), (False, True, 0, True, "ping"),

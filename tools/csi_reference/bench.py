@@ -71,7 +71,11 @@ class SerialCapture:
         if self.failed.is_set():
             raise RuntimeError(f"Serial capture failed: {self.error}") from self.error
         try:
-            return self.lines.get(timeout=1)
+            line = self.lines.get(timeout=1)
+            event = sdk_policy_event(line)
+            if event is not None:
+                print("CSI_REFERENCE_SDK_EVENT " + json.dumps(event, sort_keys=True), flush=True)
+            return line
         except queue.Empty:
             return b""
 
@@ -80,6 +84,34 @@ class SerialCapture:
         self.thread.join(timeout=2)
         if self.thread.is_alive():
             raise RuntimeError("Serial capture did not stop within its bounded read timeout")
+
+
+def sdk_policy_event(raw):
+    # Retain rare SDK diagnostics even when wait/measurement readers ignore
+    # non-JSON lines. Never forward a possibly interleaved household identifier.
+    line = raw.decode("utf-8", "replace").strip()
+    if not line.startswith(("CSIREF sdk_policy ", "CSIREF setup=")):
+        return None
+    event = {"sha256": hashlib.sha256(raw).hexdigest()}
+    setup = re.fullmatch(r"CSIREF setup=(ok|failed) wifi_ps_at_setup=(-?\d+) "
+                         r"wifi_ps_get_error=(-?\d+) policy_warning_drops=(\d+)", line)
+    if setup:
+        return {**event, "kind": "runtime_setup", "setup": setup[1],
+                "wifi_ps_at_setup": int(setup[2]), "wifi_ps_get_error": int(setup[3]),
+                "policy_warning_drops": int(setup[4])}
+    warning = re.fullmatch(r"CSIREF sdk_policy level=(\d+) line=(\d+) truncated=(true|false) "
+                           r"queue_drops=(\d+) message=(.*)", line)
+    if not warning:
+        return {**event, "kind": "malformed_sdk_diagnostic"}
+    event.update(kind="wifi_policy_warning", level=int(warning[1]), sdk_line=int(warning[2]),
+                 truncated=warning[3] == "true", queue_drops=int(warning[4]))
+    failure = re.fullmatch(r"Failed to bias Wi-Fi/BT coexistence toward Wi-Fi: "
+                           r"(ESP_ERR_[A-Z_]+|ESP_FAIL|ESP_OK)", warning[5])
+    if failure and not event["truncated"]:
+        event.update(kind="coex_bias_failure", error=failure[1])
+    elif warning[5] == "STA start was not observed; applying Wi-Fi CSI policy late":
+        event["kind"] = "late_station_policy"
+    return event
 
 
 def post(ip, path, values):

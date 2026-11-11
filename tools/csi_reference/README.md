@@ -128,3 +128,13 @@ registered, which hid SDK warnings independently of ESP-IDF's console level.
 A setup-time `esp_wifi_get_ps` result is also recorded, with its error code;
 it is a point-in-time observation, not proof that a coexistence API succeeded.
 The SDK and detector parameters remain unchanged.
+
+Pilot 2025 ran only the three safety probes. One-shot reboot, active-SDK
+persistent expiry, SDK-off reduced-window expiry, and verified full-window
+cleanup all passed. It ran no acquisition measurement and cannot pass the
+house gate. The UART consumer now retains bounded structured SDK policy/setup
+events before wait/measurement readers discard non-JSON lines. Events include
+numeric status, known warning classifications and a digest, never arbitrary
+interleaved text. The 2025 parser did not retain those startup diagnostics, and
+the TCP mirror can miss startup during reconnection; absence of a saved warning
+from that run is not proof of a successful coexistence API return.
