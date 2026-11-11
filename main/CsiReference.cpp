@@ -35,6 +35,7 @@ bool expired = false;
 int64_t lastReport = 0;
 int64_t monotonicExpiry = 0;
 std::atomic<uint32_t> receivedAdverts{0};
+bool bleScanEnabled = true;  // Loaded before scanTask starts; reboot to change.
 
 // The SDK has one owner, independent of serial/MQTT and the ordinary loop's
 // per-fingerprint yields. Match the pinned native frontend: 8 KiB, priority 5,
@@ -86,7 +87,11 @@ void NoteAdvert() {
     receivedAdverts.fetch_add(1, std::memory_order_relaxed);
 }
 
+bool BleScanEnabled() { return bleScanEnabled; }
+
 void ConnectToWifi(bool updating) {
+    bleScanEnabled = Settings::checkbox("csi_reference_ble_scan", true,
+                                       "Reference control: retain ordinary BLE scanning");
     mode = Settings::dropdown("csi_reference_mode", {"Off", "Lightweight", "High Accuracy"}, 0,
                               "Dev-only pinned upstream reference detector");
     const bool arm = Settings::checkbox("csi_reference_arm", false, "One-shot reference trial arming");
@@ -214,10 +219,13 @@ void Loop() {
     const auto& s = report.snapshot;
     const auto& d = report.diagnostics;
     char timestamp[21], utc[21], accepted[21], admitted[21], drops[21];
+    char callbacks[21], filtered[21], provenance[21], invalidFirst[21];
+    char missing[21], excess[21], stale[21], outOfOrder[21];
     if (!report.active) {
         Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,"
                    "\"adverts\":%lu,\"heap\":%lu,\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,"
-                   "\"worker_stack_free\":%lu,\"report_seq\":%lu,\"telemetry_overwrites\":%lu}\n",
+                   "\"worker_stack_free\":%lu,\"report_seq\":%lu,\"telemetry_overwrites\":%lu,"
+                   "\"ble_scan\":%s,\"software_reset\":%s}\n",
                    csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
                    csiReferenceDecimal(report.utc, utc),
                    static_cast<unsigned long>(report.adverts),
@@ -226,7 +234,9 @@ void Loop() {
                    static_cast<unsigned long>(report.loopGapMaxUs),
                    static_cast<unsigned long>(report.stackFree),
                    static_cast<unsigned long>(report.sequence),
-                   static_cast<unsigned long>(report.telemetryOverwrites));
+                   static_cast<unsigned long>(report.telemetryOverwrites),
+                   bleScanEnabled ? "true" : "false",
+                   esp_reset_reason() == ESP_RST_SW ? "true" : "false");
         return;
     }
     Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
@@ -234,7 +244,9 @@ void Loop() {
                "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
                "\"queue_drops\":%s,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
                "\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,\"worker_stack_free\":%lu,"
-               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu}\n",
+               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,"
+               "\"callbacks\":%s,\"filtered\":%s,\"provenance_rejected\":%s,\"invalid_first_word\":%s,"
+               "\"missing_slots\":%s,\"excess\":%s,\"stale\":%s,\"out_of_order\":%s}\n",
                csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
                csiReferenceDecimal(report.utc, utc), s.detector_name,
                s.ready_to_publish ? "true" : "false",
@@ -255,7 +267,16 @@ void Loop() {
                static_cast<unsigned long>(report.loopGapMaxUs),
                static_cast<unsigned long>(report.stackFree),
                static_cast<unsigned long>(report.sequence),
-               static_cast<unsigned long>(report.telemetryOverwrites));
+               static_cast<unsigned long>(report.telemetryOverwrites),
+               bleScanEnabled ? "true" : "false",
+               csiReferenceDecimal(d.csi.callbacks_total, callbacks),
+               csiReferenceDecimal(d.csi.filtered_total, filtered),
+               csiReferenceDecimal(d.csi.provenance_rejected_total, provenance),
+               csiReferenceDecimal(d.csi.invalid_first_word_total, invalidFirst),
+               csiReferenceDecimal(d.csi.missing_slots_total, missing),
+               csiReferenceDecimal(d.csi.excess_total, excess),
+               csiReferenceDecimal(d.csi.stale_total, stale),
+               csiReferenceDecimal(d.csi.out_of_order_total, outOfOrder));
 }
 
 // Research output stays on the TCP log. It must not drive household automations

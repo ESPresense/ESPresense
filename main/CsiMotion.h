@@ -11,6 +11,7 @@ namespace CsiMotion
 {
 #ifdef CSI_REFERENCE
     void NoteAdvert();
+    bool BleScanEnabled();  // Explicit benchmark control; defaults to true.
 #endif
     void ConnectToWifi(bool updating);
     void SerialReport();

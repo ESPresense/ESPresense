@@ -8,6 +8,9 @@ on:
       - 'main/CsiReference.cpp'
       - 'main/CsiReferenceFormat.h'
       - 'test/test_native_csi_reference_format/**'
+      - 'tools/csi_reference/bench.py'
+      - 'tools/csi_reference/test_bench.py'
+      - 'tools/csi_reference/requirements.txt'
       - 'main/CMakeLists.txt'
       - 'CMakeLists.txt'
       - 'envs.cmake'
@@ -17,6 +20,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Validate benchmark guards
+        run: |
+          python3 -m pip install -r tools/csi_reference/requirements.txt
+          python3 -m unittest discover -s tools/csi_reference -p test_bench.py -v
       - name: Prepare pinned upstream SDK
         run: python3 tools/prepare_csi_reference.py
       - name: Build isolated reference firmware
