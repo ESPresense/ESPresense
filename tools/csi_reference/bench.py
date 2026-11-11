@@ -3,7 +3,10 @@
 import argparse
 import http.client
 import json
+import queue
 import re
+import sys
+import threading
 import time
 import urllib.parse
 from pathlib import Path
@@ -31,6 +34,49 @@ class SerialLines:
         result = bytes(self.pending[:newline + 1])
         del self.pending[:newline + 1]
         return result
+
+
+class SerialCapture:
+    """Drain the UART during HTTP requests, rather than overflowing its RX buffer."""
+
+    def __init__(self, port, max_lines=8192):
+        self.reader = SerialLines(port)
+        self.lines = queue.Queue(maxsize=max_lines)
+        self.stopping = threading.Event()
+        self.failed = threading.Event()
+        self.error = None
+        self.thread = threading.Thread(target=self._capture, daemon=True)
+
+    def __enter__(self):
+        self.thread.start()
+        return self
+
+    def _capture(self):
+        try:
+            while not self.stopping.is_set():
+                line = self.reader.readline()
+                if line:
+                    try:
+                        self.lines.put_nowait(line)
+                    except queue.Full as error:
+                        raise RuntimeError("Serial capture queue overflow; trial invalid") from error
+        except Exception as error:
+            self.error = error
+            self.failed.set()
+
+    def readline(self):
+        if self.failed.is_set():
+            raise RuntimeError(f"Serial capture failed: {self.error}") from self.error
+        try:
+            return self.lines.get(timeout=1)
+        except queue.Empty:
+            return b""
+
+    def __exit__(self, *args):
+        self.stopping.set()
+        self.thread.join(timeout=2)
+        if self.thread.is_alive():
+            raise RuntimeError("Serial capture did not stop within its bounded read timeout")
 
 
 def post(ip, path, values):
@@ -152,7 +198,16 @@ def restart_phase(ser, ip, expected, mode, until, ble_scan):
     post(ip, "/wifi/hardware", {"csi_reference_mode": str(mode),
          "csi_reference_arm": "1" if mode else "0", "csi_reference_until": str(until),
          "csi_reference_ble_scan": "1" if ble_scan else "0"})
-    post(ip, "/restart", {})
+    return restart_and_verify(ser, ip, expected)
+
+
+def restart_and_verify(ser, ip, expected):
+    try:
+        post(ip, "/restart", {})
+    except (OSError, http.client.HTTPException):
+        # Do not repeat a possibly delivered reboot: the one-shot arm could
+        # already be consumed. Only a fresh serial boot and exact build pass.
+        print("BENCH restart response interrupted; requiring fresh boot proof", flush=True)
     ip = wait_boot(ser)
     verify_build(ip, expected)
     return ip
@@ -199,9 +254,7 @@ def safety_checks(ser, ip, args, save):
     deadline = int(time.time() + 180)
     ip = restart_phase(ser, ip, args.expected_version, 2, deadline, False)
     active = wait_detector(ser, "high_accuracy", args.flood_ready)
-    post(ip, "/restart", {})
-    ip = wait_boot(ser)
-    verify_build(ip, args.expected_version)
+    ip = restart_and_verify(ser, ip, args.expected_version)
     off = wait_detector(ser, "off", args.flood_ready)
     values = hardware(ip)
     if (values.get("csi_reference_arm") is not False
@@ -252,6 +305,20 @@ def safety_checks(ser, ip, args, save):
     return ip
 
 
+def cleanup(ser, ip, expected):
+    post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0",
+         "csi_reference_until": "0", "csi_reference_ble_scan": "1"})
+    ip = restart_and_verify(ser, ip, expected)
+    values = hardware(ip)
+    if (str(values.get("csi_reference_mode")) != "0"
+            or values.get("csi_reference_arm") is not False
+            or str(values.get("csi_reference_until")) != "0"
+            or values.get("csi_reference_ble_scan") is not True):
+        raise RuntimeError("Bench cleanup settings were not restored")
+    wait_detector(ser, "off", None)
+    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", required=True)
@@ -283,28 +350,32 @@ def main():
         port.rts = True
         time.sleep(0.1)
         port.rts = False
-        ser = SerialLines(port)
-        ip = wait_boot(ser)
-        verify_build(ip, args.expected_version)
-        post(ip, "/wifi", {"auto_update": "0"})
-        try:
-            phases = [(mode, True) for mode in (0, 1, 2, 0)]
-            if args.no_scan_control:
-                phases.extend([(1, False), (2, False)])
-            for mode, ble_scan in phases:
-                ip = restart_phase(ser, ip, args.expected_version, mode,
-                                   int(time.time() + 900), ble_scan)
-                values = hardware(ip)
-                if values.get("csi_reference_ble_scan") is not ble_scan:
-                    raise RuntimeError("Saved BLE scanning condition does not match requested phase")
-                results.append(measure(ser, args.seconds, mode, args.flood_ready, ble_scan))
-                save()  # Preserve completed phases even if a later phase fails.
-            if args.safety_checks:
-                ip = safety_checks(ser, ip, args, save_safety)
-        finally:
-            post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0",
-                 "csi_reference_until": "0", "csi_reference_ble_scan": "1"})
-            post(ip, "/restart", {})
+        with SerialCapture(port) as ser:
+            ip = wait_boot(ser)
+            verify_build(ip, args.expected_version)
+            post(ip, "/wifi", {"auto_update": "0"})
+            try:
+                phases = [(mode, True) for mode in (0, 1, 2, 0)]
+                if args.no_scan_control:
+                    phases.extend([(1, False), (2, False)])
+                for mode, ble_scan in phases:
+                    ip = restart_phase(ser, ip, args.expected_version, mode,
+                                       int(time.time() + 900), ble_scan)
+                    values = hardware(ip)
+                    if values.get("csi_reference_ble_scan") is not ble_scan:
+                        raise RuntimeError("Saved BLE scanning condition does not match requested phase")
+                    results.append(measure(ser, args.seconds, mode, args.flood_ready, ble_scan))
+                    save()  # Preserve completed phases even if a later phase fails.
+                if args.safety_checks:
+                    ip = safety_checks(ser, ip, args, save_safety)
+            finally:
+                original_error = sys.exc_info()[0] is not None
+                try:
+                    cleanup(ser, ip, args.expected_version)
+                except Exception as error:
+                    print(f"BENCH cleanup unverified: {type(error).__name__}", flush=True)
+                    if not original_error:
+                        raise
     coexistence = [result for result in results if result["ble_scan"]]
     if not all(result["valid_input"] for result in coexistence):
         raise SystemExit("Reference acquisition/readiness failed; do not score this as detector accuracy")

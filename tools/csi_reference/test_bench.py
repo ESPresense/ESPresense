@@ -2,6 +2,8 @@
 import contextlib
 import io
 import json
+import queue
+import threading
 import unittest
 from unittest.mock import Mock, patch
 
@@ -20,6 +22,67 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_lost_restart_response_requires_boot_and_identity_without_a_second_restart(self):
+        with patch.object(bench, "post", side_effect=TimeoutError) as post, \
+                patch.object(bench, "wait_boot", return_value="192.0.2.1") as boot, \
+                patch.object(bench, "verify_build") as verify, \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(bench.restart_and_verify("serial", "192.0.2.1", "expected"), "192.0.2.1")
+        post.assert_called_once_with("192.0.2.1", "/restart", {})
+        boot.assert_called_once_with("serial")
+        verify.assert_called_once_with("192.0.2.1", "expected")
+
+    def test_lost_restart_response_without_a_new_boot_fails(self):
+        with patch.object(bench, "post", side_effect=TimeoutError), \
+                patch.object(bench, "wait_boot", side_effect=RuntimeError("No post-reset IP")), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaisesRegex(RuntimeError, "No post-reset IP"):
+                bench.restart_and_verify("serial", "192.0.2.1", "expected")
+
+    def test_cleanup_rejects_a_saved_scanning_disable(self):
+        with patch.object(bench, "post"), \
+                patch.object(bench, "restart_and_verify", return_value="192.0.2.1"), \
+                patch.object(bench, "hardware", return_value={"csi_reference_mode": "0",
+                    "csi_reference_arm": False, "csi_reference_until": "0", "csi_reference_ble_scan": False}):
+            with self.assertRaisesRegex(RuntimeError, "cleanup settings were not restored"):
+                bench.cleanup("serial", "192.0.2.1", "expected")
+
+    def test_capture_drains_serial_while_the_consumer_is_busy_with_http(self):
+        records = [b'CSIREF {"t_us":1}\n', b'CSIREF {"t_us":2}\n']
+        drained = threading.Event()
+        pending = queue.Queue()
+        for record in records:
+            pending.put(record)
+
+        def read():
+            if pending.empty():
+                drained.set()  # The preceding line has reached the capture queue.
+            try:
+                return pending.get(timeout=0.01)
+            except queue.Empty:
+                return b""
+
+        port = Mock()
+        port.readline.side_effect = read
+        with bench.SerialCapture(port) as capture:
+            # No consumer reads until the entire producer stream was drained.
+            self.assertTrue(drained.wait(timeout=2))
+            self.assertEqual([capture.readline(), capture.readline()], records)
+
+    def test_capture_overflow_invalidates_instead_of_silently_dropping_records(self):
+        port = Mock()
+        port.readline.return_value = b'CSIREF {"t_us":1}\n'
+        with bench.SerialCapture(port, max_lines=1) as capture:
+            self.assertTrue(capture.failed.wait(timeout=2))
+            with self.assertRaisesRegex(RuntimeError, "queue overflow"):
+                capture.readline()
+
+    def test_newline_terminated_malformed_record_still_fails(self):
+        ser = Mock()
+        ser.readline.return_value = b'CSIREF {"t_us":1,"detector":"high_accuracy}\n'
+        with self.assertRaises(json.JSONDecodeError):
+            bench.measure(ser, 60, 2)
+
     def test_timeout_fragment_is_not_parsed_as_a_complete_json_record(self):
         record = b'CSIREF {"t_us":23456789,"utc":1794426907,"detector":"high_accuracy"}\n'
         port = Mock()
