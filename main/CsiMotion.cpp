@@ -1,4 +1,4 @@
-#ifdef SENSORS
+#if defined(SENSORS) && !defined(CSI_REFERENCE)
 #include "CsiMotion.h"
 
 #include <atomic>

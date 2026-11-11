@@ -7,6 +7,7 @@ Settings_*.h
 .DS_Store
 cmake-build-*
 build/
+.reference/
 
 node_modules
 main/build_timestamp_value.h

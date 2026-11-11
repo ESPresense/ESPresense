@@ -513,6 +513,9 @@ void reportLoop() {
 }
 
 void onAdvert(const Ble::Advert &advert) {
+#ifdef CSI_REFERENCE
+    CsiMotion::NoteAdvert();
+#endif
     bleStack = uxTaskGetStackHighWaterMark(nullptr);
     BleFingerprintCollection::Seen(&advert);
 }
@@ -521,6 +524,15 @@ void scanTask(void *parameter) {
     Ble::Init("ESPresense", onAdvert);
     Ble::DeleteAllBonds();
     Enrollment::Setup();
+
+#ifdef CSI_REFERENCE
+    if (!CsiMotion::BleScanEnabled()) {
+        Log.println("CSIREF control: BLE scanning disabled; stack remains initialized");
+        // Explicit bench control, never a product default. Do not enter the
+        // ordinary loop below, which would automatically restart scanning.
+        while (true) delay(1000);
+    }
+#endif
 
     if (!Ble::StartScan())
         log_e("Error starting continuous ble scan");
