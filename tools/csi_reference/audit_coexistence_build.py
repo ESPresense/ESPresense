@@ -25,6 +25,8 @@ result = {'label': args.label,
     'software_coexistence_enabled': 'CONFIG_ESP_COEX_SW_COEXIST_ENABLE=y\n' in config,
     'sdk_source_file': compile_entry['file']}
 print('CSI_REFERENCE_BUILD_AUDIT '+json.dumps(result, sort_keys=True), flush=True)
+if args.label == 'before_dependency' and result['sdk_wifi_lifecycle_calls_coex_preference']:
+    raise SystemExit('Baseline already contains the SDK coexistence call; dependency-gap hypothesis not reproduced. Stop before a duplicate hardware trial.')
 if args.require and not all(result[key] for key in [
     'sdk_wifi_lifecycle_calls_coex_preference', 'sdk_compile_has_coex_include', 'software_coexistence_enabled']):
     raise SystemExit('SDK native coexistence call was not proven; do not flash this build')
