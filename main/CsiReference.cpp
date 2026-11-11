@@ -242,7 +242,7 @@ void Loop() {
     Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
                "\"motion\":%s,\"score\":%.6f,\"threshold\":%.6f,\"calibrating\":%s,"
                "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
-               "\"queue_drops\":%s,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
+               "\"queue_drops\":%s,\"generated\":%lu,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
                "\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,\"worker_stack_free\":%lu,"
                "\"report_seq\":%lu,\"telemetry_overwrites\":%lu,\"ble_scan\":%s,"
                "\"callbacks\":%s,\"filtered\":%s,\"provenance_rejected\":%s,\"invalid_first_word\":%s,"
@@ -258,6 +258,7 @@ void Loop() {
                static_cast<unsigned long>(d.csi.occupancy_slots),
                static_cast<unsigned long>(d.csi.window_slots),
                csiReferenceDecimal(d.csi.pending_frame_drops_total, drops),
+               static_cast<unsigned long>(d.traffic.generator_packets_total),
                static_cast<unsigned long>(d.traffic.tx_packets_total),
                static_cast<unsigned long>(d.traffic.rx_packets_total),
                static_cast<unsigned long>(d.platform.free_memory_bytes),

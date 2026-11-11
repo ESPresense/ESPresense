@@ -20,6 +20,23 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_timeout_fragment_is_not_parsed_as_a_complete_json_record(self):
+        record = b'CSIREF {"t_us":23456789,"utc":1794426907,"detector":"high_accuracy"}\n'
+        port = Mock()
+        port.readline.side_effect = [record[:38], b"", record[38:]]
+        reader = bench.SerialLines(port)
+        self.assertEqual(reader.readline(), b"")
+        self.assertEqual(reader.readline(), b"")
+        complete = reader.readline()
+        self.assertEqual(complete, record)
+        self.assertEqual(json.loads(complete[7:])["detector"], "high_accuracy")
+
+    def test_serial_line_buffer_remains_bounded_without_a_newline(self):
+        port = Mock()
+        port.readline.return_value = b"x" * 8193
+        with self.assertRaisesRegex(RuntimeError, "bounded 8192-byte buffer"):
+            bench.SerialLines(port).readline()
+
     def response(self, version="expected", firmware="esp32c3-csiref"):
         response = Mock(status=200)
         response.read.return_value = json.dumps({"ver": version, "firm": firmware}).encode()

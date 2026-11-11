@@ -13,6 +13,26 @@ ANSI = re.compile(r"\x1b\[[0-9;]*m")
 IP = re.compile(r"IP address:\s*(\d+\.\d+\.\d+\.\d+)")
 
 
+class SerialLines:
+    """A serial read timeout ends a read, not necessarily a protocol line."""
+
+    def __init__(self, port):
+        self.port = port
+        self.pending = bytearray()
+
+    def readline(self):
+        if b"\n" not in self.pending:
+            self.pending.extend(self.port.readline())
+        if len(self.pending) > 8192:
+            raise RuntimeError("Serial line exceeded bounded 8192-byte buffer")
+        newline = self.pending.find(b"\n")
+        if newline < 0:
+            return b""  # Keep the fragment through this timeout and phase changes.
+        result = bytes(self.pending[:newline + 1])
+        del self.pending[:newline + 1]
+        return result
+
+
 def post(ip, path, values):
     conn = http.client.HTTPConnection(ip, timeout=10)
     try:
@@ -101,10 +121,15 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True):
     gap_limit = 1.0 if mode else 2.0
     ready_seconds = sum(dt for sample, dt in intervals if 0 < dt <= gap_limit and sample.get("ready"))
     unknown_seconds = sum(dt for _, dt in intervals if dt > gap_limit)
+    generated = [s.get("generated") for s in measured]
+    generator_epoch_valid = (all(value is not None for value in generated)
+                             and all(b >= a for a, b in zip(generated, generated[1:])))
     result = {"mode": mode, "ble_scan": ble_scan,
               "condition": "BLE coexistence" if ble_scan else "No-scan diagnostic control",
               "seconds": elapsed,
               "adverts_per_minute": (last["adverts"] - first["adverts"]) * 60 / elapsed,
+              "generator_successful_sends_per_second": (
+                  (generated[-1] - generated[0]) / elapsed if generator_epoch_valid else None),
               "ready_fraction": ready_seconds / elapsed,
               "unobserved_seconds": unknown_seconds,
               "max_sample_gap_seconds": max(dt for _, dt in intervals),
@@ -253,11 +278,12 @@ def main():
         save()
 
     save()
-    with serial.Serial(args.port, 115200, timeout=1) as ser:
-        ser.dtr = False
-        ser.rts = True
+    with serial.Serial(args.port, 115200, timeout=1) as port:
+        port.dtr = False
+        port.rts = True
         time.sleep(0.1)
-        ser.rts = False
+        port.rts = False
+        ser = SerialLines(port)
         ip = wait_boot(ser)
         verify_build(ip, args.expected_version)
         post(ip, "/wifi", {"auto_update": "0"})
