@@ -11,7 +11,9 @@ if(FW_ENV MATCHES "-csiref$")
     if(NOT EXISTS "${ESPECTRE_REFERENCE_DIR}/CMakeLists.txt")
         message(FATAL_ERROR "Run python3 tools/prepare_csi_reference.py first")
     endif()
-    list(APPEND EXTRA_COMPONENT_DIRS "${ESPECTRE_REFERENCE_DIR}")
+    # The wrapper sets the SDK's supported dependency hook in both normal
+    # configuration and IDF's separate requirements-expansion process.
+    list(APPEND EXTRA_COMPONENT_DIRS "${CMAKE_CURRENT_LIST_DIR}/reference_components/espectre")
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)

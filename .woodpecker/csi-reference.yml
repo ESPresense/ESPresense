@@ -18,6 +18,10 @@ variables:
     description: BLE identity pool at the same requested40 rotations/s;64 is a separate workload diagnostic
     options: ['64', '1024']
     default: '1024'
+  REFERENCE_COEX_AUDIT:
+    description: Compare SDK object code before and after adding its coexistence dependency
+    options: ['false', 'true']
+    default: 'false'
 
 labels:
   backend: docker
@@ -62,6 +66,7 @@ steps:
       REFERENCE_PHASE_START: ${REFERENCE_PHASE_START:-0}
       REFERENCE_TRAFFIC_SOURCE: ${REFERENCE_TRAFFIC_SOURCE:-ping}
       REFERENCE_BLE_POOL: ${REFERENCE_BLE_POOL:-1024}
+      REFERENCE_COEX_AUDIT: ${REFERENCE_COEX_AUDIT:-false}
     commands:
       - |
         . $IDF_PATH/export.sh
@@ -78,7 +83,14 @@ steps:
         python3 -c 'import pathlib,time; end=time.monotonic()+1800; ready=pathlib.Path("/flood/ready"); exec("while not ready.exists() and time.monotonic()<end: time.sleep(1)"); assert ready.exists(), "Controlled BLE flood did not become ready"; print(ready.read_text())'
         flock -w 1800 /lock/esp32c3.lock bash -c '
           set -e
+          if [ "$REFERENCE_COEX_AUDIT" = true ]; then
+            CSI_REFERENCE_COEX_DEPENDENCY=0 ./build.sh esp32c3-csiref
+            python3 tools/csi_reference/audit_coexistence_build.py --build build/esp32c3-csiref --label before_dependency
+          fi
+          export CSI_REFERENCE_COEX_DEPENDENCY=1
+          ./build.sh esp32c3-csiref reconfigure
           ./build.sh esp32c3-csiref
+          python3 tools/csi_reference/audit_coexistence_build.py --build build/esp32c3-csiref --label required_dependency --require
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
           ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"

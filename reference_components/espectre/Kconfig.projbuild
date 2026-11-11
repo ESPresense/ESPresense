@@ -1,0 +1,2 @@
+# Keep the unchanged upstream SDK configuration available through the wrapper.
+rsource "../../.reference/espectre/Kconfig.projbuild"

@@ -10,9 +10,11 @@ on:
       - 'test/test_native_csi_reference_format/**'
       - 'tools/csi_reference/bench.py'
       - 'tools/csi_reference/external_feed.py'
+      - 'tools/csi_reference/audit_coexistence_build.py'
       - 'tools/csi_reference/test_bench.py'
       - 'tools/csi_reference/requirements.txt'
       - 'main/CMakeLists.txt'
+      - 'reference_components/espectre/**'
       - 'CMakeLists.txt'
       - 'envs.cmake'
 
