@@ -79,8 +79,11 @@ def measure(ser, seconds, mode, flood_ready=None):
         raise RuntimeError("Counter epoch changed during measurement")
     intervals = [(a, (b["t_us"] - a["t_us"]) / 1e6)
                  for a, b in zip(measured, measured[1:])]
-    ready_seconds = sum(dt for sample, dt in intervals if 0 < dt <= 1 and sample.get("ready"))
-    unknown_seconds = sum(dt for _, dt in intervals if dt > 1)
+    # Off reports are nominally 1 Hz, active reports 4 Hz. Allow cadence jitter
+    # before calling an interval unobserved; a 1.01s off interval is not a gap.
+    gap_limit = 1.0 if mode else 2.0
+    ready_seconds = sum(dt for sample, dt in intervals if 0 < dt <= gap_limit and sample.get("ready"))
+    unknown_seconds = sum(dt for _, dt in intervals if dt > gap_limit)
     result = {"mode": mode, "seconds": elapsed,
               "adverts_per_minute": (last["adverts"] - first["adverts"]) * 60 / elapsed,
               "ready_fraction": ready_seconds / elapsed,
@@ -90,7 +93,7 @@ def measure(ser, seconds, mode, flood_ready=None):
                                          for s in measured) / len(measured)),
               "heap_min": min((s["heap"] for s in measured if "heap" in s), default=None),
               "first": first, "last": last, "faults": faults}
-    if mode and (faults or result["ready_fraction"] < 0.5):
+    if mode and (faults or result["ready_fraction"] < 0.5 or result["slot_coverage_mean"] < 0.7):
         result["valid_input"] = False
     else:
         result["valid_input"] = True

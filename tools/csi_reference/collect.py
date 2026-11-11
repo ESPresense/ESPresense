@@ -76,14 +76,21 @@ class Recorder:
                 self.record(node, "connection", {"state": "connected"})
                 counts = {"New": 0, "Del": 0}
                 last_proxy = time.monotonic()
+                last_line = time.monotonic()
                 while self.active():
                     try:
                         raw = await asyncio.wait_for(reader.readline(), 10)
                     except asyncio.TimeoutError:
                         self.record(node, "gap", {"reason": "no TCP line for 10s"})
+                        # A reset can leave a receive-only socket half open:
+                        # neither peer sends anything that would elicit a RST.
+                        # Renew a silent mirror so post-reboot data is captured.
+                        if time.monotonic() - last_line >= 30:
+                            raise ConnectionError("TCP mirror silent for 30s; reconnecting")
                         continue
                     if not raw:
                         raise ConnectionError("TCP stream closed")
+                    last_line = time.monotonic()
                     line = ANSI.sub("", raw.decode("utf-8", "replace").strip())
                     match = FINGERPRINT.match(line)
                     if match:

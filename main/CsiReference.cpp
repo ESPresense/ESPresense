@@ -12,6 +12,10 @@
 #include <cstdlib>
 #include <cstdio>
 #include <atomic>
+#include <type_traits>
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
 
 namespace CsiMotion {
 namespace {
@@ -32,16 +36,46 @@ int64_t lastReport = 0;
 int64_t monotonicExpiry = 0;
 std::atomic<uint32_t> receivedAdverts{0};
 
+// The SDK has one owner, independent of serial/MQTT and the ordinary loop's
+// per-fingerprint yields. Match the pinned native frontend: 8 KiB, priority 5,
+// 10 ms cadence. Capture, admission, calibration and detector code stay intact.
+struct ReferenceReport {
+    espectre::RuntimeSnapshot snapshot{};
+    espectre::RuntimeDiagnosticsSnapshot diagnostics{};
+    int64_t tick = 0;
+    uint64_t utc = 0;
+    uint32_t adverts = 0;
+    uint32_t sequence = 0;
+    uint32_t telemetryOverwrites = 0;
+    uint32_t workerLoops = 0;
+    uint32_t loopGapMaxUs = 0;
+    uint32_t stackFree = 0;
+    uint32_t faultSequence = 0;
+    char fault[160] = {};
+    bool active = false;
+    bool attempted = false;
+    bool running = false;
+};
+static_assert(std::is_trivially_copyable<ReferenceReport>::value,
+              "FreeRTOS mailbox requires a value-only snapshot");
+QueueHandle_t reports = nullptr;
+bool workerStartAttempted = false;  // Main-loop owned.
+ReferenceReport pending;           // Worker owned.
+
+void fault(const char* message) {
+    ++pending.faultSequence;
+    std::snprintf(pending.fault, sizeof(pending.fault), "%s", message);
+}
+
 void expire() {
     runtime.shutdown();
     // Arming was durably consumed before setup. Reboot restores the ordinary
     // radio policy without a flash write at expiry or a possible reboot loop.
     if (!attempted) {
         mode = 0;
-        Log.println("CSIREF finished: deadline expired before arming");
         return;
     }
-    Log.println("CSIREF finished: deadline reached; restoring normal radio by reboot");
+    // Deadline enforcement must not wait on serial or the reporting loop.
     esp_restart();
 }
 }
@@ -68,19 +102,9 @@ void SerialReport() {
                espectre::espectre_sdk_version());
 }
 
-void Loop() {
-    if (!mode || expired) {
-        const int64_t tick = esp_timer_get_time();
-        if (tick - lastReport >= 1000000) {
-            lastReport = tick;
-            char timestamp[21], utc[21];
-            Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,\"adverts\":%lu}\n",
-                       csiReferenceDecimal(static_cast<uint64_t>(tick), timestamp),
-                       csiReferenceDecimal(static_cast<uint64_t>(std::time(nullptr)), utc),
-                       static_cast<unsigned long>(receivedAdverts.load(std::memory_order_relaxed)));
-        }
-        return;
-    }
+namespace {
+void serviceRuntime() {
+    if (!mode || expired) return;
     if (monotonicExpiry && esp_timer_get_time() >= monotonicExpiry) {
         expired = true; expire(); return;
     }
@@ -91,12 +115,12 @@ void Loop() {
     if (now >= expires) { expired = true; expire(); return; }
     if (!attempted) {
         if (expires - now > 48 * 60 * 60) {
-            Log.println("CSIREF fault: deadline exceeds 48-hour experiment limit");
+            fault("deadline exceeds 48-hour experiment limit");
             mode = 0;
             return;
         }
         if (!Settings::spurt("/csi_reference_arm", "0")) {
-            Log.println("CSIREF fault: cannot consume one-shot arm; sensing remains off");
+            fault("cannot consume one-shot arm; sensing remains off");
             mode = 0;
             return;
         }
@@ -111,26 +135,108 @@ void Loop() {
         // Deliberately retain upstream AUTO capture, 1s window, calibration,
         // weights, thresholds, temporal admission, and 4/3 motion hits.
         running = runtime.set_config(config) && runtime.setup(&listener);
-        Log.printf("CSIREF setup=%s\n", running ? "ok" : "failed");
+        if (!running) fault("SDK setup failed");
     }
     if (listener.fault[0]) {
-        Log.printf("CSIREF fault: %s\n", listener.fault);
+        fault(listener.fault);
         listener.fault[0] = 0;
     }
-    if (!running) return;
-    runtime.loop();
-    const int64_t tick = esp_timer_get_time();
-    if (tick - lastReport < 250000) return;
-    lastReport = tick;
-    const auto& s = runtime.snapshot();
-    const auto d = runtime.diagnostics();
+    if (running) runtime.loop();
+}
+
+void referenceWorker(void*) {
+    int64_t previousTick = 0;
+    uint32_t gapMax = 0;
+    while (true) {
+        const int64_t begin = esp_timer_get_time();
+        if (previousTick) {
+            const auto gap = static_cast<uint32_t>(begin - previousTick);
+            if (gap > gapMax) gapMax = gap;
+        }
+        previousTick = begin;
+        ++pending.workerLoops;
+        serviceRuntime();
+        const int64_t tick = esp_timer_get_time();
+        const bool active = mode && !expired && running;
+        if (tick - lastReport >= (active ? 250000 : 1000000)) {
+            lastReport = tick;
+            pending.tick = tick;
+            pending.utc = static_cast<uint64_t>(std::time(nullptr));
+            pending.adverts = receivedAdverts.load(std::memory_order_relaxed);
+            pending.active = active;
+            pending.attempted = attempted;
+            pending.running = running;
+            pending.loopGapMaxUs = gapMax;
+            pending.stackFree = uxTaskGetStackHighWaterMark(nullptr);
+            gapMax = 0;
+            if (active) {
+                pending.snapshot = runtime.snapshot();
+                pending.diagnostics = runtime.diagnostics();
+            } else {
+                pending.snapshot = {};
+                pending.diagnostics = {};
+                pending.diagnostics.platform.free_memory_bytes = esp_get_free_heap_size();
+            }
+            ++pending.sequence;
+            if (uxQueueMessagesWaiting(reports)) ++pending.telemetryOverwrites;
+            // Logging backpressure can replace telemetry, never CSI frames.
+            // The distinct overwrite counter makes that loss visible.
+            xQueueOverwrite(reports, &pending);
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
+}  // namespace
+
+void Loop() {
+    if (!workerStartAttempted) {
+        workerStartAttempted = true;
+        reports = xQueueCreate(1, sizeof(ReferenceReport));
+        if (!reports || xTaskCreate(referenceWorker, "csiref", 8192, nullptr, 5, nullptr) != pdPASS) {
+            if (reports) vQueueDelete(reports);
+            reports = nullptr;
+            Log.println("CSIREF fault: cannot start reference worker; sensing remains off");
+            return;
+        }
+    }
+    ReferenceReport report;
+    if (!reports || xQueueReceive(reports, &report, 0) != pdTRUE) return;
+    static uint32_t lastFault = 0;
+    if (report.faultSequence != lastFault) {
+        lastFault = report.faultSequence;
+        Log.printf("CSIREF fault: %s\n", report.fault);
+    }
+    static bool setupLogged = false;
+    if (report.attempted && !setupLogged) {
+        setupLogged = true;
+        Log.printf("CSIREF setup=%s\n", report.running ? "ok" : "failed");
+    }
+    const auto& s = report.snapshot;
+    const auto& d = report.diagnostics;
     char timestamp[21], utc[21], accepted[21], admitted[21], drops[21];
+    if (!report.active) {
+        Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,"
+                   "\"adverts\":%lu,\"heap\":%lu,\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,"
+                   "\"worker_stack_free\":%lu,\"report_seq\":%lu,\"telemetry_overwrites\":%lu}\n",
+                   csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
+                   csiReferenceDecimal(report.utc, utc),
+                   static_cast<unsigned long>(report.adverts),
+                   static_cast<unsigned long>(d.platform.free_memory_bytes),
+                   static_cast<unsigned long>(report.workerLoops),
+                   static_cast<unsigned long>(report.loopGapMaxUs),
+                   static_cast<unsigned long>(report.stackFree),
+                   static_cast<unsigned long>(report.sequence),
+                   static_cast<unsigned long>(report.telemetryOverwrites));
+        return;
+    }
     Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"%s\",\"ready\":%s,"
                "\"motion\":%s,\"score\":%.6f,\"threshold\":%.6f,\"calibrating\":%s,"
                "\"accepted\":%s,\"admitted\":%s,\"slots\":%lu,\"window_slots\":%lu,"
-               "\"queue_drops\":%s,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu}\n",
-               csiReferenceDecimal(static_cast<uint64_t>(tick), timestamp),
-               csiReferenceDecimal(static_cast<uint64_t>(now), utc), s.detector_name,
+               "\"queue_drops\":%s,\"tx\":%lu,\"rx\":%lu,\"heap\":%lu,\"largest\":%lu,\"adverts\":%lu,"
+               "\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,\"worker_stack_free\":%lu,"
+               "\"report_seq\":%lu,\"telemetry_overwrites\":%lu}\n",
+               csiReferenceDecimal(static_cast<uint64_t>(report.tick), timestamp),
+               csiReferenceDecimal(report.utc, utc), s.detector_name,
                s.ready_to_publish ? "true" : "false",
                s.motion_state == espectre::MotionState::MOTION ? "true" : "false",
                static_cast<double>(s.movement_metric), static_cast<double>(s.threshold),
@@ -144,7 +250,12 @@ void Loop() {
                static_cast<unsigned long>(d.traffic.rx_packets_total),
                static_cast<unsigned long>(d.platform.free_memory_bytes),
                static_cast<unsigned long>(d.platform.largest_free_memory_block_bytes),
-               static_cast<unsigned long>(receivedAdverts.load(std::memory_order_relaxed)));
+               static_cast<unsigned long>(report.adverts),
+               static_cast<unsigned long>(report.workerLoops),
+               static_cast<unsigned long>(report.loopGapMaxUs),
+               static_cast<unsigned long>(report.stackFree),
+               static_cast<unsigned long>(report.sequence),
+               static_cast<unsigned long>(report.telemetryOverwrites));
 }
 
 // Research output stays on the TCP log. It must not drive household automations

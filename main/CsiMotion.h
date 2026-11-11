@@ -1,7 +1,12 @@
 #pragma once
 #ifdef SENSORS
-// Passive WiFi CSI: a room-movement reading from the AP's frames this node receives anyway.
-// Never transmits and leaves WiFi power save alone (see CONTRIBUTING.md, Product principles).
+#ifdef CSI_REFERENCE
+// Bounded research integration: unchanged full ESPectre SDK, active gateway
+// traffic and its radio policy. Output stays on the log, outside HA discovery.
+#else
+// Passive WiFi CSI from AP frames already received; never transmits and leaves
+// WiFi power save alone (see CONTRIBUTING.md, Product principles).
+#endif
 namespace CsiMotion
 {
 #ifdef CSI_REFERENCE
