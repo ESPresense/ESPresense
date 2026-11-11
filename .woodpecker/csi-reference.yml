@@ -41,6 +41,7 @@ steps:
         from_secret: wifi_password
       IDF_CCACHE_ENABLE: '1'
       CCACHE_DIR: /cache/ccache-idf
+      REFERENCE_PHASE_START: ${REFERENCE_PHASE_START:-0}
     commands:
       - |
         . $IDF_PATH/export.sh
@@ -60,7 +61,7 @@ steps:
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
           ./build.sh esp32c3-csiref -p /dev/esp32c3 -b 115200 erase-flash flash
           python3 /tmp/firmware-tester/scripts/improv_wifi.py --port /dev/esp32c3 --ssid "$WIFI_SSID" --password "$WIFI_PASSWORD"
-          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --expected-version "$FW_VERSION" --flood-ready /flood/ready --no-scan-control --safety-checks --out /tmp/reference-pilot.json
+          python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 120 --expected-version "$FW_VERSION" --flood-ready /flood/ready --no-scan-control --safety-checks --phase-start "$REFERENCE_PHASE_START" --out /tmp/reference-pilot.json
         '
 
   - name: ble-reference-flood-stop

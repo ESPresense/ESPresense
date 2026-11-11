@@ -214,16 +214,34 @@ def restart_and_verify(ser, ip, expected):
 
 
 def hardware(ip):
-    conn = http.client.HTTPConnection(ip, timeout=5)
-    try:
-        conn.request("GET", "/wifi/hardware")
-        response = conn.getresponse()
-        data = json.loads(response.read())
-        if response.status != 200:
-            raise RuntimeError(f"Hardware metadata HTTP {response.status}")
-        return data["values"]
-    finally:
-        conn.close()
+    stop = time.monotonic() + 45
+    last_error = None
+    while time.monotonic() < stop:
+        conn = http.client.HTTPConnection(ip, timeout=3)
+        try:
+            conn.request("GET", "/wifi/hardware")
+            response = conn.getresponse()
+            data = json.loads(response.read())
+            if response.status != 200:
+                raise OSError(f"Hardware metadata HTTP {response.status}")
+            if not isinstance(data.get("values"), dict):
+                raise RuntimeError("Unexpected hardware metadata schema")
+            return data["values"]
+        except (OSError, http.client.HTTPException, ValueError) as error:
+            last_error = error
+            time.sleep(0.5)
+        finally:
+            conn.close()
+    raise RuntimeError(f"Hardware metadata unavailable after bounded retries: {last_error}")
+
+
+def requested_phases(no_scan_control, phase_start, safety):
+    phases = [(mode, True) for mode in (0, 1, 2, 0)]
+    if no_scan_control:
+        phases.extend([(1, False), (2, False)])
+    if phase_start < 0 or phase_start > len(phases) or (phase_start == len(phases) and not safety):
+        raise ValueError("Phase start must select an existing phase or safety-only continuation")
+    return phases[phase_start:]
 
 
 def next_reference(ser, timeout, flood_ready):
@@ -330,14 +348,18 @@ def main():
                         help="Also measure both detectors with BLE scanning explicitly disabled")
     parser.add_argument("--safety-checks", action="store_true",
                         help="Verify one-shot reboot and automatic persistent expiry under the same lock")
+    parser.add_argument("--phase-start", type=int, default=0,
+                        help="Skip already preserved phases; a partial run cannot pass the house gate")
     args = parser.parse_args()
+    phases = requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)
     results = []
     safety = []
 
     def save():
         path = Path(args.out)
         temporary = path.with_suffix(path.suffix + ".tmp")
-        temporary.write_text(json.dumps({"phases": results, "safety": safety}, indent=2))
+        temporary.write_text(json.dumps({"phases": results, "safety": safety,
+            "source_version": args.expected_version, "phase_start": args.phase_start}, indent=2))
         temporary.replace(path)
 
     def save_safety(result):
@@ -355,9 +377,7 @@ def main():
             verify_build(ip, args.expected_version)
             post(ip, "/wifi", {"auto_update": "0"})
             try:
-                phases = [(mode, True) for mode in (0, 1, 2, 0)]
-                if args.no_scan_control:
-                    phases.extend([(1, False), (2, False)])
+                print(f"BENCH phase_start={args.phase_start} phases={phases}", flush=True)
                 for mode, ble_scan in phases:
                     ip = restart_phase(ser, ip, args.expected_version, mode,
                                        int(time.time() + 900), ble_scan)
@@ -376,9 +396,10 @@ def main():
                     print(f"BENCH cleanup unverified: {type(error).__name__}", flush=True)
                     if not original_error:
                         raise
-    coexistence = [result for result in results if result["ble_scan"]]
-    if not all(result["valid_input"] for result in coexistence):
+    if not all(result["valid_input"] for result in results):
         raise SystemExit("Reference acquisition/readiness failed; do not score this as detector accuracy")
+    if args.phase_start:
+        print("CSI_REFERENCE_GATE not evaluated: partial diagnostic continuation", flush=True)
 
 
 if __name__ == "__main__":

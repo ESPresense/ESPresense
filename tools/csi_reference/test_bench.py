@@ -22,6 +22,28 @@ class TimedSerial:
 
 
 class BenchValidityTests(unittest.TestCase):
+    def test_hardware_transport_failure_retries_but_bad_schema_does_not(self):
+        first, second = Mock(), Mock()
+        first.getresponse.side_effect = TimeoutError("server temporarily busy")
+        second.getresponse.return_value = Mock(status=200)
+        second.getresponse.return_value.read.return_value = b'{"values":{"csi_reference_ble_scan":false}}'
+        with patch.object(bench.http.client, "HTTPConnection", side_effect=[first, second]), \
+                patch.object(bench.time, "sleep"):
+            self.assertEqual(bench.hardware("192.0.2.1"), {"csi_reference_ble_scan": False})
+        second.getresponse.return_value.read.return_value = b'{"values":null}'
+        with patch.object(bench.http.client, "HTTPConnection", return_value=second) as factory:
+            with self.assertRaisesRegex(RuntimeError, "Unexpected hardware metadata schema"):
+                bench.hardware("192.0.2.1")
+            factory.assert_called_once()
+
+    def test_partial_continuation_runs_only_remaining_control_or_safety(self):
+        self.assertEqual(bench.requested_phases(True, 5, True), [(2, False)])
+        self.assertEqual(bench.requested_phases(True, 6, True), [])
+        self.assertEqual(bench.requested_phases(False, 0, False), [(0, True), (1, True), (2, True), (0, True)])
+        for start, safety in [(-1, True), (7, True), (6, False)]:
+            with self.assertRaises(ValueError):
+                bench.requested_phases(True, start, safety)
+
     def test_lost_restart_response_requires_boot_and_identity_without_a_second_restart(self):
         with patch.object(bench, "post", side_effect=TimeoutError) as post, \
                 patch.object(bench, "wait_boot", return_value="192.0.2.1") as boot, \
