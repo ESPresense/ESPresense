@@ -8,7 +8,7 @@ This is a research build for the fixed **Family** and **Master** nodes. It does 
 
 Build locally with `python3 tools/prepare_csi_reference.py`, the IDF 5.5.6 environment, and `./build.sh esp32c3-csiref`.
 
-The integration retains ESPresense networking, BLE scanning, configured plug GPIOs, SPIFFS settings, and OTA. It uses the full upstream SDK rather than a locally fitted copy of two features. The SDK's PING generator is configured for 100 requests/s to the associated WiFi gateway, keeps WiFi power save off, and controls its radio policy, including its WiFi coexistence preference. `generated` counts successful generator sends; `tx` and `rx` count all station traffic and cannot establish the achieved ping/reply rate. All of those costs belong to the reference result. Association, gateway identity, actual CSI rates, slot coverage, and BLE counters must be recorded rather than inferred from the requested packet rate.
+The integration retains ESPresense networking, BLE scanning, configured plug GPIOs, SPIFFS settings, and OTA. It uses the full upstream SDK rather than a locally fitted copy of two features. The SDK's PING generator is configured for 100 requests/s to the associated WiFi gateway, keeps WiFi power save off, and requests its WiFi power-save and coexistence policies. The effect of each request depends on the target backend. `generated` counts successful generator sends; `tx` and `rx` count all station traffic and cannot establish the achieved ping/reply rate. All of those costs belong to the reference result. Association, gateway identity, actual CSI rates, slot coverage, and BLE counters must be recorded rather than inferred from the requested packet rate.
 
 ## Bounded operation
 
@@ -138,3 +138,22 @@ numeric status, known warning classifications and a digest, never arbitrary
 interleaved text. The 2025 parser did not retain those startup diagnostics, and
 the TCP mirror can miss startup during reconnection; absence of a saved warning
 from that run is not proof of a successful coexistence API return.
+
+
+## C3 preference-library audit
+
+The published ESP32-C3 coexistence archive selected by ESP-IDF 5.5.6 contains a
+four-byte `coex_preference_set` implementation: `01 45 82 80`, or `c.li a0,0;
+c.jr ra`. It returns `ESP_OK` without changing priority. The IDF wrapper forwards
+`esp_coex_preference_set` to that function. Source: IDF's
+[pinned coex submodule](https://github.com/espressif/esp-coex-lib/blob/02c57071231dbe9f7555afcbb8ef86e35f517292/esp32c3/libcoexist.a),
+Git blob `41a5b195945a5d61aad3af02ce857310c8e0d1c5`. Compiling the call and
+receiving success therefore do not establish increased WiFi RF allocation.
+This static result does not establish the entire cause of the observed slot
+loss, or rule out WiFi/BLE coexistence in other configurations.
+
+The build-only workflow's `--elf-audit` records the final application symbol,
+bytes, wrapper/vendor disassembly and ELF digest. Its `reference-link-evidence`
+artifact retains the audit, ELF and map so the published-library finding can
+be checked against actual link binding. No radio or house test is run by that
+workflow. SDK sources, detector parameters and the house gate remain unchanged.

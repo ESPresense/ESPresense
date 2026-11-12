@@ -33,7 +33,13 @@ jobs:
         uses: espressif/esp-idf-ci-action@v1
         with:
           esp_idf_version: v5.5.6
-          command: FW_VERSION="$(printf %.7s '${{ github.event.pull_request.head.sha || github.sha }}')" FW_BRANCH="${{ github.head_ref || github.ref_name }}" FW_RUN_ID="${{ github.run_id }}" ./build.sh esp32c3-csiref
+          command: |
+            set -e
+            export FW_VERSION="$(printf %.7s '${{ github.event.pull_request.head.sha || github.sha }}')"
+            export FW_BRANCH="${{ github.head_ref || github.ref_name }}"
+            export FW_RUN_ID="${{ github.run_id }}"
+            ./build.sh esp32c3-csiref
+            python3 tools/csi_reference/audit_coexistence_build.py --build build/esp32c3-csiref --label final_link --require --elf-audit --output reference-link-audit.json
       - name: Enforce existing OTA image limit
         run: |
           test "$(stat -c%s build/esp32c3-csiref/espresense.bin)" -le 1966080
@@ -50,3 +56,12 @@ jobs:
           path: |
             reference-source.json
             reference-sdkconfig.txt
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: reference-link-evidence
+          path: |
+            reference-link-audit.json
+            build/esp32c3-csiref/espresense.elf
+            build/esp32c3-csiref/espresense.map
