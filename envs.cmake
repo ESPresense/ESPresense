@@ -7,7 +7,7 @@ if(FW_ENV MATCHES "-verbose$")
 endif()
 
 if(FW_ENV MATCHES "^esp32c3")
-  list(APPEND FW_DEFS ESP32C3)
+  list(APPEND FW_DEFS ESP32C3 USE_ETHERNET)
 elseif(FW_ENV MATCHES "^esp32c6")
   list(APPEND FW_DEFS ESP32C6)
 elseif(FW_ENV MATCHES "^esp32s3")
