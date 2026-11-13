@@ -16,7 +16,11 @@ namespace Enrollment {
 static std::string newName, newId;
 static unsigned long lastLoop = 0;
 static volatile int connectionToEnroll = -1;
-static uint16_t major, minor;
+// Derived from the chip id on demand, not cached by Setup(): SendDiscovery runs on the main task
+// as soon as MQTT connects, which can be before the scan task has reached Setup(). A cached value
+// would still be 0 then, and every node would publish its alias on iBeacon:...-0-0.
+static uint16_t beaconMajor() { return (CHIPID & 0xFFFF0000) >> 16; }
+static uint16_t beaconMinor() { return CHIPID & 0xFFFF; }
 static uint8_t beaconAdv[31];
 static size_t beaconAdvLen = 0;
 
@@ -40,11 +44,7 @@ void Setup() {
     Ble::Server::SetCallbacks({onConnect, onDisconnect});
     Ble::Server::SetModelNumber(room);
 
-    uint32_t nodeId = CHIPID;
-    major = (nodeId & 0xFFFF0000) >> 16;
-    minor = nodeId & 0xFFFF;
-
-    beaconAdvLen = buildIBeaconAdv(beaconAdv, espresenseUUID.u128.value, major, minor, BleFingerprintCollection::txRefRssi);
+    beaconAdvLen = buildIBeaconAdv(beaconAdv, espresenseUUID.u128.value, beaconMajor(), beaconMinor(), BleFingerprintCollection::txRefRssi);
 }
 
 bool Loop() {
@@ -126,7 +126,7 @@ bool Command(std::string& command, std::string& pay) {
 }
 
 bool SendDiscovery() {
-    return sendConfig(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", major, minor), "node:" + id, room) &&
+    return sendConfig(Sprintf("iBeacon:e5ca1ade-f007-ba11-0000-000000000000-%hu-%hu", beaconMajor(), beaconMinor()), "node:" + id, room) &&
            sendButtonDiscovery("Enroll", EC_CONFIG);
 }
 }  // namespace Enrollment
