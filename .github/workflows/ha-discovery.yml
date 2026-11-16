@@ -15,10 +15,10 @@ jobs:
   discovery:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: firmware
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ESPresense/ESPresense.com
           ref: ${{ inputs.docs_ref || 'main' }}
