@@ -275,6 +275,13 @@
                 </p>
             </div>
         {/if}
+        <h2>WiFi Sensing</h2>
+        <p>
+            <label class="flex items-center space-x-2">
+                <input type="checkbox" name="csi_enable" bind:checked={$hardwareSettings.values['csi_enable']}/>
+                <span>WiFi CSI movement sensor, experimental. Publishes how much the signal from your access point varies. WiFi nodes only (default: &#x2610;)</span>
+            </label>
+        </p>
         <h2>
             <a href="https://espresense.com/configuration/settings#gpio-sensors" target="_blank">GPIO Sensors</a>
         </h2>
