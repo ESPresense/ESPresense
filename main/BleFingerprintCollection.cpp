@@ -1,4 +1,5 @@
 #include "BleFingerprintCollection.h"
+#include "CsiMotion.h"
 
 #include "IBeacon.h"
 
@@ -519,6 +520,11 @@ void CleanupOldFingerprints() {
             removeSlot(i);
     }
     if (!any) {
+#if defined(SENSORS) && defined(CSI_REFERENCE)
+        // The reference control turned scanning off, so silence is expected. A
+        // restart here would also end the one-shot trial after 30 minutes.
+        if (!CsiMotion::BleScanEnabled()) return;
+#endif
         auto uptime = (unsigned long)(esp_timer_get_time() / 1000000ULL);
         if (uptime > ALLOW_BLE_CONTROLLER_RESTART_AFTER_SECS) {
             Log.println("Bluetooth controller seems stuck, restarting");
