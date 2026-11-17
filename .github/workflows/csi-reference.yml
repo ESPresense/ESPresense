@@ -67,3 +67,36 @@ jobs:
             reference-link-audit.json
             build/esp32c3-csiref/espresense.elf
             build/esp32c3-csiref/espresense.map
+
+  # Wi-Fi-only house diagnostics on other chips. Build proof only: no bench
+  # fixture has run these, and the C3 link audits do not apply to them.
+  reference-other-chips:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [esp32-csiref, esp32s3-csiref, esp32s3-cdc-csiref]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare pinned upstream SDK
+        run: python3 tools/prepare_csi_reference.py
+      - name: Build isolated reference firmware
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.6
+          command: |
+            set -e
+            export FW_VERSION="$(printf %.7s '${{ github.event.pull_request.head.sha || github.sha }}')"
+            export FW_BRANCH="${{ github.head_ref || github.ref_name }}"
+            export FW_RUN_ID="${{ github.run_id }}"
+            ./build.sh ${{ matrix.env }}
+      - name: Enforce existing OTA image limit
+        run: |
+          test "$(stat -c%s build/${{ matrix.env }}/espresense.bin)" -le 1966080
+          cp build/${{ matrix.env }}/espresense.bin ${{ matrix.env }}.bin
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.env }}.bin
+          path: ${{ matrix.env }}.bin
+

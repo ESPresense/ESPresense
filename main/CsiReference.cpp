@@ -23,6 +23,10 @@
 #include "freertos/queue.h"
 #include "freertos/task.h"
 
+// The schedule tables and their stock bytes were read from the ESP32-C3
+// library only. Other chips keep their own library untouched: no override,
+// no readback, and a schedule request is ignored.
+#ifdef ESP32C3
 extern "C" {
 // Strong definitions of the coexistence library's two weak schedules for
 // "BLE active, BT idle, Wi-Fi connected". The initial bytes equal the
@@ -38,6 +42,7 @@ int coex_schm_curr_phase_idx_get(void);
 static_assert(sizeof(coex_schm_ble_mesh_traffic_wifi_conn) == sizeof(CSI_REFERENCE_COEX_SCAN_TABLE)
               && sizeof(coex_schm_ble_default_bt_idle_wifi_conn) == sizeof(CSI_REFERENCE_COEX_DEFAULT_TABLE),
               "overrides must keep the library table sizes");
+#endif
 
 namespace CsiMotion {
 namespace {
@@ -87,6 +92,7 @@ struct CoexLive {
 };
 void readCoexLive(CoexLive& live) {
     live = {};
+#ifdef ESP32C3
     for (int attempt = 0; attempt < 3; ++attempt) {
         const int before = coex_schm_curr_phase_idx_get();
         const auto* phase = static_cast<const uint8_t*>(coex_schm_curr_phase_get());
@@ -105,6 +111,7 @@ void readCoexLive(CoexLive& live) {
                    || table == const_cast<const uint8_t*>(coex_schm_ble_default_bt_idle_wifi_conn);
         return;
     }
+#endif
 }
 
 // The SDK has one owner, independent of serial/MQTT and the ordinary loop's
@@ -208,7 +215,11 @@ void ConnectToWifi(bool updating) {
                                        "Armed bench Wi-Fi/BLE schedule P,W,B; 0 keeps the library split");
     const auto cycle = Settings::string("csi_reference_scan_cycle", "0",
                                         "Armed bench BLE scan pause C,T seconds; 0 scans continuously");
+#ifdef ESP32C3
     coexRequest = csiReferenceParseCoex(coex.c_str());
+#else
+    coexRequest = {};
+#endif
     scanCycle = csiReferenceParseScanCycle(cycle.c_str());
     // Echo only what parsed, in canonical form; a rejected request reads "0".
     std::snprintf(coexText, sizeof(coexText), "0");
@@ -261,8 +272,10 @@ void serviceRadioPlan(bool sdkRunning) {
     if (!planApplied) {
         planApplied = true;
         planStart = now;
+#ifdef ESP32C3
         csiReferenceApplyCoex(coex_schm_ble_mesh_traffic_wifi_conn, coexRequest);
         csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn, coexRequest);
+#endif
     }
     scanPaused.store(csiReferenceScanPausedAt(static_cast<uint64_t>(now - planStart) / 1000, scanCycle),
                      std::memory_order_relaxed);
