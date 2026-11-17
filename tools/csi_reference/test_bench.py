@@ -370,7 +370,8 @@ class BenchValidityTests(unittest.TestCase):
 
     def test_schedule_request_maps_to_the_exact_library_layout(self):
         self.assertIsNone(bench.schedule_hex("0"))
-        self.assertEqual(bench.schedule_hex("1,50,50"), bench.LIBRARY_SCHEDULE)
+        self.assertEqual(bench.schedule_hex("1,60,40"), bench.LIBRARY_SCHEDULE)
+        self.assertIn(bench.schedule_hex("1,50,50"), bench.LIBRARY_SCHEDULES)
         self.assertEqual(bench.schedule_hex("2,80,20"), "02025003000014000000")
 
     def test_plan_phase_arms_ble_only_baseline_and_posts_the_plan(self):
@@ -418,8 +419,8 @@ class BenchValidityTests(unittest.TestCase):
                     "scan_paused": paused, "coex_live": live, "coex_own": own, "calibrating": False,
                     "motion": False, "accepted": str(i * 25), "admitted": str(i * 20), "excess": str(i * 5),
                     "missing_slots": str(i * 5), "queue_drops": "0", "assist_ms": 0, "assist_timed_out": False}
-        # The request is 80/20, but the library kept running its own 50/50 table.
-        samples = [sample(i, bench.LIBRARY_SCHEDULE, True, False, False, 42) for i in range(400)]
+        # The request is 80/20, but the library kept running a stock table (pilot 2047).
+        samples = [sample(i, bench.LIBRARY_SCHEDULE, False, False, False, 42) for i in range(400)]
         ser = TimedSerial(samples, interval=0.25)
         with patch.object(bench.time, "monotonic", side_effect=lambda: ser.now), \
                 contextlib.redirect_stdout(io.StringIO()):

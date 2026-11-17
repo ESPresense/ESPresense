@@ -24,17 +24,20 @@
 #include "freertos/task.h"
 
 extern "C" {
-// Strong definition of the coexistence library's weak schedule for "BLE
-// active, BT idle, Wi-Fi connected". The initial bytes equal the library's,
-// so every boot starts on the stock 50/50 split; only an armed, expiring
-// trial changes the shares, and a reboot restores them.
+// Strong definitions of the coexistence library's two weak schedules for
+// "BLE active, BT idle, Wi-Fi connected". The initial bytes equal the
+// library's, so every boot starts on the stock split; only an armed, expiring
+// trial changes the shares, and a reboot restores them. Pilot 2047 found the
+// scanning controller on the 60/40 table, not the 50/50 one.
+__attribute__((used)) volatile uint8_t coex_schm_ble_mesh_traffic_wifi_conn[10] = {2, 1, 60, 3, 0, 0, 40, 0, 0, 0};
 __attribute__((used)) volatile uint8_t coex_schm_ble_default_bt_idle_wifi_conn[10] = {2, 1, 50, 3, 0, 0, 50, 0, 0, 0};
 // Vendor accessors (esp_coex private header), used read-only for telemetry.
 void* coex_schm_curr_phase_get(void);
 int coex_schm_curr_phase_idx_get(void);
 }
-static_assert(sizeof(coex_schm_ble_default_bt_idle_wifi_conn) == sizeof(CSI_REFERENCE_COEX_LIBRARY_TABLE),
-              "override must keep the library table size");
+static_assert(sizeof(coex_schm_ble_mesh_traffic_wifi_conn) == sizeof(CSI_REFERENCE_COEX_SCAN_TABLE)
+              && sizeof(coex_schm_ble_default_bt_idle_wifi_conn) == sizeof(CSI_REFERENCE_COEX_DEFAULT_TABLE),
+              "overrides must keep the library table sizes");
 
 namespace CsiMotion {
 namespace {
@@ -98,7 +101,8 @@ void readCoexLive(CoexLive& live) {
             live.hex[2 * i + 1] = digits[table[i] & 15];
         }
         live.phase = before;
-        live.own = table == const_cast<const uint8_t*>(coex_schm_ble_default_bt_idle_wifi_conn);
+        live.own = table == const_cast<const uint8_t*>(coex_schm_ble_mesh_traffic_wifi_conn)
+                   || table == const_cast<const uint8_t*>(coex_schm_ble_default_bt_idle_wifi_conn);
         return;
     }
 }
@@ -257,6 +261,7 @@ void serviceRadioPlan(bool sdkRunning) {
     if (!planApplied) {
         planApplied = true;
         planStart = now;
+        csiReferenceApplyCoex(coex_schm_ble_mesh_traffic_wifi_conn, coexRequest);
         csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn, coexRequest);
     }
     scanPaused.store(csiReferenceScanPausedAt(static_cast<uint64_t>(now - planStart) / 1000, scanCycle),

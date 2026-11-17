@@ -6,11 +6,14 @@
 // arithmetic, so host tests cover every bound; nothing here touches a radio.
 //
 // The ESP32-C3 coexistence library picks a fixed schedule from the BLE and
-// Wi-Fi state. While BLE scans and the station is connected it uses
-// coex_schm_ble_default_bt_idle_wifi_conn: two phases per beacon interval,
-// 50% Wi-Fi then 50% BLE. Layout: phase count, period in beacon intervals,
-// then four bytes per phase (percent, Wi-Fi flags, two BT callback bytes).
-constexpr uint8_t CSI_REFERENCE_COEX_LIBRARY_TABLE[10] = {2, 1, 50, 3, 0, 0, 50, 0, 0, 0};
+// Wi-Fi state. Layout: phase count, period in beacon intervals, then four
+// bytes per phase (percent, Wi-Fi flags, two BT callback bytes). With the
+// station connected, BLE status 0x02 alone selects
+// coex_schm_ble_mesh_traffic_wifi_conn (60% Wi-Fi then 40% BLE per beacon
+// interval); bench pilot 2047 read that table back while scanning. Other
+// non-mesh BLE status selects coex_schm_ble_default_bt_idle_wifi_conn (50/50).
+constexpr uint8_t CSI_REFERENCE_COEX_SCAN_TABLE[10] = {2, 1, 60, 3, 0, 0, 40, 0, 0, 0};
+constexpr uint8_t CSI_REFERENCE_COEX_DEFAULT_TABLE[10] = {2, 1, 50, 3, 0, 0, 50, 0, 0, 0};
 // The station's default beacon timeout is 6 s; keep a BLE phase well below it.
 constexpr unsigned CSI_REFERENCE_COEX_MAX_BT_PHASE_INTERVALS = 30;
 

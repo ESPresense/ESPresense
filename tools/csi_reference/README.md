@@ -175,18 +175,25 @@ Wi-Fi flags, two BT bytes.
 | State | Table | Bytes | Meaning |
 | --- | --- | --- | --- |
 | BLE idle, station connected | `coex_schm_bt_idle_wifi_conn` | `01 01 64 02 00 00` | Wi-Fi all the time |
-| BLE active, station connected | `coex_schm_ble_default_bt_idle_wifi_conn` | `02 01 32 03 00 00 32 00 00 00` | 50% Wi-Fi, then 50% BLE, every beacon interval |
+| BLE status 0x02 only, station connected | `coex_schm_ble_mesh_traffic_wifi_conn` | `02 01 3c 03 00 00 28 00 00 00` | 60% Wi-Fi, then 40% BLE, every beacon interval |
+| Other non-mesh BLE status, station connected | `coex_schm_ble_default_bt_idle_wifi_conn` | `02 01 32 03 00 00 32 00 00 00` | 50% Wi-Fi, then 50% BLE, every beacon interval |
 
-With a 50% Wi-Fi phase and the 80–82% coverage measured with scanning off,
-0.5 × 0.82 predicts 41%, which is what the bench measured. The static reading
+A Wi-Fi phase of 50–60% and the 80–82% coverage measured with scanning off
+predict 41–49% coverage; the bench measured 40–45%. The static reading alone
 does not prove which table the running controller uses, whether BLE receives
 anything during the Wi-Fi phase, or that another split gives ready input.
 
-Every scheme table is a weak symbol. The reference build defines
-`coex_schm_ble_default_bt_idle_wifi_conn` itself, as ten writable bytes that
-start equal to the library's, so an ordinary boot keeps the stock 50/50 split.
+Every scheme table is a weak symbol. The reference build defines both
+BLE-active tables itself, as writable bytes that start equal to the
+library's, so an ordinary boot keeps the stock split.
 `audit_coexistence_build.py --schedule-override` refuses a build whose final
-ELF does not bind that name to writable application data with those bytes.
+ELF does not bind both names to writable application data with those bytes.
+
+Pilot 2047 overrode only the 50/50 table. Telemetry read back
+`02013c03000028000000` in every scanning sample, the 60/40 table, so the
+requested 80/20 and 90/10 splits never ran and coverage stayed at 43–46%.
+That run confirms the readback and the scan-time table; it says nothing about
+other splits. With scanning off the readback was `010164020000`.
 
 Two reference-only settings change radio sharing. Both need the one-shot arm
 and a valid deadline, take effect only after the arm is durably consumed, and

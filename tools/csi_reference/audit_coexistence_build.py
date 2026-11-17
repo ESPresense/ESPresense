@@ -65,35 +65,37 @@ if args.elf_audit:
         elf_wrapper_disassembly=wrapper, elf_vendor_disassembly=vendor,
         link_evidence_scope='Final C3 link binding only; not actual RF allocation, readiness, BLE cost or occupancy accuracy')
 if args.schedule_override:
-    # The library's weak schedule is read-only flash data. The reference build
-    # must bind the same name to its own ten writable bytes, starting equal to
-    # the library's 50/50 split. This is link evidence, not a radio measurement.
+    # The library's weak schedules are read-only flash data. The reference build
+    # must bind both "BLE active, station connected" names to its own writable
+    # bytes, starting equal to the library's. Link evidence, not a radio measurement.
     images = list(args.build.glob('*.elf'))
     assert len(images) == 1, 'Expected one final application ELF'
-    name = 'coex_schm_ble_default_bt_idle_wifi_conn'
-    table = subprocess.run(['riscv32-esp-elf-nm', '-S', '--defined-only', str(images[0])],
-                           check=True, capture_output=True, text=True).stdout
-    match = re.search(r'^([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s+(\S)\s+' + name + '$', table, re.M)
-    assert match, 'Final ELF does not define the coexistence schedule table'
     raw = images[0].read_bytes()
     section_offset = struct.unpack_from('<I', raw, 32)[0]
     section_size, section_count = struct.unpack_from('<HH', raw, 46)
-    address = int(match[1], 16)
-    # Allocated sections with file contents only (PROGBITS), never .bss.
-    owners = [h for h in (struct.unpack_from('<10I', raw, section_offset+i*section_size)
-                          for i in range(section_count))
-              if h[1] == 1 and h[2] & 2 and h[3] <= address and address+10 <= h[3]+h[5]]
-    assert len(owners) == 1, 'Cannot locate the schedule table bytes in the final ELF'
-    offset = owners[0][4]+address-owners[0][3]
-    data = raw[offset:offset+10].hex()
-    result.update(schedule_symbol_address='0x' + match[1], schedule_symbol_size=int(match[2], 16),
-                  schedule_symbol_type=match[3], schedule_initial_hex=data,
-                  schedule_is_application_writable=(match[3] in 'Dd' and int(match[2], 16) == 10
-                                                    and bool(owners[0][2] & 1)),
-                  schedule_starts_as_library_default=data == '02013203000032000000')
-    if not (result['schedule_is_application_writable'] and result['schedule_starts_as_library_default']):
+    headers = [struct.unpack_from('<10I', raw, section_offset+i*section_size) for i in range(section_count)]
+    table = subprocess.run(['riscv32-esp-elf-nm', '-S', '--defined-only', str(images[0])],
+                           check=True, capture_output=True, text=True).stdout
+    schedules = {}
+    for name, stock in [('coex_schm_ble_mesh_traffic_wifi_conn', '02013c03000028000000'),
+                        ('coex_schm_ble_default_bt_idle_wifi_conn', '02013203000032000000')]:
+        match = re.search(r'^([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s+(\S)\s+' + name + '$', table, re.M)
+        assert match, f'Final ELF does not define {name}'
+        address = int(match[1], 16)
+        # Allocated sections with file contents only (PROGBITS), never .bss.
+        owners = [h for h in headers
+                  if h[1] == 1 and h[2] & 2 and h[3] <= address and address+10 <= h[3]+h[5]]
+        assert len(owners) == 1, f'Cannot locate {name} bytes in the final ELF'
+        offset = owners[0][4]+address-owners[0][3]
+        data = raw[offset:offset+10].hex()
+        schedules[name] = {'address': '0x' + match[1], 'size': int(match[2], 16), 'type': match[3],
+                           'initial_hex': data, 'starts_as_library': data == stock,
+                           'application_writable': (match[3] in 'Dd' and int(match[2], 16) == 10
+                                                    and bool(owners[0][2] & 1))}
+    result['schedules'] = schedules
+    if not all(s['application_writable'] and s['starts_as_library'] for s in schedules.values()):
         print('CSI_REFERENCE_BUILD_AUDIT '+json.dumps(result, sort_keys=True), flush=True)
-        raise SystemExit('Schedule table is not the application default-valued override; do not flash this build')
+        raise SystemExit('A schedule table is not the application stock-valued override; do not flash this build')
 if args.output:
     args.output.write_text(json.dumps(result, indent=2)+'\n')
 

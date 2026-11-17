@@ -25,9 +25,9 @@ void ble_phase_stays_under_thirty_beacon_intervals() {
 }
 void apply_changes_only_period_and_shares() {
     uint8_t table[10];
-    std::memcpy(table, CSI_REFERENCE_COEX_LIBRARY_TABLE, sizeof(table));
+    std::memcpy(table, CSI_REFERENCE_COEX_SCAN_TABLE, sizeof(table));
     csiReferenceApplyCoex(table, csiReferenceParseCoex("0"));
-    TEST_ASSERT_EQUAL_UINT8_ARRAY(CSI_REFERENCE_COEX_LIBRARY_TABLE, table, 10);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(CSI_REFERENCE_COEX_SCAN_TABLE, table, 10);
     csiReferenceApplyCoex(table, csiReferenceParseCoex("2,90,10"));
     const uint8_t expected[10] = {2, 2, 90, 3, 0, 0, 10, 0, 0, 0};
     TEST_ASSERT_EQUAL_UINT8_ARRAY(expected, table, 10);
