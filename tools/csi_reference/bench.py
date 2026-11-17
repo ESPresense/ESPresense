@@ -179,6 +179,11 @@ COEX_PLANS = {
     # Whole seconds for one radio user at a time, after an assisted calibration.
     "timeshare": [(0, "0", "0"), (1, "0", "3,12"), (2, "0", "3,12"),
                   (0, "40,50,50", "0"), (1, "40,50,50", "0"), (1, "2,80,20", "0")],
+    # After pilot 2049: whole-second Wi-Fi phases reached 79-85% coverage but
+    # Lightweight never calibrated, and a scan pause alone stayed on a 50/50
+    # schedule. High Accuracy needs no calibration; pauses now run 95/5.
+    "timeshare2": [(0, "0", "0"), (2, "40,50,50", "0"), (1, "40,50,50", "0"),
+                   (2, "30,50,50", "0"), (2, "60,50,50", "0"), (1, "0", "3,12")],
 }
 
 

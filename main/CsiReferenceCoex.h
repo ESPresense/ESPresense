@@ -80,6 +80,13 @@ inline bool csiReferenceScanPausedAt(uint64_t elapsedMs, const CsiReferenceScanC
     return cycle.valid && elapsedMs % (uint64_t(cycle.periodSeconds) * 1000) < uint64_t(cycle.pauseSeconds) * 1000;
 }
 
+// Pilot 2049: cancelling a running scan does not return the library to its
+// BLE-idle (all Wi-Fi) schedule. It moves to the 50/50 table, so a scan pause
+// alone left coverage near 40%. While scanning is paused BLE needs no radio
+// time, so that table runs this share for the pause.
+constexpr CsiReferenceCoexRequest CSI_REFERENCE_COEX_PAUSED_SHARE{true, 1, 95, 5};
+constexpr CsiReferenceCoexRequest CSI_REFERENCE_COEX_DEFAULT_SHARE{true, 1, 50, 50};
+
 // The pinned SDK calibrates over ten consecutive ready one-second windows and
 // restarts after any one-second silence. A plan with whole-second BLE periods
 // cannot supply that, so the SDK calibrates once with scanning paused.

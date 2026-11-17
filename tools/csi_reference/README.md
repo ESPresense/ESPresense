@@ -195,6 +195,26 @@ requested 80/20 and 90/10 splits never ran and coverage stayed at 43–46%.
 That run confirms the readback and the scan-time table; it says nothing about
 other splits. With scanning off the readback was `010164020000`.
 
+Pilot 2048 ran the splits for real (`coex_own` true in every sample). At
+90/10 Lightweight was ready 90% of the time at 74% coverage and High Accuracy
+86% at 71%, the first ready input with BLE scanning on. BLE callbacks fell to
+21% of the stock BLE-only baseline (888 and 905 a minute against 4,232). The
+schedule alone, with the SDK off, cost BLE 31% at 80/20 and 47% at 90/10. The
+80/20 Lightweight block had Wi-Fi errors in the log and 55 s of unobserved
+telemetry; it is unknown, not a result.
+
+Pilot 2049 tried whole-second sharing. A 3 s scan pause every 12 s kept 58–61%
+of BLE callbacks but gave no ready input: after a scan is cancelled the
+library runs the 50/50 table, not the BLE-idle one, so coverage stayed near
+40% and the calibration assist timed out. A 2 s Wi-Fi / 2 s BLE schedule kept
+86% of BLE callbacks and reached 79–85% coverage inside its Wi-Fi phases, but
+Lightweight never calibrated. 80/20 over two beacon intervals reached 63%
+coverage, short of the 70% floor, at 38% of BLE callbacks.
+
+The integration now runs the cancelled-scan table at 95/5 during a pause and
+during the assist, when BLE asks for no radio time. `timeshare2` repeats the
+whole-second schedules with High Accuracy, which needs no calibration.
+
 Two reference-only settings change radio sharing. Both need the one-shot arm
 and a valid deadline, take effect only after the arm is durably consumed, and
 end with the expiry reboot, like the scan-window profile.

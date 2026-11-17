@@ -254,7 +254,13 @@ void serviceRadioPlan(bool sdkRunning) {
     const int64_t now = esp_timer_get_time();
     if (!assistDone) {
         if (sdkRunning && csiReferenceNeedsCalibrationAssist(coexRequest, scanCycle)) {
-            if (!assistStart) assistStart = now;
+            if (!assistStart) {
+                assistStart = now;
+#ifdef ESP32C3
+                // The table the library runs once the scan is cancelled.
+                csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn, CSI_REFERENCE_COEX_PAUSED_SHARE);
+#endif
+            }
             bool finished = false;
             if (now - assistPoll >= 250000) {
                 assistPoll = now;
@@ -273,8 +279,13 @@ void serviceRadioPlan(bool sdkRunning) {
         planApplied = true;
         planStart = now;
 #ifdef ESP32C3
+        // Scanning runs the 60/40 table. The 50/50 table is what runs while a
+        // scan is cancelled: give it to Wi-Fi during a pause cycle, otherwise
+        // it follows the request (or returns to stock after an assist).
         csiReferenceApplyCoex(coex_schm_ble_mesh_traffic_wifi_conn, coexRequest);
-        csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn, coexRequest);
+        csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn,
+                              scanCycle.valid ? CSI_REFERENCE_COEX_PAUSED_SHARE
+                              : coexRequest.valid ? coexRequest : CSI_REFERENCE_COEX_DEFAULT_SHARE);
 #endif
     }
     scanPaused.store(csiReferenceScanPausedAt(static_cast<uint64_t>(now - planStart) / 1000, scanCycle),

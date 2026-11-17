@@ -58,6 +58,15 @@ void only_whole_second_plans_request_the_calibration_assist() {
     TEST_ASSERT_TRUE(csiReferenceNeedsCalibrationAssist(csiReferenceParseCoex("40,50,50"), none));
     TEST_ASSERT_TRUE(csiReferenceNeedsCalibrationAssist(csiReferenceParseCoex("0"), csiReferenceParseScanCycle("3,12")));
 }
+void pause_share_and_stock_share_map_to_valid_tables() {
+    uint8_t table[10];
+    std::memcpy(table, CSI_REFERENCE_COEX_DEFAULT_TABLE, sizeof(table));
+    csiReferenceApplyCoex(table, CSI_REFERENCE_COEX_PAUSED_SHARE);
+    const uint8_t paused[10] = {2, 1, 95, 3, 0, 0, 5, 0, 0, 0};
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(paused, table, 10);
+    csiReferenceApplyCoex(table, CSI_REFERENCE_COEX_DEFAULT_SHARE);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(CSI_REFERENCE_COEX_DEFAULT_TABLE, table, 10);
+}
 int main() {
     UNITY_BEGIN();
     RUN_TEST(default_and_malformed_requests_keep_the_library_schedule);
@@ -67,5 +76,6 @@ int main() {
     RUN_TEST(scan_cycle_keeps_scanning_at_least_half_of_a_bounded_cycle);
     RUN_TEST(pause_leads_each_cycle_and_never_applies_without_a_cycle);
     RUN_TEST(only_whole_second_plans_request_the_calibration_assist);
+    RUN_TEST(pause_share_and_stock_share_map_to_valid_tables);
     return UNITY_END();
 }

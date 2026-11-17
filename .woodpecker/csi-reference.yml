@@ -28,7 +28,7 @@ variables:
     default: 'false'
   REFERENCE_COEX_PLAN:
     description: Bench-only Wi-Fi/BLE schedule share or scan-pause sweep; replaces the other phase plans
-    options: ['none', 'share', 'timeshare']
+    options: ['none', 'share', 'timeshare', 'timeshare2']
     default: 'none'
 
 labels:
@@ -112,7 +112,7 @@ steps:
           esac
           case "$REFERENCE_COEX_PLAN" in
             none) ;;
-            share|timeshare)
+            share|timeshare|timeshare2)
               # A complete PING plan of its own; the options above do not apply.
               test "$REFERENCE_SCAN_SWEEP" = false && test "$REFERENCE_PHASE_START" = 0 && test "$REFERENCE_TRAFFIC_SOURCE" = ping
               python3 tools/csi_reference/bench.py --port /dev/esp32c3 --seconds 110 --expected-version "$FW_VERSION" --flood-ready /flood/ready --coex-plan "$REFERENCE_COEX_PLAN" --out /tmp/reference-pilot.json
