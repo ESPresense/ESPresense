@@ -157,3 +157,71 @@ bytes, wrapper/vendor disassembly and ELF digest. Its `reference-link-evidence`
 artifact retains the audit, ELF and map so the published-library finding can
 be checked against actual link binding. No radio or house test is run by that
 workflow. SDK sources, detector parameters and the house gate remain unchanged.
+
+## Coexistence schedule diagnostic
+
+Across pilots 2021–2024 the SDK accepted 90–97 CSI frames/s with BLE scanning
+on, yet admitted only 40–48/s: about half the frames lost a contest for an
+already filled 10 ms slot while 52–60 slots/s stayed empty. Coverage sat at
+40–45% at full, quarter and eighth scan windows alike. Frames were arriving,
+but late and in bursts.
+
+The published ESP32-C3 coexistence archive explains the pattern. Its scheme
+selector (`coex_schm_status_change`) picks a fixed table from the BLE, BT and
+Wi-Fi status bits, not from the scan window. Each table is a phase count, a
+period in beacon intervals, then four bytes per phase: percent of the period,
+Wi-Fi flags, two BT bytes.
+
+| State | Table | Bytes | Meaning |
+| --- | --- | --- | --- |
+| BLE idle, station connected | `coex_schm_bt_idle_wifi_conn` | `01 01 64 02 00 00` | Wi-Fi all the time |
+| BLE active, station connected | `coex_schm_ble_default_bt_idle_wifi_conn` | `02 01 32 03 00 00 32 00 00 00` | 50% Wi-Fi, then 50% BLE, every beacon interval |
+
+With a 50% Wi-Fi phase and the 80–82% coverage measured with scanning off,
+0.5 × 0.82 predicts 41%, which is what the bench measured. The static reading
+does not prove which table the running controller uses, whether BLE receives
+anything during the Wi-Fi phase, or that another split gives ready input.
+
+Every scheme table is a weak symbol. The reference build defines
+`coex_schm_ble_default_bt_idle_wifi_conn` itself, as ten writable bytes that
+start equal to the library's, so an ordinary boot keeps the stock 50/50 split.
+`audit_coexistence_build.py --schedule-override` refuses a build whose final
+ELF does not bind that name to writable application data with those bytes.
+
+Two reference-only settings change radio sharing. Both need the one-shot arm
+and a valid deadline, take effect only after the arm is durably consumed, and
+end with the expiry reboot, like the scan-window profile.
+
+- `csi_reference_coex` = `P,W,B`: P beacon intervals per cycle, W% Wi-Fi then
+  B% BLE. W + B must be 100, each at least 5, P at most 60, and the BLE phase
+  at most 30 beacon intervals (about 3 s, half the station's beacon timeout).
+  Only the period and the two shares are written; phase count and flags stay.
+- `csi_reference_scan_cycle` = `C,T`: stop BLE scanning for C seconds of every
+  T seconds. C is at most 10 and at most half of T; T is at most 120.
+
+`0` (the default) or anything that fails those bounds leaves the stock policy.
+
+The pinned SDK calibrates over ten consecutive ready one-second windows and
+restarts after a one-second silence. A plan with whole-second BLE periods can
+never supply that, so for a scan cycle, or a schedule longer than four beacon
+intervals, the integration first pauses scanning until the SDK reports ready
+(at most 90 s) and only then applies the plan. `assist_ms` and
+`assist_timed_out` record it. Shorter schedules get no assist: the SDK must
+calibrate under the split being tested.
+
+Telemetry reports what the radio runs, not what was requested: `coex_live` is
+the hex of the table the library has selected at that moment, read through
+`coex_schm_curr_phase_get`, and `coex_own` says whether it is the
+application's table. `coex`, `scan_cycle`, `plan_applied` and `scan_paused`
+give the request and its state.
+
+`REFERENCE_COEX_PLAN` selects a complete PING run of its own. `share` measures
+the stock split, 80/20 and 90/10 per beacon interval, each with a BLE-only
+block and the Lightweight detector, plus High Accuracy at 90/10. `timeshare`
+measures a 3 s scan pause every 12 s with both detectors, a 2 s/2 s schedule,
+and 80/20 over two beacon intervals. Each plan stays under half an hour so
+other jobs waiting on the fixture locks do not time out. A last probe saves a
+plan without the arm and requires the stock schedule, no pause and continued
+BLE callbacks. Unready phases are results here, not a failed run; transport
+faults still fail it. A sweep maps the tradeoff between ready input and BLE
+callbacks. It evaluates no house gate.

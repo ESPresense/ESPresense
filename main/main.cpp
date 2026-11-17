@@ -548,6 +548,22 @@ void scanTask(void *parameter) {
         Enrollment::Loop();
 
 #ifdef CSI_REFERENCE
+        // Armed bench plan: hold scanning off, then resume without the
+        // ordinary 3 s settle so the pause cycle keeps its timing.
+        static bool referencePaused = false;
+        if (CsiMotion::BleScanPaused()) {
+            if (Ble::IsScanning()) Ble::StopScan();
+            referencePaused = true;
+            delay(50);
+            continue;
+        }
+        if (referencePaused) {
+            referencePaused = false;
+            if (!Ble::StartScan())
+                log_e("Error resuming ble scan after reference pause");
+            delay(20);
+            continue;
+        }
         if (Ble::IsScanning() && Ble::ConfiguredScanWindowUnits() != CsiMotion::RequestedBleScanWindowUnits()) {
             Ble::StopScan();
             delay(100);  // Let the controller complete cancellation before restarting.

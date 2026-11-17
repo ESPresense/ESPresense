@@ -165,7 +165,75 @@ def verify_build(ip, expected):
     raise RuntimeError(f"Bench metadata unavailable after boot: {last_error}")
 
 
-def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None, scan_profile=None):
+LIBRARY_SCHEDULE = "02013203000032000000"  # 50% Wi-Fi then 50% BLE per beacon interval
+# Named, fixed radio-sharing sweeps: (detector mode, schedule "P,W,B", scan pause "C,T").
+# Each stays under half an hour so other jobs waiting on the fixture locks do not time out.
+COEX_PLANS = {
+    # Does slot coverage follow the Wi-Fi share, and what does BLE keep?
+    "share": [(0, "0", "0"), (1, "0", "0"),
+              (0, "1,80,20", "0"), (1, "1,80,20", "0"),
+              (0, "1,90,10", "0"), (1, "1,90,10", "0"), (2, "1,90,10", "0")],
+    # Whole seconds for one radio user at a time, after an assisted calibration.
+    "timeshare": [(0, "0", "0"), (1, "0", "3,12"), (2, "0", "3,12"),
+                  (0, "40,50,50", "0"), (1, "40,50,50", "0"), (1, "2,80,20", "0")],
+}
+
+
+def schedule_hex(coex):
+    """Bytes the firmware must run for a schedule request, None for the library default."""
+    if coex == "0":
+        return None
+    period, wifi, bt = (int(x) for x in coex.split(","))
+    return bytes([2, period, wifi, 3, 0, 0, bt, 0, 0, 0]).hex()
+
+
+def verify_plan(sample, mode, coex, cycle):
+    armed = bool(mode or coex != "0" or cycle != "0")
+    if (sample.get("coex") != coex or sample.get("scan_cycle") != cycle
+            or sample.get("trial_active") is not armed or sample.get("plan_applied") is not armed
+            or sample.get("scan_requested_units") != 128 or sample.get("ble_scan") is not True):
+        raise RuntimeError("Live radio plan differs from the armed phase")
+    if cycle == "0" and sample.get("scan_paused"):
+        raise RuntimeError("Scanning paused without a requested pause cycle")
+
+
+def plan_stats(measured, intervals, observed, elapsed, coex):
+    """Describe what the radio actually ran; requested settings alone prove nothing."""
+    def share(predicate):
+        return sum(dt for s, dt in intervals if observed(s, dt) and predicate(s)) / elapsed
+    tables = {}
+    for sample in measured:
+        tables[sample.get("coex_live", "")] = tables.get(sample.get("coex_live", ""), 0) + 1
+    coverage = sorted(s.get("slots", 0) / max(1, s.get("window_slots", 0)) for s in measured)
+    episodes, previous = 0, False
+    for sample in measured:
+        episodes += bool(sample.get("ready")) and not previous
+        previous = bool(sample.get("ready"))
+    first, last = measured[0], measured[-1]
+    def rate(key):
+        return ((int(last[key]) - int(first[key])) / elapsed
+                if key in first and key in last else None)
+    wanted = schedule_hex(coex)
+    return {"coex": coex, "requested_schedule_hex": wanted, "live_schedule_samples": tables,
+            # Scanning time on the requested (or library) two-phase schedule.
+            "requested_schedule_live_fraction": share(
+                lambda s: s.get("coex_live") == (wanted or LIBRARY_SCHEDULE)
+                and s.get("coex_own") is True),
+            "scan_paused_fraction": share(lambda s: s.get("scan_paused") is True),
+            "calibrating_fraction": share(lambda s: s.get("calibrating") is True),
+            "motion_fraction": share(lambda s: s.get("ready") is True and s.get("motion") is True),
+            "coverage_at_least_70_fraction": share(
+                lambda s: s.get("slots", 0) * 10 >= 7 * max(1, s.get("window_slots", 0))),
+            "coverage_p10": coverage[len(coverage) // 10], "coverage_p50": coverage[len(coverage) // 2],
+            "coverage_p90": coverage[len(coverage) * 9 // 10],
+            "ready_episodes": episodes,
+            "assist_ms": last.get("assist_ms"), "assist_timed_out": last.get("assist_timed_out"),
+            "per_second": {key: rate(key) for key in
+                           ("accepted", "admitted", "excess", "missing_slots", "queue_drops")}}
+
+
+def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=None, scan_profile=None,
+            plan=None):
     samples = []
     faults = []
     tainted_after = set()
@@ -200,6 +268,8 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
                     raise RuntimeError("Live traffic source/scanning condition differs from requested phase")
             if scan_profile is not None:
                 verify_scan_condition(sample, ble_scan, scan_profile, bool(mode or scan_profile))
+            if plan is not None:
+                verify_plan(sample, mode, *plan)
             samples.append(sample)
         elif IP.search(line) or line.startswith("ESP-ROM:"):
             raise RuntimeError("Device rebooted during the measurement")
@@ -250,6 +320,9 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
               "heap_min": min((s["heap"] for s in measured if "heap" in s), default=None),
               "first": first, "last": last, "faults": faults,
               "malformed_reference_records": malformed}
+    if plan is not None:
+        result["scan_cycle"] = plan[1]
+        result.update(plan_stats(measured, intervals, observed, elapsed, plan[0]))
     if faults or (mode and (result["ready_fraction"] < 0.5 or result["slot_coverage_mean"] < 0.7)):
         result["valid_input"] = False
     else:
@@ -260,12 +333,15 @@ def measure(ser, seconds, mode, flood_ready=None, ble_scan=True, traffic_source=
     return result
 
 
-def restart_phase(ser, ip, expected, mode, until, ble_scan, external_host=False, scan_profile=0):
+def restart_phase(ser, ip, expected, mode, until, ble_scan, external_host=False, scan_profile=0,
+                  coex="0", cycle="0", arm=None):
+    armed = bool(mode or scan_profile or coex != "0" or cycle != "0") if arm is None else arm
     post(ip, "/wifi/hardware", {"csi_reference_mode": str(mode),
-         "csi_reference_arm": "1" if mode or scan_profile else "0", "csi_reference_until": str(until),
+         "csi_reference_arm": "1" if armed else "0", "csi_reference_until": str(until),
          "csi_reference_ble_scan": "1" if ble_scan else "0",
          "csi_reference_external_host": "1" if external_host else "0",
-         "csi_reference_scan_profile": str(scan_profile)})
+         "csi_reference_scan_profile": str(scan_profile),
+         "csi_reference_coex": coex, "csi_reference_scan_cycle": cycle})
     return restart_and_verify(ser, ip, expected)
 
 
@@ -317,6 +393,51 @@ def scan_window_phases(no_scan_control, phase_start, traffic_source):
         raise ValueError("Scan-window sweep requires a complete PING run without scan-off controls")
     return [(0, True, 0)] + [(mode, True, profile) for profile in (1, 2)
                             for mode in (0, 1, 2, 0)] + [(0, True, 0)]
+
+
+def coex_plan_phases(name, no_scan_control, sweep, safety_only, phase_start, safety, traffic_source):
+    if no_scan_control or sweep or safety_only or phase_start or safety or traffic_source != "ping":
+        raise ValueError("A radio-sharing plan is a complete PING run without other sweeps or safety probes")
+    return COEX_PLANS[name]
+
+
+def wait_plan(ser, mode, coex, cycle, flood_ready, timeout=150):
+    # NTP, durable arm consumption and (for whole-second plans) the bounded
+    # scan-paused calibration all precede the plan; none of that is measured.
+    detector = ("off", "lightweight", "high_accuracy")[mode]
+    stop = time.monotonic() + timeout
+    while time.monotonic() < stop:
+        sample = next_reference(ser, max(1, stop - time.monotonic()), flood_ready)
+        if sample.get("detector") != detector:
+            continue
+        try:
+            verify_plan(sample, mode, coex, cycle)
+        except RuntimeError:
+            continue
+        return sample
+    raise RuntimeError("Firmware did not apply the requested radio plan")
+
+
+def unarmed_plan_probe(ser, ip, args):
+    """A saved plan without the one-shot arm must leave the stock radio policy."""
+    ip = restart_phase(ser, ip, args.expected_version, 0, int(time.time() + 600), True,
+                       coex="1,90,10", cycle="3,12", arm=False)
+    seen = []
+    stop = time.monotonic() + 40
+    while time.monotonic() < stop:
+        sample = next_reference(ser, max(1, stop - time.monotonic()), args.flood_ready)
+        if (sample.get("detector") != "off" or sample.get("trial_active") or sample.get("plan_applied")
+                or sample.get("scan_paused") or sample.get("coex") != "1,90,10"
+                or sample.get("scan_cycle") != "3,12"
+                or sample.get("coex_live") == schedule_hex("1,90,10")):
+            raise RuntimeError("Unarmed saved plan changed the radio policy")
+        seen.append(sample)
+    if len(seen) < 10 or seen[-1]["adverts"] <= seen[0]["adverts"]:
+        raise RuntimeError("Unarmed probe did not observe continued BLE reception")
+    result = {"check": "unarmed_saved_plan", "passed": True, "first": seen[0], "last": seen[-1],
+              "live_schedules": sorted({s.get("coex_live", "") for s in seen})}
+    print("CSI_REFERENCE_SAFETY " + json.dumps(result, sort_keys=True), flush=True)
+    return ip, result
 
 
 def verify_scan_condition(sample, ble_scan, profile, trial_active):
@@ -506,7 +627,7 @@ def safety_checks(ser, ip, args, save):
 def cleanup(ser, ip, expected):
     post(ip, "/wifi/hardware", {"csi_reference_mode": "0", "csi_reference_arm": "0",
          "csi_reference_until": "0", "csi_reference_ble_scan": "1", "csi_reference_external_host": "0",
-         "csi_reference_scan_profile": "0"})
+         "csi_reference_scan_profile": "0", "csi_reference_coex": "0", "csi_reference_scan_cycle": "0"})
     ip = restart_and_verify(ser, ip, expected)
     values = hardware(ip)
     if (str(values.get("csi_reference_mode")) != "0"
@@ -514,10 +635,16 @@ def cleanup(ser, ip, expected):
             or str(values.get("csi_reference_until")) != "0"
             or values.get("csi_reference_ble_scan") is not True
             or values.get("csi_reference_external_host") is not False
-            or str(values.get("csi_reference_scan_profile")) != "0"):
+            or str(values.get("csi_reference_scan_profile")) != "0"
+            or str(values.get("csi_reference_coex")) != "0"
+            or str(values.get("csi_reference_scan_cycle")) != "0"):
         raise RuntimeError("Bench cleanup settings were not restored")
-    wait_scan_condition(ser, "off", True, 0, False, None)
-    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true, external=false, full_window=128", flush=True)
+    sample = wait_scan_condition(ser, "off", True, 0, False, None)
+    if (sample.get("coex") != "0" or sample.get("scan_cycle") != "0" or sample.get("plan_applied")
+            or sample.get("scan_paused")):
+        raise RuntimeError("Bench cleanup left a radio plan active")
+    print("CSI_REFERENCE_CLEANUP verified off, arm=false, until=0, scanning=true, external=false, "
+          f"full_window=128, no radio plan, live_schedule={sample.get('coex_live')}", flush=True)
 
 
 def main():
@@ -533,6 +660,8 @@ def main():
                         help="Full/quarter/eighth BLE window tradeoff, matched baselines, no SDK changes")
     parser.add_argument("--scan-window-safety-only", action="store_true",
                         help="Resume reduced-window reboot/expiry checks; run no measurement phases")
+    parser.add_argument("--coex-plan", choices=sorted(COEX_PLANS),
+                        help="Named radio-sharing sweep; SDK, cadence and admission stay unchanged")
     parser.add_argument("--safety-checks", action="store_true",
                         help="Verify one-shot reboot and automatic persistent expiry under the same lock")
     parser.add_argument("--phase-start", type=int, default=0,
@@ -543,7 +672,11 @@ def main():
     if args.traffic_source == "external" and not 0 < args.seconds <= 290:
         parser.error("External-host phases must fit the sender's300-second hard expiry")
     try:
-        if args.scan_window_safety_only:
+        if args.coex_plan:
+            phases = [(mode, True, 0, coex, cycle) for mode, coex, cycle in coex_plan_phases(
+                args.coex_plan, args.no_scan_control, args.scan_window_sweep, args.scan_window_safety_only,
+                args.phase_start, args.safety_checks, args.traffic_source)]
+        elif args.scan_window_safety_only:
             phases = safety_only_phases(args.no_scan_control, args.scan_window_sweep, args.phase_start,
                                         args.safety_checks, args.traffic_source)
         else:
@@ -552,6 +685,7 @@ def main():
                           requested_phases(args.no_scan_control, args.phase_start, args.safety_checks)])
     except ValueError as error:
         parser.error(str(error))
+    phases = [phase if len(phase) == 5 else (*phase, "0", "0") for phase in phases]
     results = []
     safety = []
     traffic_feeds = []
@@ -563,7 +697,7 @@ def main():
             "source_version": args.expected_version, "phase_start": args.phase_start,
             "traffic_source": args.traffic_source, "scan_window_sweep": args.scan_window_sweep,
             "scan_window_safety_only": args.scan_window_safety_only,
-            "external_feeds": traffic_feeds}, indent=2))
+            "coex_plan": args.coex_plan, "external_feeds": traffic_feeds}, indent=2))
         temporary.replace(path)
 
     def save_safety(result):
@@ -582,9 +716,10 @@ def main():
             post(ip, "/wifi", {"auto_update": "0"})
             try:
                 print(f"BENCH phase_start={args.phase_start} phases={phases}", flush=True)
-                for mode, ble_scan, scan_profile in phases:
+                for mode, ble_scan, scan_profile, coex, cycle in phases:
                     ip = restart_phase(ser, ip, args.expected_version, mode,
-                                       int(time.time() + 900), ble_scan, args.traffic_source == "external", scan_profile)
+                                       int(time.time() + 900), ble_scan, args.traffic_source == "external", scan_profile,
+                                       coex, cycle)
                     values = hardware(ip)
                     if values.get("csi_reference_ble_scan") is not ble_scan:
                         raise RuntimeError("Saved BLE scanning condition does not match requested phase")
@@ -592,18 +727,29 @@ def main():
                         raise RuntimeError("Saved traffic source does not match requested phase")
                     if str(values.get("csi_reference_scan_profile")) != str(scan_profile):
                         raise RuntimeError("Saved scan-window profile differs from requested phase")
-                    wait_scan_condition(ser, ("off", "lightweight", "high_accuracy")[mode],
-                                        ble_scan, scan_profile, bool(mode or scan_profile), args.flood_ready)
+                    if (str(values.get("csi_reference_coex")) != coex
+                            or str(values.get("csi_reference_scan_cycle")) != cycle):
+                        raise RuntimeError("Saved radio plan differs from requested phase")
+                    if args.coex_plan:
+                        wait_plan(ser, mode, coex, cycle, args.flood_ready)
+                    else:
+                        wait_scan_condition(ser, ("off", "lightweight", "high_accuracy")[mode],
+                                            ble_scan, scan_profile, bool(mode or scan_profile), args.flood_ready)
                     feed = (ExternalFeed(ip, args.seconds + 10) if mode and args.traffic_source == "external"
                             else contextlib.nullcontext(None))
                     with feed as sender:
-                        result = measure(ser, args.seconds, mode, args.flood_ready, ble_scan, args.traffic_source, scan_profile)
+                        result = measure(ser, args.seconds, mode, args.flood_ready, ble_scan, args.traffic_source,
+                                         None if args.coex_plan else scan_profile,
+                                         (coex, cycle) if args.coex_plan else None)
                     if sender is not None:
                         result["external_feed"] = sender.stats()
                         traffic_feeds.append({"mode": mode, "ble_scan": ble_scan, **sender.stats()})
                         print("CSI_REFERENCE_EXTERNAL_FEED " + json.dumps(traffic_feeds[-1], sort_keys=True), flush=True)
                     results.append(result)
                     save()  # Preserve completed phases even if a later phase fails.
+                if args.coex_plan:
+                    ip, probe = unarmed_plan_probe(ser, ip, args)
+                    save_safety(probe)
                 if args.safety_checks:
                     feed = (ExternalFeed(ip, 300) if args.traffic_source == "external"
                             else contextlib.nullcontext(None))
@@ -621,6 +767,19 @@ def main():
                     print(f"BENCH cleanup unverified: {type(error).__name__}", flush=True)
                     if not original_error:
                         raise
+    if args.coex_plan:
+        # A sweep maps the tradeoff; unready phases are expected results, not a
+        # failed run. Transport faults still fail it. No house gate is evaluated.
+        for result in results:
+            print("CSI_REFERENCE_PLAN_ROW " + json.dumps({key: result.get(key) for key in (
+                "mode", "coex", "scan_cycle", "ready_fraction", "slot_coverage_mean", "adverts_per_minute",
+                "requested_schedule_live_fraction", "scan_paused_fraction", "calibrating_fraction",
+                "coverage_at_least_70_fraction", "assist_ms", "assist_timed_out", "valid_input",
+                "unobserved_seconds")}, sort_keys=True), flush=True)
+        if any(result["faults"] or result["unobserved_seconds"] > 5 for result in results):
+            raise SystemExit("Radio-sharing sweep had transport faults or telemetry gaps; treat affected phases as unknown")
+        print("CSI_REFERENCE_GATE not evaluated: radio-sharing sweep is a tradeoff diagnostic", flush=True)
+        return
     if not all(result["valid_input"] for result in results):
         raise SystemExit("Reference acquisition/readiness failed; do not score this as detector accuracy")
     if args.phase_start or args.scan_window_safety_only:

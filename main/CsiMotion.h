@@ -13,6 +13,7 @@ namespace CsiMotion
     void NoteAdvert();
     bool BleScanEnabled();  // Explicit benchmark control; defaults to true.
     unsigned RequestedBleScanWindowUnits();  // Armed diagnostic; otherwise full.
+    bool BleScanPaused();  // Armed bench plan only; false on every ordinary boot.
 #endif
     void ConnectToWifi(bool updating);
     void SerialReport();

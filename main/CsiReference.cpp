@@ -2,6 +2,7 @@
 // calibration, weights, hit filtering, and radio policy; no detector is reimplemented.
 #if defined(SENSORS) && defined(CSI_REFERENCE)
 #include "CsiMotion.h"
+#include "CsiReferenceCoex.h"
 #include "CsiReferenceFormat.h"
 #include "CsiReferenceScan.h"
 #include "Ble.h"
@@ -21,6 +22,19 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "freertos/task.h"
+
+extern "C" {
+// Strong definition of the coexistence library's weak schedule for "BLE
+// active, BT idle, Wi-Fi connected". The initial bytes equal the library's,
+// so every boot starts on the stock 50/50 split; only an armed, expiring
+// trial changes the shares, and a reboot restores them.
+__attribute__((used)) volatile uint8_t coex_schm_ble_default_bt_idle_wifi_conn[10] = {2, 1, 50, 3, 0, 0, 50, 0, 0, 0};
+// Vendor accessors (esp_coex private header), used read-only for telemetry.
+void* coex_schm_curr_phase_get(void);
+int coex_schm_curr_phase_idx_get(void);
+}
+static_assert(sizeof(coex_schm_ble_default_bt_idle_wifi_conn) == sizeof(CSI_REFERENCE_COEX_LIBRARY_TABLE),
+              "override must keep the library table size");
 
 namespace CsiMotion {
 namespace {
@@ -45,6 +59,49 @@ bool externalHost = false;  // Explicit diagnostic; PING remains the default.
 long scanProfile = 0;
 bool trialRequested = false;
 std::atomic<bool> trialStarted{false};
+// Armed radio-sharing plan. Loaded at boot, applied by the worker only after
+// the one-shot arm is consumed, gone after the expiry reboot.
+CsiReferenceCoexRequest coexRequest;
+CsiReferenceScanCycle scanCycle;
+char coexText[16] = "0";
+char scanCycleText[16] = "0";
+std::atomic<bool> scanPaused{false};
+bool planApplied = false;       // Worker owned from here down.
+bool assistDone = false;
+bool assistTimedOut = false;
+int64_t assistStart = 0;
+int64_t assistPoll = 0;
+uint32_t assistMs = 0;
+int64_t planStart = 0;
+constexpr int64_t ASSIST_LIMIT_US = 90 * 1000000LL;
+
+// Read back the schedule the library is running right now. A successful API
+// return proves nothing about the radio, so telemetry carries the live bytes.
+struct CoexLive {
+    char hex[2 * 26 + 1] = {};
+    int phase = -1;
+    bool own = false;
+};
+void readCoexLive(CoexLive& live) {
+    live = {};
+    for (int attempt = 0; attempt < 3; ++attempt) {
+        const int before = coex_schm_curr_phase_idx_get();
+        const auto* phase = static_cast<const uint8_t*>(coex_schm_curr_phase_get());
+        const int after = coex_schm_curr_phase_idx_get();
+        if (!phase || before < 0 || before > 5 || before != after) continue;
+        const uint8_t* table = phase - 2 - 4 * before;
+        const unsigned phases = table[0];
+        if (phases == 0 || phases > 6 || unsigned(before) >= phases) continue;
+        static const char digits[] = "0123456789abcdef";
+        for (unsigned i = 0; i < 2 + 4 * phases; ++i) {
+            live.hex[2 * i] = digits[table[i] >> 4];
+            live.hex[2 * i + 1] = digits[table[i] & 15];
+        }
+        live.phase = before;
+        live.own = table == const_cast<const uint8_t*>(coex_schm_ble_default_bt_idle_wifi_conn);
+        return;
+    }
+}
 
 // The SDK has one owner, independent of serial/MQTT and the ordinary loop's
 // per-fingerprint yields. Match the pinned native frontend: 8 KiB, priority 5,
@@ -58,6 +115,11 @@ struct ReferenceReport {
     unsigned scanWindow = 0;
     unsigned requestedWindow = 0;
     bool trialActive = false;
+    CoexLive coexLive{};
+    bool planApplied = false;
+    bool scanPaused = false;
+    bool assistTimedOut = false;
+    uint32_t assistMs = 0;
     uint32_t sequence = 0;
     uint32_t telemetryOverwrites = 0;
     uint32_t workerLoops = 0;
@@ -124,6 +186,7 @@ void NoteAdvert() {
 }
 
 bool BleScanEnabled() { return bleScanEnabled; }
+bool BleScanPaused() { return scanPaused.load(std::memory_order_relaxed); }
 unsigned RequestedBleScanWindowUnits() {
     return csiReferenceScanWindowUnits(scanProfile, trialStarted.load(std::memory_order_acquire), BLE_SCAN_WINDOW);
 }
@@ -137,11 +200,27 @@ void ConnectToWifi(bool updating) {
                                      "Armed bench scan-window cost diagnostic; resets to full after reboot");
     mode = Settings::dropdown("csi_reference_mode", {"Off", "Lightweight", "High Accuracy"}, 0,
                               "Dev-only pinned upstream reference detector");
+    const auto coex = Settings::string("csi_reference_coex", "0",
+                                       "Armed bench Wi-Fi/BLE schedule P,W,B; 0 keeps the library split");
+    const auto cycle = Settings::string("csi_reference_scan_cycle", "0",
+                                        "Armed bench BLE scan pause C,T seconds; 0 scans continuously");
+    coexRequest = csiReferenceParseCoex(coex.c_str());
+    scanCycle = csiReferenceParseScanCycle(cycle.c_str());
+    // Echo only what parsed, in canonical form; a rejected request reads "0".
+    std::snprintf(coexText, sizeof(coexText), "0");
+    std::snprintf(scanCycleText, sizeof(scanCycleText), "0");
+    if (coexRequest.valid)
+        std::snprintf(coexText, sizeof(coexText), "%u,%u,%u", unsigned(coexRequest.period),
+                      unsigned(coexRequest.wifi), unsigned(coexRequest.bt));
+    if (scanCycle.valid)
+        std::snprintf(scanCycleText, sizeof(scanCycleText), "%u,%u", unsigned(scanCycle.pauseSeconds),
+                      unsigned(scanCycle.periodSeconds));
     const bool arm = Settings::checkbox("csi_reference_arm", false, "One-shot reference trial arming");
     const auto deadline = Settings::string("csi_reference_until", "0", "Absolute UTC expiry (Unix seconds)");
     expires = static_cast<std::time_t>(std::strtoll(deadline.c_str(), nullptr, 10));
     trialRequested = !updating && arm && mode >= 0 && mode <= 2 && expires > 0
-                     && (mode > 0 || (scanProfile >= 1 && scanProfile <= 2));
+                     && (mode > 0 || (scanProfile >= 1 && scanProfile <= 2)
+                         || coexRequest.valid || scanCycle.valid);
     if (!trialRequested) mode = 0;
 }
 
@@ -153,6 +232,37 @@ void SerialReport() {
 }
 
 namespace {
+// Runs only once the one-shot arm is consumed. With a whole-second plan the
+// SDK first calibrates with scanning paused (bounded); then the requested
+// schedule shares and scan pause cycle take effect until the expiry reboot.
+void serviceRadioPlan(bool sdkRunning) {
+    const int64_t now = esp_timer_get_time();
+    if (!assistDone) {
+        if (sdkRunning && csiReferenceNeedsCalibrationAssist(coexRequest, scanCycle)) {
+            if (!assistStart) assistStart = now;
+            bool finished = false;
+            if (now - assistPoll >= 250000) {
+                assistPoll = now;
+                finished = runtime.snapshot().ready_to_publish;
+            }
+            if (!finished && now - assistStart >= ASSIST_LIMIT_US) finished = assistTimedOut = true;
+            if (!finished) {
+                scanPaused.store(true, std::memory_order_relaxed);
+                return;
+            }
+            assistMs = static_cast<uint32_t>((now - assistStart) / 1000);
+        }
+        assistDone = true;
+    }
+    if (!planApplied) {
+        planApplied = true;
+        planStart = now;
+        csiReferenceApplyCoex(coex_schm_ble_default_bt_idle_wifi_conn, coexRequest);
+    }
+    scanPaused.store(csiReferenceScanPausedAt(static_cast<uint64_t>(now - planStart) / 1000, scanCycle),
+                     std::memory_order_relaxed);
+}
+
 void serviceRuntime() {
     if (expired || (!trialRequested && !trialStarted.load(std::memory_order_acquire))) return;
     if (monotonicExpiry && esp_timer_get_time() >= monotonicExpiry) {
@@ -180,7 +290,10 @@ void serviceRuntime() {
         trialStarted.store(true, std::memory_order_release);
     }
     // Reduced BLE-only baselines share the same persistent/monotonic expiry.
-    if (!mode) return;
+    if (!mode) {
+        serviceRadioPlan(false);
+        return;
+    }
     if (!attempted) {
         attempted = true;
         espectre::RuntimeConfig config;
@@ -204,6 +317,7 @@ void serviceRuntime() {
         listener.fault[0] = 0;
     }
     if (running) runtime.loop();
+    serviceRadioPlan(running);
 }
 
 void referenceWorker(void*) {
@@ -228,6 +342,11 @@ void referenceWorker(void*) {
             pending.scanWindow = Ble::ConfiguredScanWindowUnits();
             pending.requestedWindow = RequestedBleScanWindowUnits();
             pending.trialActive = trialStarted.load(std::memory_order_acquire);
+            readCoexLive(pending.coexLive);
+            pending.planApplied = planApplied;
+            pending.scanPaused = scanPaused.load(std::memory_order_relaxed);
+            pending.assistTimedOut = assistTimedOut;
+            pending.assistMs = assistMs;
             pending.active = active;
             pending.attempted = attempted;
             pending.running = running;
@@ -297,12 +416,19 @@ void Loop() {
     char timestamp[21], utc[21], accepted[21], admitted[21], drops[21];
     char callbacks[21], filtered[21], provenance[21], invalidFirst[21];
     char missing[21], excess[21], stale[21], outOfOrder[21];
-    char scanCondition[192];
+    char scanCondition[448];
     std::snprintf(scanCondition, sizeof(scanCondition),
                   "\"scan_profile\":%ld,\"scan_window_units\":%u,\"scan_interval_units\":%u,"
-                  "\"scan_requested_units\":%u,\"trial_active\":%s",
+                  "\"scan_requested_units\":%u,\"trial_active\":%s,"
+                  "\"coex\":\"%s\",\"scan_cycle\":\"%s\",\"plan_applied\":%s,\"scan_paused\":%s,"
+                  "\"assist_ms\":%lu,\"assist_timed_out\":%s,"
+                  "\"coex_live\":\"%s\",\"coex_phase\":%d,\"coex_own\":%s",
                   scanProfile, report.scanWindow, unsigned(BLE_SCAN_INTERVAL), report.requestedWindow,
-                  report.trialActive ? "true" : "false");
+                  report.trialActive ? "true" : "false",
+                  coexText, scanCycleText, report.planApplied ? "true" : "false",
+                  report.scanPaused ? "true" : "false",
+                  static_cast<unsigned long>(report.assistMs), report.assistTimedOut ? "true" : "false",
+                  report.coexLive.hex, report.coexLive.phase, report.coexLive.own ? "true" : "false");
     if (!report.active) {
         Log.printf("CSIREF {\"t_us\":%s,\"utc\":%s,\"detector\":\"off\",\"ready\":false,"
                    "\"adverts\":%lu,\"heap\":%lu,\"worker_loops\":%lu,\"loop_gap_max_us\":%lu,"

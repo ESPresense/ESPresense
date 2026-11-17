@@ -353,6 +353,115 @@ class BenchValidityTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "No-scan control received BLE callbacks"):
                 bench.measure(ser, 60, 1, ble_scan=False)
 
+    def test_radio_plans_are_complete_ping_runs_without_other_sweeps(self):
+        for name, phases in bench.COEX_PLANS.items():
+            self.assertEqual(bench.coex_plan_phases(name, False, False, False, 0, False, "ping"), phases)
+            self.assertEqual(phases[0], (0, "0", "0"))  # Stock BLE-only baseline first.
+            for mode, coex, cycle in phases:
+                self.assertIn(mode, (0, 1, 2))
+                # Bytes the firmware would run must stay the two-phase library layout.
+                wanted = bench.schedule_hex(coex)
+                self.assertTrue(wanted is None or (wanted[:2] == "02" and len(wanted) == 20))
+        for values in [(True, False, False, 0, False, "ping"), (False, True, False, 0, False, "ping"),
+                       (False, False, True, 0, False, "ping"), (False, False, False, 1, False, "ping"),
+                       (False, False, False, 0, True, "ping"), (False, False, False, 0, False, "external")]:
+            with self.assertRaises(ValueError):
+                bench.coex_plan_phases("share", *values)
+
+    def test_schedule_request_maps_to_the_exact_library_layout(self):
+        self.assertIsNone(bench.schedule_hex("0"))
+        self.assertEqual(bench.schedule_hex("1,50,50"), bench.LIBRARY_SCHEDULE)
+        self.assertEqual(bench.schedule_hex("2,80,20"), "02025003000014000000")
+
+    def test_plan_phase_arms_ble_only_baseline_and_posts_the_plan(self):
+        with patch.object(bench, "post") as post, patch.object(bench, "restart_and_verify"):
+            bench.restart_phase("serial", "192.0.2.1", "expected", 0, 123456, True, coex="1,80,20")
+        values = post.call_args.args[2]
+        self.assertEqual(values["csi_reference_arm"], "1")
+        self.assertEqual(values["csi_reference_coex"], "1,80,20")
+        self.assertEqual(values["csi_reference_scan_cycle"], "0")
+        with patch.object(bench, "post") as post, patch.object(bench, "restart_and_verify"):
+            bench.restart_phase("serial", "192.0.2.1", "expected", 0, 123456, True,
+                                coex="1,90,10", cycle="3,12", arm=False)
+        self.assertEqual(post.call_args.args[2]["csi_reference_arm"], "0")
+
+    def test_requested_plan_cannot_masquerade_as_applied(self):
+        sample = {"coex": "1,80,20", "scan_cycle": "0", "trial_active": True, "plan_applied": False,
+                  "scan_requested_units": 128, "ble_scan": True, "scan_paused": False}
+        with self.assertRaisesRegex(RuntimeError, "radio plan differs"):
+            bench.verify_plan(sample, 1, "1,80,20", "0")
+        sample["plan_applied"] = True
+        bench.verify_plan(sample, 1, "1,80,20", "0")
+        with self.assertRaisesRegex(RuntimeError, "radio plan differs"):
+            bench.verify_plan(sample, 1, "1,90,10", "0")
+        with self.assertRaisesRegex(RuntimeError, "paused without"):
+            bench.verify_plan(dict(sample, scan_paused=True), 1, "1,80,20", "0")
+        # Stock baseline: nothing armed, nothing applied.
+        stock = dict(sample, coex="0", trial_active=False, plan_applied=False)
+        bench.verify_plan(stock, 0, "0", "0")
+        with self.assertRaisesRegex(RuntimeError, "radio plan differs"):
+            bench.verify_plan(dict(stock, plan_applied=True), 0, "0", "0")
+
+    def test_plan_wait_skips_the_scan_paused_calibration(self):
+        assisting = {"detector": "lightweight", "coex": "0", "scan_cycle": "3,12", "trial_active": True,
+                     "plan_applied": False, "scan_requested_units": 128, "ble_scan": True, "scan_paused": True}
+        applied = dict(assisting, plan_applied=True)
+        with patch.object(bench, "next_reference", side_effect=[assisting, assisting, applied]) as read:
+            self.assertEqual(bench.wait_plan("serial", 1, "0", "3,12", None), applied)
+        self.assertEqual(read.call_count, 3)
+
+    def test_plan_statistics_report_the_live_schedule_not_the_request(self):
+        def sample(i, live, own, paused, ready, slots):
+            return {"t_us": 10_000_000 + i * 250_000, "adverts": i * 10, "ready": ready, "slots": slots,
+                    "window_slots": 100, "coex": "1,80,20", "scan_cycle": "0", "trial_active": True,
+                    "plan_applied": True, "scan_requested_units": 128, "ble_scan": True,
+                    "scan_paused": paused, "coex_live": live, "coex_own": own, "calibrating": False,
+                    "motion": False, "accepted": str(i * 25), "admitted": str(i * 20), "excess": str(i * 5),
+                    "missing_slots": str(i * 5), "queue_drops": "0", "assist_ms": 0, "assist_timed_out": False}
+        # The request is 80/20, but the library kept running its own 50/50 table.
+        samples = [sample(i, bench.LIBRARY_SCHEDULE, True, False, False, 42) for i in range(400)]
+        ser = TimedSerial(samples, interval=0.25)
+        with patch.object(bench.time, "monotonic", side_effect=lambda: ser.now), \
+                contextlib.redirect_stdout(io.StringIO()):
+            result = bench.measure(ser, 99, 1, plan=("1,80,20", "0"))
+        self.assertEqual(result["requested_schedule_hex"], "02015003000014000000")
+        self.assertEqual(result["requested_schedule_live_fraction"], 0.0)
+        self.assertEqual(list(result["live_schedule_samples"]), [bench.LIBRARY_SCHEDULE])
+        self.assertFalse(result["valid_input"])
+        self.assertAlmostEqual(result["per_second"]["admitted"], 80.0, places=3)
+        self.assertAlmostEqual(result["coverage_p50"], 0.42)
+
+    def test_unarmed_saved_plan_must_not_change_the_radio(self):
+        args = Mock(expected_version="expected", flood_ready=None)
+        def off(i, **extra):
+            return {"detector": "off", "trial_active": False, "plan_applied": False, "scan_paused": False,
+                    "coex": "1,90,10", "scan_cycle": "3,12", "coex_live": bench.LIBRARY_SCHEDULE,
+                    "adverts": i * 50, "t_us": i * 1_000_000, **extra}
+        clock = iter(range(1000))
+        with patch.object(bench, "restart_phase", return_value="192.0.2.1"), \
+                patch.object(bench.time, "monotonic", side_effect=lambda: next(clock)), \
+                contextlib.redirect_stdout(io.StringIO()):
+            with patch.object(bench, "next_reference", side_effect=[off(i) for i in range(60)]):
+                ip, result = bench.unarmed_plan_probe("serial", "192.0.2.1", args)
+            self.assertTrue(result["passed"])
+            for bad in [{"plan_applied": True}, {"scan_paused": True}, {"trial_active": True},
+                        {"coex_live": "02015a0300000a000000"}]:
+                with patch.object(bench, "next_reference",
+                                  side_effect=[off(0), off(1, **bad)] + [off(i) for i in range(2, 60)]):
+                    with self.assertRaisesRegex(RuntimeError, "Unarmed saved plan"):
+                        bench.unarmed_plan_probe("serial", "192.0.2.1", args)
+
+    def test_cleanup_rejects_a_saved_radio_plan(self):
+        restored = {"csi_reference_mode": "0", "csi_reference_arm": False, "csi_reference_until": "0",
+                    "csi_reference_ble_scan": True, "csi_reference_external_host": False,
+                    "csi_reference_scan_profile": "0", "csi_reference_scan_cycle": "0"}
+        for coex in ("1,90,10", None):
+            with patch.object(bench, "post"), \
+                    patch.object(bench, "restart_and_verify", return_value="192.0.2.1"), \
+                    patch.object(bench, "hardware", return_value=dict(restored, csi_reference_coex=coex)):
+                with self.assertRaisesRegex(RuntimeError, "cleanup settings were not restored"):
+                    bench.cleanup("serial", "192.0.2.1", "expected")
+
 
 if __name__ == "__main__":
     unittest.main()
