@@ -101,14 +101,20 @@ esp_err_t serveTele(httpd_req_t* req) {
 }
 
 // --- board templates (#2529) --------------------------------------------------------------------
-// GET exports this node's board settings as a template; POST imports one (see SettingsTemplate.h)
+// GET exports this node's board settings as a template, or with ?all a backup of every setting
+// (#2493) in the same shape; POST imports either (see SettingsTemplate.h)
 // and restarts if anything changed. POST ?dry validates and returns the changes without saving.
 // A template may set any configuration setting, not just /wifi/hardware (e.g. Ethernet type).
 constexpr const char* TEMPLATE_SECTION = "settings";
-constexpr size_t TEMPLATE_MAX_BODY = 6144;
+constexpr size_t TEMPLATE_DOC_SIZE = 6144;
+// More than the export's document: it holds keys by pointer and the UI pretty-prints the file, so
+// a backup that fits the document must still be accepted when it comes back.
+constexpr size_t TEMPLATE_MAX_BODY = 8192;
 
 esp_err_t serveTemplate(httpd_req_t* req) {
-    DynamicJsonDocument doc(4096);
+    std::string dummy;
+    bool all = queryParam(req, "all", dummy);
+    DynamicJsonDocument doc(all ? TEMPLATE_DOC_SIZE : 4096);
     JsonObject root = doc.to<JsonObject>();
     if (root.isNull()) return sendJsonStr(req, "429 Too Many Requests", "{\"error\":\"low memory\"}");
     if (!board.empty()) root["name"] = board;
@@ -119,7 +125,7 @@ esp_err_t serveTemplate(httpd_req_t* req) {
 #ifdef VERSION
     root["version"] = VERSION;
 #endif
-    Settings::serializeBoard(root.createNestedObject(TEMPLATE_SECTION));
+    Settings::serialize(root.createNestedObject(TEMPLATE_SECTION), all);
     if (doc.overflowed()) return sendJsonStr(req, "500 Internal Server Error", "{\"error\":\"template did not fit\"}");
     return sendJsonDoc(req, doc);
 }
