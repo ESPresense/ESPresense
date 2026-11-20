@@ -577,6 +577,10 @@ bool AdvertiseConnectable() {
     f.num_uuids16 = 1;
     f.uuids16_is_complete = 1;
     f.slave_itvl_range = (uint8_t*)"\x06\x00\x12\x00";
+    // Some phones (Samsung One UI 7+) only list a device in Bluetooth settings when it advertises a
+    // recognised GAP appearance. 0x0341 = Heart Rate Belt, matching the Heart Rate service above.
+    f.appearance = 0x0341;
+    f.appearance_is_present = 1;
     if (ble_gap_adv_set_fields(&f) != 0) return false;
     struct ble_hs_adv_fields rsp = {};
     const char* name = ble_svc_gap_device_name();
